@@ -1,0 +1,85 @@
+// ===== УРОВЕНЬ: «Мшистая Глубь» (оригинальная планировка) =====
+const T = 32;
+const EMPTY = 0, SOLID = 1, PLAT = 2, SPIKE = 3;
+
+function buildLevel() {
+  const W = 240, H = 40;
+  const g = [];
+  for (let y = 0; y < H; y++) { g.push(new Array(W).fill(SOLID)); }
+  const set = (x0, y0, x1, y1, v) => {
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++)
+      if (y >= 0 && y < H && x >= 0 && x < W) g[y][x] = v;
+  };
+  const carve = (x0, y0, x1, y1) => set(x0, y0, x1, y1, EMPTY);
+  const fill = (x0, y0, x1, y1) => set(x0, y0, x1, y1, SOLID);
+  const plat = (x0, x1, y) => set(x0, y, x1, y, PLAT);
+  const spikes = (x0, x1, y) => set(x0, y, x1, y, SPIKE);
+
+  // A. Пещера пробуждения: пол на y=34
+  carve(1, 22, 44, 33);
+  fill(14, 32, 18, 33);          // ступенька — учимся прыгать
+  fill(31, 31, 35, 33);          // уступ повыше
+  carve(36, 26, 44, 33);
+  // яма с колючками — первая опасность
+  carve(22, 34, 25, 35); spikes(22, 25, 35);
+
+  // B. Шахта корней: лазание по стенам
+  carve(45, 6, 52, 33);
+  plat(46, 48, 30); plat(49, 51, 26); plat(46, 48, 22); plat(49, 51, 18); plat(46, 48, 14); plat(49, 51, 10);
+
+  // C. Верхний ход: пол на y=13
+  carve(53, 4, 99, 12);
+  carve(70, 13, 76, 14); spikes(70, 76, 14);    // пропасть — прыжок + рывок
+  fill(84, 10, 86, 12);                          // низкий валун
+  // D. Большой зал: спуск с обрыва, пол y=34
+  carve(96, 8, 150, 33);
+  plat(112, 118, 28); plat(124, 130, 24); plat(136, 142, 28);
+
+  // E. Поле колючек: прыжки и отскок ударом вниз
+  carve(151, 24, 185, 33);
+  carve(160, 34, 170, 34); spikes(160, 163, 34); spikes(167, 170, 34);
+  plat(164, 166, 30);
+
+  // F. Арена Корнематки
+  carve(186, 18, 225, 33);
+  plat(192, 196, 28); plat(215, 219, 28);
+  // G. Выход
+  carve(226, 30, 238, 33);
+
+  const signs = [
+    { x: 6, y: 31, text: 'A / D — идти\nПробел — прыжок (держи — выше)' },
+    { x: 19, y: 31, text: 'Колючки ранят.\nУпал — вернёшься на край' },
+    { x: 27, y: 31, text: 'F — удар иглой\nКаждый удар копит нить' },
+    { x: 40, y: 31, text: 'Q — связать рану\n(полная катушка нити → +3)' },
+    { x: 47, y: 31, text: 'Прыгай от стен,\nчтобы подняться' },
+    { x: 64, y: 10, text: 'G — рывок, даже в воздухе' },
+    { x: 101, y: 31, text: 'Скамья: ↑ — отдохнуть.\nЗдесь ты очнёшься' },
+    { x: 155, y: 31, text: 'В прыжке S + F — удар вниз:\nотскок от колючек и врагов' },
+  ];
+  const benches = [{ x: 104, y: 33 }];
+  const enemies = [
+    { type: 'crawler', x: 29, y: 33 },
+    { type: 'crawler', x: 41, y: 33 },
+    { type: 'gnat', x: 62, y: 8 },
+    { type: 'gnat', x: 90, y: 7 },
+    { type: 'crawler', x: 80, y: 12 },
+    { type: 'crawler', x: 120, y: 33 },
+    { type: 'beetle', x: 128, y: 33 },
+    { type: 'crawler', x: 140, y: 33 },
+    { type: 'gnat', x: 127, y: 18 },
+    { type: 'gnat', x: 146, y: 14 },
+    { type: 'gnat', x: 176, y: 28 },
+  ];
+  return {
+    W, H, grid: g, spawn: { x: 4, y: 33 }, signs, benches, enemies,
+    boss: { x: 214, y: 33, arenaX0: 187, arenaX1: 225, trigger: 190 },
+    gateIn: { x: 186, y0: 24, y1: 33 }, gateOut: { x: 226, y0: 30, y1: 33 },
+    exit: { x: 235, y: 33 },
+    areas: [
+      { x: 0, name: 'Пещера пробуждения' }, { x: 45, name: 'Шахта корней' },
+      { x: 53, name: 'Верхний ход' }, { x: 96, name: 'Зал светляков' },
+      { x: 151, name: 'Поле колючек' }, { x: 186, name: 'Логово Корнематки' },
+    ],
+  };
+}
+if (typeof module !== 'undefined') module.exports = { buildLevel, T, EMPTY, SOLID, PLAT, SPIKE };

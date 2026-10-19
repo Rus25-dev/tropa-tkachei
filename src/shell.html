@@ -1,0 +1,83 @@
+<title>Тропа Ткачей</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+SC:wght@600;700&family=Fira+Sans:wght@400;600&display=swap">
+<style>
+  /* Один осознанно тёмный мир: пещера, мох, биолюминесценция */
+  :root {
+    --void: #070d0c; --moss: #67ad62; --bone: #e8e2cf; --glow: #9ff0c8; --ember: #ffd47a; --muted: #6f9586;
+    --display: "Cormorant SC", Georgia, serif; --body: "Fira Sans", system-ui, sans-serif;
+    color-scheme: dark;
+  }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--void); color: var(--bone); font-family: var(--body); overflow: hidden; }
+  #game { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
+  #game canvas { outline: none; }
+  #boot { position: fixed; inset: 0; display: grid; place-items: center; text-align: center; gap: 8px; }
+  #boot h1 { font-family: var(--display); font-weight: 700; font-size: 44px; margin: 0; letter-spacing: 0.04em; color: var(--bone); }
+  #boot p { margin: 0; color: var(--muted); font-size: 14px; }
+  #boot .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--glow); margin: 14px auto 0; box-shadow: 0 0 16px var(--glow); animation: pulse 1.2s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: 0.25; } }
+  @media (prefers-reduced-motion: reduce) { #boot .dot { animation: none; } }
+  #lobby { position: fixed; inset: 0; z-index: 5; display: grid; place-items: center; overflow-y: auto; background: rgba(3, 8, 7, 0.82);
+    padding-block: 16px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  #lobby .card { width: min(460px, 100%); background: #0c1815; border: 1px solid #24433a; border-radius: 10px; padding: 22px 24px 18px; display: grid; gap: 13px; margin-block: auto; box-shadow: 0 0 60px rgba(159, 240, 200, 0.08); }
+  #lobby h2 { font-family: var(--display); font-weight: 700; font-size: 34px; margin: 0; color: var(--bone); text-wrap: balance; }
+  #lobby .lead { margin: -8px 0 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+  #lobby .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  #lobby button { font: 600 15px var(--body); border-radius: 7px; padding: 10px 16px; cursor: pointer; border: 1px solid #3a6b5a; background: #143029; color: var(--bone); }
+  #lobby button:hover { background: #1b3f35; }
+  #lobby button:focus-visible, #lobby input:focus-visible { outline: 2px solid var(--glow); outline-offset: 2px; }
+  #lobby button.primary { background: var(--moss); border-color: var(--moss); color: #08130f; }
+  #lobby button.primary:hover { background: #7bc276; }
+  #lobby button.ghost { background: transparent; border-color: transparent; color: var(--muted); padding-inline: 4px; }
+  #lobby input { font: 600 20px var(--body); letter-spacing: 0.25em; text-transform: uppercase; width: 9.5em; min-width: 0; flex: 1;
+    background: #07110f; color: var(--bone); border: 1px solid #2c5246; border-radius: 7px; padding: 8px 12px; }
+  #lobby .label { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  #lobby .divider { height: 1px; background: #1d3630; }
+  #lb-hostbox { display: grid; gap: 8px; background: #091310; border: 1px dashed #2c5246; border-radius: 8px; padding: 14px; }
+  #lb-roomcode { font: 700 40px var(--display); letter-spacing: 0.18em; color: var(--ember); line-height: 1; }
+  #lb-link { font-size: 13px; color: #b9d4c8; word-break: break-all; user-select: all; }
+  #lb-status { min-height: 1.4em; font-size: 14px; color: var(--muted); line-height: 1.45; }
+  #lb-status[data-kind="ok"] { color: var(--glow); }
+  #lb-status[data-kind="err"] { color: #ff9a7a; }
+  #lb-status[data-kind="wait"] { color: var(--ember); }
+</style>
+<div id="game"></div>
+<div id="lobby" hidden>
+  <div class="card" role="dialog" aria-labelledby="lb-title">
+    <h2 id="lb-title">Вдвоём по сети</h2>
+    <p class="lead">Один создаёт комнату, второй входит по коду или ссылке. Соединение идёт напрямую между браузерами, а если сеть не пускает — через ретранслятор. Порты и белый IP не нужны.</p>
+    <div class="row"><button id="lb-host" class="primary" type="button">Создать комнату</button></div>
+    <div id="lb-hostbox" hidden>
+      <span class="label">Код комнаты</span>
+      <span id="lb-roomcode">·····</span>
+      <span id="lb-link"></span>
+      <div class="row"><button id="lb-copy" type="button">Копировать ссылку</button></div>
+    </div>
+    <div class="divider"></div>
+    <span class="label">Есть код от друга</span>
+    <div class="row"><input id="lb-code" maxlength="6" autocomplete="off" spellcheck="false" placeholder="ABCDE" aria-label="Код комнаты"><button id="lb-join" type="button">Войти</button></div>
+    <div id="lb-status" role="status"></div>
+    <div class="row"><button id="lb-back" class="ghost" type="button">← Назад в меню</button></div>
+  </div>
+</div>
+<div id="boot"><div><h1>Тропа Ткачей</h1><p>Плетём пещеру…</p><div class="dot"></div></div></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.90.0/phaser.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+/*__CODE__*/
+(function () {
+  const timeout = new Promise((r) => setTimeout(r, 2500));
+  const fonts = document.fonts ? Promise.all([
+    document.fonts.load('700 40px "Cormorant SC"', 'Тропа'),
+    document.fonts.load('600 32px "Cormorant SC"', 'Тропа'),
+    document.fonts.load('400 16px "Fira Sans"', 'Тропа'),
+  ]) : Promise.resolve();
+  Promise.race([fonts, timeout]).catch(() => {}).then(() => {
+    if (typeof Phaser === 'undefined') { document.querySelector('#boot p').textContent = 'Не удалось загрузить движок. Проверьте соединение и обновите страницу.'; return; }
+    Lobby.init();
+    startGame();
+  });
+})();
+</script>
