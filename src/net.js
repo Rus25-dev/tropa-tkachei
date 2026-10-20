@@ -88,7 +88,8 @@ const Lobby = {
       } else if (ev === 'connected') {
         this.status('Напарник подключился!', 'ok');
         const mode = this.mode || 'story', boss = this.boss || 'misha';
-        setTimeout(() => { Net.send({ t: 'start', mode, boss }); this.start('host', mode, boss); }, 400);
+        const camp = mode === 'story' ? Campaign.resume() : null;
+        setTimeout(() => { Net.send({ t: 'start', mode, boss, camp }); this.start('host', mode, boss, camp); }, 400);
       } else if (ev === 'error') this.status(Net.errText(d), 'err');
     });
   },
@@ -101,13 +102,13 @@ const Lobby = {
     });
   },
   route(m) {
-    if (m && m.t === 'start' && Net.role === 'guest') { this.start('guest', m.mode, m.boss); return; }
+    if (m && m.t === 'start' && Net.role === 'guest') { this.start('guest', m.mode, m.boss, m.camp); return; }
     const gs = window.__game && window.__game.scene.getScene('game');
     if (gs && gs.sys.isActive() && gs.onNet) gs.onNet(m);
   },
-  start(role, mode, boss) {
+  start(role, mode, boss, camp) {
     this.hide(false);
     const menu = window.__game.scene.getScene('menu');
-    if (menu && menu.sys.isActive()) menu.goOnline(role, mode, boss);
+    if (menu && menu.sys.isActive()) menu.goOnline(role, mode, boss, camp);
   },
 };

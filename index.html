@@ -244,7 +244,7 @@ function buildLevel() {
     { x: 40, y: 31, text: 'Q — связать рану\n(полная катушка нити → +3)', touch: '«Лечить» — связать рану\n(полная катушка нити → +3)' },
     { x: 47, y: 31, text: 'Прыгай от стен,\nчтобы подняться' },
     { x: 64, y: 10, text: 'G — рывок, даже в воздухе', touch: '«Рывок» — даже в воздухе' },
-    { x: 101, y: 31, text: 'Скамья: ↑ — отдохнуть.\nЗдесь ты очнёшься', touch: 'Скамья: стик вверх — отдохнуть.\nЗдесь ты очнёшься' },
+    { x: 101, y: 31, text: 'Скамья: ↑ — отдохнуть, здесь ты очнёшься.\nНа скамье ↓ — лавка (бусины → улучшения)', touch: 'Скамья: стик вверх — отдохнуть.\nНа скамье стик вниз — лавка улучшений' },
     { x: 155, y: 31, text: 'В прыжке S + F — удар вниз:\nотскок от колючек и врагов', touch: 'В прыжке стик вниз + удар:\nотскок от колючек и врагов' },
   ];
   const benches = [{ x: 104, y: 33 }];
@@ -260,6 +260,18 @@ function buildLevel() {
     { type: 'gnat', x: 127, y: 18 },
     { type: 'gnat', x: 146, y: 14 },
     { type: 'gnat', x: 176, y: 28 },
+    // враги 2 (enemies2.js): растут по сложности к Корнематке
+    { type: 'lurker', x: 57, y: 12 },    // верхний ход: засадник у выхода из шахты
+    { type: 'bats', x: 67, y: 4 },       // верхний ход: стая под потолком перед пропастью
+    { type: 'spitter', x: 92, y: 12 },   // верхний ход: плевальщик за валуном
+    { type: 'spitter', x: 115, y: 27 },  // зал: плевальщик на платформе
+    { type: 'shell', x: 134, y: 33 },    // зал: первый панцирь (учим тяжёлый удар)
+    { type: 'bats', x: 125, y: 8 },      // зал: стая под потолком
+    { type: 'lurker', x: 146, y: 33 },   // зал: засадник у выхода
+    { type: 'lurker', x: 153, y: 33 },
+    { type: 'bats', x: 158, y: 24 },     // поле колючек: стая под потолком
+    { type: 'shell', x: 175, y: 33 },    // поле колючек: панцирь перед ареной
+    { type: 'spitter', x: 183, y: 33 },
   ];
   return {
     items: [{ ability: 'double', x: 60, y: 12, text: 'Плащ-парус: прыжок в воздухе — ещё один прыжок' }],
@@ -989,7 +1001,8 @@ const Lobby = {
       } else if (ev === 'connected') {
         this.status('Напарник подключился!', 'ok');
         const mode = this.mode || 'story', boss = this.boss || 'misha';
-        setTimeout(() => { Net.send({ t: 'start', mode, boss }); this.start('host', mode, boss); }, 400);
+        const camp = mode === 'story' ? Campaign.resume() : null;
+        setTimeout(() => { Net.send({ t: 'start', mode, boss, camp }); this.start('host', mode, boss, camp); }, 400);
       } else if (ev === 'error') this.status(Net.errText(d), 'err');
     });
   },
@@ -1002,35 +1015,35 @@ const Lobby = {
     });
   },
   route(m) {
-    if (m && m.t === 'start' && Net.role === 'guest') { this.start('guest', m.mode, m.boss); return; }
+    if (m && m.t === 'start' && Net.role === 'guest') { this.start('guest', m.mode, m.boss, m.camp); return; }
     const gs = window.__game && window.__game.scene.getScene('game');
     if (gs && gs.sys.isActive() && gs.onNet) gs.onNet(m);
   },
-  start(role, mode, boss) {
+  start(role, mode, boss, camp) {
     this.hide(false);
     const menu = window.__game.scene.getScene('menu');
-    if (menu && menu.sys.isActive()) menu.goOnline(role, mode, boss);
+    if (menu && menu.sys.isActive()) menu.goOnline(role, mode, boss, camp);
   },
 };
 
 // ===== ИГРА: «Тропа Ткачей» — кооперативная метроидвания =====
 let VW = 960; const VH = 540;
 // версия игры; номер сборки подставляет build.py
-const GAME_VERSION = '1.1';
-const GAME_BUILD = '261020.1050';
+const GAME_VERSION = '1.2';
+const GAME_BUILD = '261020.1115';
 const CHANGELOG = [
+  'Кампания: после Корнематки — Глава II (Миша), III (Владик), IV (Тима) с коридорами перед аренами',
+  'Прогресс по главам сохраняется на скамьях; «Продолжить» возвращает в нужную главу',
+  'Лавка у скамьи (↓ на скамье): маски здоровья, острая игла, лёгкая катушка за бусины',
   'Бой: третий удар подряд — тяжёлый финишер (шире, бьёт дважды)',
   'Рывок сквозь атаку — идеальный уворот: без урона, +2 нити',
   'Босса можно оглушить серией ударов: замирает и получает двойной урон',
-  'Боссы стали жирнее: бой длиннее',
   'Отзывчивее управление: буфер удара и рывка, зависание в верхней точке прыжка, скольжение мимо углов потолка',
-  'Удар быстрее (0.26 с)',
   'Боссы 2.0: у каждого 3 фазы, ярость и новые атаки',
   'Корнематка: корни из-под земли, двойные прыжки',
   'Миша: «Диктант!» и застёгнутый рюкзак',
   'Владик: нотный стан и выпад смычком',
   'Тима: коллекторы и падающие ачивки',
-  'Фразы и подсказки висят дольше и не перебивают друг друга',
 ];
 // ширина поля подстраивается под пропорции экрана: на вытянутых телефонах без чёрных полос
 function computeVW() {
@@ -1090,7 +1103,7 @@ class MenuScene extends Phaser.Scene {
     this.heroTags = PAL.map((pal) => makeTag(this, pal, 1).setScale(1.6));
 
     this.add.text(VW / 2, 92, 'ТРОПА ТКАЧЕЙ', { fontFamily: '"Cormorant SC", Georgia, serif', fontSize: '64px', color: '#e8e2cf', fontStyle: '700' }).setOrigin(0.5).setShadow(0, 0, '#9ff0c8', 18, false, true);
-    this.add.text(VW / 2, 136, 'Глава I · Мшистая Глубь', { fontFamily: '"Fira Sans", sans-serif', fontSize: '17px', color: '#8fb8a8' }).setOrigin(0.5);
+    this.add.text(VW / 2, 136, Campaign.subtitle(), { fontFamily: '"Fira Sans", sans-serif', fontSize: '17px', color: '#8fb8a8' }).setOrigin(0.5);
 
     const mkBtn = (y, label, sub, n) => {
       const t = this.add.text(VW / 2, y, label, { fontFamily: '"Cormorant SC", Georgia, serif', fontSize: '29px', color: '#cfe8dc', fontStyle: '600' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
@@ -1180,14 +1193,14 @@ class MenuScene extends Phaser.Scene {
     if (this.leaving) return; this.leaving = true; Snd.init();
     Lobby.mode = mode || 'story'; Lobby.boss = BOSSES[this.pickIdx].id; Lobby.bossName = BOSSES[this.pickIdx].name; Lobby.show();
   }
-  goOnline(role, mode, boss) {
+  goOnline(role, mode, boss, camp) {
     Snd.play('bench'); this.cameras.main.fadeOut(450, 3, 8, 7);
-    this.time.delayedCall(460, () => this.scene.start('game', { players: 2, online: role, mode: mode || 'story', boss: boss || 'misha' }));
+    this.time.delayedCall(460, () => this.scene.start('game', { players: 2, online: role, mode: mode || 'story', boss: boss || 'misha', camp: camp || null }));
   }
   go(n, mode) {
     if (this.leaving) return; this.leaving = true; Snd.init(); Snd.play('bench');
     this.cameras.main.fadeOut(450, 3, 8, 7);
-    this.time.delayedCall(460, () => this.scene.start('game', { players: n, mode: mode || 'story', boss: BOSSES[this.pickIdx].id }));
+    this.time.delayedCall(460, () => this.scene.start('game', { players: n, mode: mode || 'story', boss: BOSSES[this.pickIdx].id, camp: mode ? null : Campaign.resume() }));
   }
   update(time, delta) {
     this.t += delta / 1000;
@@ -1276,7 +1289,7 @@ class BGScene extends Phaser.Scene {
 // ---------- ИГРОВАЯ СЦЕНА ----------
 class GameScene extends Phaser.Scene {
   constructor() { super('game'); }
-  init(data) { this.startData = data; this.mode = data.mode || 'story'; this.bossKind = data.boss || 'misha'; this.nPlayers = data.players || 1; this.online = data.online || null; this.localIdx = data.online === 'guest' ? 1 : 0; }
+  init(data) { this.startData = data; this.mode = data.mode || 'story'; this.bossKind = data.boss || 'misha'; this.nPlayers = data.players || 1; this.online = data.online || null; this.localIdx = data.online === 'guest' ? 1 : 0; Campaign.init(this, data); }
   auth() { return this.online !== 'guest'; }
   sendEv(o) { if (this.online) Net.send({ t: 'ev', ...o }); }
   sfx(n) { Snd.play(n); if (this.online === 'host') this.sendEv({ k: 'snd', n }); }
@@ -1290,7 +1303,7 @@ class GameScene extends Phaser.Scene {
     this.scene.launch('bg'); this.scene.launch('ui');
     this.enemies = []; this.boss = null;
     const arenas = { misha: buildMishaArena, vladik: buildVladikArena, tima: buildTimaArena };
-    this.L = this.mode === 'bosstest' ? (arenas[this.bossKind] || buildMishaArena)() : buildLevel();
+    this.L = Campaign.level(this) || (this.mode === 'bosstest' ? (arenas[this.bossKind] || buildMishaArena)() : buildLevel());
     this.misha = null; this.crates = null; this.vladik = null; this.tima = null; this.curtains = null; this.puddles = null; this.repoT = 0;
     const L = this.L;
     this.grid = L.grid;
@@ -1362,6 +1375,7 @@ class GameScene extends Phaser.Scene {
     this.abil = this.mode === 'bosstest' ? { double: true } : { ...(prog && prog.abil || {}) };
     this.initItems();
     this.beads = prog ? prog.beads || 0 : 0; this.deaths = 0; this.timeSec = 0;
+    Campaign.setup(this);
 
     // ввод
     this.setupInput();
@@ -1396,7 +1410,7 @@ class GameScene extends Phaser.Scene {
   }
   speedMul() { return 1; }
   togglePause() {
-    if (this.won || Settings.open) return;
+    if (this.won || Settings.open || this.shopOpen) return;
     const u = this.ui();
     if (this.online) u.showPause(!u.pause.visible); // по сети мир не останавливаем
     else { this.paused = !this.paused; u.showPause(this.paused); }
@@ -1536,9 +1550,10 @@ class GameScene extends Phaser.Scene {
   }
   spawnEnemies() {
     for (const e of this.enemies) e.g.destroy();
-    this.enemies = this.L.enemies.map((d) => {
+    this.enemies = this.L.enemies.flatMap((d) => {
       const base = { type: d.type, vx: 0, vy: 0, face: -1, flash: 0, kbT: 0, kbx: 0, kby: 0, dead: false, t: Math.random() * 6, g: this.add.graphics().setDepth(4) };
       const fx = d.x * T + 16, fy = (d.y + 1) * T;
+      const n2 = this.spawnEnemy2(d, base); if (n2) return n2; // новые враги (enemies2.js)
       if (d.type === 'crawler') return { ...base, w: 26, h: 16, x: fx - 13, y: fy - 16, hp: 3, vx: -45, beads: 3 };
       if (d.type === 'gnat') return { ...base, w: 20, h: 18, x: fx - 10, y: d.y * T, hx: fx, hy: d.y * T, hp: 2, beads: 2 };
       return { ...base, w: 36, h: 22, x: fx - 18, y: fy - 22, hp: 6, vx: -40, state: 'walk', st: 0, beads: 6 };
@@ -1637,8 +1652,10 @@ class GameScene extends Phaser.Scene {
     if (inp.dashP) p.dashBuf = P.DASHBUF;
     const dir = (inp.right ? 1 : 0) - (inp.left ? 1 : 0);
     if (p.sit) {
-      if (dir || inp.jumpP || inp.down || inp.atkP || inp.dashP) p.sit = false;
-      else { p.vx = 0; p.vy = Math.min(p.vy + P.G * dt, P.MAXFALL); this.moveBody(p, dt); return; }
+      const dn = !!inp.down, dnP = dn && !p.dnPrev; p.dnPrev = dn;
+      if (dir || inp.jumpP || inp.atkP || inp.dashP) p.sit = false;
+      else {
+        if (dnP) Campaign.openShop(this, p); p.vx = 0; p.vy = Math.min(p.vy + P.G * dt, P.MAXFALL); this.moveBody(p, dt); return; }
     }
     const wasGround = p.onGround;
     if (p.hurtT > 0) {
@@ -1735,7 +1752,7 @@ class GameScene extends Phaser.Scene {
     for (const e of this.enemies) {
       if (e.dead || p.atkHits.has(e) || !overlap(box, e)) continue;
       p.atkHits.add(e);
-      if (auth) { this.damageEnemy(e, p); if (p.heavy && !e.dead) this.damageEnemy(e, p); } else { e.flash = 0.1; this.hitstop = 0.045; Snd.play('hit'); }
+      if (auth) { this.damageEnemy(e, p); if (p.heavy && !e.dead) this.damageEnemy(e, p); } else if (!this.e2Blocked(e, p, true)) { e.flash = 0.1; this.hitstop = 0.045; Snd.play('hit'); }
       if (local) { if (p.atkDir === 'd') pogo(); else if (p.atkDir === 'f') p.kbx = -p.face * 150; }
     }
     const b = this.boss;
@@ -1765,7 +1782,8 @@ class GameScene extends Phaser.Scene {
   }
   gainSilk(p) { if (p.remote) this.sendEv({ k: 'silk', i: p.i }); else p.silk = Math.min(P.SILK, p.silk + 1); }
   damageEnemy(e, p) {
-    e.hp -= 1; e.flash = 0.1; this.gainSilk(p); if (!p.remote) this.hitstop = 0.045; this.sfx('hit');
+    if (e.e2 && this.e2Blocked(e, p)) return; // броня панциря, засадник под землёй
+    e.hp -= 1 + Campaign.needleBonus(this); e.flash = 0.1; this.gainSilk(p); if (!p.remote) this.hitstop = 0.045; this.sfx('hit');
     this.burst(8, e.x + e.w / 2, e.y + e.h / 2, 0xf4f1e6);
     const dx = p.atkDir === 'f' ? p.face : Math.sign(e.x + e.w / 2 - (p.x + 7)) || 1;
     e.kbT = 0.14; e.kbx = dx * (e.type === 'beetle' ? 120 : 220); e.kby = p.atkDir === 'u' ? -220 : p.atkDir === 'd' ? 160 : -60;
@@ -1842,10 +1860,10 @@ class GameScene extends Phaser.Scene {
             p.sit = true; p.x = b.x - 7; p.hp = p.maxHp; this.respawn = { x: b.x, y: b.y }; Snd.play('bench');
             for (const q of this.players) if (q.downed && !q.remote) { q.downed = false; q.hp = 2; q.inv = 1.5; q.x = b.x - 7 + 22; q.y = b.y - 26; }
             this.sendEv({ k: 'bench', x: b.x, y: b.y });
-            this.ui().toast('Скамья: здесь вы очнётесь. Прогресс сохранён');
+            this.ui().toast(this.camp ? (Touch.enabled ? 'Скамья: здесь вы очнётесь. Прогресс сохранён. Стик вниз — лавка' : 'Скамья: здесь вы очнётесь. Прогресс сохранён. ↓ — лавка') : 'Скамья: здесь вы очнётесь. Прогресс сохранён');
             if (this.mode === 'story' && this.online !== 'guest') {
               const bi = this.benches.indexOf(b), area = this.L.areas.reduce((a, ar) => (b.x / T >= ar.x ? ar : a), this.L.areas[0]);
-              Settings.saveProgress({ bench: bi, beads: this.beads, name: area.name, abil: this.abil });
+              Campaign.save(this, { bench: bi, name: Campaign.saveName(this, area.name) });
             }
           }
         }
@@ -1884,6 +1902,7 @@ class GameScene extends Phaser.Scene {
 
   stepEnemy(e, dt) {
     e.flash -= dt; e.t += dt;
+    if (e.e2) { this.stepEnemy2(e, dt); return; }
     if (e.kbT > 0) {
       e.kbT -= dt; e.vx = e.kbx;
       if (e.type === 'gnat') e.vy = e.kby;
@@ -2099,6 +2118,7 @@ class GameScene extends Phaser.Scene {
     this.beadsArr = this.beadsArr.filter((b) => !b.dead);
   }
   win() {
+    if (Campaign.preWin(this)) return;
     this.won = true; Snd.play('win');
     const s = { time: this.timeSec, beads: this.beads, deaths: this.deaths, players: this.nPlayers };
     if (this.mode === 'bosstest') {
@@ -2106,6 +2126,7 @@ class GameScene extends Phaser.Scene {
       else if (this.tima) { s.title = 'Тима Пиво повержен'; s.hits = this.timaHits; }
       else { s.title = 'Миша Додик повержен'; s.bag = this.bagHits; }
     }
+    Campaign.decorate(this, s);
     this.sendEv({ k: 'win', s });
     this.ui().victory(s);
   }
@@ -2115,14 +2136,14 @@ class GameScene extends Phaser.Scene {
     const r = (v) => Math.round(v * 10) / 10, f2 = (v) => Math.round(Math.max(0, v) * 100) / 100;
     return { t: 'p', i: p.i, x: r(p.x), y: r(p.y), vx: Math.round(p.vx), vy: Math.round(p.vy), f: p.face, g: p.onGround ? 1 : 0,
       d: f2(p.dashT), s: p.sit ? 1 : 0, h: f2(p.healT), l: f2(p.landT), hp: p.hp, mh: p.maxHp, sk: p.silk, dn: p.downed ? 1 : 0,
-      iv: f2(p.inv), u: p.raw && p.raw.up ? 1 : 0, rv: f2(p.reviveT), sq: p.seq || 0, ad: p.atkDir, bm: p.bombs, tp: this.td ? [Math.round(p.tdx), Math.round(p.tdy)] : null };
+      iv: f2(p.inv), u: p.raw && p.raw.up ? 1 : 0, rv: f2(p.reviveT), sq: p.seq || 0, ad: p.atkDir, bm: p.bombs, hv: p.heavy ? 1 : 0, tp: this.td ? [Math.round(p.tdx), Math.round(p.tdy)] : null };
   }
   packSnap() {
     const r = Math.round, b = this.boss;
     const st = (e) => (e.state === 'wind' || e.state === 'charge') ? 1 : e.state === 'stun' ? 2 : 0;
     const mi = this.misha, vl = this.vladik, tm = this.tima, r10 = (x) => Math.round(x * 10) / 10;
     return { t: 's',
-      e: this.enemies.map((e) => [r(e.x), r(e.y), e.face, e.dead ? 1 : 0, e.flash > 0 ? 1 : 0, st(e)]),
+      e: this.enemies.map((e) => [r(e.x), r(e.y), e.face, e.dead ? 1 : 0, e.flash > 0 ? 1 : 0, st(e), this.packEnemy2(e)]),
       b: [r(b.x), r(b.y), b.face, b.hp, b.maxHp, b.state, b.flash > 0 ? 1 : 0, Math.round(b.t * 100) / 100],
       pr: this.projs.map((q) => [NET_KINDS.indexOf(q.kind), r(q.x), r(q.y), r(q.vx), r(q.vy), q.delay > 0 ? 1 : 0, q.ch || (q.kind === 'ringfx' ? r(q.r) : '')]),
       vl: vl ? [r(vl.x), r(vl.y), vl.face, vl.hp, vl.maxHp, vl.state, vl.flash > 0 ? 1 : 0, r10(vl.t), vl.sayT > 0 ? vl.say : '', this.curtains.map((c) => [r10(c.slime), Math.round(c.wet * 100) / 100])] : null,
@@ -2137,7 +2158,7 @@ class GameScene extends Phaser.Scene {
     if (m.t === 'p') {
       const p = this.players[m.i]; if (!p || !p.remote) return;
       Object.assign(p, { tx: m.x, ty: m.y, vx: m.vx, vy: m.vy, face: m.f, onGround: !!m.g, dashT: m.d, sit: !!m.s, healT: m.h, landT: m.l,
-        hp: m.hp, maxHp: m.mh, silk: m.sk, downed: !!m.dn, inv: m.iv, netUp: !!m.u, reviveT: m.rv, netT: 0, bombs: m.bm || 0 });
+        hp: m.hp, maxHp: m.mh, silk: m.sk, downed: !!m.dn, inv: m.iv, netUp: !!m.u, reviveT: m.rv, netT: 0, bombs: m.bm || 0, heavy: !!m.hv });
       if (m.tp) { p.tdx = m.tp[0]; p.tdy = m.tp[1]; }
       p.inp = { up: p.netUp };
       if (m.sq !== p.lastSeq) { p.lastSeq = m.sq; p.atkT = P.ATK_T; p.atkHits = new Set(); p.atkDir = m.ad; p.pogoed = true; }
@@ -2155,6 +2176,7 @@ class GameScene extends Phaser.Scene {
       if (dead && !e.dead) e.g.clear();
       e.dead = dead; if (a[4]) e.flash = 0.1;
       e.state = a[5] === 1 ? 'charge' : a[5] === 2 ? 'stun' : 'walk';
+      if (a[6]) this.applyEnemy2(e, a[6]);
     });
     const b = this.boss, B = m.b;
     if (b.tx == null || Math.abs(b.x - B[0]) > 140) { b.x = B[0]; b.y = B[1]; }
@@ -2236,6 +2258,7 @@ class GameScene extends Phaser.Scene {
         break;
       case 'respawn': this.respawn = { x: m.x, y: m.y }; this.respawnLocal(); break;
       case 'win': if (!this.won) { this.won = true; Snd.play('win'); this.ui().victory(m.s); } break;
+      default: Campaign.onEv(this, m);
     }
   }
   netSmooth(dt) {
@@ -2442,6 +2465,7 @@ class GameScene extends Phaser.Scene {
 
   drawEnemy(e, now) {
     const g = e.g; g.clear();
+    if (e.e2) { this.drawEnemy2(e, now); return; }
     const fl = e.flash > 0;
     const cx = e.x + e.w / 2, fy = e.y + e.h, f = e.face || 1;
     if (e.type === 'crawler') {
@@ -2571,11 +2595,12 @@ class UIScene extends Phaser.Scene {
     this.tdLayer = this.add.container(0, 0, [this.tdG, ...this.tdTags, this.tdSay, this.tdInfo, this.tdTitle]).setVisible(false);
     this.children.sendToBack(this.tdLayer); // под всем интерфейсом: здоровье, подсказки, пауза видны поверх
     this.t = 0;
-    this.input.keyboard.on('keydown-ENTER', () => { if (this.gs.won) this.restart(); });
-    this.input.keyboard.on('keydown-SPACE', () => { if (this.gs.won) this.restart(); });
+    this.input.keyboard.on('keydown-ENTER', () => { if (this.gs.won) this.winEnter(); });
+    this.input.keyboard.on('keydown-SPACE', () => { if (this.gs.won) this.winEnter(); });
     this.input.keyboard.on('keydown-R', () => { if (this.gs.won && !this.gs.online) this.retry(); });
     this.ready = true;
   }
+  winEnter() { this.restart(); }
   restart() { this.ready = false; Net.onClose = null; Net.close(); this.scene.stop('bg'); this.scene.stop('game'); this.scene.start('menu'); }
   openSettings() { this.pause.setVisible(false); Settings.show(() => { if (this.ready) this.pause.setVisible(true); }); }
   tdShow(on) {
@@ -4278,6 +4303,745 @@ Object.assign(GameScene.prototype, {
   drawPlayerFx(p, g) {
     if (p.parryT > 0) { g.lineStyle(2.5, 0xffffff, 0.9); g.strokeCircle(0, -14, 20 + (P.PARRY_T - p.parryT) * 50); }
     if (p.burstFx > 0) { const r = 120 * (1 - p.burstFx / 0.35); g.lineStyle(3, p.pal.accent, p.burstFx / 0.35); g.strokeCircle(0, -14, r); p.burstFx -= 0.016; }
+  },
+});
+
+// ===== ВРАГИ 2: плевальщик, жук-панцирь, стая мышей, засадник =====
+// У каждого — телеграф и своё правило. Считает только хост (stepEnemy2), гость получает состояние в снимке
+// (packEnemy2 / applyEnemy2) и рисует по e.state / e.st. Хуки в game.js: spawnEnemy2, stepEnemy2, drawEnemy2, e2Blocked.
+const E2_STATES = {
+  spitter: ['idle', 'flee', 'hop', 'wind', 'recover'],
+  shell: ['walk', 'wind', 'rush', 'spin', 'tire', 'stun'],
+  bat: ['roost', 'hover', 'wind', 'dive', 'rise'],
+  lurker: ['hidden', 'track', 'warn', 'erupt', 'tell', 'pounce', 'tired', 'dig'],
+};
+const E2_VULN = ['erupt', 'tell', 'pounce', 'tired']; // засадника можно бить только вне земли
+const E2_UNDER = ['hidden', 'track', 'warn', 'dig']; // в этих состояниях тело спрятано на 50 px под полом
+NET_KINDS.push('glob'); NET_SIZES.push([12, 12]); SLASH_KINDS.add('glob'); // плевок: летит дугой, его можно сбить ударом
+
+Object.assign(GameScene.prototype, {
+  // ----- появление: вызывается из spawnEnemies; вернёт врага, массив врагов или null -----
+  spawnEnemy2(d, base) {
+    const fx = d.x * T + 16, fy = (d.y + 1) * T;
+    const mk = (o) => ({ ...base, e2: true, st: 0, cd: 0.6 + Math.random(), ...o });
+    switch (d.type) {
+      case 'spitter': return mk({ w: 22, h: 20, x: fx - 11, y: fy - 20, hp: 3, beads: 4, state: 'idle', hx: fx, face: -1 });
+      case 'shell': return mk({ w: 44, h: 28, x: fx - 22, y: fy - 28, hp: 8, beads: 10, state: 'walk', armorT: 0, heavyBody: true });
+      case 'lurker': return mk({ w: 28, h: 24, x: fx - 14, y: fy + 50, hp: 3, beads: 5, state: 'hidden', fy, cd: 0.5 });
+      case 'bats': { // три мыши висят под потолком (d.y — первая свободная клетка под ним)
+        const sq = { bats: [], awake: false, t: 1, n: 0 };
+        return [-22, 0, 22].map((ox, k) => {
+          const b = mk({ type: 'bat', w: 20, h: 16, x: fx + ox - 10, y: d.y * T, hx: fx + ox, hy: d.y * T, hp: 2, beads: 2, state: 'roost', k, sq, order: 0, g: k ? this.add.graphics().setDepth(4) : base.g });
+          sq.bats.push(b); return b;
+        });
+      }
+    }
+    return null;
+  },
+
+  // ----- броня и неуязвимость: true — удар не засчитан (guest — вызов на стороне гостя, урона нет, только отклик) -----
+  e2Blocked(e, p, guest) {
+    if (!e.e2) return false;
+    if (e.type === 'lurker') return !E2_VULN.includes(e.state);
+    if (e.type !== 'shell' || e.armorT > 0 || this._e2burst || p.heavy || p.atkDir === 'd') return false;
+    // панцирь: обычный удар отскакивает; пробивает тяжёлый финишер, удар вниз, отбив (броня трескается на 3 с) и всполох нити
+    e.blockT = 0.15;
+    Snd.play('clink');
+    const fx = e.x + e.w / 2 + Math.sign(p.x + 7 - (e.x + e.w / 2)) * e.w * 0.4, fy = e.y + e.h * 0.45;
+    this.parts.setParticleTint(0xffe3a3); this.parts.explode(8, fx, fy);
+    if (!guest && !p.remote) { if (this.online === 'host') { this.sendEv({ k: 'snd', n: 'clink' }); this.sendEv({ k: 'burst', n: 8, x: Math.round(fx), y: Math.round(fy), c: 0xffe3a3 }); } }
+    if (!p.remote) this.hitstop = 0.03;
+    if (!this._shellHint && !p.remote) { this._shellHint = true; this.ui().toast('Панцирь не пробить обычным ударом: нужен тяжёлый (3-й удар), удар вниз или отбив'); }
+    return true;
+  },
+  // отбив ломает броню рядом стоящим панцирям; у гостя отбив считается у него, поэтому сообщаем хосту
+  e2Parry(cx, cy) {
+    for (const e of this.enemies) {
+      if (e.dead || e.type !== 'shell' || Math.hypot(e.x + e.w / 2 - cx, e.y + e.h / 2 - cy) > 110) continue;
+      e.state = 'stun'; e.st = 0.8; e.armorT = 3; e.vx = 0; e.flash = 0.15;
+      this.burst(14, e.x + e.w / 2, e.y + e.h / 2, 0xffa040); this.sfx('slam');
+      if (!this._crackHint) { this._crackHint = true; this.toastAll('Броня треснула — бей!'); }
+    }
+  },
+
+  // ----- снимок -----
+  packEnemy2(e) {
+    if (!e.e2) return 0;
+    return [Math.max(0, E2_STATES[e.type].indexOf(e.state)), Math.round(Math.max(0, e.st) * 100) / 100, e.armorT > 0 ? 1 : 0, e.blockT > 0 ? 1 : 0];
+  },
+  applyEnemy2(e, a) {
+    if (!e.e2 || !a) return;
+    const L = E2_STATES[e.type]; e.state = L[a[0]] || L[0]; e.st = a[1]; e.armorT = a[2] ? 1 : 0; if (a[3]) e.blockT = 0.15;
+  },
+
+  // ----- ИИ -----
+  stepEnemy2(e, dt) {
+    if (e.blockT > 0) e.blockT -= dt;
+    if (e.type === 'spitter') this.stepSpitter(e, dt);
+    else if (e.type === 'shell') this.stepShell(e, dt);
+    else if (e.type === 'bat') this.stepBat(e, dt);
+    else if (e.type === 'lurker') this.stepLurker(e, dt);
+  },
+  // отброс после удара; fly — летающие без гравитации
+  e2Knock(e, dt, fly) {
+    if (e.kbT <= 0) return false;
+    e.kbT -= dt; e.vx = e.kbx * (e.heavyBody ? 0.45 : 1);
+    e.vy = fly ? e.kby : Math.min(e.vy + P.G * dt, P.MAXFALL);
+    this.moveBody(e, dt); return true;
+  },
+  ledgeAhead(e) { const fx = e.face > 0 ? e.x + e.w + 2 : e.x - 2; return e.onGround && !this.groundBelowSolid(fx, e.y + e.h + 4); },
+
+  // (1) Плевальщик: держит дистанцию и плюёт дугой; вблизи убегает, в углу перепрыгивает через игрока
+  stepSpitter(e, dt) {
+    e.vy = Math.min(e.vy + P.G * dt, P.MAXFALL);
+    if (this.e2Knock(e, dt, false)) return;
+    e.st -= dt; e.cd -= dt;
+    const [tp, d] = this.nearestPlayer(e.x + e.w / 2, e.y + e.h / 2);
+    const dx = tp ? tp.x + 7 - (e.x + e.w / 2) : 0, ad = Math.abs(dx), dy = tp ? tp.y + 13 - (e.y + e.h / 2) : 0, away = dx > 0 ? -1 : 1;
+    switch (e.state) {
+      case 'idle':
+        e.vx = 0;
+        if (!tp || d > 480) { // дежурит возле места
+          if (Math.abs(e.x - e.hx) > 50) e.face = e.x < e.hx ? 1 : -1;
+          else if (e.hitL || e.hitR || this.ledgeAhead(e) || Math.random() < dt * 0.3) e.face = -e.face;
+          e.vx = e.face * 28; if (this.ledgeAhead(e)) { e.face = -e.face; e.vx = 0; }
+        } else {
+          e.face = dx > 0 ? 1 : -1;
+          if (ad < 115 && Math.abs(dy) < 90) { e.state = 'flee'; e.st = 0.9; }
+          else if (e.cd <= 0 && ad <= 420 && Math.abs(dy) < 200) { e.state = 'wind'; e.st = 0.65; this.sfx('spit'); }
+        }
+        break;
+      case 'flee':
+        e.face = away; e.vx = away * 150;
+        if (this.ledgeAhead(e) || e.hitL || e.hitR) { // загнали в угол — прыжок через игрока
+          e.state = 'hop'; e.vy = -430; e.vx = -away * 210; e.face = -away; e.st = 0.2;
+        } else if (e.st <= 0 && ad > 170) { e.state = 'idle'; e.cd = Math.min(e.cd, 0.35); }
+        break;
+      case 'hop':
+        if (e.onGround && e.st <= 0) { e.state = 'idle'; e.cd = 0.5; e.vx = 0; }
+        break;
+      case 'wind': // щёки раздуваются: время уйти с линии
+        e.vx = 0; if (tp) e.face = dx > 0 ? 1 : -1;
+        if (e.st <= 0) { if (tp) this.spitAt(e, tp); e.state = 'recover'; e.st = 0.5; e.cd = 2.0; }
+        break;
+      case 'recover': e.vx = 0; if (e.st <= 0) e.state = 'idle'; break;
+    }
+    this.moveBody(e, dt);
+  },
+  spitAt(e, tp) {
+    const ox = e.x + e.w / 2 + e.face * 10, oy = e.y + 6, G = 700;
+    const tx = tp.x + 7 + clamp((tp.vx || 0) * 0.2, -40, 40), ty = tp.y + 13;
+    const tf = clamp(Math.abs(tx - ox) / 260, 0.45, 1.1);
+    this.projs.push({ kind: 'glob', x: ox - 6, y: oy - 6, w: 12, h: 12, vx: clamp((tx - ox) / tf, -420, 420), vy: clamp((ty - oy - 0.5 * G * tf * tf) / tf, -800, 400), life: 3.2 });
+    this.sfx('spit'); this.burst(5, ox, oy, 0xc7f08a);
+  },
+
+  // (2) Жук-панцирь: разбег → вращение; бронирован (см. e2Blocked), врезавшись в стену, оглушает себя и трескает броню
+  stepShell(e, dt) {
+    e.armorT = Math.max(0, (e.armorT || 0) - dt);
+    e.vy = Math.min(e.vy + P.G * dt, P.MAXFALL);
+    if (this.e2Knock(e, dt, false)) return;
+    e.st -= dt;
+    const [tp] = this.nearestPlayer(e.x + e.w / 2, e.y + e.h / 2);
+    const dx = tp ? tp.x + 7 - (e.x + e.w / 2) : 0, dy = tp ? tp.y + 26 - (e.y + e.h) : 0, sees = tp && Math.abs(dx) < 300 && Math.abs(dy) < 60;
+    switch (e.state) {
+      case 'walk':
+        if (this.ledgeAhead(e) || e.hitL || e.hitR) e.face = -e.face;
+        e.vx = e.face * 32;
+        if (sees && Math.sign(dx) === e.face) { e.state = 'wind'; e.st = 0.7; e.vx = 0; this.sfx('roar'); }
+        else if (sees && Math.abs(dx) < 140) e.face = Math.sign(dx) || e.face; // видит за спиной — разворачивается
+        break;
+      case 'wind': // встаёт на дыбы и скребёт землёй
+        e.vx = 0; if (Math.random() < dt * 25) this.dust.explode(1, e.x + e.w / 2 - e.face * 16, e.y + e.h);
+        if (e.st <= 0) { e.state = 'rush'; e.st = 1.0; }
+        break;
+      case 'rush':
+        e.vx = e.face * 320;
+        if (Math.random() < dt * 20) this.dust.explode(1, e.x + e.w / 2 - e.face * 18, e.y + e.h);
+        if (this.ledgeAhead(e) || e.st <= 0) { e.state = 'spin'; e.st = 1.5; e.vx = e.face * 250; this.sfx('slash'); }
+        break;
+      case 'spin': // свернулся в шар и катается, отскакивая от стен и краёв
+        e.vx = e.face * 250;
+        if (this.ledgeAhead(e)) e.face = -e.face;
+        if (Math.random() < dt * 14) { this.parts.setParticleTint(0xffe3a3); this.parts.explode(1, e.x + e.w / 2, e.y + e.h); }
+        if (e.st <= 0) { e.state = 'tire'; e.st = 0.9; e.vx = 0; }
+        break;
+      case 'tire': e.vx = 0; if (e.st <= 0) { e.state = 'walk'; e.face = -e.face; } break; // отдышка: броня всё ещё цела
+      case 'stun': e.vx = 0; if (e.st <= 0) { e.state = 'walk'; e.face = -e.face; } break;
+    }
+    this.moveBody(e, dt);
+    if ((e.hitL || e.hitR) && e.state === 'rush') { // врезался в стену: оглушён, броня треснула
+      e.state = 'stun'; e.st = 1.3; e.armorT = 1.3; e.vx = 0; this.shake(120, 0.006); this.sfx('slam');
+      this.burst(10, e.x + e.w / 2 + e.face * 20, e.y + e.h / 2, 0xffa040);
+    } else if ((e.hitL || e.hitR) && e.state === 'spin') e.face = -e.face;
+  },
+
+  // (3) Стая мышей: висят под потолком; проснувшись, кружат над игроком, а по очереди пикируют
+  stepBat(e, dt) {
+    const sq = e.sq;
+    if (sq.bats.find((b) => !b.dead) === e) this.batSquad(sq, dt);
+    if (e.kbT > 0 && (e.state === 'dive' || e.state === 'wind')) { e.state = 'rise'; e.st = 0.8; }
+    if (this.e2Knock(e, dt, true)) return;
+    e.st -= dt;
+    const [tp] = this.nearestPlayer(e.x + 10, e.y + 8), cx = e.x + 10, cy = e.y + 8;
+    const steer = (tx, ty, spd, k) => {
+      const dx = tx - cx, dy = ty - cy, dl = Math.hypot(dx, dy) || 1;
+      e.vx += ((dx / dl) * spd - e.vx) * Math.min(1, dt * k); e.vy += ((dy / dl) * spd - e.vy) * Math.min(1, dt * k);
+    };
+    const above = () => ({ x: tp ? clamp(tp.x + 7 + (e.k - 1) * 70 + Math.sin(e.t * 1.3 + e.k * 2) * 26, e.hx - 340, e.hx + 340) : e.hx, y: tp ? Math.max(tp.y - 105 + Math.sin(e.t * 2 + e.k) * 14, e.hy + 36) : e.hy + 40 });
+    switch (e.state) {
+      case 'roost': e.vx = e.vy = 0; e.x = e.hx - 10; e.y = e.hy; return;
+      case 'hover': { const a = above(); steer(a.x, a.y, 120, 2.4); e.face = e.vx >= 0 ? 1 : -1; break; }
+      case 'wind': // замирает, багровеют глаза, потом бросок в то место, где был игрок
+        e.vx += (0 - e.vx) * Math.min(1, dt * 8); e.vy += (-25 - e.vy) * Math.min(1, dt * 8);
+        if (tp) e.face = tp.x + 7 > cx ? 1 : -1;
+        if (e.st <= 0 && tp) {
+          const ax = tp.x + 7 + clamp((tp.vx || 0) * 0.12, -30, 30) - cx, ay = tp.y + 16 - cy, dl = Math.hypot(ax, ay) || 1;
+          e.vx = (ax / dl) * 400; e.vy = (ay / dl) * 400; e.state = 'dive'; e.st = 1.0; this.sfx('dash');
+        } else if (e.st <= 0) { e.state = 'rise'; e.st = 0.5; }
+        break;
+      case 'dive': {
+        const rx = tp ? tp.x + 7 - cx : 0, ry = tp ? tp.y + 13 - cy : 0;
+        if (e.st <= 0 || e.onGround || e.hitL || e.hitR || e.hitU || (tp && rx * e.vx + ry * e.vy < 0 && Math.hypot(rx, ry) > 30)) { e.state = 'rise'; e.st = 0.9; }
+        break;
+      }
+      case 'rise': {
+        const home = !sq.awake, a = above();
+        steer(home ? e.hx : a.x, home ? e.hy + 8 : a.y, 150, 3); e.face = e.vx >= 0 ? 1 : -1;
+        if (home && Math.hypot(e.hx - cx, e.hy + 8 - cy) < 10) { e.state = 'roost'; e.vx = e.vy = 0; return; }
+        if (!home && e.st <= 0) e.state = 'hover';
+        break;
+      }
+    }
+    this.moveBody(e, dt);
+  },
+  // дирижёр стаи (его ведёт первая живая мышь): будит, выпускает в пике по одной, усыпляет
+  batSquad(sq, dt) {
+    const alive = sq.bats.filter((b) => !b.dead), lead = alive[0];
+    const [tp] = this.nearestPlayer(lead.hx, lead.hy);
+    const near = (r) => tp && Math.abs(tp.x + 7 - lead.hx) < r && tp.y + 13 > lead.hy - 80 && tp.y + 13 < lead.hy + 520;
+    if (!sq.awake) {
+      if (near(300)) { sq.awake = true; sq.t = 1.0; for (const b of alive) if (b.state === 'roost') { b.state = 'hover'; b.vy = 70; } this.sfx('dash'); }
+      return;
+    }
+    if (!near(460)) { sq.awake = false; for (const b of alive) if (b.state === 'hover') { b.state = 'rise'; b.st = 99; } return; } // игрок ушёл — возвращаются на потолок
+    sq.t -= dt;
+    if (sq.t <= 0) { // пикирует та, что дольше всех не пикировала
+      const cand = alive.filter((b) => b.state === 'hover').sort((a, b) => a.order - b.order)[0];
+      if (cand) { cand.state = 'wind'; cand.st = 0.55; cand.order = ++sq.n; sq.t = 1.15; this.sfx('spit'); } else sq.t = 0.3;
+    }
+  },
+
+  // (4) Прыгун-засадник: прячется под полом, ползёт под игроком, трещит землёй и выпрыгивает; потом ещё бросок
+  stepLurker(e, dt) {
+    const under = E2_UNDER.includes(e.state);
+    if (!under) e.vy = Math.min(e.vy + P.G * dt, P.MAXFALL);
+    if (!under && this.e2Knock(e, dt, false)) return;
+    e.st -= dt; e.cd -= dt;
+    const [tp] = this.nearestPlayer(e.x + e.w / 2, e.y + e.h / 2);
+    const cx = e.x + e.w / 2, row = Math.round(e.fy / T);
+    const px = tp ? tp.x + 7 : 0, onFloor = tp && tp.onGround && Math.abs(tp.y + 26 - e.fy) < 48;
+    switch (e.state) {
+      case 'hidden':
+        e.y = e.fy + 50; e.vx = e.vy = 0;
+        if (tp && e.cd <= 0 && onFloor && Math.abs(px - cx) < 170) { e.state = 'track'; e.st = 2.2; }
+        break;
+      case 'track': {
+        e.y = e.fy + 50;
+        if (!tp || Math.abs(px - cx) > 280 || Math.abs(tp.y + 26 - e.fy) > 140) { e.state = 'hidden'; e.cd = 1.2; break; }
+        const dir = Math.sign(px - cx) || 1, nx = e.x + dir * 150 * dt, col = Math.floor((nx + e.w / 2) / T);
+        if (!this.isSolid(col, row - 1) && this.groundBelowSolid(col * T + 4, row * T + 4)) e.x = nx;
+        if (Math.abs(px - (e.x + e.w / 2)) < 24 || e.st <= 0) { e.state = 'warn'; e.st = 0.75; this.sfx('squish'); } // замирает там, где остановился
+        break;
+      }
+      case 'warn': // трещины и красный круг на земле: уходи с этого места
+        e.y = e.fy + 50;
+        if (Math.random() < dt * 20) this.dust.explode(1, cx + (Math.random() - 0.5) * 36, e.fy);
+        if (e.st <= 0) { e.state = 'erupt'; e.air = 0; e.y = e.fy - e.h; e.vy = -640; e.vx = 0; this.shake(200, 0.008); this.sfx('slam'); this.dustAt(10, cx, e.fy); }
+        break;
+      case 'erupt':
+        e.air += dt; this.moveBody(e, dt);
+        if (e.onGround && e.air > 0.15) { e.state = 'tell'; e.st = 0.35; e.vx = 0; e.fy = e.y + e.h; }
+        return;
+      case 'tell': // присел перед броском
+        e.vx = 0; if (tp) e.face = px > cx ? 1 : -1;
+        if (e.st <= 0) { e.state = 'pounce'; e.air = 0; e.vx = e.face * 240; e.vy = -420; this.sfx('jump'); }
+        break;
+      case 'pounce':
+        e.air += dt; this.moveBody(e, dt);
+        if (e.onGround && e.air > 0.1) { e.state = 'tired'; e.st = 1.1; e.vx = 0; e.fy = e.y + e.h; }
+        return;
+      case 'tired': e.vx = 0; if (e.st <= 0) { e.state = 'dig'; e.st = 0.5; e.y = e.fy + 50; this.dustAt(6, cx, e.fy); } break;
+      case 'dig': e.y = e.fy + 50; if (e.st <= 0) { e.state = 'hidden'; e.cd = 2.2; } break;
+    }
+    if (!under || e.state === 'erupt') this.moveBody(e, dt);
+  },
+
+  // ----- рисование -----
+  drawEnemy2(e, now) {
+    const g = e.g; g.clear();
+    if (e.type === 'spitter') this.drawSpitter(g, e, now);
+    else if (e.type === 'shell') this.drawShell(g, e, now);
+    else if (e.type === 'bat') this.drawBat(g, e, now);
+    else if (e.type === 'lurker') this.drawLurker(g, e, now);
+  },
+  drawSpitter(g, e, now) {
+    const fl = e.flash > 0, cx = e.x + e.w / 2, fy = e.y + e.h, f = e.face || 1;
+    const wind = e.state === 'wind', k = wind ? clamp(1 - e.st / 0.65, 0, 1) : 0, flee = e.state === 'flee' || e.state === 'hop';
+    const sx = e.state === 'hop' ? 0.9 : 1, sh = wind ? Math.sin(now * 50) * k : 0;
+    g.lineStyle(2, 0x2a3414, 1);
+    const lg = flee ? Math.sin(now * 28) * 4 : 0;
+    g.lineBetween(cx - 5, fy - 5, cx - 7 + lg, fy); g.lineBetween(cx + 5, fy - 5, cx + 7 - lg, fy);
+    g.fillStyle(fl ? 0xffffff : 0x6f8a34, 1); g.fillEllipse(cx + sh, fy - 9, 22 * sx, 16 / sx + k * 2);
+    g.fillStyle(fl ? 0xffffff : 0xa9bf5a, 1); g.fillEllipse(cx + sh - 2 * f, fy - 6, 14, 8);
+    g.fillStyle(fl ? 0xffffff : (wind ? 0xd5f26a : 0x86a342), 1); g.fillCircle(cx + sh + 7 * f, fy - 10, 6 + k * 5); // щёки раздуваются
+    g.fillStyle(0x15200a, 1); g.fillCircle(cx + sh + 8 * f, fy - 16, 3.2);
+    g.fillStyle(flee ? 0xffffff : 0xffe36b, 1); g.fillCircle(cx + sh + 8 * f, fy - 16, 2.2);
+    g.fillStyle(0x15200a, 1); g.fillCircle(cx + sh + 9 * f, fy - 16, flee ? 0.7 : 1.1);
+    if (wind) { // светящийся рот и кольцо-предупреждение
+      g.fillStyle(0xc7f08a, 0.5 + 0.4 * k); g.fillCircle(cx + sh + 13 * f, fy - 9, 2 + 3 * k);
+      g.lineStyle(1.5, 0xc7f08a, 0.3 + 0.4 * Math.abs(Math.sin(now * 24))); g.strokeCircle(cx + 13 * f, fy - 9, 6 + 10 * k);
+    }
+    if (e.state === 'recover') { g.fillStyle(0xc7f08a, 0.7); g.fillCircle(cx + 15 * f, fy - 7 + Math.sin(now * 20), 1.6); }
+  },
+  drawShell(g, e, now) {
+    const fl = e.flash > 0, cx = e.x + e.w / 2, fy = e.y + e.h, f = e.face || 1, cracked = e.armorT > 0, st = e.state;
+    const blink = cracked && Math.sin(now * 22) > 0;
+    const plate = fl ? 0xffffff : (cracked ? 0x7a5a48 : 0x5a6470), shine = fl ? 0xffffff : (cracked ? 0xa07a5c : 0x8d9aab), rim = 0x20262e;
+    if (st === 'spin') { // шар: вращающиеся швы
+      const cy = fy - 16, a = now * 20 * f;
+      g.fillStyle(plate, 1); g.fillCircle(cx, cy, 16); g.lineStyle(2.5, rim, 1); g.strokeCircle(cx, cy, 16);
+      g.lineStyle(2, shine, 1); for (let i = 0; i < 3; i++) g.lineBetween(cx + Math.cos(a + i * 2.1) * 4, cy + Math.sin(a + i * 2.1) * 4, cx + Math.cos(a + i * 2.1) * 15, cy + Math.sin(a + i * 2.1) * 15);
+      g.fillStyle(0xffe3a3, 0.5); g.fillEllipse(cx - f * 14, fy - 1, 22, 4); // след от искр
+    } else {
+      const wind = st === 'wind', rush = st === 'rush';
+      const k = wind ? clamp(1 - e.st / 0.7, 0, 1) : 0, sh = wind ? Math.sin(now * 60) * 1.8 : 0, x = cx + sh;
+      const lean = rush ? 3 * f : -k * 3 * f, rise = wind ? k * 5 : 0;
+      g.lineStyle(2.4, rim, 1); const lg = rush ? Math.sin(now * 40) * 4 : st === 'walk' ? Math.sin(now * 9) * 2.5 : 0;
+      for (let i = -1; i <= 1; i++) g.lineBetween(x + i * 12, fy - 7 - rise * 0.5, x + i * 12 + lg * (i % 2 ? 1 : -1), fy);
+      g.fillStyle(plate, 1); g.fillEllipse(x + lean, fy - 14 - rise, 44, 26 + rise * 0.3);
+      g.fillStyle(shine, 1); g.fillEllipse(x + lean - 4 * f, fy - 20 - rise, 26, 9);
+      g.lineStyle(2, rim, 1); g.lineBetween(x + lean, fy - 26 - rise, x + lean - 2 * f, fy - 4 - rise);
+      g.lineBetween(x + lean - 10, fy - 24 - rise, x + lean - 12, fy - 8 - rise); g.lineBetween(x + lean + 10, fy - 24 - rise, x + lean + 12, fy - 8 - rise);
+      g.fillStyle(0xcfc6a8, 1); g.fillTriangle(x + lean + 18 * f, fy - 16 - rise, x + lean + 34 * f, fy - 22 - rise, x + lean + 20 * f, fy - 8 - rise); // рог
+      g.fillStyle(wind || rush ? 0xff4d3c : 0xffb347, 1); g.fillCircle(x + lean + 15 * f, fy - 12 - rise, 2.8);
+      if (st === 'stun' || st === 'tire') { g.fillStyle(0xffe3a3, 0.8); for (let i = 0; i < 3; i++) g.fillCircle(x + Math.cos(now * 6 + i * 2.1) * 14, fy - 34 + Math.sin(now * 6 + i * 2.1) * 4, 2); }
+    }
+    if (cracked) { // раскалённые трещины: броню можно пробить
+      g.lineStyle(2, blink ? 0xffffff : 0xffa040, 1);
+      g.lineBetween(cx - 8, fy - 24, cx - 2, fy - 16); g.lineBetween(cx - 2, fy - 16, cx - 7, fy - 8); g.lineBetween(cx + 6, fy - 25, cx + 10, fy - 14);
+    }
+    if (e.blockT > 0) { g.lineStyle(2.5, 0xffffff, 0.9); g.strokeCircle(cx, fy - 14, 24 + (0.15 - e.blockT) * 80); e.blockT -= 1 / 60; }
+  },
+  drawBat(g, e, now) {
+    const fl = e.flash > 0, cx = e.x + e.w / 2, cy = e.y + e.h / 2, f = e.face || 1, st = e.state;
+    if (st === 'roost') { // висит вниз головой, крылья сложены
+      g.fillStyle(0x2a2233, 1); g.fillEllipse(cx, cy + 2, 10, 14); g.fillTriangle(cx - 5, cy - 4, cx - 12, cy + 8, cx - 1, cy + 8); g.fillTriangle(cx + 5, cy - 4, cx + 12, cy + 8, cx + 1, cy + 8);
+      g.fillStyle(0x5a3f66, 1); g.fillCircle(cx, cy + 8, 4); g.fillStyle(0xff9a7a, 0.7); g.fillCircle(cx - 1.5, cy + 9, 1); g.fillCircle(cx + 1.5, cy + 9, 1);
+      return;
+    }
+    const wind = st === 'wind', dive = st === 'dive', k = wind ? clamp(1 - e.st / 0.55, 0, 1) : 0;
+    const flap = dive ? 0.3 : Math.sin(now * (wind ? 38 : 24) + e.k * 2), sh = wind ? Math.sin(now * 70) * 1.6 * k : 0, x = cx + sh;
+    if (dive) { g.lineStyle(2, 0xff7a6b, 0.35); g.lineBetween(x, cy, x - (e.vx || 0) * 0.07, cy - (e.vy || 0) * 0.07); }
+    g.fillStyle(fl ? 0xffffff : 0x3a2a48, 1);
+    g.fillTriangle(x - 3, cy - 2, x - 20, cy - 8 - flap * 9, x - 14, cy + 6); g.fillTriangle(x + 3, cy - 2, x + 20, cy - 8 - flap * 9, x + 14, cy + 6);
+    g.fillStyle(fl ? 0xffffff : 0x5a3f66, 1); g.fillEllipse(x, cy, 12, 14);
+    g.fillTriangle(x - 5, cy - 6, x - 3, cy - 12, x - 1, cy - 6); g.fillTriangle(x + 5, cy - 6, x + 3, cy - 12, x + 1, cy - 6);
+    g.fillStyle(wind || dive ? 0xff3a2a : 0xffb347, 1); g.fillCircle(x - 2 * f + 1, cy - 2, 1.8); g.fillCircle(x + 3 * f, cy - 2, 1.8);
+    if (wind) { g.lineStyle(1.5, 0xff3a2a, 0.3 + 0.5 * k); g.strokeCircle(x, cy, 10 + 8 * k); }
+  },
+  drawLurker(g, e, now) {
+    const fl = e.flash > 0, cx = e.x + e.w / 2, st = e.state, f = e.face || 1;
+    if (E2_UNDER.includes(st)) e.fy = e.y - 50; // гость: уровень пола вычисляется из положения
+    const fy = e.fy;
+    if (st === 'hidden') { // еле заметные трещинки и пыль
+      g.lineStyle(1.5, 0x1b120a, 0.5); g.lineBetween(cx - 12, fy, cx - 4, fy - 1.5); g.lineBetween(cx + 3, fy - 1, cx + 13, fy);
+      g.fillStyle(0x6b5a44, 0.35); g.fillEllipse(cx, fy - 1, 22, 3);
+      return;
+    }
+    if (st === 'track') { // ползущий бугор
+      const w = 30 + Math.sin(now * 20) * 3;
+      g.fillStyle(0x4a3a2a, 0.9); g.fillEllipse(cx, fy - 2, w, 8); g.fillStyle(0x7a6850, 0.8); g.fillEllipse(cx, fy - 4, w * 0.6, 4);
+      g.lineStyle(1.5, 0x2a1d10, 0.8); for (let i = -2; i <= 2; i++) g.lineBetween(cx + i * 7, fy - 1, cx + i * 9, fy + 2);
+      return;
+    }
+    if (st === 'warn') { // красная печать, трещины, камешки
+      const k = clamp(1 - e.st / 0.75, 0, 1), p = Math.abs(Math.sin(now * (14 + 14 * k)));
+      g.fillStyle(0xd23a2a, 0.15 + 0.25 * p); g.fillEllipse(cx, fy - 1, 54, 12);
+      g.lineStyle(2, 0xff5a3a, 0.5 + 0.5 * p); g.strokeEllipse(cx, fy - 1, 54 * (0.6 + 0.4 * k), 12);
+      g.lineStyle(2, 0x1b120a, 1); for (let i = 0; i < 5; i++) { const a = i * 1.25 - 2.5; g.lineBetween(cx, fy, cx + Math.cos(a) * 26, fy + Math.sin(a) * 5); }
+      g.fillStyle(0x7a6850, 1); for (let i = 0; i < 4; i++) g.fillRect(cx - 14 + i * 9, fy - 3 - k * 10 * ((i * 37) % 5 / 5 + 0.3) - Math.abs(Math.sin(now * 18 + i)) * 3, 3, 3);
+      return;
+    }
+    // тело: присел перед броском / дигинг (сплющивается в землю) / обычное
+    let sy = 1, by = e.y + e.h;
+    if (st === 'dig') { sy = clamp(e.st / 0.5, 0.05, 1); by = fy; }
+    if (st === 'tell') sy = 0.8 + 0.1 * Math.sin(now * 50);
+    const h = 24 * sy, y0 = by - h, sh = st === 'tell' ? Math.sin(now * 60) * 1.4 : 0, x = cx + sh;
+    g.fillStyle(fl ? 0xffffff : 0x7a5434, 1); g.fillEllipse(x, y0 + h * 0.6, 28, h * 0.9);
+    g.fillStyle(fl ? 0xffffff : 0xa87a4c, 1); g.fillEllipse(x - 3 * f, y0 + h * 0.4, 16, h * 0.35);
+    g.fillStyle(fl ? 0xffffff : 0x4a3220, 1); for (let i = -1; i <= 1; i++) g.fillTriangle(x + i * 8 - 3, y0 + h * 0.3, x + i * 8 + 3, y0 + h * 0.3, x + i * 8, y0 - 5 * sy);
+    g.fillStyle(0x1b120a, 1); g.fillEllipse(x + 8 * f, y0 + h * 0.65, 9, 7 * sy); // пасть
+    g.fillStyle(st === 'tell' || st === 'pounce' || st === 'erupt' ? 0xff3a2a : 0xffe36b, 1); g.fillCircle(x + 7 * f, y0 + h * 0.35, 2.2);
+    if (st === 'tired') { g.fillStyle(0xffe3a3, 0.8); for (let i = 0; i < 3; i++) g.fillCircle(x + Math.cos(now * 6 + i * 2.1) * 12, y0 - 8 + Math.sin(now * 6 + i * 2.1) * 3, 2); }
+  },
+});
+
+// ----- обёртки без правок чужих файлов -----
+(function () {
+  const proto = GameScene.prototype;
+  // плевок: дуга под гравитацией
+  const stepExtra = proto.stepExtraProj;
+  proto.stepExtraProj = function (pr, dt) {
+    if (pr.kind !== 'glob') return stepExtra.call(this, pr, dt);
+    pr.vy += 700 * dt; pr.x += pr.vx * dt; pr.y += pr.vy * dt;
+    if (this.isSolid(Math.floor((pr.x + 6) / T), Math.floor((pr.y + 6) / T))) { pr.dead = true; this.burst(7, pr.x + 6, pr.y + 6, 0xc7f08a); }
+    return true;
+  };
+  const drawExtra = proto.drawExtraProjs;
+  proto.drawExtraProjs = function (now) {
+    drawExtra.call(this, now);
+    const fx = this.fx;
+    for (const pr of this.projs) if (pr.kind === 'glob') {
+      const x = pr.x + 6, y = pr.y + 6;
+      fx.fillStyle(0xc7f08a, 0.2); fx.fillCircle(x, y, 11);
+      fx.fillStyle(0x86a342, 1); fx.fillCircle(x, y, 6.5); fx.fillStyle(0xd5f26a, 1); fx.fillCircle(x - 1.5, y - 1.5, 3);
+      fx.fillStyle(0x86a342, 0.6); fx.fillCircle(x - pr.vx * 0.02, y - pr.vy * 0.02, 3.5); // хвостик капли
+    }
+  };
+  // отбив ломает броню панциря (у гостя — через событие)
+  const parry = proto.parrySuccess;
+  proto.parrySuccess = function (p, srcX) {
+    parry.call(this, p, srcX);
+    const cx = p.x + 7, cy = p.y + 13;
+    if (this.auth()) this.e2Parry(cx, cy); else this.sendEv({ k: 'e2parry', x: Math.round(cx), y: Math.round(cy) });
+  };
+  const onEv = proto.onEv;
+  proto.onEv = function (m) {
+    if (m.k === 'e2parry') { if (this.auth()) this.e2Parry(m.x, m.y); return; }
+    return onEv.call(this, m);
+  };
+  // нитяной всполох пробивает броню
+  const burstHit = proto.silkBurstHit;
+  proto.silkBurstHit = function (p, cx, cy) { this._e2burst = true; try { burstHit.call(this, p, cx, cy); } finally { this._e2burst = false; } };
+})();
+
+// ===== КАМПАНИЯ: главы I–IV, коридоры перед аренами, лавка у скамьи, сохранение =====
+// Глава I — «Мшистая Глубь» (Корнематка). Главы II–IV: коридор со скамьями и врагами → арена босса
+// (Миша, Владик, Тима). Прогресс (глава, этап, бусины, способности, улучшения) лежит в Settings.progress().
+const CHAPTERS = {
+  1: { roman: 'I', name: 'Мшистая Глубь', boss: 'korne', bossLine: 'Корнематка повержена' },
+  2: { roman: 'II', name: 'Старая типография', boss: 'misha', road: 'Коридор типографии', road2: 'Склад шрифтов' },
+  3: { roman: 'III', name: 'Кабинет музыки', boss: 'vladik', road: 'Школьный коридор', road2: 'Лестница к кабинету' },
+  4: { roman: 'IV', name: 'Берлога Тимы', boss: 'tima', road: 'Подъезд', road2: 'Лестница к берлоге' },
+};
+const LAST_CHAPTER = 4;
+// лавка: цены по уровням улучшения
+const SHOP = [
+  { id: 'hp', name: 'Маска здоровья', max: 3, price: [10, 18, 28] },
+  { id: 'dmg', name: 'Острая игла', max: 2, price: [12, 22] },
+  { id: 'silk', name: 'Лёгкая катушка', max: 2, price: [12, 24] },
+];
+
+// коридоры перед аренами: ямы с колючками, уступы, платформы, враги
+const ROADS = {
+  2: { pits: [[24, 26], [40, 43]], blocks: [[31, 33, 16], [52, 54, 15]], plats: [[23, 27, 14], [39, 44, 13], [58, 61, 13]],
+    enemies: [['crawler', 16, 17], ['crawler', 34, 17], ['crawler', 48, 17], ['crawler', 62, 17], ['gnat', 28, 12], ['gnat', 56, 10]] },
+  3: { pits: [[20, 23], [36, 39], [50, 53]], blocks: [[28, 30, 16], [60, 62, 15]], plats: [[19, 24, 13], [35, 40, 13], [49, 54, 13]],
+    enemies: [['crawler', 15, 17], ['crawler', 26, 17], ['crawler', 45, 17], ['beetle', 33, 17], ['crawler', 57, 17], ['beetle', 65, 17], ['gnat', 40, 11], ['gnat', 56, 10]] },
+  4: { pits: [[31, 34], [46, 49], [56, 58]], blocks: [[20, 22, 17], [23, 25, 16], [26, 28, 15], [40, 42, 16]], plats: [[45, 50, 13], [55, 59, 13]],
+    enemies: [['crawler', 14, 17], ['beetle', 37, 17], ['crawler', 44, 17], ['beetle', 52, 17], ['crawler', 62, 17], ['gnat', 38, 11], ['gnat', 54, 10], ['gnat', 63, 12]] },
+};
+
+function buildRoad(ch) {
+  const W = 72, H = 22, cfg = ROADS[ch], c = CHAPTERS[ch], g = [];
+  for (let y = 0; y < H; y++) g.push(new Array(W).fill(SOLID));
+  const set = (x0, y0, x1, y1, v) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) g[y][x] = v; };
+  set(1, 4, 70, 17, EMPTY);
+  for (const [a, b] of cfg.pits) { set(a, 18, b, 19, EMPTY); set(a, 19, b, 19, SPIKE); }
+  for (const [a, b, top] of cfg.blocks) set(a, top, b, 17, SOLID);
+  for (const [a, b, y] of cfg.plats) set(a, y, b, y, PLAT);
+  const signs = [
+    { x: 4, y: 17, text: 'Скамья: ↑ — отдохнуть.\nНа скамье ↓ — лавка: маски, игла, катушка', touch: 'Скамья: стик вверх — отдохнуть.\nНа скамье стик вниз — лавка улучшений' },
+    { x: 12, y: 17, text: 'Враги дают бусины.\nБусины тратятся в лавке на скамье' },
+    { x: 62, y: 17, text: 'Дальше — арена.\nЗагляни в лавку перед боем' },
+  ];
+  return {
+    W, H, grid: g, spawn: { x: 3, y: 17 }, signs, benches: [{ x: 7, y: 17 }, { x: 65, y: 17 }],
+    enemies: cfg.enemies.map(([type, x, y]) => ({ type, x, y })), exit: { x: 69, y: 17 },
+    areas: [{ x: 0, name: c.road }, { x: 36, name: c.road2 }], region: `Глава ${c.roman} · ${c.name}`, road: ch,
+  };
+}
+
+const Campaign = {
+  freshUp() { return { hp: 0, dmg: 0, silk: 0 }; },
+  fresh() { return { ch: 1, st: 'level', beads: 0, abil: {}, up: this.freshUp(), time: 0, deaths: 0 }; },
+  // стартовые данные из сохранения («Продолжить»); без сохранения — с начала главы I
+  resume() {
+    const p = Settings.progress(); if (!p) return this.fresh();
+    const ch = CHAPTERS[p.chapter] ? p.chapter : 1;
+    return { ch, st: ch === 1 ? 'level' : 'road', beads: p.beads | 0, abil: { ...(p.abil || {}) }, up: { ...this.freshUp(), ...(p.up || {}) }, time: +p.time || 0, deaths: +p.deaths || 0 };
+  },
+  subtitle() {
+    const p = Settings.progress(), c = p && CHAPTERS[p.chapter];
+    return c ? `Глава ${c.roman} · ${c.name}` : 'Глава I · Мшистая Глубь';
+  },
+  saveName(gs, area) { const c = CHAPTERS[gs.camp ? gs.camp.ch : 1]; return `Гл. ${c.roman} · ${area}`; },
+  canSave(gs) { return gs.mode === 'story' && gs.online !== 'guest'; },
+
+  // ----- хуки GameScene -----
+  init(gs, data) {
+    const c = data.camp || (data.mode === 'story' && data.online !== 'guest' ? this.resume() : data.mode === 'story' ? this.fresh() : null);
+    gs.camp = c ? { ...c, abil: { ...c.abil }, up: { ...this.freshUp(), ...c.up } } : null;
+    if (gs.camp && gs.camp.st === 'arena') { gs.mode = 'bosstest'; gs.bossKind = CHAPTERS[gs.camp.ch].boss; }
+    gs.leaving = false; gs.shopOpen = false;
+  },
+  level(gs) {
+    const c = gs.camp; if (!c || c.st === 'level') return null;
+    if (c.st === 'road') return buildRoad(c.ch);
+    const L = { misha: buildMishaArena, vladik: buildVladikArena, tima: buildTimaArena }[CHAPTERS[c.ch].boss]();
+    L.region = `Глава ${CHAPTERS[c.ch].roman}`;
+    return L;
+  },
+  setup(gs) {
+    const c = gs.camp;
+    gs.up = c ? { ...c.up } : this.freshUp();
+    if (c && c.st !== 'level') {
+      gs.abil = { ...c.abil }; if (c.st === 'arena') gs.abil.double = true;
+      gs.beads = c.beads | 0;
+      if (c.st === 'road') gs.bossDead = true; // в коридоре боссов нет: выход открыт
+    } else if (c) { gs.abil = { ...c.abil, ...gs.abil }; if (gs.online === 'guest') gs.beads = c.beads | 0; }
+    gs.deaths = 0; gs.timeSec = 0;
+    this.applyUp(gs);
+    if (c) gs.startData = { ...gs.startData, camp: this.snap(gs) };
+  },
+  snap(gs) {
+    const c = gs.camp;
+    return { ch: c.ch, st: c.st, beads: gs.beads, abil: { ...gs.abil }, up: { ...gs.up }, time: Math.round(c.time + gs.timeSec), deaths: c.deaths + gs.deaths };
+  },
+  needleBonus(gs) { return gs.up ? gs.up.dmg | 0 : 0; },
+  applyUp(gs) {
+    const up = gs.up, base = Settings.s.easy ? 8 : 5;
+    P.SILK = 9 - (up.silk | 0);
+    for (const p of gs.players || []) {
+      if (p.remote) continue;
+      const want = base + (up.hp | 0);
+      if (want > p.maxHp) p.hp += want - p.maxHp;
+      p.maxHp = want; p.hp = Math.min(p.hp, p.maxHp); p.silk = Math.min(p.silk, P.SILK);
+    }
+  },
+  // сохранение прогресса главы (хост/один игрок)
+  save(gs, extra) {
+    if (!this.canSave(gs)) return;
+    const c = gs.camp; if (!c) return;
+    const s = this.snap(gs);
+    Settings.saveProgress({ ...(Settings.progress() || { bench: 0 }), bench: 0, beads: gs.beads, abil: gs.abil, chapter: c.ch, stage: c.st === 'arena' ? 'road' : c.st, up: s.up, time: s.time, deaths: s.deaths, ...extra });
+    gs.startData = { ...gs.startData, camp: s };
+  },
+
+  // ----- переходы между этапами и главами -----
+  // выход из коридора → арена (без экрана победы)
+  preWin(gs) {
+    const c = gs.camp; if (!c || c.st !== 'road' || gs.leaving) return false;
+    gs.won = true; Snd.play('revive');
+    gs.ui().toast('Дальше — арена…');
+    this.go(gs, { ...this.snap(gs), st: 'arena' });
+    return true;
+  },
+  // подпись к экрану победы + сохранение перехода на следующую главу
+  decorate(gs, s) {
+    const c = gs.camp; if (!c) return;
+    const ch = CHAPTERS[c.ch], last = c.ch >= LAST_CHAPTER, snap = this.snap(gs);
+    if (!s.title) s.title = ch.bossLine;
+    s.camp = { title: last ? 'Тропа пройдена' : `Глава ${ch.roman} пройдена`, final: last, ch: c.ch, time: snap.time, deaths: snap.deaths,
+      next: last ? null : { ...snap, ch: c.ch + 1, st: 'road' } };
+    s.deaths = snap.deaths;
+    if (this.canSave(gs)) {
+      const n = last ? { ch: c.ch, st: 'road' } : s.camp.next, nc = CHAPTERS[n.ch];
+      Settings.saveProgress({ bench: 0, beads: gs.beads, abil: gs.abil, chapter: n.ch, stage: 'road', up: snap.up, time: snap.time, deaths: snap.deaths,
+        name: last ? 'Кампания пройдена' : `Гл. ${nc.roman} · ${nc.road}`, done: last });
+    }
+  },
+  go(gs, camp) {
+    if (gs.leaving) return; gs.leaving = true;
+    const data = { players: gs.nPlayers, mode: 'story', online: gs.online, camp };
+    if (gs.online === 'host') gs.sendEv({ k: 'next', camp });
+    Snd.play('bench');
+    gs.cameras.main.fadeOut(450, 3, 8, 7); gs.ui().cameras.main.fadeOut(450, 3, 8, 7);
+    gs.time.delayedCall(gs.online === 'host' ? 900 : 480, () => gs.ui().campGo(data));
+  },
+  onEv(gs, m) {
+    if (m.k === 'next') {
+      if (gs.online === 'guest' && !gs.leaving) this.go(gs, m.camp);
+    } else if (m.k === 'buy') {
+      if (gs.auth()) this.buy(gs, m.id, true);
+    } else if (m.k === 'up') {
+      gs.up = { ...this.freshUp(), ...m.up }; gs.beads = m.beads; this.applyUp(gs);
+      if (gs.ui().shopC && gs.ui().shopC.visible) gs.ui().shopRefresh();
+    }
+  },
+
+  // ----- лавка -----
+  price(id, lvl) { return SHOP.find((s) => s.id === id).price[lvl]; },
+  openShop(gs, p) {
+    if (!gs.camp || gs.shopOpen || p.remote || gs.won) return;
+    gs.shopOpen = true; gs.shopP = p; Touch.show(false); Snd.play('bead'); gs.ui().shopShow();
+  },
+  closeShop(gs) {
+    if (!gs.shopOpen) return;
+    setTimeout(() => { gs.shopOpen = false; }, 0); // Esc не должен тут же включить паузу
+    Touch.show(true); gs.ui().shopHide();
+  },
+  buy(gs, id, fromGuest) {
+    const it = SHOP.find((s) => s.id === id); if (!it) return;
+    if (!gs.auth()) { gs.sendEv({ k: 'buy', id }); return; }
+    const lvl = gs.up[id] | 0, say = (m) => { if (fromGuest) gs.sendEv({ k: 'toast', m }); else gs.ui().toast(m); };
+    if (lvl >= it.max) { say('Уже куплено на максимум'); return; }
+    const price = it.price[lvl];
+    if (gs.beads < price) { say(`Не хватает бусин: нужно ${price}`); Snd.play('hit'); return; }
+    gs.beads -= price; gs.up[id] = lvl + 1; this.applyUp(gs); Snd.play('revive');
+    gs.parts.setParticleTint(0xffd47a); for (const p of gs.players) if (!p.remote) gs.parts.explode(16, p.x + 7, p.y + 10);
+    gs.sendEv({ k: 'up', up: gs.up, beads: gs.beads });
+    this.save(gs, {});
+    gs.toastAll(`Куплено: ${it.name}`);
+    if (gs.ui().shopC && gs.ui().shopC.visible) gs.ui().shopRefresh();
+  },
+  // каждый кадр: геймпад в лавке и защита от «зависшей» лавки
+  tick(gs) {
+    if (!gs.shopOpen) return;
+    const me = gs.shopP;
+    if (!me || !me.sit || me.downed || gs.wiping || gs.won) { this.closeShop(gs); return; }
+    const pads = gs.input.gamepad ? gs.input.gamepad.gamepads.filter(Boolean) : [], u = gs.ui();
+    let up = false, down = false, ok = false, back = false;
+    for (const pad of pads) {
+      const b = (n) => !!(pad.buttons[n] && pad.buttons[n].pressed);
+      up = up || pad.up; down = down || pad.down; ok = ok || b(0); back = back || b(1);
+    }
+    const hold = { up, down, ok, back }, prev = gs._shopPad || {};
+    gs._shopPad = hold;
+    if (up && !prev.up) u.shopMove(-1);
+    if (down && !prev.down) u.shopMove(1);
+    if (ok && !prev.ok) u.shopAct();
+    if (back && !prev.back) this.closeShop(gs);
+  },
+};
+
+// ввод игры замирает, пока открыта лавка
+{
+  const G = GameScene.prototype, rawO = G.rawInput, tapO = G.onKeyTap, touchO = G.onTouchTap, updO = G.update;
+  G.rawInput = function (i) {
+    if (this.shopOpen) return { left: false, right: false, up: false, down: false, jump: false, atk: false, dash: false, heal: false, bomb: false };
+    return rawO.call(this, i);
+  };
+  G.onKeyTap = function (e) { if (!this.shopOpen) tapO.call(this, e); };
+  G.onTouchTap = function (act) { if (!this.shopOpen) touchO.call(this, act); };
+  G.update = function (t, d) { Campaign.tick(this); return updO.call(this, t, d); };
+}
+
+const victoryBase = UIScene.prototype.victory;
+Object.assign(UIScene.prototype, {
+  campGo(d) { this.ready = false; this.scene.stop('bg'); this.scene.start('game', d); },
+  winEnter() {
+    const s = this.campWinS;
+    if (!s) { this.restart(); return; }
+    if (this.gs.online === 'guest') return;
+    if (s.next) Campaign.go(this.gs, s.next); else this.restart();
+  },
+  // ----- экран победы главы -----
+  victory(s) {
+    if (!s || !s.camp) { this.campWinS = null; return victoryBase.call(this, s); }
+    const D = '"Cormorant SC", Georgia, serif', F = '"Fira Sans", sans-serif', k = s.camp, gs = this.gs;
+    const m = Math.floor(s.time / 60), sec = Math.floor(s.time % 60).toString().padStart(2, '0');
+    const bg = this.add.graphics(); bg.fillStyle(0x030807, 0.88); bg.fillRect(0, 0, VW, VH);
+    const t1 = this.add.text(VW / 2, 120, k.title, { fontFamily: D, fontSize: '56px', color: '#e8e2cf', fontStyle: '700' }).setOrigin(0.5).setShadow(0, 0, '#9ff0c8', 16, false, true);
+    const t0 = this.add.text(VW / 2, 176, s.title || '', { fontFamily: F, fontSize: '19px', color: '#9ff0c8' }).setOrigin(0.5);
+    let lines;
+    if (k.final) {
+      const tm = Math.floor(k.time / 60), ts = Math.floor(k.time % 60).toString().padStart(2, '0');
+      lines = `Корнематка, Миша, Владик и Тима побеждены.\nНить сплетена: ${gs.nPlayers === 2 ? 'вдвоём' : 'в одиночку'} вы дошли до конца.\n\nВсё время кампании: ${tm}:${ts}\nОбрывов нити за всё время: ${k.deaths}\nБусин при себе: ${gs.beads}`;
+    } else {
+      const nx = CHAPTERS[k.ch + 1];
+      lines = `Время главы: ${m}:${sec}\nБусин при себе: ${gs.beads}\nОбрывов нити: ${s.deaths != null ? s.deaths : gs.deaths}\nТкачей: ${s.players}\n\nДальше: Глава ${nx.roman} · ${nx.name}`;
+    }
+    const t2 = this.add.text(VW / 2, 215, lines, { fontFamily: F, fontSize: '17px', color: '#b9d4c8', align: 'center', lineSpacing: 7 }).setOrigin(0.5, 0);
+    const btn = (x, y, label, fn) => {
+      const t = this.add.text(x, y, label, { fontFamily: D, fontSize: '26px', color: '#cfe8dc', fontStyle: '700', backgroundColor: 'rgba(20,48,41,0.9)', padding: { x: 16, y: 7 } })
+        .setOrigin(0.5).setInteractive({ useHandCursor: true });
+      t.on('pointerover', () => t.setColor('#ffd47a')); t.on('pointerout', () => t.setColor('#cfe8dc')); t.on('pointerdown', fn);
+      return t;
+    };
+    const guest = gs.online === 'guest', items = [bg, t1, t0, t2];
+    if (k.next && !guest) items.push(btn(VW / 2 - 130, 420, `Глава ${CHAPTERS[k.ch + 1].roman} →`, () => this.winEnter()), btn(VW / 2 + 130, 420, 'В главное меню', () => this.restart()));
+    else items.push(btn(VW / 2, 420, 'В главное меню', () => this.restart()));
+    const hint = guest ? 'Ждём, когда хост поведёт дальше…' : k.next ? 'Enter — дальше' : 'Enter — в главное меню';
+    if (!Touch.enabled) items.push(this.add.text(VW / 2, 478, hint, { fontFamily: F, fontSize: '15px', color: '#ffe3a3' }).setOrigin(0.5));
+    else if (guest) items.push(this.add.text(VW / 2, 478, hint, { fontFamily: F, fontSize: '15px', color: '#ffe3a3' }).setOrigin(0.5));
+    Touch.show(false);
+    this.campWinS = k;
+    this.win.add(items); this.win.setVisible(true).setAlpha(0);
+    this.tweens.add({ targets: this.win, alpha: 1, duration: 900 });
+  },
+
+  // ----- лавка у скамьи -----
+  shopBuild() {
+    const D = '"Cormorant SC", Georgia, serif', F = '"Fira Sans", sans-serif', gs = this.gs, x0 = VW / 2 - 280;
+    const c = this.add.container(0, 0).setVisible(false).setDepth(50);
+    const bg = this.add.graphics(); bg.fillStyle(0x030807, 0.86); bg.fillRect(0, 0, VW, VH);
+    bg.fillStyle(0x0b1714, 0.97); bg.fillRoundedRect(x0 - 20, 70, 600, 400, 10); bg.lineStyle(2, 0x3c5a50, 1); bg.strokeRoundedRect(x0 - 20, 70, 600, 400, 10);
+    const title = this.add.text(VW / 2, 104, 'Лавка у скамьи', { fontFamily: D, fontSize: '40px', color: '#e8e2cf', fontStyle: '700' }).setOrigin(0.5);
+    this.shopBeads = this.add.text(x0 + 560, 88, '', { fontFamily: F, fontSize: '18px', color: '#ffe3a3' }).setOrigin(1, 0);
+    this.shopSelG = this.add.graphics();
+    this.shopRows = [];
+    const rows = [...SHOP, { id: 'close' }];
+    rows.forEach((it, i) => {
+      const y = 148 + i * 70;
+      const name = this.add.text(x0, y, '', { fontFamily: D, fontSize: '26px', color: '#cfe8dc', fontStyle: '700' });
+      const desc = this.add.text(x0, y + 31, '', { fontFamily: F, fontSize: '13px', color: '#86a89a' });
+      const price = this.add.text(x0 + 560, y + 2, '', { fontFamily: F, fontSize: '18px', fontStyle: '600', color: '#ffe3a3' }).setOrigin(1, 0);
+      const hit = this.add.rectangle(VW / 2, y + 27, 580, 60, 0xffffff, 0.001).setInteractive({ useHandCursor: true });
+      hit.on('pointerover', () => { this.shopSel = i; this.shopRefresh(); });
+      hit.on('pointerdown', () => { this.shopSel = i; this.shopAct(); });
+      this.shopRows.push({ it, name, desc, price, y });
+      c.add([name, desc, price, hit]);
+    });
+    this.shopHint = this.add.text(VW / 2, 446, '', { fontFamily: F, fontSize: '12px', color: '#6f9586' }).setOrigin(0.5);
+    c.add([bg, title, this.shopBeads, this.shopSelG, this.shopHint]);
+    c.sendToBack(this.shopSelG); c.sendToBack(bg);
+    this.shopC = c; this.shopSel = 0;
+    this.input.keyboard.on('keydown', (e) => {
+      if (!this.shopC.visible) return;
+      const k = e.code;
+      if (k === 'ArrowUp' || k === 'KeyW') this.shopMove(-1);
+      else if (k === 'ArrowDown' || k === 'KeyS') this.shopMove(1);
+      else if (k === 'Enter' || k === 'NumpadEnter' || k === 'Space' || k === 'KeyF' || k === 'KeyZ' || k === 'KeyX') this.shopAct();
+      else if (k === 'Escape' || k === 'KeyQ' || k === 'KeyE') Campaign.closeShop(this.gs);
+    });
+  },
+  shopShow() { if (!this.ready) return; if (!this.shopC || !this.shopC.scene) this.shopBuild(); this.shopSel = 0; this.shopC.setVisible(true); this.shopRefresh(); },
+  shopHide() { if (this.shopC) this.shopC.setVisible(false); },
+  shopMove(d) { const n = this.shopRows.length; this.shopSel = (this.shopSel + d + n) % n; this.shopRefresh(); },
+  shopAct() {
+    const r = this.shopRows[this.shopSel]; if (!r) return;
+    if (r.it.id === 'close') Campaign.closeShop(this.gs); else Campaign.buy(this.gs, r.it.id);
+  },
+  shopRefresh() {
+    const gs = this.gs, up = gs.up || Campaign.freshUp(), g = this.shopSelG; g.clear();
+    this.shopBeads.setText(`Бусин: ${gs.beads}`);
+    const desc = {
+      hp: `Бутонов здоровья: ${(Settings.s.easy ? 8 : 5) + up.hp}`,
+      dmg: `Урон иглой по врагам: ${1 + up.dmg} (боссов это не касается)`,
+      silk: `Катушка нити: ${P.SILK} удар. до лечения`,
+    };
+    this.shopRows.forEach((r, i) => {
+      const it = r.it, sel = i === this.shopSel;
+      if (sel) { g.fillStyle(0x1d3a31, 0.9); g.fillRoundedRect(VW / 2 - 295, r.y - 6, 590, 62, 6); g.lineStyle(1.5, 0xffd47a, 0.8); g.strokeRoundedRect(VW / 2 - 295, r.y - 6, 590, 62, 6); }
+      if (it.id === 'close') { r.name.setText('Закрыть').setColor(sel ? '#ffd47a' : '#cfe8dc'); r.desc.setText(Touch.enabled ? '' : 'Esc'); r.price.setText(''); return; }
+      const lvl = up[it.id] | 0, maxed = lvl >= it.max, pr = maxed ? 0 : it.price[lvl], can = !maxed && gs.beads >= pr;
+      r.name.setText(`${it.name}  ${'●'.repeat(lvl)}${'○'.repeat(it.max - lvl)}`).setColor(sel ? '#ffd47a' : '#cfe8dc');
+      r.desc.setText(desc[it.id]);
+      r.price.setText(maxed ? 'куплено' : `${pr} бусин`).setColor(maxed ? '#9ff0c8' : can ? '#ffe3a3' : '#7a6a58');
+    });
+    this.shopHint.setText(Touch.enabled ? 'Нажмите на улучшение, чтобы купить' : '↑ ↓ — выбрать   ·   Enter / Пробел / F — купить   ·   Esc — закрыть   ·   геймпад: A — купить, B — закрыть');
   },
 });
 
