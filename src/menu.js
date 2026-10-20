@@ -184,6 +184,8 @@ Object.assign(MenuScene.prototype, {
     this.scale.on('resize', onRs);
     this.events.once('shutdown', () => { Dev.subs = Dev.subs.filter((f) => f !== onDev); this.scale.off('resize', onRs); });
     this.menuRender();
+    // первая отрисовка идёт в create(), когда масштаб холста ещё не устоялся (после scene.restart — особенно): перерисовываем на первом кадре
+    this.events.once('postupdate', () => { if (this.sys.isActive()) this.menuRender(); });
   },
   menuCrumbs() { return this.mStack.slice(1).map((e) => { const d = MENU[e.id], c = d.crumb || d.title; return typeof c === 'function' ? c(this, e.ctx) : c; }).filter((c, i, a) => !i || c !== a[i - 1]); },
   menuGo(id, ctx) {
@@ -218,7 +220,9 @@ Object.assign(MenuScene.prototype, {
 
   // ----- рисование -----
   menuRender() {
-    if (!this.mStack || !this.sys.isActive()) return;
+    // после scene.restart() (поворот телефона меняет ширину поля) create() идёт в статусе CREATING: isActive() там ложно и меню оставалось пустым
+    const stt = this.sys.settings.status;
+    if (!this.mStack || (stt !== Phaser.Scenes.RUNNING && stt !== Phaser.Scenes.CREATING)) return;
     for (const o of this.mObj) if (o && o.scene) o.destroy();
     this.mObj = []; this.mRows = [];
     const top = this.mTop(), desc = MENU[top.id], ctx = top.ctx, root = !!desc.root;
@@ -251,7 +255,12 @@ Object.assign(MenuScene.prototype, {
     let ct;
     if (root) {
       const vt = txt(pad, zone / 2, `Версия ${GAME_VERSION} · сборка ${GAME_BUILD}`, { fontFamily: F, fontSize: fs(15) + 'px', color: '#9fc4b4', fontStyle: '600' }, 0, 0.5);
-      const lk = txt(vt.x + vt.width + 18, zone / 2, 'Что нового ›', { fontFamily: F, fontSize: fs(15) + 'px', color: '#ffd47a', fontStyle: '600' }, 0, 0.5);
+      const lk = txt(0, zone / 2, 'Что нового ›', { fontFamily: F, fontSize: fs(15) + 'px', color: '#ffd47a', fontStyle: '600' }, 0, 0.5);
+      // версия не должна цеплять правую колонку (иначе пункты съезжают вниз и сжимаются): ужимаем строку версии, пока не поместится
+      const vmax = Math.round(VW * 0.46) - 12 - pad - 18 - lk.width;
+      fit(vt, vmax, fmin);
+      if (vt.width > vmax) { vt.setText(`v${GAME_VERSION} · ${GAME_BUILD}`); fit(vt, vmax, fmin); } // на узком экране слово «Версия/сборка» убираем
+      lk.x = vt.x + vt.width + 18;
       const lz = add(this.add.zone(lk.x - 8, 0, lk.width + 16, zone).setOrigin(0).setInteractive({ useHandCursor: true }));
       lz.on('pointerdown', () => this.menuChangelog());
       ct = lk.x + lk.width > Math.round(VW * 0.46) - 12 ? zone + 4 : 8; // правая колонка поднимается к самому верху, если версия её не задевает
