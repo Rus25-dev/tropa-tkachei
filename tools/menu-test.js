@@ -269,7 +269,7 @@ const PB = { trail: { pb: { rta: 1421520, igt: 1398100, deaths: 3, ver: '1.6', s
         if (el.closest('[hidden]') || !el.getClientRects().length) continue;
         const st = getComputedStyle(el); if (st.visibility === 'hidden' || st.display === 'none' || +st.opacity === 0) continue;
         const r = document.createRange(); r.selectNodeContents(n); const b = r.getBoundingClientRect(); if (!b.width) continue;
-        const bd = el.closest('.ovbody'), br = bd && bd.getBoundingClientRect(); if (bd && res.scroll && (b.top < br.top - 1 || b.bottom > br.bottom + 1)) continue; // за краем прокрутки
+        const bd = el.closest('.ovbody, .hw-body'), br = bd && bd.getBoundingClientRect(); if (bd && (res.scroll || bd.classList.contains('hw-body')) && (b.top < br.top - 1 || b.bottom > br.bottom + 1)) continue; // за краем прокрутки
         res.leaves.push({ t: t.slice(0, 30), x: b.left, y: b.top, w: b.width, h: b.height, fs: parseFloat(st.fontSize), inScroll: !!bd });
       }
       root.querySelectorAll('button, label.opt, .seg label, .ovback').forEach((e) => { if (e.closest('[hidden]') || !e.getClientRects().length) return; const r = e.getBoundingClientRect(); res.ctl.push({ t: (e.textContent || '').trim().slice(0, 24), w: r.width, h: r.height }); });
