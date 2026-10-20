@@ -145,7 +145,7 @@ Object.assign(GameScene.prototype, {
           const opts = ['letters', 'big', 'charge'].filter((o) => o !== m.last);
           const pick = opts[Math.floor(Math.random() * opts.length)]; m.last = pick; m.vx = 0;
           if (pick === 'letters') this.mishaWord(phase2);
-          if (pick === 'big') { m.state = 'bigWind'; m.t = 0.6; this.mishaSpeak(phase2 ? 'ЖИРНЫЙ ШРИФТ!' : 'КАПС!', 1.2); }
+          if (pick === 'big') { m.state = 'bigWind'; m.t = 0.6; this.mishaSpeak('ДЕТДОМ!', 1.2); }
           if (pick === 'charge') { m.state = 'chargeWind'; m.t = phase2 ? 0.45 : 0.6; m.face = want; this.mishaSpeak('С ДОРОГИ!', 1.0); }
         }
         break;

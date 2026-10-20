@@ -538,8 +538,8 @@ const P = {
   POGO: 540, ATK_T: 0.12, ATK_CD: 0.3, INV: 1.0, HURT: 0.22, SILK: 9,
 };
 const PAL = [
-  { name: 'Ива', cloak: 0x2f9a8a, dark: 0x1b5c53, accent: 0x9ff0dc, hex: '#8fe8d2' },
-  { name: 'Ярь', cloak: 0xd8862a, dark: 0x8a4f16, accent: 0xffd9a0, hex: '#ffc46e' },
+  { name: 'Ива', tag: 'Di', cloak: 0x2f9a8a, dark: 0x1b5c53, accent: 0x9ff0dc, hex: '#8fe8d2' },
+  { name: 'Ярь', tag: 'Ti', cloak: 0xd8862a, dark: 0x8a4f16, accent: 0xffd9a0, hex: '#ffc46e' },
 ];
 const MASK = 0xe8e2cf, INK = 0x10141a;
 const KC = () => Phaser.Input.Keyboard.KeyCodes;
@@ -567,6 +567,7 @@ class MenuScene extends Phaser.Scene {
     const glow = this.add.graphics();
     glow.fillStyle(0x9ff0c8, 0.06); for (let r = 140; r > 10; r -= 14) glow.fillCircle(VW / 2, 160, r);
     this.hero = this.add.graphics();
+    this.heroTags = PAL.map((pal) => makeTag(this, pal, 1).setScale(1.6));
 
     this.add.text(VW / 2, 92, 'ТРОПА ТКАЧЕЙ', { fontFamily: '"Cormorant SC", Georgia, serif', fontSize: '64px', color: '#e8e2cf', fontStyle: '700' }).setOrigin(0.5).setShadow(0, 0, '#9ff0c8', 18, false, true);
     this.add.text(VW / 2, 136, 'Глава I · Мшистая Глубь', { fontFamily: '"Fira Sans", sans-serif', fontSize: '17px', color: '#8fb8a8' }).setOrigin(0.5);
@@ -653,11 +654,17 @@ class MenuScene extends Phaser.Scene {
     for (let i = 0; i < 2; i++) {
       const x = VW / 2 + (i ? 26 : -26), y = 214 + Math.sin(this.t * 2 + i) * 3;
       drawWeaver(g, x, y, i ? -1 : 1, PAL[i], { bob: 0, leg: 0, sway: Math.sin(this.t * 1.6 + i) * 1.5, lift: 0 }, 1.6);
+      this.heroTags[i].setPosition(x + (i ? 1 : -1) * 0.5, y - 13 * 1.6);
     }
   }
 }
 
 // общий рисунок ткача (для меню и игры)
+// надпись на плаще ткача (Di / Ti)
+function makeTag(scene, pal, depth) {
+  return scene.add.text(0, 0, pal.tag, { fontFamily: '"Fira Sans", sans-serif', fontSize: '9px', fontStyle: '700', color: '#f4efe0', stroke: '#10141a', strokeThickness: 2 })
+    .setOrigin(0.5).setDepth(depth);
+}
 function drawWeaver(g, x, y, face, pal, a, scale) {
   const s = scale || 1, f = face;
   const X = (v) => x + v * s * f, Y = (v) => y + v * s;
@@ -891,7 +898,7 @@ class GameScene extends Phaser.Scene {
       coyote: 0, jumpBuf: 0, jumpCut: true, dashT: 0, dashCd: 0, canDash: true, atkT: 0, atkCd: 0, atkDir: 'f', atkHits: null, pogoed: false,
       hp: 5, maxHp: 5, silk: 0, inv: 0, hurtT: 0, kbx: 0, downed: false, reviveT: 0, safeX: x - 7, safeY: y - 26, groundT: 0,
       wallDir: 0, wjLock: 0, healT: 0, landT: 0, sit: false, prev: {}, inp: {}, trail: [], bombs: this.L.crates ? 3 : 0, bombCd: 0,
-      g: this.add.graphics().setDepth(5),
+      g: this.add.graphics().setDepth(5), tag: makeTag(this, PAL[i], 5.1),
     };
   }
   spawnEnemies() {
@@ -1530,7 +1537,7 @@ class GameScene extends Phaser.Scene {
     if (!this.sys.isActive()) return;
     if (this.online === 'host') {
       const rem = this.players.find((p) => p.remote);
-      if (rem) { rem.g.destroy(); this.players = this.players.filter((p) => !p.remote); this.ui().removePlayer(rem.i); }
+      if (rem) { rem.g.destroy(); rem.tag.destroy(); this.players = this.players.filter((p) => !p.remote); this.ui().removePlayer(rem.i); }
       this.online = null; this.nPlayers = 1;
       this.ui().toast('Связь с напарником потеряна. Игра продолжается в одиночку');
     } else {
@@ -1637,6 +1644,7 @@ class GameScene extends Phaser.Scene {
     const g = p.g; g.clear();
     const cx = p.x + p.w / 2, fy = p.y + p.h;
     g.setPosition(0, 0); g.setScale(1);
+    p.tag.setVisible(!p.downed);
     if (p.downed) {
       g.setAlpha(1);
       const pulse = 0.5 + Math.sin(now * 3 + p.i) * 0.2;
@@ -1665,6 +1673,7 @@ class GameScene extends Phaser.Scene {
     };
     if (p.healT > 0) { g.fillStyle(p.pal.accent, 0.25 * (p.healT / 0.6)); g.fillCircle(0, -14, 24); }
     drawWeaver(g, 0, 0, p.face, p.pal, a, 1);
+    p.tag.setPosition(cx + p.face * 0.5, fy + (-12.5 - a.bob * 0.5) * sy).setScale(sx, sy).setAlpha(blink ? 0.35 : 1);
     if (p.atkT <= 0 && !p.sit) {
       const f = p.face;
       g.lineStyle(1.8, 0xcfd6dc, 1); g.lineBetween(-6 * f, -10 - a.bob, -13 * f, -25 - a.bob);
@@ -2015,7 +2024,7 @@ Object.assign(GameScene.prototype, {
           const opts = ['letters', 'big', 'charge'].filter((o) => o !== m.last);
           const pick = opts[Math.floor(Math.random() * opts.length)]; m.last = pick; m.vx = 0;
           if (pick === 'letters') this.mishaWord(phase2);
-          if (pick === 'big') { m.state = 'bigWind'; m.t = 0.6; this.mishaSpeak(phase2 ? 'ЖИРНЫЙ ШРИФТ!' : 'КАПС!', 1.2); }
+          if (pick === 'big') { m.state = 'bigWind'; m.t = 0.6; this.mishaSpeak('ДЕТДОМ!', 1.2); }
           if (pick === 'charge') { m.state = 'chargeWind'; m.t = phase2 ? 0.45 : 0.6; m.face = want; this.mishaSpeak('С ДОРОГИ!', 1.0); }
         }
         break;
