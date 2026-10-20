@@ -1,6 +1,6 @@
 // ===== НАСТРОЙКИ И СОХРАНЕНИЕ (localStorage; без него всё работает на значениях по умолчанию) =====
 const Settings = {
-  def: { vol: 80, mvol: 60, shake: true, easy: false, vibro: true, bsize: 'M', bop: 100, lefty: false, boss: 0 },
+  def: { vol: 80, mvol: 60, shake: true, easy: false, vibro: true, bsize: 'M', bop: 100, lefty: false, boss: 0, speed: 100, noflash: false, outl: false },
   s: null, open: false, onClose: null,
   load() {
     this.s = { ...this.def };
@@ -28,7 +28,8 @@ const Settings = {
       $('st-vol').value = this.s.vol; $('st-vol-v').textContent = this.s.vol + '%';
       $('st-mvol').value = this.s.mvol; $('st-mvol-v').textContent = this.s.mvol + '%';
       $('st-shake').checked = this.s.shake; $('st-easy').checked = this.s.easy;
-      $('st-vibro').checked = this.s.vibro; $('st-lefty').checked = this.s.lefty;
+      $('st-vibro').checked = this.s.vibro; $('st-lefty').checked = this.s.lefty; $('st-noflash').checked = this.s.noflash; $('st-outl').checked = this.s.outl;
+      el.querySelectorAll('[name=st-speed]').forEach((r) => { r.checked = +r.value === this.s.speed; });
       $('st-bop').value = this.s.bop; $('st-bop-v').textContent = this.s.bop + '%';
       el.querySelectorAll('[name=st-bsize]').forEach((r) => { r.checked = r.value === this.s.bsize; });
       const p = this.progress();
@@ -40,8 +41,10 @@ const Settings = {
     $('st-vol').addEventListener('change', () => { Snd.init(); Snd.play('bead'); });
     $('st-mvol').addEventListener('input', (e) => { this.s.mvol = +e.target.value; $('st-mvol-v').textContent = this.s.mvol + '%'; Snd.init(); this.save(); });
     $('st-bop').addEventListener('input', (e) => { this.s.bop = +e.target.value; $('st-bop-v').textContent = this.s.bop + '%'; this.save(); });
-    for (const k of ['shake', 'easy', 'vibro', 'lefty']) $('st-' + k).addEventListener('change', (e) => { this.s[k] = e.target.checked; this.save(); });
+    for (const k of ['shake', 'easy', 'vibro', 'lefty', 'noflash', 'outl']) $('st-' + k).addEventListener('change', (e) => { this.s[k] = e.target.checked; this.save(); });
     el.querySelectorAll('[name=st-bsize]').forEach((r) => r.addEventListener('change', () => { this.s.bsize = r.value; this.save(); }));
+    el.querySelectorAll('[name=st-speed]').forEach((r) => r.addEventListener('change', () => { this.s.speed = +r.value; this.save(); }));
+    if (typeof Access !== 'undefined') Access.init();
     $('st-reset').addEventListener('click', (e) => {
       const b = e.currentTarget;
       if (b.dataset.armed !== '1') { b.dataset.armed = '1'; b.textContent = 'Точно сбросить? Нажмите ещё раз'; setTimeout(() => { b.dataset.armed = ''; bind(); }, 3500); return; }

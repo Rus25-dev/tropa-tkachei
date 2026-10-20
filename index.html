@@ -86,6 +86,19 @@
   #settings button { font: 600 14px var(--body); border-radius: 7px; padding: 9px 14px; cursor: pointer; border: 1px solid #3a6b5a; background: #143029; color: var(--bone); }
   #settings button:disabled { opacity: 0.45; cursor: default; }
   #settings button.primary { background: var(--moss); border-color: var(--moss); color: #08130f; }
+  #keys { position: fixed; inset: 0; z-index: 7; display: grid; place-items: center; overflow-y: auto; background: rgba(3, 8, 7, 0.9); padding: 16px; }
+  #keys[hidden] { display: none; }
+  #keys .card { width: min(480px, 100%); background: #0c1815; border: 1px solid #24433a; border-radius: 10px; padding: 18px 22px 16px; display: grid; gap: 10px; margin-block: auto; }
+  #keys h2 { font: 700 30px var(--display); margin: 0; color: var(--bone); }
+  #keys .label { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  #keys .krow { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 14px; color: #cfe2d8; padding: 3px 0; }
+  #keys .kb { min-width: 128px; }
+  #keys .kb.listen { background: var(--moss); color: #08130f; }
+  #keys #kb-note { font-size: 12.5px; color: var(--ember); min-height: 2.6em; }
+  #keys .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+  #keys button { font: 600 14px var(--body); border-radius: 7px; padding: 8px 14px; cursor: pointer; border: 1px solid #3a6b5a; background: #143029; color: var(--bone); }
+  #keys button.primary { background: var(--moss); border-color: var(--moss); color: #08130f; }
+  #keys button:focus-visible { outline: 2px solid var(--glow); outline-offset: 2px; }
   #settings button:focus-visible, #settings input:focus-visible { outline: 2px solid var(--glow); outline-offset: 2px; }
   #st-prog { font-size: 13px; color: var(--muted); }
   /* плашка обновления */
@@ -177,11 +190,29 @@
       <label class="opt st-touch" for="st-lefty"><input id="st-lefty" type="checkbox"><span>Для левши<small>кнопки слева, стик справа</small></span></label>
       <label class="opt st-touch" for="st-bop">Видимость кнопок <input id="st-bop" type="range" min="30" max="100" step="10"><span class="val" id="st-bop-v"></span></label>
     </div>
+    <span class="label">Доступность</span>
+    <div class="grid">
+      <label class="opt" for="st-noflash"><input id="st-noflash" type="checkbox"><span>Без вспышек<small>вместо белых вспышек — мягкое затемнение</small></span></label>
+      <label class="opt" for="st-outl"><input id="st-outl" type="checkbox"><span>Контуры опасного<small>яркая обводка снарядов и шипов</small></span></label>
+    </div>
+    <div class="row"><span><span class="label">Скорость игры</span><br>
+      <span class="seg"><label><input type="radio" name="st-speed" value="100">100 %</label><label><input type="radio" name="st-speed" value="80">80 %</label><label><input type="radio" name="st-speed" value="60">60 %</label></span>
+      <small style="color:var(--muted);font-size:12px"> по сети всегда 100 %</small></span>
+      <button id="st-keys" type="button">Управление…</button></div>
     <div class="st-touch"><span class="label">Размер кнопок</span><br>
       <span class="seg"><label><input type="radio" name="st-bsize" value="S">Меньше</label><label><input type="radio" name="st-bsize" value="M">Обычные</label><label><input type="radio" name="st-bsize" value="L">Крупнее</label></span></div>
     <span class="label">Прогресс главы</span>
     <div class="row"><span id="st-prog"></span><button id="st-reset" type="button">Сбросить прогресс</button></div>
     <div class="row"><span class="label">Лёгкий режим включится со следующего боя</span><button id="st-done" class="primary" type="button">Готово</button></div>
+  </div>
+</div>
+<div id="keys" hidden>
+  <div class="card" role="dialog" aria-labelledby="kb-title">
+    <h2 id="kb-title">Управление</h2>
+    <span class="label">Игрок 1 (игрок 2 и стрелки не меняются)</span>
+    <div class="kr"></div>
+    <div id="kb-note" role="status"></div>
+    <div class="row"><button id="kb-def" type="button">По умолчанию</button><button id="kb-done" class="primary" type="button">Готово</button></div>
   </div>
 </div>
 <div id="update" hidden role="status"><span id="upd-text">Вышла новая версия</span><button id="upd-btn" class="primary" type="button">Обновить</button><button id="upd-later" type="button">Позже</button></div>
@@ -738,7 +769,7 @@ const Music = {
 
 // ===== НАСТРОЙКИ И СОХРАНЕНИЕ (localStorage; без него всё работает на значениях по умолчанию) =====
 const Settings = {
-  def: { vol: 80, mvol: 60, shake: true, easy: false, vibro: true, bsize: 'M', bop: 100, lefty: false, boss: 0 },
+  def: { vol: 80, mvol: 60, shake: true, easy: false, vibro: true, bsize: 'M', bop: 100, lefty: false, boss: 0, speed: 100, noflash: false, outl: false },
   s: null, open: false, onClose: null,
   load() {
     this.s = { ...this.def };
@@ -766,7 +797,8 @@ const Settings = {
       $('st-vol').value = this.s.vol; $('st-vol-v').textContent = this.s.vol + '%';
       $('st-mvol').value = this.s.mvol; $('st-mvol-v').textContent = this.s.mvol + '%';
       $('st-shake').checked = this.s.shake; $('st-easy').checked = this.s.easy;
-      $('st-vibro').checked = this.s.vibro; $('st-lefty').checked = this.s.lefty;
+      $('st-vibro').checked = this.s.vibro; $('st-lefty').checked = this.s.lefty; $('st-noflash').checked = this.s.noflash; $('st-outl').checked = this.s.outl;
+      el.querySelectorAll('[name=st-speed]').forEach((r) => { r.checked = +r.value === this.s.speed; });
       $('st-bop').value = this.s.bop; $('st-bop-v').textContent = this.s.bop + '%';
       el.querySelectorAll('[name=st-bsize]').forEach((r) => { r.checked = r.value === this.s.bsize; });
       const p = this.progress();
@@ -778,8 +810,10 @@ const Settings = {
     $('st-vol').addEventListener('change', () => { Snd.init(); Snd.play('bead'); });
     $('st-mvol').addEventListener('input', (e) => { this.s.mvol = +e.target.value; $('st-mvol-v').textContent = this.s.mvol + '%'; Snd.init(); this.save(); });
     $('st-bop').addEventListener('input', (e) => { this.s.bop = +e.target.value; $('st-bop-v').textContent = this.s.bop + '%'; this.save(); });
-    for (const k of ['shake', 'easy', 'vibro', 'lefty']) $('st-' + k).addEventListener('change', (e) => { this.s[k] = e.target.checked; this.save(); });
+    for (const k of ['shake', 'easy', 'vibro', 'lefty', 'noflash', 'outl']) $('st-' + k).addEventListener('change', (e) => { this.s[k] = e.target.checked; this.save(); });
     el.querySelectorAll('[name=st-bsize]').forEach((r) => r.addEventListener('change', () => { this.s.bsize = r.value; this.save(); }));
+    el.querySelectorAll('[name=st-speed]').forEach((r) => r.addEventListener('change', () => { this.s.speed = +r.value; this.save(); }));
+    if (typeof Access !== 'undefined') Access.init();
     $('st-reset').addEventListener('click', (e) => {
       const b = e.currentTarget;
       if (b.dataset.armed !== '1') { b.dataset.armed = '1'; b.textContent = 'Точно сбросить? Нажмите ещё раз'; setTimeout(() => { b.dataset.armed = ''; bind(); }, 3500); return; }
@@ -1043,7 +1077,7 @@ const Lobby = {
 let VW = 960; const VH = 540;
 // версия игры; номер сборки подставляет build.py
 const GAME_VERSION = '1.3';
-const GAME_BUILD = '261020.1306';
+const GAME_BUILD = '261020.1310';
 const CHANGELOG = [
   'Рекорды боссов (попытки, лучшее время), возрождение у арены Корнематки, подсказки про отбив и всполох',
   'Кампания: после Корнематки — Глава II (Миша), III (Владик), IV (Тима) с коридорами перед аренами',
@@ -1141,7 +1175,7 @@ class MenuScene extends Phaser.Scene {
     mkBtn(422, '5 · Настройки', 'клавиша 5 · громкость, тряска, лёгкий режим, кнопки', 5);
 
     const ctl = [
-      'Игрок 1:  A D W S — ходить   Пробел — прыжок   F — удар   G — рывок   Q — лечение   R — дымовуха',
+      Access.line(false),
       'Игрок 2:  стрелки   Num1 или / — прыжок   Num2 или . — удар   Num3 или , — рывок   Num0 или M — лечение   Num4 или N — дымовуха',
       'В одиночку можно и так: стрелки + Z X C V B.   Геймпад: A прыжок, X удар, B/RB рывок, Y лечение, LB дымовуха.   Esc — пауза',
     ];
@@ -1340,7 +1374,7 @@ class GameScene extends Phaser.Scene {
       g.fillStyle(0x2a3b33, 0.92); g.fillRoundedRect(sx - 14, sy - 50, 28, 20, 4);
       g.lineStyle(1, 0x67ad62, 0.8); g.strokeRoundedRect(sx - 14, sy - 50, 28, 20, 4);
       g.fillStyle(0x9ff0c8, 0.9); g.fillCircle(sx, sy - 40, 3);
-      const txt = this.add.text(sx, sy - 62, Touch.enabled && s.touch ? s.touch : s.text, { fontFamily: '"Fira Sans", sans-serif', fontSize: '13px', color: '#d9ecdf', align: 'center', lineSpacing: 3, backgroundColor: 'rgba(8,18,15,0.72)', padding: { x: 8, y: 5 } }).setOrigin(0.5, 1).setDepth(8).setAlpha(0);
+      const txt = this.add.text(sx, sy - 62, Touch.enabled && s.touch ? s.touch : Access.sign(s.text), { fontFamily: '"Fira Sans", sans-serif', fontSize: '13px', color: '#d9ecdf', align: 'center', lineSpacing: 3, backgroundColor: 'rgba(8,18,15,0.72)', padding: { x: 8, y: 5 } }).setOrigin(0.5, 1).setDepth(8).setAlpha(0);
       s.txt = txt; s.px = sx; s.py = sy;
     }
     // скамьи
@@ -2597,7 +2631,7 @@ class UIScene extends Phaser.Scene {
     this.pause = this.add.container(0, 0).setVisible(false);
     const pb = this.add.graphics(); pb.fillStyle(0x030807, 0.82); pb.fillRect(0, 0, VW, VH);
     const pt = this.add.text(VW / 2, 150, 'Пауза', { fontFamily: D, fontSize: '52px', color: '#e8e2cf', fontStyle: '700' }).setOrigin(0.5);
-    const pc = this.add.text(VW / 2, 300, [
+    const pc = this.pauseL1 = this.add.text(VW / 2, 300, [
       'Игрок 1:  A D W S · Пробел — прыжок · F — удар · G — рывок · Q — лечение · R — дымовуха',
       'Игрок 2:  стрелки · Num1 или / — прыжок · Num2 или . — удар · Num3 или , — рывок · Num0 или M — лечение · Num4 или N — дымовуха',
       '', 'Удар вверх: держи ↑ + удар.  Удар вниз в прыжке: ↓ + удар — отскок от колючек и врагов.',
@@ -5346,6 +5380,162 @@ const Records = {
   MenuScene.prototype.setPick = function (i) {
     setPick.call(this, i);
     this.pickAbout.setText(BOSSES[this.pickIdx].about + '\n' + Records.line(BOSSES[this.pickIdx].id));
+  };
+})();
+
+// ===== ДОСТУПНОСТЬ: переназначение клавиш, скорость игры, «без вспышек», «контуры опасного» =====
+const Access = {
+  ACTS: [['left', 'Идти влево'], ['right', 'Идти вправо'], ['up', 'Вверх (удар вверх, скамья)'], ['down', 'Вниз (удар вниз, лавка)'],
+    ['jump', 'Прыжок'], ['atk', 'Удар'], ['dash', 'Рывок'], ['heal', 'Нить: лечение и отбив'], ['bomb', 'Дымовуха']],
+  DEF: { left: [65, 'A'], right: [68, 'D'], up: [87, 'W'], down: [83, 'S'], jump: [32, 'Пробел'], atk: [70, 'F'], dash: [71, 'G'], heal: [81, 'Q'], bomb: [82, 'R'] },
+  // клавиши игрока 2, стрелок и запасной раскладки заняты и не отдаются
+  RESERVED: new Set([27, 37, 38, 39, 40, 96, 97, 98, 99, 100, 188, 190, 191, 77, 78, 90, 88, 67, 86, 66]),
+  keys: null, listening: null, scene: null,
+  load() {
+    this.keys = {};
+    for (const a in this.DEF) this.keys[a] = [...this.DEF[a]];
+    try {
+      const raw = JSON.parse(localStorage.getItem('tt_keys') || 'null');
+      if (raw) for (const a in this.DEF) if (raw[a] && typeof raw[a][0] === 'number' && typeof raw[a][1] === 'string') this.keys[a] = [raw[a][0], raw[a][1].slice(0, 12)];
+    } catch (_) { }
+    // защита от битого сохранения: дубликаты или занятые клавиши — сброс по умолчанию
+    const seen = new Set();
+    for (const a in this.keys) { const c = this.keys[a][0]; if (seen.has(c) || this.RESERVED.has(c)) { this.reset(); return; } seen.add(c); }
+  },
+  save() { try { localStorage.setItem('tt_keys', JSON.stringify(this.keys)); } catch (_) { } },
+  reset() { this.keys = {}; for (const a in this.DEF) this.keys[a] = [...this.DEF[a]]; this.save(); },
+  name(a) { return this.keys[a][1]; },
+  codeOf(a) { return this.keys[a][0]; },
+  label(e) {
+    const c = e.code || '';
+    const m = { Space: 'Пробел', ArrowLeft: '←', ArrowRight: '→', ArrowUp: '↑', ArrowDown: '↓', Enter: 'Enter', Tab: 'Tab', Backspace: 'Backspace', ShiftLeft: 'Shift', ShiftRight: 'Shift', ControlLeft: 'Ctrl', ControlRight: 'Ctrl', AltLeft: 'Alt', AltRight: 'Alt', Minus: '-', Equal: '=', BracketLeft: '[', BracketRight: ']', Semicolon: ';', Quote: "'", Backquote: '`', Backslash: '\\', CapsLock: 'Caps' };
+    if (m[c]) return m[c];
+    if (/^Key[A-Z]$/.test(c)) return c.slice(3);
+    if (/^Digit\d$/.test(c)) return c.slice(5);
+    if (/^Numpad/.test(c)) return 'Num ' + c.slice(6);
+    return (e.key && e.key.length <= 8 ? e.key.toUpperCase() : c || String(e.keyCode)).slice(0, 12);
+  },
+  // назначение клавиши действию; если она уже стоит на другом действии, они меняются местами
+  assign(act, code, name) {
+    if (this.RESERVED.has(code)) return false;
+    const old = this.keys[act].slice();
+    for (const a in this.keys) if (a !== act && this.keys[a][0] === code) this.keys[a] = old;
+    this.keys[act] = [code, name]; this.save(); return true;
+  },
+  // строка подсказки про раскладку игрока 1 (для меню и паузы)
+  line(sep) {
+    const n = (a) => this.name(a), mv = [n('left'), n('right'), n('up'), n('down')].join(' ');
+    const sp = sep ? ' · ' : '   ';
+    return `Игрок 1:  ${mv} — ходить${sp}${n('jump')} — прыжок${sp}${n('atk')} — удар${sp}${n('dash')} — рывок${sp}${n('heal')} — лечение${sp}${n('bomb')} — дымовуха`;
+  },
+  // подсказки на табличках уровня: подставляем актуальные клавиши
+  sign(t) {
+    const n = (a) => this.name(a);
+    return t.replace('A / D —', `${n('left')} / ${n('right')} —`).replace('Пробел — прыжок', `${n('jump')} — прыжок`)
+      .replace('F — удар', `${n('atk')} — удар`).replace('Q — связать', `${n('heal')} — связать`).replace('G — рывок', `${n('dash')} — рывок`)
+      .replace('Q без полной', `${n('heal')} без полной`).replace('Стик/↑ + Q', `Стик/${n('up')} + ${n('heal')}`).replace('S + F', `${n('down')} + ${n('atk')}`);
+  },
+  refreshPause(u) {
+    if (!u || !u.ready || !u.pauseL1 || Touch.enabled) return;
+    const ls = u.pauseL1.text.split('\n'); ls[0] = this.line(true); u.pauseL1.setText(ls.join('\n'));
+  },
+  speed() { return (this.scene && this.scene.online) ? 1 : (Settings.s.speed || 100) / 100; },
+  // мягкое затемнение вместо белой вспышки
+  dim(sc, d) {
+    const u = sc.ui && sc.ui(); if (!u || !u.ready || !u.add) return;
+    const r = u.add.rectangle(VW / 2, VH / 2, VW, VH, 0x050c0a, 0.34).setDepth(50);
+    u.tweens.add({ targets: r, alpha: 0, duration: Math.max(260, d * 1.3), onComplete: () => r.destroy() });
+  },
+
+  // ----- экран «Управление» -----
+  init() {
+    this.load();
+    const el = this.el = document.getElementById('keys');
+    const render = () => {
+      const box = el.querySelector('.kr'); box.innerHTML = '';
+      for (const [a, t] of this.ACTS) {
+        const row = document.createElement('div'); row.className = 'krow';
+        const l = document.createElement('span'); l.textContent = t;
+        const b = document.createElement('button'); b.type = 'button'; b.dataset.act = a; b.className = 'kb';
+        b.textContent = this.listening === a ? 'Нажмите клавишу…' : this.name(a);
+        if (this.listening === a) b.classList.add('listen');
+        b.addEventListener('click', () => { this.listening = this.listening === a ? null : a; this.note(''); render(); });
+        row.append(l, b); box.append(row);
+      }
+    };
+    this.render = render;
+    el.querySelector('#kb-def').addEventListener('click', () => { this.reset(); this.listening = null; render(); this.note('Клавиши возвращены по умолчанию', true); });
+    el.querySelector('#kb-done').addEventListener('click', () => this.hide());
+    document.getElementById('st-keys').addEventListener('click', () => this.show());
+    window.addEventListener('keydown', (e) => {
+      if (el.hidden) return;
+      e.stopPropagation(); // пока открыт экран, игра клавиш не видит
+      if (this.listening) {
+        e.preventDefault();
+        if (e.key === 'Escape') { this.listening = null; render(); this.note(''); return; }
+        if (e.repeat) return;
+        const a = this.listening, nm = this.label(e), ok = this.assign(a, e.keyCode, nm);
+        this.listening = null; render();
+        this.note(ok ? `«${nm}» назначена` : 'Эта клавиша занята игроком 2 или запасной раскладкой', true);
+        return;
+      }
+      if (e.key === 'Escape') { e.preventDefault(); this.hide(); }
+    }, true);
+  },
+  note(t, keep) { const n = this.el.querySelector('#kb-note'); n.textContent = t || 'Нажмите на действие, затем на нужную клавишу. Если она уже занята, действия поменяются местами.'; n.dataset.keep = keep ? '1' : ''; },
+  show() { this.listening = null; this.render(); this.note(''); this.el.hidden = false; setTimeout(() => this.el.querySelector('#kb-done').focus(), 0); },
+  hide() { this.listening = null; this.el.hidden = true; if (this.scene && this.scene.ui) this.refreshPause(this.scene.ui()); const b = document.getElementById('st-keys'); if (b) b.focus(); },
+};
+
+(function () {
+  const G = GameScene.prototype;
+  // раскладка игрока 1 из настроек
+  const setupO = G.setupInput;
+  G.setupInput = function () {
+    setupO.call(this);
+    const k = this.input.keyboard, o = {};
+    for (const [a] of Access.ACTS) o[a] = [k.addKey(Access.codeOf(a))];
+    this.kb1 = o;
+  };
+  const createO = G.create;
+  G.create = function (...a) {
+    this.accG = null; Access.scene = this;
+    createO.apply(this, a);
+    const cam = this.cameras.main, flashO = cam.flash.bind(cam);
+    cam.flash = (d, ...c) => { if (!Settings.s.noflash) return flashO(d, ...c); Access.dim(this, d || 250); return cam; };
+    this.events.once('shutdown', () => { if (Access.scene === this) Access.scene = null; });
+  };
+  // замедление игры (по сети всегда 100 %)
+  const updO = G.update;
+  G.update = function (time, delta) { Access.scene = this; return updO.call(this, time, delta * Access.speed()); };
+  // яркие контуры снарядов и шипов
+  const NOT_HARM = new Set(['bomb', 'ringfx', 'staffghost', 'mark']);
+  const renderO = G.render;
+  G.render = function (dt) {
+    renderO.call(this, dt);
+    if (!Settings.s.outl || this.td) { if (this.accG) this.accG.clear(); return; }
+    if (!this.accG || !this.accG.scene) this.accG = this.add.graphics().setDepth(8.5);
+    const g = this.accG; g.clear();
+    const line = (x, y, w, h) => {
+      g.lineStyle(5, 0x000000, 0.65); g.strokeRect(x, y, w, h);
+      g.lineStyle(2.5, 0xffe600, 1); g.strokeRect(x, y, w, h);
+    };
+    const wv = this.cameras.main.worldView;
+    if (this._spkFor !== this.grid) {
+      this._spkFor = this.grid; this._spk = [];
+      for (let y = 0; y < this.L.H; y++) for (let x = 0; x < this.L.W; x++) if (this.grid[y][x] === SPIKE) this._spk.push([x * T, y * T]);
+    }
+    for (const [x, y] of this._spk) if (x > wv.x - T && x < wv.right && y > wv.y - T && y < wv.bottom) line(x + 1, y + T * 0.38, T - 2, T * 0.62);
+    for (const pr of this.projs) {
+      if (pr.dead || pr.delay > 0 || NOT_HARM.has(pr.kind) || !(pr.w > 0)) continue;
+      line(pr.x - 1, pr.y - 1, pr.w + 2, pr.h + 2);
+    }
+  };
+  // подсказки в паузе обновляем при каждом показе
+  const sp = UIScene.prototype.showPause;
+  UIScene.prototype.showPause = function (on) {
+    if (on) Access.refreshPause(this);
+    return sp.call(this, on);
   };
 })();
 
