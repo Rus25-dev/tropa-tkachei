@@ -1086,7 +1086,7 @@ const Lobby = {
 let VW = 960; const VH = 540;
 // версия игры; номер сборки подставляет build.py
 const GAME_VERSION = '1.5';
-const GAME_BUILD = '261020.1423';
+const GAME_BUILD = '261020.1426';
 const CHANGELOG = [
   'Геймпады: DualSense, Xbox и Steam Deck — удобная раскладка, вибрация, сенсорные кнопки прячутся',
   'Спидран (клавиша 6): «Тропа целиком» и «Босс-раш», таймер RTA/IGT, сплиты с дельтой к рекорду, код результата и таблица друзей',
@@ -2240,7 +2240,7 @@ class GameScene extends Phaser.Scene {
     if (m.t === 'p') {
       const p = this.players[m.i]; if (!p || !p.remote) return;
       Object.assign(p, { tx: m.x, ty: m.y, vx: m.vx, vy: m.vy, face: m.f, onGround: !!m.g, dashT: m.d, sit: !!m.s, healT: m.h, landT: m.l,
-        hp: m.hp, maxHp: m.mh, silk: m.sk, downed: !!m.dn, inv: m.iv, netUp: !!m.u, reviveT: m.rv, netT: 0, bombs: m.bm || 0, heavy: !!m.hv, weaponId: m.wp || 'needle', toolId: m.tl || '' });
+        hp: m.hp, maxHp: m.mh, silk: m.sk, downed: !!m.dn, inv: m.iv, netUp: !!m.u, reviveT: m.rv, netT: 0, bombs: m.bm || 0, heavy: !!m.hv, weaponId: m.wp || 'needle', toolId: m.tl || '', charms: m.cm ? m.cm.split(',') : [] });
       if (m.tp) { p.tdx = m.tp[0]; p.tdy = m.tp[1]; }
       p.inp = { up: p.netUp };
       if (m.sq !== p.lastSeq) { p.lastSeq = m.sq; p.atkT = P.ATK_T; p.atkHits = new Set(); p.atkDir = m.ad; p.pogoed = true; }
@@ -5291,14 +5291,14 @@ Object.assign(UIScene.prototype, {
     const D = '"Cormorant SC", Georgia, serif', F = '"Fira Sans", sans-serif', gs = this.gs, x0 = VW / 2 - 280;
     const c = this.add.container(0, 0).setVisible(false).setDepth(50);
     const bg = this.add.graphics(); bg.fillStyle(0x030807, 0.86); bg.fillRect(0, 0, VW, VH);
-    bg.fillStyle(0x0b1714, 0.97); bg.fillRoundedRect(x0 - 20, 70, 600, 400, 10); bg.lineStyle(2, 0x3c5a50, 1); bg.strokeRoundedRect(x0 - 20, 70, 600, 400, 10);
+    bg.fillStyle(0x0b1714, 0.97); bg.fillRoundedRect(x0 - 20, 70, 600, 424, 10); bg.lineStyle(2, 0x3c5a50, 1); bg.strokeRoundedRect(x0 - 20, 70, 600, 424, 10);
     const title = this.add.text(VW / 2, 104, 'Лавка у скамьи', { fontFamily: D, fontSize: '40px', color: '#e8e2cf', fontStyle: '700' }).setOrigin(0.5);
     this.shopBeads = this.add.text(x0 + 560, 88, '', { fontFamily: F, fontSize: '18px', color: '#ffe3a3' }).setOrigin(1, 0);
     this.shopSelG = this.add.graphics();
     this.shopRows = [];
-    const rows = [...SHOP, { id: 'close' }];
+    const rows = [...SHOP, { id: 'gear' }, { id: 'close' }];
     rows.forEach((it, i) => {
-      const y = 148 + i * 70;
+      const y = 146 + i * 62;
       const name = this.add.text(x0, y, '', { fontFamily: D, fontSize: '26px', color: '#cfe8dc', fontStyle: '700' });
       const desc = this.add.text(x0, y + 31, '', { fontFamily: F, fontSize: '13px', color: '#86a89a' });
       const price = this.add.text(x0 + 560, y + 2, '', { fontFamily: F, fontSize: '18px', fontStyle: '600', color: '#ffe3a3' }).setOrigin(1, 0);
@@ -5308,7 +5308,7 @@ Object.assign(UIScene.prototype, {
       this.shopRows.push({ it, name, desc, price, y });
       c.add([name, desc, price, hit]);
     });
-    this.shopHint = this.add.text(VW / 2, 446, '', { fontFamily: F, fontSize: '12px', color: '#6f9586' }).setOrigin(0.5);
+    this.shopHint = this.add.text(VW / 2, 468, '', { fontFamily: F, fontSize: '12px', color: '#6f9586' }).setOrigin(0.5);
     c.add([bg, title, this.shopBeads, this.shopSelG, this.shopHint]);
     c.sendToBack(this.shopSelG); c.sendToBack(bg);
     this.shopC = c; this.shopSel = 0;
@@ -5326,7 +5326,7 @@ Object.assign(UIScene.prototype, {
   shopMove(d) { const n = this.shopRows.length; this.shopSel = (this.shopSel + d + n) % n; this.shopRefresh(); },
   shopAct() {
     const r = this.shopRows[this.shopSel]; if (!r) return;
-    if (r.it.id === 'close') Campaign.closeShop(this.gs); else Campaign.buy(this.gs, r.it.id);
+    if (r.it.id === 'close') Campaign.closeShop(this.gs); else if (r.it.id === 'gear') { if (typeof Gear !== 'undefined') Gear.open(this.gs, 'shop'); } else Campaign.buy(this.gs, r.it.id);
   },
   shopRefresh() {
     const gs = this.gs, up = gs.up || Campaign.freshUp(), g = this.shopSelG; g.clear();
@@ -5339,6 +5339,7 @@ Object.assign(UIScene.prototype, {
     this.shopRows.forEach((r, i) => {
       const it = r.it, sel = i === this.shopSel;
       if (sel) { g.fillStyle(0x1d3a31, 0.9); g.fillRoundedRect(VW / 2 - 295, r.y - 6, 590, 62, 6); g.lineStyle(1.5, 0xffd47a, 0.8); g.strokeRoundedRect(VW / 2 - 295, r.y - 6, 590, 62, 6); }
+      if (it.id === 'gear') { r.name.setText('Снаряжение').setColor(sel ? '#ffd47a' : '#cfe8dc'); r.desc.setText('Оружие, инструмент и обереги'); r.price.setText('открыть').setColor('#9ff0c8'); return; }
       if (it.id === 'close') { r.name.setText('Закрыть').setColor(sel ? '#ffd47a' : '#cfe8dc'); r.desc.setText(Touch.enabled ? '' : 'Esc'); r.price.setText(''); return; }
       const lvl = up[it.id] | 0, maxed = lvl >= it.max, pr = maxed ? 0 : it.price[lvl], can = !maxed && gs.beads >= pr;
       r.name.setText(`${it.name}  ${'●'.repeat(lvl)}${'○'.repeat(it.max - lvl)}`).setColor(sel ? '#ffd47a' : '#cfe8dc');
@@ -6250,9 +6251,347 @@ Object.assign(GameScene.prototype, {
 
 // ===== tools: заготовка, заполняет отдельный агент =====
 
-// ===== charms: заготовка, заполняет отдельный агент =====
+// ===== ОБЕРЕГИ: 3 слота, предмет занимает 1–2 слота (поле slots) =====
+// Эффекты — обёртки вокруг методов GameScene (баланс по умолчанию не меняется: без оберега всё как раньше).
+Object.assign(CHARMS, {
+  sting: { id: 'sting', name: 'Жало', desc: 'Удары иглы отравляют: 1 урона раз в 1.2 с, 4 раза. Боссов яд берёт вдвое слабее.', unlock: 'boss:misha', slots: 1, col: 0x86e05a },
+  ember: { id: 'ember', name: 'Угольная нить', desc: 'Тяжёлый удар (третий в комбо) поджигает врага: 3 тика ожога, огонь перекидывается на соседей.', unlock: 'shop:45', slots: 1, col: 0xff8a3c },
+  heart: { id: 'heart', name: 'Паучье сердце', desc: '+1 бутон здоровья. Тяжёлый оберег: занимает два слота.', unlock: 'shop:60', slots: 2, col: 0xff6a7a },
+  swift: { id: 'swift', name: 'Быстрая нить', desc: 'Нить копится на 50 % быстрее: каждый второй набор даёт лишнюю единицу.', unlock: 'boss:korn', slots: 1, col: 0x9ff0c8 },
+  stride: { id: 'stride', name: 'Тихий шаг', desc: 'Рывок перезаряжается на 25 % быстрее.', unlock: 'shop:40', slots: 1, col: 0xb9d4c8 },
+  window: { id: 'window', name: 'Широкое окно', desc: 'Окно отбива шире на 50 % (0.2 → 0.3 с).', unlock: 'boss:vladik', slots: 1, col: 0xffffff },
+  thorns: { id: 'thorns', name: 'Колючий плащ', desc: 'Когда враг ранит вас касанием, он получает 1 урона в ответ.', unlock: 'shop:55', slots: 1, col: 0xd9a35a },
+  call: { id: 'call', name: 'Зов нити', desc: 'Бусины тянутся к вам издалека (в ~2.5 раза дальше).', unlock: 'shop:30', slots: 1, col: 0xffd47a },
+  hunter: { id: 'hunter', name: 'Охотник', desc: '+15 % урона по оглушённым врагам и боссам; казнь даёт вдвое больше нити.', unlock: 'boss:tima', slots: 1, col: 0xe8e2cf },
+});
 
-// ===== status: заготовка, заполняет отдельный агент =====
+// слоты: список надетых id → сколько слотов занято
+Loadout.slotsOf = function (id) { const c = CHARMS[id]; return c ? (c.slots | 0) || 1 : 1; };
+Loadout.slotsUsed = function (list) { return list.reduce((s, id) => s + this.slotsOf(id), 0); };
+Loadout.canFit = function (list, id) { return this.slotsUsed(list) + this.slotsOf(id) <= CHARM_SLOTS; };
+(function () {
+  const equip = Loadout.equip, equipped = Loadout.equipped;
+  // надеть оберег можно, только если хватает слотов; возвращает false, если не влезло
+  Loadout.equip = function (kind, id) {
+    if (kind === 'charm') {
+      const d = this.data();
+      if (!d.charms.includes(id) && !this.canFit(d.charms, id)) return false;
+    }
+    equip.call(this, kind, id); return true;
+  };
+  // при чтении тоже укладываемся в слоты (нужно, если реестр поменялся)
+  Loadout.equipped = function (sc) {
+    const r = equipped.call(this, sc), keep = [];
+    for (const c of r.charms) if (this.canFit(keep, c)) keep.push(c);
+    r.charms = keep; return r;
+  };
+})();
+
+(function () {
+  const proto = GameScene.prototype, has = (sc, p, id) => !!(p && sc.hasCharm(p, id));
+
+  // ----- Паучье сердце: +1 бутон (поверх масок из лавки) -----
+  const applyUp = Campaign.applyUp;
+  Campaign.applyUp = function (gs) {
+    const prev = (gs.players || []).map((p) => [p.maxHp, p.hp]);
+    applyUp.call(this, gs);
+    (gs.players || []).forEach((p, i) => {
+      if (p.remote || !prev[i]) return;
+      const [pm, ph] = prev[i], target = p.maxHp + (gs.hasCharm(p, 'heart') ? 1 : 0);
+      p.maxHp = target; p.hp = Math.min(target, ph + Math.max(0, target - pm));
+      p.silk = Math.min(p.silk, P.SILK);
+    });
+  };
+  const applyLoadout = proto.applyLoadout;
+  proto.applyLoadout = function () {
+    const r = applyLoadout.call(this);
+    if (this.up) Campaign.applyUp(this); // пересчитать здоровье под обереги
+    return r;
+  };
+
+  // ----- Быстрая нить: каждый второй набор нити даёт ещё одну единицу -----
+  const gainSilk = proto.gainSilk;
+  proto.gainSilk = function (p, boss) {
+    gainSilk.call(this, p, boss);
+    if (p.noSilkGain || !has(this, p, 'swift')) return;
+    const gained = !boss || (p.bossHits | 0) % BAL.silkEvery === 0;
+    if (!gained) return;
+    p._sf = (p._sf || 0) + 0.5;
+    if (p._sf >= 1) { p._sf -= 1; if (p.remote) this.sendEv({ k: 'silk', i: p.i }); else p.silk = Math.min(P.SILK, p.silk + 1); }
+  };
+
+  // ----- Тихий шаг (рывок) и Широкое окно (отбив) -----
+  const stepPlayer = proto.stepPlayer;
+  proto.stepPlayer = function (p, dt) {
+    if (p.dashCd > 0 && has(this, p, 'stride')) p.dashCd -= dt * 0.25;
+    const before = p.parryT || 0;
+    const r = stepPlayer.call(this, p, dt);
+    if (p.parryT > before && p.parryT >= P.PARRY_T - 1e-6 && has(this, p, 'window')) p.parryT = P.PARRY_T * 1.5;
+    return r;
+  };
+
+  // ----- Колючий плащ -----
+  const hurtPlayer = proto.hurtPlayer;
+  proto.hurtPlayer = function (p, dmg, srcX, spike) {
+    const hp0 = p.hp, r = hurtPlayer.call(this, p, dmg, srcX, spike);
+    if (!spike && srcX != null && p.hp < hp0 && this.auth() && has(this, p, 'thorns')) {
+      const px = p.x + 7, py = p.y + 13, near = (o) => Math.abs(o.x + o.w / 2 - srcX) < 1.5 && Math.abs(o.y + o.h / 2 - py) < 60 + o.h / 2 && Math.abs(o.x + o.w / 2 - px) < 60 + o.w / 2;
+      const e = this.enemies.find((o) => !o.dead && near(o));
+      if (e) {
+        e.hp -= 1; e.flash = 0.1; this.burst(8, e.x + e.w / 2, e.y + e.h / 2, 0xd9a35a); this.sfx('clink');
+        e.kbT = 0.14; e.kbx = Math.sign(e.x + e.w / 2 - px) * 200; e.kby = -80;
+        if (e.hp <= 0) this.killEnemy(e);
+      } else {
+        const key = Status.BOSS_KEYS.find((k) => { const b = k === 'boss' ? this.boss : this[k]; return b && Status.bossLive(b) && near(b); });
+        if (key) { Status.bossDamage(this, key, p, 1); this.burst(8, srcX, py, 0xd9a35a); }
+      }
+    }
+    return r;
+  };
+
+  // ----- Зов нити: бусины притягиваются издалека -----
+  const stepBeads = proto.stepBeads;
+  proto.stepBeads = function (dt) {
+    const callers = this.players.filter((p) => !p.remote && !p.downed && has(this, p, 'call'));
+    if (callers.length) for (const bd of this.beadsArr) {
+      if (bd.dead || bd.t <= 0.35) continue;
+      let best = null, bd2 = 220;
+      for (const p of callers) { const d = Math.hypot(p.x + 7 - bd.x - 4, p.y + 13 - bd.y - 4); if (d < bd2 && d >= 80) { bd2 = d; best = p; } }
+      if (best) { // подтянуть в зону обычного притяжения
+        const dx = best.x + 7 - bd.x - 4, dy = best.y + 13 - bd.y - 4, l = Math.hypot(dx, dy) || 1;
+        bd.x += (dx / l) * 300 * dt; bd.y += (dy / l) * 300 * dt; bd.vy = Math.min(bd.vy, 0);
+      }
+    }
+    return stepBeads.call(this, dt);
+  };
+
+  // ----- Жало, Угольная нить, Охотник: удары по врагам -----
+  const meleeHit = (sc, p) => !p.noSilkGain && p.atkT > 0 && !!p.atkHits;
+  const damageEnemy = proto.damageEnemy;
+  proto.damageEnemy = function (e, p) {
+    const hp0 = e.hp, stunned = e.state === 'stun';
+    const r = damageEnemy.call(this, e, p);
+    if (e.hp < hp0 && !e.dead && this.auth()) {
+      if (meleeHit(this, p)) {
+        if (has(this, p, 'sting')) Status.apply(this, e, 'poison', null, p);
+        if (has(this, p, 'ember') && p.heavy && p.atkDir === 'f') Status.apply(this, e, 'burn', null, p);
+      }
+      if (stunned && has(this, p, 'hunter')) {
+        p._hf = (p._hf || 0) + 0.15;
+        if (p._hf >= 1) { p._hf -= 1; e.hp -= 1; if (e.hp <= 0) this.killEnemy(e); }
+      }
+    }
+    return r;
+  };
+  for (const [fn, key] of [['damageBoss', 'boss'], ['damageVladik', 'vladik'], ['damageTima', 'tima']]) {
+    const f = proto[fn]; if (!f) continue;
+    proto[fn] = function (p) {
+      const b = key === 'boss' ? this.boss : this[key], hp0 = b && b.hp, stag = b && b.stagger > 0;
+      const r = f.call(this, p);
+      if (b && b.hp < hp0 && b.hp > 0 && this.auth()) {
+        if (meleeHit(this, p)) {
+          if (has(this, p, 'sting')) Status.apply(this, b, 'poison', null, p);
+          if (has(this, p, 'ember') && p.heavy && p.atkDir === 'f') Status.apply(this, b, 'burn', null, p);
+        }
+        if (stag && has(this, p, 'hunter') && !p.noSilkGain) {
+          p._hf = (p._hf || 0) + 0.15;
+          if (p._hf >= 1) { p._hf -= 1; Status.bossDamage(this, key, p, 1); }
+        }
+      }
+      return r;
+    };
+  }
+  // Охотник: казнь даёт вдвое больше нити (+3 вместо +3 → +6)
+  const execBoss = proto.execBoss;
+  proto.execBoss = function (p, kit, dir) {
+    const b = kit.key === 'boss' ? this.boss : this[kit.key], was = b && b.executed;
+    execBoss.call(this, p, kit, dir);
+    if (b && b.executed && !was && has(this, p, 'hunter')) {
+      if (p.remote) { for (let i = 0; i < 3; i++) this.sendEv({ k: 'silk', i: p.i }); } else p.silk = Math.min(P.SILK, p.silk + 3);
+    }
+  };
+})();
+
+// ----- сеть: на хосте нужно знать обереги гостя (его удары считает хост) -----
+(function () {
+  const proto = GameScene.prototype, packPlayer = proto.packPlayer;
+  proto.packPlayer = function (p) { const m = packPlayer.call(this, p); if (p.charms && p.charms.length) m.cm = p.charms.join(','); return m; };
+})();
+
+// ===== СТАТУСЫ: яд, ожог, замедление =====
+// API: Status.apply(sc, target, kind, dur?, src?) → true, если статус наложен. kind: 'poison' | 'burn' | 'slow'.
+//   target — враг из sc.enemies или босс (sc.boss / sc.vladik / sc.tima). Мишу нельзя ранить иглой — на нём статусы не держатся.
+//   dur — для яда/ожога длительность в секундах (по умолчанию 4 тика × 1.2 с и 3 тика × 0.8 с), для замедления — секунды (3).
+//   src — герой, чьим уроном считаются тики (для нити/хитстопа не важен; по умолчанию первый локальный).
+// Яд: 1 урона раз в 1.2 с, 4 тика. Ожог: 1 урона раз в 0.8 с, 3 тика, на каждом тике поджигает рядом стоящих (цепочка не длиннее 2 звеньев).
+// Замедление/оцепенение: −40 % скорости 3 с (время врага течёт в 0.6×).
+// Боссы: статусы вдвое слабее (тик бьёт через раз, замедление −20 %), не складываются (одновременно один урон-статус; повтор лишь обновляет таймер).
+// Урон боссу идёт через исходную функцию урона (RAW из bosses2.js) без нити, звука и стойкости — фазы и оглушение не ломаются.
+// Сеть: считает только хост/одиночка; в снимок идёт маска статусов (e[7], sf) — гость лишь рисует.
+const Status = {
+  KINDS: {
+    poison: { name: 'Яд', iv: 1.2, n: 4, col: 0x86e05a, bit: 1 },
+    burn: { name: 'Ожог', iv: 0.8, n: 3, col: 0xff8a3c, bit: 2 },
+    slow: { name: 'Оцепенение', t: 3, col: 0x6ab8ff, bit: 4 },
+  },
+  BOSS_KEYS: ['boss', 'vladik', 'tima'],
+  bossKey(sc, t) { for (const k of this.BOSS_KEYS) if (sc[k] === t) return k; return null; },
+  isBoss(sc, t) { return !!t && (this.bossKey(sc, t) || sc.misha === t) ? true : false; },
+  bossLive(b) { return !!b && !['sleep', 'dead', 'gone', 'intro', 'rage'].includes(b.state); },
+  alive(sc, t) {
+    if (!t) return false;
+    if (this.isBoss(sc, t)) return t.hp > 0 && !['dead', 'gone'].includes(t.state);
+    return !t.dead && t.hp > 0;
+  },
+  has(t, kind) { return !!(t && t.status && t.status[kind]); },
+  src(sc, p) { return p || sc.players.find((q) => !q.remote) || sc.players[0]; },
+
+  apply(sc, t, kind, dur, src) {
+    const K = this.KINDS[kind]; if (!K || !t || !sc.auth() || !this.alive(sc, t)) return false;
+    if (sc.misha === t) return false;
+    const boss = this.isBoss(sc, t), s = t.status || (t.status = {});
+    if (kind === 'slow') {
+      const left = dur != null ? dur : K.t;
+      if (s.slow) s.slow.t = Math.max(s.slow.t, left); else s.slow = { t: left };
+      return true;
+    }
+    if (boss) { // не складываются: один урон-статус за раз
+      const other = kind === 'poison' ? 'burn' : 'poison';
+      if (s[other]) return false;
+    }
+    const n = dur != null ? Math.max(1, Math.round(dur / K.iv)) : K.n;
+    if (s[kind]) { s[kind].left = Math.max(s[kind].left, n); s[kind].src = src || s[kind].src; return true; }
+    s[kind] = { left: n, cd: K.iv, src: src || null, gen: 0 };
+    return true;
+  },
+  clear(t) { if (t) t.status = null; },
+  // маска для снимка и отрисовки
+  mask(sc, t) {
+    if (!t) return 0;
+    if (!sc.auth()) return t.stv | 0;
+    const s = t.status; if (!s) return 0;
+    let m = 0; for (const k in s) if (s[k]) m |= this.KINDS[k].bit; return m;
+  },
+
+  // урон боссу тиком: исходная функция без нити/звука/стойкости
+  bossDamage(sc, key, p, n) {
+    const b = key === 'boss' ? sc.boss : sc[key], raw = typeof RAW !== 'undefined' ? RAW[key] : null;
+    if (!raw || !this.bossLive(b)) return;
+    const hs = sc.hitstop, hp0 = b.hp, nsg = p.noSilkGain, q = sc.quiet;
+    sc.quiet = true; p.noSilkGain = true;
+    for (let i = 0; i < n && b.hp > 0 && this.bossLive(b); i++) raw.call(sc, p);
+    sc.quiet = q; p.noSilkGain = nsg; sc.hitstop = hs;
+    if (b.hp < hp0) b.flash = Math.max(b.flash || 0, 0.06);
+  },
+  // тик урона
+  tick(sc, t, kind, st) {
+    const K = this.KINDS[kind], p = this.src(sc, st.src), boss = this.isBoss(sc, t);
+    const cx = t.x + t.w / 2, cy = t.y + t.h / 2;
+    if (boss) {
+      const key = this.bossKey(sc, t);
+      t.stAcc = (t.stAcc || 0) + 0.5;
+      if (t.stAcc >= 1) { t.stAcc -= 1; this.bossDamage(sc, key, p, 1); }
+    } else {
+      if (t.e2 && t.type === 'lurker' && typeof E2_UNDER !== 'undefined' && E2_UNDER.includes(t.state)) return;
+      t.hp -= 1; t.flash = 0.08;
+      sc.burst(kind === 'poison' ? 5 : 6, cx, cy, K.col);
+      if (t.hp <= 0) { sc.killEnemy(t); t.status = null; return; }
+    }
+    if (kind === 'burn' && st.gen < 2) { // поджигает рядом стоящих
+      for (const o of sc.enemies) {
+        if (o === t || o.dead || (o.status && o.status.burn)) continue;
+        if (Math.hypot(o.x + o.w / 2 - cx, o.y + o.h / 2 - cy) > 72) continue;
+        if (this.apply(sc, o, 'burn', null, st.src)) o.status.burn.gen = st.gen + 1;
+      }
+    }
+  },
+  step(sc, dt) {
+    if (!sc.auth() || sc.td) return;
+    const list = [...sc.enemies, sc.boss, sc.vladik, sc.tima];
+    for (const t of list) {
+      const s = t && t.status; if (!s) continue;
+      if (!this.alive(sc, t)) { t.status = null; continue; }
+      if (s.slow) { s.slow.t -= dt; if (s.slow.t <= 0) delete s.slow; }
+      for (const kind of ['poison', 'burn']) {
+        const st = s[kind]; if (!st) continue;
+        if (this.isBoss(sc, t) && !this.bossLive(t)) continue; // в рёве/неуязвимости таймер замирает
+        st.cd -= dt;
+        if (st.cd <= 0) {
+          st.cd += this.KINDS[kind].iv; st.left--;
+          this.tick(sc, t, kind, st);
+          if (!t.status) break;
+          if (st.left <= 0) delete s[kind];
+        }
+      }
+      if (t.status && !t.status.poison && !t.status.burn && !t.status.slow) t.status = null;
+    }
+  },
+  // отрисовка: цветная вуаль на цели, значки над головой, пузырьки/искры/снежинки
+  draw(sc, now) {
+    if (!sc.stG || !sc.stG.scene) sc.stG = sc.add.graphics().setDepth(5.6);
+    const g = sc.stG; g.clear();
+    const targets = [...sc.enemies, sc.boss, sc.vladik, sc.tima];
+    for (const t of targets) {
+      if (!t || t.dead || t.w < 2) continue;
+      const m = this.mask(sc, t); if (!m) continue;
+      const cx = t.x + t.w / 2, cy = t.y + t.h / 2, pul = 0.5 + Math.sin(now * 8 + cx) * 0.5;
+      const kinds = Object.keys(this.KINDS).filter((k) => m & this.KINDS[k].bit);
+      for (const k of kinds) {
+        const K = this.KINDS[k];
+        g.fillStyle(K.col, 0.16 + pul * 0.1); g.fillEllipse(cx, cy, t.w * 0.95, t.h * 0.95);
+        if (Math.random() < 0.06) {
+          const d = sc.dust; d.setParticleTint(K.col); d.explode(1, cx + (Math.random() - 0.5) * t.w * 0.7, t.y + t.h * (0.3 + Math.random() * 0.5)); d.setParticleTint(0x8fae9c);
+        }
+      }
+      // значки
+      const iy = t.y - 10, x0 = cx - (kinds.length - 1) * 8;
+      kinds.forEach((k, i) => {
+        const K = this.KINDS[k], x = x0 + i * 16;
+        g.fillStyle(0x0b0f0e, 0.75); g.fillCircle(x, iy, 7);
+        g.fillStyle(K.col, 1);
+        if (k === 'poison') { g.fillCircle(x, iy + 1.5, 3); g.fillTriangle(x - 2.6, iy + 0.5, x + 2.6, iy + 0.5, x, iy - 4); }
+        else if (k === 'burn') { g.fillTriangle(x - 3.2, iy + 4, x + 3.2, iy + 4, x, iy - 5); g.fillStyle(0xffe3a3, 1); g.fillTriangle(x - 1.4, iy + 4, x + 1.4, iy + 4, x, iy - 1); }
+        else { g.lineStyle(1.5, K.col, 1); g.lineBetween(x - 4, iy, x + 4, iy); g.lineBetween(x, iy - 4, x, iy + 4); g.lineBetween(x - 3, iy - 3, x + 3, iy + 3); g.lineBetween(x - 3, iy + 3, x + 3, iy - 3); }
+      });
+    }
+  },
+};
+
+(function () {
+  const proto = GameScene.prototype;
+  // замедление: время врага течёт медленнее (боссы — вдвое слабее)
+  const slowStep = (name, boss) => {
+    const f = proto[name]; if (!f) return;
+    proto[name] = function (...a) {
+      const dt = a[a.length - 1];
+      if (typeof dt === 'number' && this.auth() && !this.td) {
+        const e = boss ? (name === 'stepBoss' ? this.boss : name === 'stepVladik' ? this.vladik : this.tima) : a[0];
+        if (e && e.status && e.status.slow && (!boss || Status.bossLive(e))) a[a.length - 1] = dt * (boss ? 0.8 : 0.6);
+      }
+      return f.apply(this, a);
+    };
+  };
+  slowStep('stepEnemy', false); slowStep('stepBoss', true); slowStep('stepVladik', true); slowStep('stepTima', true);
+  const step = proto.step;
+  proto.step = function (dt) { const r = step.call(this, dt); Status.step(this, dt); return r; };
+  const render = proto.render;
+  proto.render = function (dt) { const r = render.call(this, dt); Status.draw(this, this.time.now / 1000); return r; };
+  // сеть: маски статусов в снимке (только если хоть что-то горит)
+  const packSnap = proto.packSnap;
+  proto.packSnap = function () {
+    const m = packSnap.call(this); let any = false;
+    m.e.forEach((a, i) => { const k = Status.mask(this, this.enemies[i]); if (k) { a[7] = k; any = true; } });
+    const sf = [this.boss, this.vladik, this.tima].map((b) => Status.mask(this, b));
+    if (sf.some(Boolean)) { m.sf = sf; any = true; }
+    return m;
+  };
+  const applySnap = proto.applySnap;
+  proto.applySnap = function (m) {
+    applySnap.call(this, m);
+    m.e.forEach((a, i) => { const e = this.enemies[i]; if (e) e.stv = a[7] | 0; });
+    [this.boss, this.vladik, this.tima].forEach((b, i) => { if (b) b.stv = m.sf ? m.sf[i] | 0 : 0; });
+  };
+})();
 
 // ===== ДВИЖЕНИЕ 2: хват за уступ, планер «Паутинный парус», стенное скольжение =====
 // Хват врождённый (abil.ledge !== false). Планер: abil.glide (награда за Владика; в босс-тесте и босс-раше доступен сразу).
@@ -6438,7 +6777,328 @@ const MV2 = {
   };
 })();
 
-// ===== loadoutui: заготовка, заполняет отдельный агент =====
+// ===== ЭКРАН «СНАРЯЖЕНИЕ»: оружие, инструмент, обереги =====
+// Открывается пунктом «Снаряжение» в лавке на скамье и кнопкой в паузе (клавиша I, на геймпаде Y). В босс-тесте всё доступно (Loadout.openAll).
+// Управление: ↑↓ — выбор, ←→ (или Q/E, LB/RB) — раздел, Enter / Пробел / F / A — надеть или купить, Esc / B — назад; мышь и касание — по кнопкам.
+// Читает реестры WEAPONS / TOOLS / CHARMS, поэтому подхватывает всё, что добавят другие модули; пустой реестр показывает заглушку.
+const Gear = {
+  KINDS: ['weapons', 'tools', 'charms'],
+  NAMES: { weapons: 'Оружие', tools: 'Инструмент', charms: 'Обереги' },
+  SINGLE: { weapons: 'weapon', tools: 'tool', charms: 'charm' },
+  BOSS: { korn: 'Корнематка', misha: 'Миша Додик', vladik: 'Владик Скрипка', tima: 'Тима Пиво' },
+  ROWS: 8, ROWH: 34,
+
+  canOpen(gs) {
+    const u = gs && gs.ui && gs.ui();
+    return !!(gs && u && u.ready && !gs.gearOpen && !gs.sr && !gs.won && !gs.wiping && !Settings.open && !(typeof MapTravel !== 'undefined' && MapTravel.open));
+  },
+  open(gs, from) {
+    if (!this.canOpen(gs)) return false;
+    gs.gearOpen = true; gs.gearFrom = from; gs._gearPad = null;
+    Touch.show(false); Snd.play('bead'); gs.ui().gearShow(from);
+    return true;
+  },
+  close(gs) {
+    if (!gs.gearOpen) return;
+    setTimeout(() => { gs.gearOpen = false; }, 0); // Esc не должен тут же включить паузу
+    gs.ui().gearHide(gs.gearFrom);
+  },
+  // что лежит в разделе
+  items(gs, kind) {
+    const out = [], reg = Loadout.reg(kind);
+    if (kind === 'tools') out.push({ id: '', none: true, e: { id: '', name: 'Без инструмента', desc: 'Кнопка инструмента (E / RB) ничего не делает.' } });
+    for (const id in reg) out.push({ id, e: reg[id] });
+    for (const it of out) it.owned = it.none ? true : Loadout.owned(kind, it.id, gs);
+    return out;
+  },
+  equippedIds(gs, kind) {
+    const d = Loadout.equipped(gs);
+    return kind === 'weapons' ? [d.weapon] : kind === 'tools' ? [d.tool] : d.charms;
+  },
+  price(e) { const m = /^shop:(\d+)$/.exec(e.unlock || ''); return m ? +m[1] : 0; },
+  lockText(e) {
+    const u = e.unlock || '';
+    if (u.startsWith('boss:')) return `Получите: босс ${this.BOSS[u.slice(5)] || u.slice(5)}`;
+    if (u.startsWith('shop:')) return `Цена: ${u.slice(5)} бусин`;
+    return 'Пока недоступно';
+  },
+  stats(kind, e) {
+    const L = [];
+    if (kind === 'weapons') {
+      if (e.dmg != null) L.push(`Урон: ${e.dmg}`);
+      if (e.reach != null) L.push(`Дальность: ×${e.reach}`);
+      if (e.cd) L.push(`Пауза между ударами: ${e.cd} с`);
+      if (e.combo) L.push(`Комбо: ${e.combo} уд.${e.finisher ? ', последний — тяжёлый' : ''}`);
+    } else if (kind === 'tools') {
+      if (e.cost != null) L.push(`Стоит нити: ${e.cost}`);
+      if (e.cd) L.push(`Перезарядка: ${e.cd} с`);
+    } else L.push(`Занимает слотов: ${Loadout.slotsOf ? Loadout.slotsOf(e.id) : 1} из ${CHARM_SLOTS}`);
+    return L.join('\n');
+  },
+  // что сейчас можно сделать с предметом
+  state(gs, kind, it) {
+    const e = it.e;
+    if (!it.owned) {
+      const pr = this.price(e);
+      if (pr) return { act: 'buy', price: pr, ok: gs.beads >= pr && gs.auth(), label: gs.auth() ? `Купить за ${pr} бусин` : 'Покупает хост' };
+      return { act: 'none', ok: false, label: this.lockText(e) };
+    }
+    const eq = this.equippedIds(gs, kind).includes(it.id);
+    if (kind === 'charms') {
+      if (eq) return { act: 'equip', ok: true, eq, label: 'Снять' };
+      const fit = Loadout.canFit(Loadout.data().charms, it.id);
+      return { act: 'equip', ok: fit, eq, label: fit ? 'Надеть' : 'Нет места: снимите другой оберег' };
+    }
+    if (eq) return { act: 'none', ok: false, eq, label: 'Надето' };
+    return { act: 'equip', ok: true, eq, label: 'Надеть' };
+  },
+  doAct(gs, kind, it) {
+    const ui = gs.ui(), st = this.state(gs, kind, it), e = it.e;
+    if (st.act === 'none') { ui.gearSay(st.eq ? 'Уже надето' : st.label); return; }
+    if (st.act === 'buy') {
+      if (!gs.auth()) { ui.gearSay('Покупать в лавке может только хост'); return; }
+      if (gs.beads < st.price) { ui.gearSay(`Не хватает бусин: нужно ${st.price}`); Snd.play('hit'); return; }
+      if (!Loadout.grant(kind, it.id)) { ui.gearSay('Уже куплено'); return; }
+      gs.beads -= st.price; Snd.play('revive');
+      for (const p of gs.players) if (!p.remote) { gs.parts.setParticleTint(0xffd47a); gs.parts.explode(14, p.x + 7, p.y + 10); }
+      const pg = Settings.progress();
+      if (gs.camp) Campaign.save(gs, { bench: pg ? pg.bench | 0 : 0 }); // бусины сохраняются, остальные поля прогресса остаются
+      ui.gearSay(`Куплено: ${e.name}. Нажмите ещё раз, чтобы надеть`);
+      return;
+    }
+    if (!st.ok) { ui.gearSay(st.label); Snd.play('hit'); return; }
+    const done = Loadout.equip(this.SINGLE[kind], it.id);
+    if (done === false) { ui.gearSay('Не хватает слотов'); return; }
+    gs.applyLoadout(); Snd.play('bench');
+    ui.gearSay(kind === 'charms' ? (st.eq ? `Снято: ${e.name}` : `Надето: ${e.name}`) : `Надето: ${e.name}`);
+  },
+
+  // каждый кадр: геймпад и защита от «зависшего» экрана
+  tick(gs) {
+    const u = gs.ui();
+    if (gs.won || gs.wiping || (gs.gearFrom === 'shop' && (!gs.shopP || !gs.shopP.sit || gs.shopP.downed))) { this.close(gs); return; }
+    if (!u.gearC || !u.gearC.visible) return;
+    let up = false, down = false, left = false, right = false, ok = false, back = false, lb = false, rb = false;
+    for (const pad of Pads.list()) {
+      const b = (n) => !!(pad.buttons[n] && pad.buttons[n].pressed), ax = pad.axes[0] || 0, ay = pad.axes[1] || 0;
+      up = up || b(12) || ay < -0.6; down = down || b(13) || ay > 0.6; left = left || b(14) || ax < -0.6; right = right || b(15) || ax > 0.6;
+      ok = ok || b(0); back = back || b(1); lb = lb || b(4); rb = rb || b(5);
+    }
+    const prev = gs._gearPad || { up: 1, down: 1, left: 1, right: 1, ok: 1, back: 1, lb: 1, rb: 1 }; // первый кадр: ничего не «нажато заново»
+    gs._gearPad = { up, down, left, right, ok, back, lb, rb };
+    if (up && !prev.up) u.gearMove(-1);
+    if (down && !prev.down) u.gearMove(1);
+    if ((left && !prev.left) || (lb && !prev.lb)) u.gearTab(-1);
+    if ((right && !prev.right) || (rb && !prev.rb)) u.gearTab(1);
+    if (ok && !prev.ok) u.gearAct();
+    if (back && !prev.back) this.close(gs);
+  },
+};
+
+// ввод игры замирает, пока открыт экран; пауза по Esc не включается
+{
+  const G = GameScene.prototype, rawO = G.rawInput, tapO = G.onKeyTap, touchO = G.onTouchTap, pauseO = G.togglePause;
+  G.rawInput = function (i) {
+    if (this.gearOpen) return { left: false, right: false, up: false, down: false, jump: false, atk: false, dash: false, heal: false, bomb: false, tool: false };
+    return rawO.call(this, i);
+  };
+  G.onKeyTap = function (e) { if (!this.gearOpen) tapO.call(this, e); };
+  G.onTouchTap = function (act) { if (!this.gearOpen) touchO.call(this, act); };
+  G.togglePause = function () { if (this.gearOpen) return; return pauseO.call(this); };
+  // геймпад в лавке не должен двигать лавку под экраном снаряжения
+  const tickO = Campaign.tick;
+  Campaign.tick = function (gs) { if (gs.gearOpen) return Gear.tick(gs); return tickO.call(this, gs); };
+  // в паузе: Y на геймпаде открывает экран (в других местах кнопка Y — нить)
+  const updO = G.update;
+  G.update = function (t, d) {
+    if (!this.gearOpen && !this.sr) {
+      const u = this.ui();
+      if (u && u.ready && u.pause && u.pause.visible) {
+        let y = false; for (const pad of Pads.list()) y = y || !!(pad.buttons[3] && pad.buttons[3].pressed);
+        if (y && !this._gearY) Gear.open(this, 'pause');
+        this._gearY = y;
+      } else this._gearY = true; // чтобы нажатая вне паузы Y не открыла экран при входе в паузу
+    }
+    return updO.call(this, t, d);
+  };
+}
+
+const showPauseO = UIScene.prototype.showPause;
+Object.assign(UIScene.prototype, {
+  showPause(on) {
+    showPauseO.call(this, on);
+    if (!on || !this.ready || this.gs.sr) return;
+    if (!this.gearBtn || !this.gearBtn.scene) {
+      const F = '"Cormorant SC", Georgia, serif';
+      const t = this.add.text(VW / 2, 478, Touch.enabled ? 'Снаряжение' : 'Снаряжение (I)', { fontFamily: F, fontSize: '23px', color: '#cfe8dc', fontStyle: '700', backgroundColor: 'rgba(20,48,41,0.9)', padding: { x: 18, y: 8 } })
+        .setOrigin(0.5).setInteractive({ useHandCursor: true });
+      t.on('pointerover', () => t.setColor('#ffd47a')); t.on('pointerout', () => t.setColor('#cfe8dc')); t.on('pointerdown', () => Gear.open(this.gs, 'pause'));
+      this.pause.add(t); this.gearBtn = t;
+      if (!this._gearI) { this._gearI = () => { if (this.pause.visible && !this.gs.gearOpen) Gear.open(this.gs, 'pause'); }; this.input.keyboard.on('keydown-I', this._gearI); }
+    }
+  },
+
+  gearBuild() {
+    if (this.gearC && this.gearC.scene) this.gearC.destroy();
+    const D = '"Cormorant SC", Georgia, serif', F = '"Fira Sans", sans-serif';
+    const x0 = VW / 2 - 340, c = this.add.container(0, 0).setVisible(false).setDepth(60);
+    this.gearX0 = x0;
+    const bg = this.add.graphics(); bg.fillStyle(0x030807, 0.96); bg.fillRect(0, 0, VW, VH);
+    bg.fillStyle(0x0b1714, 1); bg.fillRoundedRect(x0, 30, 680, 480, 10); bg.lineStyle(2, 0x3c5a50, 1); bg.strokeRoundedRect(x0, 30, 680, 480, 10);
+    bg.lineStyle(1, 0x24403a, 1); bg.lineBetween(x0 + 340, 134, x0 + 340, 424);
+    const title = this.add.text(VW / 2, 62, 'Снаряжение', { fontFamily: D, fontSize: '38px', color: '#e8e2cf', fontStyle: '700' }).setOrigin(0.5);
+    this.gearBeads = this.add.text(x0 + 24, 50, '', { fontFamily: F, fontSize: '16px', color: '#ffe3a3' });
+    const close = this.add.text(x0 + 656, 50, Touch.enabled ? 'Закрыть' : 'Закрыть (Esc)', { fontFamily: F, fontSize: '14px', color: '#cfe8dc', backgroundColor: 'rgba(20,48,41,0.9)', padding: { x: 10, y: 5 } }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
+    close.on('pointerover', () => close.setColor('#ffd47a')); close.on('pointerout', () => close.setColor('#cfe8dc')); close.on('pointerdown', () => Gear.close(this.gs));
+    this.gearTabs = Gear.KINDS.map((k, i) => {
+      const t = this.add.text(x0 + 24, 100, Gear.NAMES[k], { fontFamily: D, fontSize: '22px', fontStyle: '700', color: '#86a89a', padding: { x: 10, y: 4 } }).setInteractive({ useHandCursor: true });
+      t.on('pointerdown', () => { this.gearKind = i; this.gearSel = 0; this.gearOff = 0; this.gearRefresh(); });
+      return t;
+    });
+    { let tx = x0 + 18; for (const t of this.gearTabs) { t.setX(tx); tx += t.width + 14; } }
+    this.gearSelG = this.add.graphics();
+    this.gearRows = [];
+    for (let i = 0; i < Gear.ROWS; i++) {
+      const y = 140 + i * Gear.ROWH;
+      const name = this.add.text(x0 + 30, y + 5, '', { fontFamily: D, fontSize: '21px', color: '#cfe8dc', fontStyle: '700' });
+      const stt = this.add.text(x0 + 322, y + 9, '', { fontFamily: F, fontSize: '13px', fontStyle: '600', color: '#86a89a' }).setOrigin(1, 0);
+      const hit = this.add.rectangle(x0 + 175, y + Gear.ROWH / 2 - 1, 306, Gear.ROWH - 2, 0xffffff, 0.001).setInteractive({ useHandCursor: true });
+      hit.on('pointerover', () => { if (!Touch.enabled && this.gearItemsN > i + this.gearOff) { this.gearSel = i + this.gearOff; this.gearRefresh(); } });
+      hit.on('pointerdown', () => {
+        const idx = i + this.gearOff; if (idx >= this.gearItemsN) return;
+        if (this.gearSel === idx) this.gearAct(); else { this.gearSel = idx; this.gearRefresh(); }
+      });
+      this.gearRows.push({ name, stt, hit, y });
+      c.add([name, stt, hit]);
+    }
+    this.gearUp = this.add.text(x0 + 322, 128, '▲', { fontFamily: F, fontSize: '13px', color: '#ffd47a' }).setOrigin(1, 0.5).setInteractive({ useHandCursor: true });
+    this.gearDn = this.add.text(x0 + 322, 428, '▼', { fontFamily: F, fontSize: '13px', color: '#ffd47a' }).setOrigin(1, 0.5).setInteractive({ useHandCursor: true });
+    this.gearUp.on('pointerdown', () => this.gearMove(-1)); this.gearDn.on('pointerdown', () => this.gearMove(1));
+    this.gearEmpty = this.add.text(x0 + 30, 160, 'Пока ничего нет', { fontFamily: F, fontSize: '14px', color: '#6f9586' });
+    // правая панель
+    const rx = x0 + 362;
+    this.gearName = this.add.text(rx, 140, '', { fontFamily: D, fontSize: '30px', color: '#e8e2cf', fontStyle: '700', wordWrap: { width: 300 } });
+    this.gearSub = this.add.text(rx, 178, '', { fontFamily: F, fontSize: '12px', color: '#86a89a' });
+    this.gearDesc = this.add.text(rx, 202, '', { fontFamily: F, fontSize: '14px', color: '#b9d4c8', lineSpacing: 4, wordWrap: { width: 300 } });
+    this.gearStat = this.add.text(rx, 300, '', { fontFamily: F, fontSize: '13px', color: '#9ff0c8', lineSpacing: 4 });
+    this.gearBtn2 = this.add.text(rx, 372, '', { fontFamily: D, fontSize: '22px', fontStyle: '700', color: '#cfe8dc', backgroundColor: 'rgba(20,48,41,0.9)', padding: { x: 14, y: 6 } }).setInteractive({ useHandCursor: true });
+    this.gearBtn2.on('pointerdown', () => this.gearAct());
+    this.gearSayT = this.add.text(rx, 410, '', { fontFamily: F, fontSize: '12px', color: '#ffe3a3', wordWrap: { width: 300 } });
+    // слоты оберегов
+    this.gearSlotG = this.add.graphics();
+    const sl = this.add.text(x0 + 24, 436, 'Слоты оберегов:', { fontFamily: F, fontSize: '13px', color: '#86a89a' });
+    this.gearSlotT = [0, 1, 2].map(() => this.add.text(0, 0, '', { fontFamily: F, fontSize: '11px', color: '#e8e2cf', align: 'center', wordWrap: { width: 96 } }).setOrigin(0.5));
+    this.gearHint = this.add.text(VW / 2, 496, '', { fontFamily: F, fontSize: '12px', color: '#6f9586' }).setOrigin(0.5);
+    c.add([bg, title, this.gearBeads, close, ...this.gearTabs, this.gearSelG, this.gearUp, this.gearDn, this.gearEmpty, this.gearName, this.gearSub, this.gearDesc, this.gearStat, this.gearBtn2, this.gearSayT, this.gearSlotG, sl, ...this.gearSlotT, this.gearHint]);
+    c.sendToBack(this.gearSelG); c.sendToBack(bg);
+    this.gearC = c; this.gearKind = 0; this.gearSel = 0; this.gearOff = 0;
+    if (this._gearKey) this.input.keyboard.off('keydown', this._gearKey);
+    this._gearKey = (e) => {
+      if (!this.gearC || !this.gearC.visible) return;
+      const k = e.code;
+      if (k === 'ArrowUp' || k === 'KeyW') this.gearMove(-1);
+      else if (k === 'ArrowDown' || k === 'KeyS') this.gearMove(1);
+      else if (k === 'ArrowLeft' || k === 'KeyA' || k === 'KeyQ') this.gearTab(-1);
+      else if (k === 'ArrowRight' || k === 'KeyD' || k === 'KeyE') this.gearTab(1);
+      else if (k === 'Enter' || k === 'NumpadEnter' || k === 'Space' || k === 'KeyF' || k === 'KeyZ' || k === 'KeyX') this.gearAct();
+      else if (k === 'Escape' || k === 'Backspace') Gear.close(this.gs);
+    };
+    this.input.keyboard.on('keydown', this._gearKey);
+    if (this._gearWheel) this.input.off('wheel', this._gearWheel);
+    this._gearWheel = (p, o, dx, dy) => { if (this.gearC && this.gearC.visible) this.gearMove(dy > 0 ? 1 : -1); };
+    this.input.on('wheel', this._gearWheel);
+  },
+  gearShow(from) {
+    if (!this.ready) return;
+    this.gearBuild();
+    if (from === 'shop' && this.shopC) this.shopC.setVisible(false);
+    this.gearC.setVisible(true); this.gearSayT.setText('');
+    this.gearRefresh();
+  },
+  gearHide(from) {
+    if (this.gearC) this.gearC.setVisible(false);
+    if (from === 'shop' && this.gs.shopOpen && this.shopC && this.shopC.scene) { this.shopC.setVisible(true); this.shopRefresh(); }
+  },
+  gearList() { return Gear.items(this.gs, Gear.KINDS[this.gearKind]); },
+  gearMove(d) {
+    const n = this.gearItemsN || 0; if (!n) return;
+    this.gearSel = clamp(this.gearSel + d, 0, n - 1); this.gearRefresh();
+  },
+  gearTab(d) { const n = Gear.KINDS.length; this.gearKind = (this.gearKind + d + n) % n; this.gearSel = 0; this.gearOff = 0; this.gearRefresh(); },
+  gearAct() {
+    const list = this.gearList(), it = list[this.gearSel]; if (!it) return;
+    Gear.doAct(this.gs, Gear.KINDS[this.gearKind], it); this.gearRefresh();
+  },
+  gearSay(m) {
+    if (!this.gearSayT) return;
+    this.gearSayT.setText(m); this.tweens.killTweensOf(this.gearSayT); this.gearSayT.setAlpha(1);
+    this.tweens.add({ targets: this.gearSayT, alpha: 0, delay: 2600, duration: 500 });
+  },
+  gearRefresh() {
+    const gs = this.gs, kind = Gear.KINDS[this.gearKind], list = this.gearList(), g = this.gearSelG, x0 = this.gearX0;
+    g.clear();
+    this.gearItemsN = list.length;
+    this.gearSel = clamp(this.gearSel, 0, Math.max(0, list.length - 1));
+    if (this.gearSel < this.gearOff) this.gearOff = this.gearSel;
+    if (this.gearSel >= this.gearOff + Gear.ROWS) this.gearOff = this.gearSel - Gear.ROWS + 1;
+    this.gearOff = clamp(this.gearOff, 0, Math.max(0, list.length - Gear.ROWS));
+    this.gearBeads.setText(`Бусин: ${gs.beads}`);
+    this.gearTabs.forEach((t, i) => {
+      const on = i === this.gearKind; t.setColor(on ? '#ffd47a' : '#86a89a');
+      if (on) { g.lineStyle(2, 0xffd47a, 0.9); g.lineBetween(t.x + 8, 128, t.x + t.width - 8, 128); }
+    });
+    this.gearEmpty.setVisible(!list.length);
+    const eqIds = Gear.equippedIds(gs, kind);
+    this.gearRows.forEach((r, i) => {
+      const idx = i + this.gearOff, it = list[idx];
+      r.hit.setVisible(!!it); r.name.setVisible(!!it); r.stt.setVisible(!!it);
+      if (!it) return;
+      const sel = idx === this.gearSel, eq = eqIds.includes(it.id);
+      if (sel) { g.fillStyle(0x1d3a31, 0.9); g.fillRoundedRect(x0 + 24, r.y, 316, Gear.ROWH - 2, 5); g.lineStyle(1.5, 0xffd47a, 0.8); g.strokeRoundedRect(x0 + 24, r.y, 316, Gear.ROWH - 2, 5); }
+      if (kind === 'charms' && it.owned) { g.fillStyle(it.e.col || 0xcfe8dc, 1); g.fillCircle(x0 + 36, r.y + Gear.ROWH / 2 - 1, 3.5); }
+      r.name.setText(it.e.name).setColor(!it.owned ? '#5d7a6e' : sel ? '#ffd47a' : '#cfe8dc').setX(x0 + (kind === 'charms' && it.owned ? 46 : 32));
+      const pr = Gear.price(it.e);
+      if (!it.owned) r.stt.setText(pr ? `${pr} бусин` : 'закрыто').setColor(pr && gs.beads >= pr ? '#ffe3a3' : '#7a6a58');
+      else r.stt.setText(eq ? 'надето' : '').setColor('#9ff0c8');
+    });
+    this.gearUp.setVisible(this.gearOff > 0); this.gearDn.setVisible(this.gearOff + Gear.ROWS < list.length);
+    // правая панель
+    const it = list[this.gearSel];
+    if (!it) {
+      this.gearName.setText(Gear.NAMES[kind]); this.gearSub.setText(''); this.gearDesc.setText('Здесь пока пусто: предметы появятся по ходу игры.'); this.gearStat.setText(''); this.gearBtn2.setVisible(false);
+    } else {
+      const st = Gear.state(gs, kind, it), e = it.e;
+      this.gearName.setText(e.name);
+      this.gearSub.setText(!it.owned ? Gear.lockText(e) : st.eq ? 'Надето' : it.none ? '' : 'Есть у вас');
+      this.gearDesc.setText(e.desc || '');
+      this.gearStat.setText(it.none ? '' : Gear.stats(kind, e));
+      const col = st.act === 'none' ? (st.eq ? '#9ff0c8' : '#7a6a58') : st.ok ? '#ffe3a3' : '#7a6a58';
+      this.gearBtn2.setVisible(true).setText(st.label).setColor(col);
+    }
+    this.drawGearSlots(gs);
+    this.gearHint.setText(Touch.enabled ? 'Нажмите на предмет, затем на кнопку действия' : '↑↓ выбор · ←→ раздел · Enter надеть/купить · Esc назад · геймпад: A, B, LB/RB');
+  },
+  drawGearSlots(gs) {
+    const g = this.gearSlotG, x0 = this.gearX0, W = 100, H = 30, y = 454; g.clear();
+    const list = Loadout.equipped(gs).charms, used = [];
+    let s = 0; const place = [];
+    for (const id of list) { const n = Loadout.slotsOf(id); place.push({ id, s, n }); s += n; }
+    for (let i = 0; i < CHARM_SLOTS; i++) used.push(false);
+    this.gearSlotT.forEach((t) => t.setText(''));
+    for (let i = 0; i < CHARM_SLOTS; i++) {
+      const x = x0 + 24 + i * (W + 8), p = place.find((q) => i >= q.s && i < q.s + q.n);
+      g.fillStyle(p ? 0x1d3a31 : 0x0e1c18, 1); g.fillRoundedRect(x, y, W, H, 5);
+      g.lineStyle(1.5, p ? (CHARMS[p.id] && CHARMS[p.id].col) || 0xffd47a : 0x2c4a41, 1); g.strokeRoundedRect(x, y, W, H, 5);
+    }
+    place.forEach((q, k) => {
+      const e = CHARMS[q.id], cx = x0 + 24 + q.s * (W + 8) + (q.n * W + (q.n - 1) * 8) / 2;
+      if (this.gearSlotT[k]) this.gearSlotT[k].setPosition(cx, y + H / 2).setText(e ? e.name : q.id);
+      if (q.n > 1) { // двойной оберег закрашивает щель между слотами
+        const gx = x0 + 24 + q.s * (W + 8) + W; g.fillStyle(0x1d3a31, 1); g.fillRect(gx - 1, y + 1, 10, H - 2);
+      }
+    });
+  },
+});
 
 // ===== СПИДРАН: забеги на время, сплиты, код результата, таблица друзей, гонка 1×1 по сети =====
 // Забег живёт в Speedrun.run и переживает смену сцен (главы). Пока забег идёт, обычное сохранение не читается и не пишется,

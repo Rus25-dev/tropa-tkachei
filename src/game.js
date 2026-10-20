@@ -1156,7 +1156,7 @@ class GameScene extends Phaser.Scene {
     if (m.t === 'p') {
       const p = this.players[m.i]; if (!p || !p.remote) return;
       Object.assign(p, { tx: m.x, ty: m.y, vx: m.vx, vy: m.vy, face: m.f, onGround: !!m.g, dashT: m.d, sit: !!m.s, healT: m.h, landT: m.l,
-        hp: m.hp, maxHp: m.mh, silk: m.sk, downed: !!m.dn, inv: m.iv, netUp: !!m.u, reviveT: m.rv, netT: 0, bombs: m.bm || 0, heavy: !!m.hv, weaponId: m.wp || 'needle', toolId: m.tl || '' });
+        hp: m.hp, maxHp: m.mh, silk: m.sk, downed: !!m.dn, inv: m.iv, netUp: !!m.u, reviveT: m.rv, netT: 0, bombs: m.bm || 0, heavy: !!m.hv, weaponId: m.wp || 'needle', toolId: m.tl || '', charms: m.cm ? m.cm.split(',') : [] });
       if (m.tp) { p.tdx = m.tp[0]; p.tdy = m.tp[1]; }
       p.inp = { up: p.netUp };
       if (m.sq !== p.lastSeq) { p.lastSeq = m.sq; p.atkT = P.ATK_T; p.atkHits = new Set(); p.atkDir = m.ad; p.pogoed = true; }
