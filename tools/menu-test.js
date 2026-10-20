@@ -106,10 +106,14 @@ const PB = { trail: { pb: { rta: 1421520, igt: 1398100, deaths: 3, ver: '1.6', s
     ok(await p.evaluate(() => /Таблица друзей/.test(document.querySelector('#sr-fr .crumbs').textContent)), 'крошки таблицы друзей');
     await p.evaluate(() => document.activeElement && document.activeElement.blur()); await key(p, 'Escape'); ok(!(await dom(p, '#sr-fr')), 'Esc закрывает таблицу друзей'); s = await S(p); ok(s.id === 'srcat', 'после таблицы друзей мы на экране категории');
     await key(p, 'Escape'); await key(p, 'Escape'); s = await S(p); ok(s.id === 'main', 'из Спидрана назад в главное меню');
-    // гонки Ткачей (заглушка)
-    await key(p, '5'); s = await S(p); ok(s.id === 'races', 'Гонки Ткачей — экран-заглушка');
-    for (const k of ['1', '2', '3', '4']) await key(p, k);
-    s = await S(p); ok(s.id === 'races' && !s.leaving, 'серые пункты не открываются');
+    // Гонки Ткачей (v1.8): рабочие пункты
+    await key(p, '5'); s = await S(p); ok(s.id === 'races' && s.n === 4, 'Гонки Ткачей — экран с четырьмя пунктами: ' + s.n);
+    await key(p, '2'); await frames(p, 3); ok(await dom(p, '#rc-join'), '«Войти игроком» открывает окно входа'); await key(p, 'Escape'); ok(!(await dom(p, '#rc-join')), 'Esc закрывает окно входа');
+    await key(p, '3'); await frames(p, 3); ok(await dom(p, '#rw-join'), '«Обсервер» открывает окно кода'); await key(p, 'Escape'); ok(!(await dom(p, '#rw-join')), 'Esc закрывает окно обсервера');
+    await key(p, '4'); await frames(p, 3); ok(await dom(p, '#rc-arch'), '«Архив гонок» открывается'); await key(p, 'Escape'); ok(!(await dom(p, '#rc-arch')), 'Esc закрывает архив');
+    await key(p, '1'); await frames(p, 3); ok(await dom(p, '#rc-org'), '«Создать гонку» открывает панель организатора'); await key(p, 'Escape'); ok(!(await dom(p, '#rc-org')), 'Esc сворачивает панель (комната продолжает работать)');
+    await p.evaluate(() => RaceOrg.close(true));
+    s = await S(p); ok(s.id === 'races' && !s.leaving, 'после окон мы на экране гонок');
     await key(p, 'Escape');
     // как играть / что нового
     await key(p, '6'); await frames(p, 4); ok(await dom(p, '#howto') && (await S(p)).busy, 'Как играть открылось, меню занято');
@@ -319,6 +323,7 @@ const PB = { trail: { pb: { rta: 1421520, igt: 1398100, deaths: 3, ver: '1.6', s
     ['keys', '#keys', () => { Settings.show(null, 'controls'); Access.show(); }, true],
     ['lobby-host', '#lobby', () => { const m = window.__game.scene.getScene('menu'); m.menuOpen('net', { mode: 'story' }); m.openLobby('story', 'host'); }, true],
     ['howto', '#howto', () => HowTo.show(null), true], ['changelog', '#changelog', () => Changelog.show(null), true],
+    ['race-join', '#rc-join', () => RacePlay.open('K7P4Q', {}), true], ['race-watch-join', '#rw-join', () => RaceWatch.open('', {}), true], ['race-org', '#rc-org', () => { if (!RaceOrg.S) RaceOrg.create(); else RaceOrg.panel(); RaceOrg.render(); }, true], ['race-arch', '#rc-arch', () => RaceOrg.archiveOpen(), true],
     ['friends', '#sr-fr', () => Speedrun.friendsOpen(), true], ['race-room', '#sr-room', () => { window.__game.scene.getScene('menu').menuOpen('srcat', { cat: 'trail' }); Speedrun.raceOpen('host'); }, true],
   ];
   for (const [sz, w, h, touch] of SIZES) {
@@ -351,7 +356,7 @@ const PB = { trail: { pb: { rta: 1421520, igt: 1398100, deaths: 3, ver: '1.6', s
       // закрываем всё
       await p.evaluate(() => {
         if (!Access.el.hidden) Access.hide(); if (Settings.open) Settings.hide(); if (!Lobby.el.hidden) Lobby.hide(true);
-        for (const i of ['howto', 'changelog']) { const e = document.getElementById(i); if (e) e.hidden = true; }
+        for (const i of ['howto', 'changelog', 'rc-join', 'rw-join', 'rc-org', 'rc-arch']) { const e = document.getElementById(i); if (e) e.hidden = true; }
         if (Speedrun.race) Speedrun.raceLeave(); const f = document.getElementById('sr-fr'); if (f) f.hidden = true;
         const m = window.__game.scene.getScene('menu'); m.busy = false; m.leaving = false;
       });

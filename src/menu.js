@@ -441,7 +441,7 @@ menuAdd({
       { key: '2', label: 'Кампания', sub: 'новая игра, главы, вдвоём', act: (m) => m.menuGo('campaign') },
       { key: '3', label: 'Босс-тест', sub: 'три босса, тренировка, рекорды', act: (m) => m.menuGo('bosstest') },
       { key: '4', label: 'Спидран', sub: 'Тропа целиком, Босс-раш, гонка 1×1', act: (m) => m.menuGo('speedrun') },
-      { key: '5', label: 'Гонки Ткачей', sub: 'скоро', act: (m) => m.menuGo('races') },
+      { key: '5', label: 'Гонки Ткачей', sub: 'организатор, игрок, обсервер', act: (m) => m.menuGo('races') },
       { key: '6', label: 'Как играть', sub: 'управление, приёмы, боссы', act: (m) => m.menuHowTo() },
       { key: '7', label: 'Настройки', sub: 'звук, экран, управление, игра', act: (m) => m.menuGo('settings') },
     ];

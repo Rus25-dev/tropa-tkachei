@@ -1225,12 +1225,291 @@ const Lobby = {
   },
 };
 
+// ===== СЕТЬ «ГОНОК ТКАЧЕЙ»: надёжный канал организатор ⇄ игроки и обсерверы =====
+// Организатор (RaceHub) — центр звезды: PeerJS-пир с id «tropa-race-КОД», принимает двух игроков и любое число обсерверов.
+// Сообщения идут в обёртке { t:'rc', k:вид, … } и не мешают коопу и гонке 1×1 (там t:'race' и t:'ev'/'snap').
+//
+// Надёжность:
+//  · пульс (hb) каждые 2 с; тишина 7 с = связь потеряна (клиент переподключается, хаб помечает место «не в сети»);
+//  · клиент сам переподключается с растущей паузой (0,3 → 8 с) и возвращается на то же место по личному ключу (key);
+//  · «надёжные» сообщения нумеруются: клиент → хаб по номеру n (хаб подтверждает ack в каждом кадре), хаб → клиенты по общему журналу g;
+//    после обрыва недоставленное досылается с нужного места, дубли отбрасываются по номеру;
+//  · лёгкие данные (телеметрия) идут без нумерации: важна только последняя;
+//  · состояние хаба (журнал, места, счётчики) выгружается dump() и восстанавливается после перезагрузки страницы организатора;
+//  · bye при закрытии вкладки, чтобы обрыв заметили сразу, а не через 7 с.
+// Модуль не знает про игру: транспорт, часы и таймеры подменяются (tools/race-net-test.js гоняет его в Node с виртуальным временем).
+const RaceNet = (() => {
+  const HB = 2000, DEAD = 7000, HELLO_WAIT = 6000, LOG_MAX = 1500, BACKOFF = [300, 700, 1500, 3000, 5000, 8000];
+  const A = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  const defEnv = () => ({
+    now: () => performance.now(), setTimeout: (f, ms) => setTimeout(f, ms), clearTimeout: (t) => clearTimeout(t),
+    setInterval: (f, ms) => setInterval(f, ms), clearInterval: (t) => clearInterval(t), rand: () => Math.random(),
+  });
+  const peerId = (code) => 'tropa-race-' + String(code).toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const makeCode = (rand) => { let s = ''; const r = rand || Math.random; for (let i = 0; i < 5; i++) s += A[Math.floor(r() * A.length)]; return s; };
+  const makeKey = (rand) => { const r = rand || Math.random; let s = ''; for (let i = 0; i < 16; i++) s += A[Math.floor(r() * A.length)]; return s; };
+
+  // ---------- хаб (организатор) ----------
+  class RaceHub {
+    // o: { code, transport, env?, state?, accept(hello, seat|null) → {ok, role, why}, snap(seat) → объект, onMsg(seat, m), onSeat(seat, kind: 'on'|'re'|'off'|'bye'), onStatus(s, info) }
+    constructor(o) {
+      this.o = o; this.env = o.env || defEnv(); this.code = String(o.code).toUpperCase();
+      this.g = 0; this.log = []; this.seats = new Map(); this.nextId = { play: 1, watch: 101 }; this.status = 'idle'; this.tries = 0; this.closed = false;
+      if (o.state) this.load(o.state);
+    }
+    open() {
+      this.closed = false; this.status = 'opening'; this._status('opening');
+      const t = this.o.transport;
+      this.lis = t.listen(peerId(this.code), {
+        onOpen: () => { this.tries = 0; this.status = 'open'; this._status('open'); },
+        onConn: (c) => this._conn(c),
+        onError: (e) => {
+          const type = e && e.type;
+          if (type === 'unavailable-id') { // прошлая сессия организатора ещё числится у сервера: ждём и пробуем снова
+            this.tries++; this._status('busy', { tries: this.tries });
+            this.lis && this.lis.close(); this.lis = null;
+            this.env.setTimeout(() => { if (!this.closed) this.open(); }, Math.min(1500 + this.tries * 500, 5000));
+          } else this._status('error', e);
+        },
+      });
+      this.hbT = this.hbT || this.env.setInterval(() => this._tick(), 1000);
+    }
+    close() {
+      this.closed = true; if (this.hbT) this.env.clearInterval(this.hbT); this.hbT = null;
+      for (const s of this.seats.values()) { if (s.conn) { this._tx(s, { k: 'bye' }); try { s.conn.close(); } catch (_) { } s.conn = null; s.online = false; } }
+      try { this.lis && this.lis.close(); } catch (_) { } this.lis = null; this._status('closed');
+    }
+    _status(s, info) { this.status = s; if (this.o.onStatus) this.o.onStatus(s, info); }
+    dump() { return { g: this.g, log: this.log.slice(-400), nextId: { ...this.nextId }, seats: [...this.seats.values()].map((s) => ({ id: s.id, key: s.key, role: s.role, name: s.name, sid: s.sid, inN: s.inN, gAck: s.gAck, info: s.info })) }; }
+    load(st) {
+      this.g = st.g | 0; this.log = (st.log || []).slice(); this.nextId = { play: 1, watch: 101, ...(st.nextId || {}) };
+      for (const s of st.seats || []) this.seats.set(s.key, { id: s.id, key: s.key, role: s.role, name: s.name, sid: s.sid || null, conn: null, online: false, lastRecv: 0, lastSend: 0, inN: s.inN | 0, gAck: s.gAck | 0, info: s.info || {}, rtt: null });
+    }
+    seatById(id) { for (const s of this.seats.values()) if (s.id === id) return s; return null; }
+    players() { return [...this.seats.values()].filter((s) => s.role === 'play'); }
+    // надёжная рассылка: to — id места (иначе всем), roles — ограничить роли
+    broadcast(m, to, roles) {
+      const e = { g: ++this.g, m, to: to == null ? null : to, roles: roles || null };
+      this.log.push(e); if (this.log.length > LOG_MAX) this.log.splice(0, this.log.length - LOG_MAX);
+      for (const s of this.seats.values()) if (s.online && this._for(e, s)) this._sendE(s, e);
+      return e.g;
+    }
+    sendTo(seat, m) { return this.broadcast(m, seat.id); }
+    // pg — предыдущий номер, отправленный этому месту: по нему клиент замечает пропуск и просит досылку
+    _sendE(s, e) { this._tx(s, { k: 'e', g: e.g, pg: s.lastG | 0, m: e.m }); s.lastG = e.g; }
+    _replay(s, from) { s.lastG = from; for (const e of this.log) if (e.g > from && this._for(e, s)) this._sendE(s, e); }
+    // лёгкое сообщение без нумерации (телеметрия)
+    light(m, roles, exceptId) { for (const s of this.seats.values()) if (s.online && (!roles || roles.includes(s.role)) && s.id !== exceptId) this._tx(s, { k: 'tl', tv: m }); }
+    lightTo(seat, m) { if (seat.online) this._tx(seat, { k: 'tl', tv: m }); }
+    _for(e, s) { return (e.to == null || e.to === s.id) && (!e.roles || e.roles.includes(s.role)); }
+    _tx(s, o) { if (!s.conn) return; o.t = 'rc'; o.a = s.inN; s.lastSend = this.env.now(); try { s.conn.send(o); } catch (_) { } }
+    _conn(c) {
+      const st = { seat: null }; let done = false;
+      const timer = this.env.setTimeout(() => { if (!done) { try { c.close(); } catch (_) { } } }, HELLO_WAIT);
+      c.onData = (d) => {
+        if (!d || d.t !== 'rc') return;
+        if (!st.seat) { if (d.k === 'hello') { done = true; this.env.clearTimeout(timer); st.seat = this._hello(c, d); } return; }
+        if (st.seat.conn !== c) return; // устаревшее соединение этого места
+        this._data(st.seat, d);
+      };
+      c.onClose = () => { this.env.clearTimeout(timer); const s = st.seat; if (s && s.conn === c) this._off(s, 'off'); };
+    }
+    _hello(c, d) {
+      const key = String(d.key || ''); let seat = this.seats.get(key) || null;
+      const dec = this.o.accept(d, seat) || { ok: false, why: 'отказ' };
+      if (!dec.ok) { try { c.send({ t: 'rc', k: 'deny', why: dec.why || 'отказ' }); } catch (_) { } this.env.setTimeout(() => { try { c.close(); } catch (_) { } }, 200); return null; }
+      const re = !!seat;
+      if (!seat) {
+        const role = dec.role === 'watch' ? 'watch' : 'play';
+        seat = { id: this.nextId[role]++, key, role, name: String(d.name || '').slice(0, 24), conn: null, online: false, lastRecv: 0, lastSend: 0, inN: 0, gAck: 0, info: {}, rtt: null };
+        this.seats.set(key, seat);
+      } else if (d.name) seat.name = String(d.name).slice(0, 24);
+      // новый экземпляр клиента (перезагрузка без сохранённой очереди): его нумерация начинается заново, счётчик приёма сбрасываем
+      if (seat.sid !== (d.sid || null)) { seat.inN = 0; seat.sid = d.sid || null; }
+      if (seat.conn && seat.conn !== c) { const old = seat.conn; seat.conn = null; try { old.close(); } catch (_) { } }
+      seat.conn = c; seat.online = true; seat.lastRecv = this.env.now();
+      const fresh = !!d.fresh; // клиент у нас впервые: ему нужен снимок, а не весь журнал
+      const missed = fresh ? null : this.log.filter((e) => e.g > d.ack && this._for(e, seat));
+      const gap = !fresh && this.log.length && this.log[0].g > d.ack + 1 && this.log[0].g > 1; // журнал уже обрезан: нужен снимок
+      this._tx(seat, { k: 'welcome', seat: seat.id, role: seat.role, re, g: this.g, wall: this.env.wall ? this.env.wall() : Date.now(), ack: seat.inN, resync: fresh || gap || d.ack > this.g, snap: this.o.snap(seat) });
+      seat.lastG = fresh || gap || d.ack > this.g ? this.g : d.ack;
+      if (!fresh && !gap && d.ack <= this.g) this._replay(seat, d.ack);
+      void missed;
+      seat.gAck = Math.max(seat.gAck, fresh || gap ? this.g : d.ack);
+      this.o.onSeat(seat, re ? 're' : 'on');
+      return seat;
+    }
+    _data(s, d) {
+      s.lastRecv = this.env.now();
+      if (typeof d.ag === 'number' && d.ag > s.gAck) s.gAck = d.ag;
+      switch (d.k) {
+        case 'e': {
+          if (d.n === s.inN + 1) { s.inN = d.n; this.o.onMsg(s, d.m); this._tx(s, { k: 'ack' }); }
+          else if (d.n > s.inN + 1) this._tx(s, { k: 'nack' }); // пропуск: просим досылать с места inN (оно в поле a)
+          else this._tx(s, { k: 'ack' });               // дубль (n ≤ inN) после повторной отправки
+          break;
+        }
+        case 'nackg': this._replay(s, d.ag | 0); break; // клиент заметил пропуск в рассылке
+        case 'tl': if (this.o.onTel) this.o.onTel(s, d.tv); break;
+        case 'hb': this._tx(s, { k: 'hbr', ts: d.ts }); break;
+        case 'hbr': if (d.ts != null) { const r = this.env.now() - d.ts; s.rtt = s.rtt == null ? r : s.rtt * 0.7 + r * 0.3; } break;
+        case 'bye': this._off(s, 'bye'); try { s.conn && s.conn.close(); } catch (_) { } s.conn = null; break;
+      }
+    }
+    _off(s, kind) { if (!s.online && kind === 'off') return; s.online = false; s.conn = null; this.o.onSeat(s, kind); }
+    _tick() {
+      const now = this.env.now();
+      for (const s of this.seats.values()) {
+        if (!s.online) continue;
+        if (now - s.lastRecv > DEAD) { const c = s.conn; this._off(s, 'off'); try { c && c.close(); } catch (_) { } continue; }
+        if (now - (s.lastPing || 0) >= HB) { s.lastPing = now; this._tx(s, { k: 'hb', ts: now }); }
+      }
+    }
+  }
+
+  // ---------- клиент (игрок или обсервер) ----------
+  class RaceClient {
+    // o: { code, key, role: 'play'|'watch', name, hello?: {…}, transport, env?, onWelcome(w), onMsg(m), onTel(t), onStatus(s, info) }
+    constructor(o) {
+      this.o = o; this.env = o.env || defEnv(); this.code = String(o.code).toUpperCase(); this.key = o.key;
+      this.sid = o.sid || makeKey(); this.n = o.n | 0; this.outbox = Array.isArray(o.outbox) ? o.outbox.slice() : []; this.gSeen = o.gSeen | 0; this.status = 'idle'; this.conn = null; this.attempt = 0; this.stopped = false;
+      this.lastRecv = 0; this.lastSend = 0; this.lastPing = 0; this.rtt = null; this.ackOut = 0; this.seen = !!o.resume; // resume: клиент уже бывал в этой комнате (перезагрузка страницы игрока)
+    }
+    start() { this.stopped = false; this._connect(); this.tickT = this.tickT || this.env.setInterval(() => this._tick(), 1000); }
+    stop(bye) {
+      this.stopped = true; if (this.tickT) this.env.clearInterval(this.tickT); this.tickT = null; if (this.retryT) this.env.clearTimeout(this.retryT); this.retryT = null;
+      if (bye && this.conn) this._tx({ k: 'bye' });
+      this._drop(); this._status('stopped');
+    }
+    bye() { if (this.conn && this.status === 'online') { try { this.conn.send({ t: 'rc', k: 'bye' }); } catch (_) { } } }
+    _status(s, info) { if (this.status === s && !info) return; this.status = s; if (this.o.onStatus) this.o.onStatus(s, info); }
+    _drop() { const c = this.conn, d = this.dial; this.conn = null; this.dial = null; try { c && c.close(); } catch (_) { } try { d && d.close(); } catch (_) { } }
+    _connect() {
+      if (this.stopped) return; this._drop(); this._status(this.attempt ? 'reconnecting' : 'connecting', { attempt: this.attempt });
+      let opened = false; const myAttempt = ++this.attemptId || (this.attemptId = 1);
+      const fail = () => { if (this.attemptId !== myAttempt || this.stopped) return; this._drop(); this._retry(); };
+      this.connT = this.env.setTimeout(() => { if (!opened) fail(); }, 10000);
+      this.dial = this.o.transport.dial(peerId(this.code), {
+        onOpen: (c) => {
+          if (this.attemptId !== myAttempt || this.stopped) { try { c.close(); } catch (_) { } return; }
+          opened = true; this.env.clearTimeout(this.connT); this.conn = c; this.lastRecv = this.env.now();
+          c.onData = (d) => this._data(c, d); c.onClose = () => { if (this.conn === c) { this.conn = null; this._lost(); } };
+          this.helloAt = this.env.now();
+          this._tx({ k: 'hello', key: this.key, role: this.o.role, name: this.o.name, ack: this.gSeen, fresh: !this.seen, sid: this.sid, room: this.code, ...(this.o.hello ? this.o.hello() : {}) });
+        },
+        onError: () => { if (!opened) { this.env.clearTimeout(this.connT); fail(); } },
+      });
+    }
+    _retry() {
+      if (this.stopped) return;
+      const base = BACKOFF[Math.min(this.attempt, BACKOFF.length - 1)], d = base * (0.85 + this.env.rand() * 0.3); this.attempt++;
+      this._status('reconnecting', { attempt: this.attempt, in: Math.round(d) });
+      this.retryT = this.env.setTimeout(() => { this.retryT = null; this._connect(); }, d);
+    }
+    _lost() { if (this.stopped) return; if (this.status === 'online') this._status('offline'); this._drop(); this._retry(); }
+    _tx(o) { if (!this.conn) return false; o.t = 'rc'; o.a = this.ackOut; o.ag = this.gSeen; this.lastSend = this.env.now(); try { this.conn.send(o); return true; } catch (_) { return false; } }
+    // надёжное сообщение игрока/обсервера → организатору
+    send(m) { const n = ++this.n; this.outbox.push({ n, m }); if (this.status === 'online') this._tx({ k: 'e', n, m }); this._q(); return n; }
+    // очередь изменилась: владелец может сохранить sid/n/outbox (RacePlay кладёт их в localStorage), чтобы события пережили перезагрузку вкладки
+    _q() { if (this.o.onQueue) this.o.onQueue({ sid: this.sid, n: this.n, outbox: this.outbox, gSeen: this.gSeen }); }
+    // лёгкое (теряться можно)
+    tel(t) { if (this.status === 'online') this._tx({ k: 'tl', tv: t }); }
+    pending() { return this.outbox.length; }
+    _data(c, d) {
+      if (this.conn !== c || !d || d.t !== 'rc') return;
+      this.lastRecv = this.env.now();
+      if (typeof d.a === 'number') this._acked(d.a);
+      switch (d.k) {
+        case 'welcome': {
+          this.attempt = 0; this.ackOut = 0;
+          if (d.g < this.gSeen) this.gSeen = d.g;   // хаб начал заново (меньший номер): сверяемся с ним
+          if (d.resync) this.gSeen = d.g;           // снимок заменяет пропущенное
+          this.seen = true;
+          // разница настенных часов организатора и этого клиента (половина времени «туда-обратно» поправкой): нужна, чтобы опоздавший «go» не сдвигал время
+          if (d.wall != null) this.skew = d.wall + (this.env.now() - (this.helloAt || this.env.now())) / 2 - (this.env.wall ? this.env.wall() : Date.now());
+          this._status('online', { re: d.re });
+          this._acked(d.ack);
+          for (const e of this.outbox) if (e.n > d.ack) this._tx({ k: 'e', n: e.n, m: e.m }); // досылаем непринятое
+          if (this.o.onWelcome) this.o.onWelcome(d);
+          break;
+        }
+        case 'deny': this.stopped = true; this._drop(); this._status('denied', { why: d.why }); break;
+        case 'e':
+          if (d.g <= this.gSeen) { this._tx({ k: 'ack' }); break; }  // дубль
+          if (d.pg != null && d.pg > this.gSeen) { // между принятым и этим кадром что-то потерялось: просим досылку с gSeen
+            if (this.env.now() - (this.lastNack || -1e9) > 300) { this.lastNack = this.env.now(); this._tx({ k: 'nackg' }); }
+            break;
+          }
+          this.gSeen = d.g; if (this.o.onMsg) this.o.onMsg(d.m, d.g); this._tx({ k: 'ack' }); break;
+        case 'nack': this._resend(); break;
+        case 'tl': if (this.o.onTel) this.o.onTel(d.tv); break;
+        case 'hb': this._tx({ k: 'hbr', ts: d.ts }); break;
+        case 'hbr': if (d.ts != null) { const r = this.env.now() - d.ts; this.rtt = this.rtt == null ? r : this.rtt * 0.7 + r * 0.3; } break;
+        case 'bye': this._lost(); break;
+      }
+    }
+    _resend() { if (this.env.now() - (this.lastRe || -1e9) < 300) return; this.lastRe = this.env.now(); for (const e of this.outbox) this._tx({ k: 'e', n: e.n, m: e.m }); }
+    _acked(a) { if (a > 0 && this.outbox.length && this.outbox[0].n <= a) { while (this.outbox.length && this.outbox[0].n <= a) this.outbox.shift(); this._q(); } }
+    _tick() {
+      if (this.stopped) return; const now = this.env.now();
+      if (this.status === 'online') {
+        if (now - this.lastRecv > DEAD) { this._lost(); return; }
+        if (now - this.lastPing >= HB) { this.lastPing = now; this._tx({ k: 'hb', ts: now }); }
+      }
+    }
+  }
+
+  // ---------- транспорт PeerJS ----------
+  const peerTransport = {
+    wrap(c) {
+      const w = { onData: null, onClose: null, raw: c, send: (o) => { if (c.open) c.send(o); }, close: () => { try { c.close(); } catch (_) { } }, get open() { return c.open; } };
+      c.on('data', (d) => { if (w.onData) w.onData(d); });
+      c.on('close', () => { if (w.onClose) w.onClose(); });
+      c.on('error', () => { });
+      return w;
+    },
+    listen(id, h) {
+      if (typeof Peer === 'undefined') { setTimeout(() => h.onError({ type: 'no-lib' }), 0); return { close() { } }; }
+      const peer = new Peer(id, Net.opts());
+      peer.on('open', () => h.onOpen());
+      peer.on('connection', (c) => h.onConn(this.wrap(c)));
+      peer.on('error', (e) => h.onError(e));
+      peer.on('disconnected', () => { if (!peer.destroyed) try { peer.reconnect(); } catch (_) { } });
+      return { close() { try { peer.destroy(); } catch (_) { } }, peer };
+    },
+    dial(id, h) {
+      if (typeof Peer === 'undefined') { setTimeout(() => h.onError({ type: 'no-lib' }), 0); return { close() { } }; }
+      const peer = new Peer(Net.opts());
+      let done = false;
+      peer.on('open', () => {
+        const c = peer.connect(id, { reliable: true, serialization: 'json' });
+        c.on('open', () => { done = true; h.onOpen(this.wrap(c)); });
+        c.on('error', (e) => { if (!done) h.onError(e); });
+        c.on('close', () => { if (!done) h.onError({ type: 'closed' }); });
+      });
+      peer.on('error', (e) => { if (!done) h.onError(e); });
+      return { close() { try { peer.destroy(); } catch (_) { } } };
+    },
+  };
+
+  // какой транспорт использовать: тесты подставляют свой (window.__RC_TRANSPORT или RaceNet.transport), иначе PeerJS
+  const use = () => (RaceNet_ref.transport || (typeof window !== 'undefined' && window.__RC_TRANSPORT) || peerTransport);
+  const RaceNet_ref = { HB, DEAD, peerId, makeCode, makeKey, RaceHub, RaceClient, peerTransport, transport: null, use };
+  return RaceNet_ref;
+})();
+if (typeof module !== 'undefined' && module.exports) module.exports = RaceNet;
+
 // ===== ИГРА: «Тропа Ткачей» — кооперативная метроидвания =====
 let VW = 960; const VH = 540;
 // версия игры; номер сборки подставляет build.py
-const GAME_VERSION = '1.7';
-const GAME_BUILD = '261020.1821';
+const GAME_VERSION = '1.8';
+const GAME_BUILD = '261020.2033';
 const CHANGELOG = [
+  'Гонки Ткачей: организатор создаёт гонку и раздаёт ссылки, двое играют у себя, обсервер показывает обоих (1920×1080: две половины, табло, лента событий, разбор)',
+  'Надёжная сеть гонок: пульс, автопереподключение, нумерация событий и догонка после обрыва, организатор восстанавливает комнату после перезагрузки',
+  'Забег можно восстановить после падения вкладки: журнал ввода по тикам логики пишется в браузер, «Восстановить забег» в разделе «Спидран»; время простоя идёт в зачёт',
+  'Общее зерно гонки: у обоих игроков одинаковые враги и бусины; техническая пауза, переигровка, присуждение победы, статистика боя и скачиваемый races.json',
+  'Логика игры считается тиками по 1/60 с: возрождение, победа над боссом, переходы глав и замедление больше не зависят от реального времени',
   'Новое меню: Продолжить, Кампания, Босс-тест, Спидран, Гонки Ткачей (скоро), Как играть, Настройки; хлебные крошки, подсказки под ваше устройство, цифры 1–7, Esc / B / «← Назад» на уровень выше',
   'Настройки разбиты на разделы: Звук, Экран, Управление, Игра, Прогресс',
   'Снаряжение: 5 видов оружия, заряженный удар, 4 инструмента (клавиша E), 9 оберегов, яд и ожог; экран на скамье',
@@ -1533,7 +1812,7 @@ class GameScene extends Phaser.Scene {
     cam.centerOn(this.camX, this.camY);
     cam.fadeIn(600, 3, 8, 7);
 
-    this.acc = 0; this.hitstop = 0; this.paused = false; this.wiping = false; this.won = false; this.animT = 0;
+    this.acc = 0; this.racc = 0; this.tickN = 0; this.tmr = []; this.slowT = 0; this.jr = null; this.hitstop = 0; this.paused = false; this.wiping = false; this.won = false; this.animT = 0;
     this.areaIdx = -1; this.events.emit('ready');
     this.input.keyboard.on('keydown-ESC', () => this.togglePause());
     this.input.keyboard.on('keydown', (e) => { Snd.init(); this.onKeyTap(e); });
@@ -1712,13 +1991,56 @@ class GameScene extends Phaser.Scene {
   }
 
   // ----- основной цикл -----
+  // ----- часы логики -----
+  // Один тик = 1/60 с реального времени. Всё, что влияет на исход (возрождение, победа босса, переходы глав, замедление, «стоп-кадр» от удара),
+  // считается в тиках, а не в миллисекундах таймеров Phaser: тогда журнал ввода (journal.js) воспроизводит забег без отрисовки в тот же исход.
+  after(sec, fn) { this.tmr.push({ t: Math.max(1, Math.round(sec * 60)), fn }); }
+  tickTimers() {
+    if (!this.tmr.length) return;
+    const due = [];
+    for (const m of this.tmr) if (--m.t <= 0) due.push(m);
+    if (due.length) { this.tmr = this.tmr.filter((m) => m.t > 0); for (const m of due) m.fn(); }
+  }
+  slowK() { // замедление времени на смерть босса: сначала почти стоп, потом плавно разгоняемся
+    if (!(this.slowT > 0)) return 1;
+    const k = Math.max(0, this.slowT) / this.slowDur;
+    return k > 0.35 ? 0.22 : 0.22 + 0.78 * (1 - k / 0.35);
+  }
+  // Один тик логики. Ввод берётся из p.raw (удержание) и p.pend (фронты нажатий, пришедшие с прошлого тика); журнал пишет именно их.
+  tick() {
+    this.tickN++;
+    if (this.jr) this.jr.rec(this);
+    if (this.slowT > 0) this.slowT -= STEP;
+    const k = this.slowK(), dt = STEP * k;
+    this.animT += dt;
+    for (const p of this.players) {
+      if (p.remote) continue;
+      const pd = p.pend || (p.pend = {}), cr = p.carry || (p.carry = {});
+      for (const a in pd) if (pd[a]) cr[a] = true;
+      p.pend = {};
+    }
+    if (!this.paused && !this.wiping && !this.won) {
+      if (this.hitstop > 0) { this.hitstop -= dt; }
+      else {
+        this.acc += dt;
+        while (this.acc >= STEP) {
+          for (const p of this.players) {
+            if (p.remote) { p.inp = { up: p.netUp }; continue; }
+            p.inp = { ...p.raw, ...p.carry }; p.carry = {};
+          }
+          this.step(STEP); this.acc -= STEP;
+          if (this.hitstop > 0 || this.wiping) { this.acc = 0; break; }
+        }
+        this.timeSec += dt;
+      }
+    }
+    this.tickTimers();
+    if (this.shopOpen) Campaign.shopGuard(this);
+    if (this.sr) Speedrun.onTick(this);
+  }
   update(time, delta) {
     const rdt = Math.min(delta, 100) / 1000;
-    let dt = rdt;
-    // замедление времени на смерть босса: сначала почти стоп, потом плавно разгоняемся
-    if (this.slowT > 0) { this.slowT -= rdt; const k = Math.max(0, this.slowT) / this.slowDur; dt = rdt * (k > 0.35 ? 0.22 : 0.22 + 0.78 * (1 - k / 0.35)); }
-    this.animT += dt;
-    // ввод с фронтами нажатий
+    // ввод с фронтами нажатий (накапливаются в p.pend до ближайшего тика)
     for (const p of this.players) {
       if (p.remote) continue;
       const r = this.rawInput(p.i), pr = p.prev, pd = p.pend || (p.pend = {});
@@ -1726,26 +2048,13 @@ class GameScene extends Phaser.Scene {
       pd.jumpP ||= r.jump && !pr.jump; pd.atkP ||= r.atk && !pr.atk; pd.dashP ||= r.dash && !pr.dash; pd.healP ||= r.heal && !pr.heal; pd.upP ||= r.up && !pr.up; pd.bombP ||= r.bomb && !pr.bomb; pd.toolP ||= r.tool && !pr.tool;
       p.raw = r; p.prev = r;
     }
-    if (!this.paused && !this.wiping && !this.won) {
-      if (this.hitstop > 0) { this.hitstop -= dt; }
-      else {
-        this.acc += dt;
-        let first = true;
-        while (this.acc >= STEP) {
-          for (const p of this.players) {
-            if (p.remote) { p.inp = { up: p.netUp }; continue; }
-            if (first) { p.inp = { ...p.raw, ...p.pend }; p.pend = {}; }
-            else p.inp = { ...p.raw, jumpP: false, atkP: false, dashP: false, healP: false, upP: false, bombP: false, toolP: false };
-          }
-          this.step(STEP); this.acc -= STEP; first = false;
-          if (this.hitstop > 0 || this.wiping) { this.acc = 0; break; }
-        }
-        this.timeSec += dt;
-      }
-    }
-    if (this.online) { this.netSmooth(dt); this.netTick(dt); }
+    this.racc += rdt;
+    for (let n = 0; this.racc >= STEP && n < 7; n++) { this.racc -= STEP; this.tick(); }
+    if (this.racc > STEP * 7) this.racc = 0;
+    if (this.online) { this.netSmooth(rdt * this.slowK()); this.netTick(rdt * this.slowK()); }
     Music.play(this.musicTrack());
     Music.intensity = 1 + 0.07 * (this.bossPhaseForMusic() - 1);
+    const dt = rdt * this.slowK();
     this.render(dt);
     this.updateCamera(dt);
   }
@@ -1982,8 +2291,8 @@ class GameScene extends Phaser.Scene {
     for (const p of this.players) if (!p.remote) p.downed = true;
     this.sendEv({ k: 'wipe' });
     this.ui().toast('Нить оборвалась…');
-    this.time.delayedCall(700, () => this.cameras.main.fadeOut(600, 3, 8, 7));
-    this.time.delayedCall(1350, () => this.respawnAll());
+    this.after(0.7, () => this.cameras.main.fadeOut(600, 3, 8, 7));
+    this.after(1.35, () => this.respawnAll());
   }
   respawnAll() {
     this.spawnEnemies();
@@ -2222,7 +2531,7 @@ class GameScene extends Phaser.Scene {
     for (const pr of this.projs) pr.dead = true;
     this.sfx('roar'); this.shake(1200, 0.01); this.hitstop = 0.25; this.bossDeathFx(b);
     for (let i = 0; i < 6; i++) this.time.delayedCall(i * 180, () => this.burst(24, b.x + Math.random() * b.w, b.y + Math.random() * b.h, i % 2 ? 0xffd47a : 0x9ff0c8));
-    this.time.delayedCall(1300, () => {
+    this.after(1.3, () => {
       this.dropBeads(b.x + b.w / 2, b.y + b.h / 2, 30);
       this.setGate(this.gates[0], false); this.setGate(this.gates[1], false); this.sfx('gate');
       this.ui().bossBar(false); this.toastAll('Корнематка повержена. Путь на восток открыт');
@@ -3094,7 +3403,7 @@ Object.assign(GameScene.prototype, {
     for (const pr of this.projs) if (pr.kind !== 'bomb') pr.dead = true;
     this.mishaSpeak('ЭТО СДЕЛАЛ ТАМИК!', 2.6); this.sfx('roar'); this.shake(900, 0.008);
     for (let i = 0; i < 8; i++) this.time.delayedCall(i * 160, () => { const b = this.mishaBag(m); this.smokeAt(22, b.x + 15 + (Math.random() - 0.5) * 40, b.y + Math.random() * 30); });
-    this.time.delayedCall(3300, () => { this.ui().bossBar(false); this.win(); });
+    this.after(3.3, () => { this.ui().bossBar(false); this.win(); });
   },
   mishaNeedle(p, box) {
     const m = this.misha;
@@ -3767,7 +4076,7 @@ Object.assign(GameScene.prototype, {
     for (const c of this.curtains) c.slime = Math.min(c.slime, 1);
     this.vladikSpeak('ЛАДНО… Я СКРИПКА…', 2.4); this.sfx('violin'); this.shake(700, 0.008);
     for (let i = 0; i < 6; i++) this.time.delayedCall(i * 170, () => this.burst(18, v.x + Math.random() * v.w, v.y + Math.random() * v.h, i % 2 ? 0xffd47a : 0xf4efe0));
-    this.time.delayedCall(3300, () => { this.ui().bossBar(false); this.win(); });
+    this.after(3.3, () => { this.ui().bossBar(false); this.win(); });
   },
   stepClef(pr, dt) {
     if (pr.t0 > 0) { pr.t0 -= dt; return; }
@@ -4198,7 +4507,7 @@ Object.assign(GameScene.prototype, {
     this.setRepo(false); this.repoT = 0; this.sendEv({ k: 'repo', on: 0 });
     this.timaSpeak('ВСЁ… Я СПАТЬ…', 2.4); this.sfx('burp'); this.shake(600, 0.008);
     for (let i = 0; i < 6; i++) this.time.delayedCall(i * 170, () => this.foamAt(18, v.x + Math.random() * v.w, v.y + Math.random() * v.h));
-    this.time.delayedCall(3300, () => { this.ui().bossBar(false); this.win(); });
+    this.after(3.3, () => { this.ui().bossBar(false); this.win(); });
   },
   foamAt(n, x, y) { this.foam.explode(n, x, y); if (this.online === 'host') this.sendEv({ k: 'foam', n, x: Math.round(x), y: Math.round(y) }); },
   stepTimaProj(pr, dt) {
@@ -5274,11 +5583,12 @@ const Campaign = {
   },
   go(gs, camp) {
     if (gs.leaving) return; gs.leaving = true;
-    const data = { players: gs.nPlayers, mode: 'story', online: gs.online, camp };
+    // зерно следующей сцены выводится из зерна этой: цепочка сцен забега воспроизводима по одному начальному зерну
+    const data = { players: gs.nPlayers, mode: 'story', online: gs.online, camp, seed: gs.online ? undefined : rngSeedFor(gs.seed, 'next:' + camp.ch + camp.st) };
     if (gs.online === 'host') gs.sendEv({ k: 'next', camp });
     Snd.play('bench');
     gs.cameras.main.fadeOut(450, 3, 8, 7); gs.ui().cameras.main.fadeOut(450, 3, 8, 7);
-    gs.time.delayedCall(gs.online === 'host' ? 900 : 480, () => gs.ui().campGo(data));
+    gs.after(gs.online === 'host' ? 0.9 : 0.48, () => gs.ui().campGo(data));
   },
   onEv(gs, m) {
     if (m.k === 'next') {
@@ -5299,7 +5609,7 @@ const Campaign = {
   },
   closeShop(gs) {
     if (!gs.shopOpen) return;
-    setTimeout(() => { gs.shopOpen = false; }, 0); // Esc не должен тут же включить паузу
+    gs.after(1 / 60, () => { gs.shopOpen = false; }); // Esc не должен тут же включить паузу; в тиках, чтобы воспроизведение совпало
     Touch.show(true); gs.ui().shopHide();
   },
   buy(gs, id, fromGuest) {
@@ -5316,7 +5626,9 @@ const Campaign = {
     gs.toastAll(`Куплено: ${it.name}`);
     if (gs.ui().shopC && gs.ui().shopC.visible) gs.ui().shopRefresh();
   },
-  // каждый кадр: геймпад в лавке и защита от «зависшей» лавки
+  // каждый тик логики: защита от «зависшей» лавки (нужна и при воспроизведении журнала)
+  shopGuard(gs) { const me = gs.shopP; if (!me || !me.sit || me.downed || gs.wiping || gs.won) this.closeShop(gs); },
+  // каждый кадр: геймпад в лавке
   tick(gs) {
     if (!gs.shopOpen) return;
     const me = gs.shopP;
@@ -5896,7 +6208,7 @@ const MapTravel = {
     if (!gs.online) { gs.paused = true; this.ownPause = false; } // на время затемнения мир стоит
     Snd.play('bench');
     gs.cameras.main.fadeOut(350, 3, 8, 7); gs.ui().cameras.main.fadeOut(350, 3, 8, 7);
-    gs.time.delayedCall(420, () => {
+    gs.after(0.42, () => {
       if (!gs.players) return;
       for (const p of gs.players) {
         if (p.remote) continue;
@@ -8084,7 +8396,7 @@ const Sheet = {
   .hw { padding-top: max(6px, var(--st, 0px)); padding-bottom: max(4px, var(--sb, 0px)); }
   .hw-card { gap: 5px; }
   .hw-head h2 { font-size: 26px; }
-  .hw button { min-height: 34px; padding: 5px 12px; font-size: 14px; }
+  .hw button { min-height: 44px; padding: 4px 12px; font-size: 14px; } /* зона касания не меньше 44 px и в низких окнах */
   .hw-body { font-size: 14px; line-height: 1.38; padding: 10px 12px 14px; }
   .hw-body h3 { font-size: 19px; }
   .hw-foot { font-size: 12px; }
@@ -8796,7 +9108,7 @@ menuAdd({
       { key: '2', label: 'Кампания', sub: 'новая игра, главы, вдвоём', act: (m) => m.menuGo('campaign') },
       { key: '3', label: 'Босс-тест', sub: 'три босса, тренировка, рекорды', act: (m) => m.menuGo('bosstest') },
       { key: '4', label: 'Спидран', sub: 'Тропа целиком, Босс-раш, гонка 1×1', act: (m) => m.menuGo('speedrun') },
-      { key: '5', label: 'Гонки Ткачей', sub: 'скоро', act: (m) => m.menuGo('races') },
+      { key: '5', label: 'Гонки Ткачей', sub: 'организатор, игрок, обсервер', act: (m) => m.menuGo('races') },
       { key: '6', label: 'Как играть', sub: 'управление, приёмы, боссы', act: (m) => m.menuHowTo() },
       { key: '7', label: 'Настройки', sub: 'звук, экран, управление, игра', act: (m) => m.menuGo('settings') },
     ];
@@ -8933,7 +9245,15 @@ const Speedrun = {
     let s = 0; for (const p of parts) s = s * 60 + p;
     return s * 100 + Number(c);
   },
-  rta() { const r = this.run; if (!r || r.t0 == null) return 0; return (r.end != null ? r.end : this.clock()) - r.t0; },
+  // RTA без технической паузы организатора (в гонке): r.pausedMs — завершённые паузы, r.tp — начало текущей
+  rta() { const r = this.run; if (!r || r.t0 == null) return 0; const now = r.end != null ? r.end : this.clock(); return now - r.t0 - (r.pausedMs || 0) - (r.tp != null ? now - r.tp : 0); },
+  // техническая пауза гонки (команда организатора): мир стоит, время не идёт; в журнал пишется действием, чтобы воспроизведение совпало
+  techPause(gs, on, replay) {
+    const r = this.run; if (!r || !gs || !gs.sr) return;
+    if (on) { if (r.tp != null) return; r.tp = this.clock(); gs.paused = true; if (!replay && Journal.J) { Journal.J.pauses.push([Date.now(), null]); Journal.dirty = true; } }
+    else { if (r.tp == null) return; if (!replay) r.pausedMs = (r.pausedMs || 0) + (this.clock() - r.tp); r.tp = null; gs.paused = false; if (!replay && Journal.J) { const p = Journal.J.pauses[Journal.J.pauses.length - 1]; if (p && p[1] == null) p[1] = Date.now(); Journal.dirty = true; } }
+    if (!replay && gs.jr) Journal.act(gs, 'tp', on ? 1 : 0);
+  },
 
   // ----- правила честности -----
   violation() {
@@ -8991,17 +9311,29 @@ const Speedrun = {
     const camp = cat === 'boss' ? { ch: 1, st: 'level', beads: 0, abil: { double: true }, up: Campaign.freshUp(), time: 0, deaths: 0 } : Campaign.fresh();
     return { players: 1, mode: 'story', online: null, camp };
   },
-  begin(cat, race) {
-    this.run = { cat, t0: null, end: null, igt: 0, splits: [], deaths: 0, done: false, taint: null, hold: !!race, cd: '', race: race || null, result: null };
-    return this.dataFor(cat);
+  // opt: { seed } — зерно первой сцены (общее для гонки); { restoring } — восстановление: журнал уже есть, новый не заводим
+  begin(cat, race, opt) {
+    opt = opt || {};
+    this.run = { cat, t0: null, end: null, igt: 0, splits: [], deaths: 0, done: false, taint: null, hold: !!race || !!opt.rc, cd: '', race: race || null, result: null, restored: 0, downMs: 0, rc: opt.rc || null };
+    const data = this.dataFor(cat);
+    data.seed = (opt.seed != null ? opt.seed : newSeed()) >>> 0;
+    if (!opt.restoring && !race) Journal.startRun({ cat, seed: data.seed, race: opt.rc || null });
+    return data;
   },
-  start() { const r = this.run; if (r && r.t0 == null) { r.t0 = this.clock(); r.igt = 0; } },
+  start() {
+    const r = this.run; if (!r || r.t0 != null) return;
+    r.t0 = this.clock(); r.igt = 0;
+    if (Journal.J && !Journal.rp) Journal.J.wallT0 = Date.now(); // для восстановления: RTA считается от настенного времени старта
+  },
   // сплит на смерти босса текущей главы; последняя глава завершает забег
   onSplit(gs) {
     const r = this.run; if (!r || !gs.sr || r.done || r.t0 == null) return;
     const i = Math.max(0, (gs.camp ? gs.camp.ch : 1) - 1);
     if (r.splits.length > i) return;
+    if (Journal.rp && Journal.J.splits[i]) { r.splits[i] = { ...Journal.J.splits[i] }; return; } // при воспроизведении берём записанное, а не часы воспроизведения
     r.splits[i] = { rta: this.rta(), igt: Math.round(r.igt) };
+    if (Journal.J) { Journal.J.splits[i] = { ...r.splits[i] }; Journal.dirty = true; }
+    if (r.rc && typeof RacePlay !== 'undefined') RacePlay.onSplit(i, r.splits[i], gs);
     if (!r.taint) {
       const rec = this.rec(r.cat), prev = i ? r.splits[i - 1].rta : 0, seg = r.splits[i].rta - prev;
       if (!rec.seg[i] || seg < rec.seg[i]) { rec.seg[i] = seg; this.putRec(r.cat, rec); }
@@ -9010,7 +9342,8 @@ const Speedrun = {
   },
   finish(gs) {
     const r = this.run; r.done = true; r.end = this.clock();
-    const rta = r.end - r.t0; r.splits[r.splits.length - 1].rta = rta;
+    Journal.clear(); // забег закончен: восстанавливать нечего
+    const rta = this.rta(); r.splits[r.splits.length - 1].rta = rta;
     const res = { cat: r.cat, ver: GAME_VERSION, rta, igt: Math.round(r.igt), deaths: r.deaths, splits: r.splits.map((s) => ({ ...s })), taint: r.taint, newPb: false, pbPrev: null };
     const rec = this.rec(r.cat); res.pbPrev = rec.pb ? JSON.parse(JSON.stringify(rec.pb)) : null;
     if (!r.taint && (!rec.pb || rta < rec.pb.rta)) {
@@ -9020,21 +9353,28 @@ const Speedrun = {
     }
     r.result = res;
     if (r.race) Net.send({ t: 'race', k: 'fin', rta, igt: res.igt, deaths: r.deaths });
+    if (r.rc && typeof RacePlay !== 'undefined') RacePlay.onFinish(res, gs);
     Snd.play('win');
   },
   // каждый кадр игры (после основного update)
   tick(gs, delta) {
     const r = this.run; if (!r || !gs.sr) return;
     if (r.hold) return;
-    if (r.t0 == null && !r.race) {
+    if (!r.taint && !r.done) { const v = this.violation(); if (v.length) r.taint = v.join(', '); }
+    if (r.race) this.raceSend(gs);
+    if (r.rc && typeof RacePlay !== 'undefined') RacePlay.frame(gs);
+  },
+  // IGT считается в тиках логики (не по реальным кадрам): так он одинаков при записи и при воспроизведении журнала
+  onTick(gs) {
+    const r = this.run; if (!r || !gs.sr || r.hold) return;
+    if (r.t0 == null && !r.race && !r.rc) { // одиночный забег стартует с первого движения; в гонке время пускает общий сигнал
       const raw = gs.players[0] && gs.players[0].raw;
       if (raw && (raw.left || raw.right || raw.up || raw.down || raw.jump || raw.atk || raw.dash || raw.heal || raw.bomb)) this.start();
     }
-    if (r.t0 != null && !r.done && !gs.paused && !gs.shopOpen) r.igt += Math.min(delta, 500);
-    if (!r.taint && !r.done) { const v = this.violation(); if (v.length) r.taint = v.join(', '); }
-    if (r.race) this.raceSend(gs);
+    if (r.t0 != null && !r.done && !gs.paused && !gs.shopOpen) r.igt += 1000 / 60;
   },
   leave() { // выход в меню: забег прерван
+    Journal.clear();
     if (this.race) { Net.send({ t: 'race', k: 'bye' }); this.race = null; }
     this.run = null;
   },
@@ -9065,6 +9405,7 @@ const Speedrun = {
 
   // ----- табличка «Соперник» -----
   rivalInfo() {
+    if (this.run && this.run.rc && !this.race) return typeof RacePlay !== 'undefined' ? RacePlay.rival() : null;
     const R = this.race, r = this.run; if (!R || !r) return null;
     if (R.fin) return { text: `Соперник финишировал: ${this.fmt(R.fin.rta)}`, col: '#ffd47a' };
     if (R.lost) return { text: 'Соперник: связь потеряна', col: '#d28a6a' };
@@ -9080,6 +9421,7 @@ const Speedrun = {
     return { text: `Соперник: ${ch} · ${this.fmtD(lead)} ${lead >= 0 ? 'впереди' : 'позади'}`, col: lead >= 0 ? '#ff9a8a' : '#9ff0c8' };
   },
   raceBanner() {
+    if (this.run && this.run.rc && !this.race) return typeof RacePlay !== 'undefined' ? RacePlay.banner() : null;
     const R = this.race, r = this.run; if (!R || !r || !r.result) return null;
     const mine = r.result.rta;
     if (R.fin) {
@@ -9129,7 +9471,7 @@ const Speedrun = {
       if (this.sr) {
         Speedrun.onSplit(this);
         // в босс-раше у Корнематки нет пути к выходу: переходим к Мише сами, как у остальных боссов
-        if (this.sr.cat === 'boss' && fn === 'killBoss' && was !== 'dead' && !this.sr.done) this.time.delayedCall(3300, () => { if (!this.won) this.win(); });
+        if (this.sr.cat === 'boss' && fn === 'killBoss' && was !== 'dead' && !this.sr.done) this.after(3.3, () => { if (!this.won) this.win(); });
       }
       return out;
     };
@@ -9151,6 +9493,7 @@ const Speedrun = {
       this.camX = this.players[0].x; this.camY = this.players[0].y - 80; this.cameras.main.centerOn(this.camX, this.camY);
     }
     if (r.race) Speedrun.sceneReady(this);
+    if (r.rc && typeof RacePlay !== 'undefined') RacePlay.sceneReady(this);
   };
   // до сигнала «пошёл» герой стоит, нажатия не копятся
   const rawO = P.rawInput, tapO = P.onKeyTap, touchO = P.onTouchTap;
@@ -9257,9 +9600,10 @@ Object.assign(Speedrun, {
     };
     step();
   },
-  release() {
+  release(replay) {
     const r = this.run; if (!r || !r.hold) return;
     r.hold = false; r.t0 = this.clock(); r.igt = 0; r.cd = 'ПОШЁЛ!'; Snd.play('revive');
+    if (!replay && Journal.J && !Journal.rp) { Journal.J.wallT0 = Date.now(); Journal.dirty = true; const gs = window.__game && window.__game.scene.getScene('game'); if (gs && gs.jr) Journal.act(gs, 'rel'); }
     setTimeout(() => { if (r.cd === 'ПОШЁЛ!') r.cd = ''; }, 900);
   },
   raceSend(gs) {
@@ -9467,7 +9811,7 @@ Object.assign(Speedrun, {
       setT(row.t, sp ? Speedrun.fmt(sp.rta) : i === cur ? Speedrun.fmt(rta) : '—', sp ? '#cfe8dc' : i === cur ? '#ffe3a3' : '#5f7a6f');
       if (sp && pb && pb.splits[i]) { const d = sp.rta - pb.splits[i].rta; setT(row.d, Speedrun.fmtD(d), d <= 0 ? '#7ff0a8' : '#ff8a7a'); } else setT(row.d, sp ? ' ' : '');
     });
-    const rv = Speedrun.race ? Speedrun.rivalInfo() : null;
+    const rv = (Speedrun.race || r.rc) ? Speedrun.rivalInfo() : null;
     setT(h.rival, rv ? rv.text : '', rv ? rv.col : null);
     h.rival.setVisible(!!rv);
   };
@@ -9501,12 +9845,13 @@ Object.assign(Speedrun, {
       if (pb && pb.splits[i]) { const d = sp.rta - pb.splits[i].rta; tx(cols[4], y, Speedrun.fmtD(d), { fontFamily: M, fontSize: '16px', color: d <= 0 ? '#7ff0a8' : '#ff8a7a' }, 1); }
     });
     // гонка
-    this.srRace = Speedrun.race ? tx(cx, 312, '', { fontFamily: D, fontSize: '40px', color: '#e8e2cf', fontStyle: '700' }) : null;
-    this.srRaceSub = Speedrun.race ? tx(cx, 354, '', { fontFamily: F, fontSize: '15px', color: '#b9d4c8' }) : null;
+    const inRace = !!(Speedrun.race || r.rc);
+    this.srRace = inRace ? tx(cx, 312, '', { fontFamily: D, fontSize: '40px', color: '#e8e2cf', fontStyle: '700' }) : null;
+    this.srRaceSub = inRace ? tx(cx, 354, '', { fontFamily: F, fontSize: '15px', color: '#b9d4c8' }) : null;
     // текст для друзей
     const e = Speedrun.entryOf(res), line = res.taint ? '' : Speedrun.text(e, Speedrun.myName());
     this.srLine = line;
-    if (line) tx(cx, Speedrun.race ? 380 : 330, line, { fontFamily: M, fontSize: '11px', color: '#7fa596', align: 'center', wordWrap: { width: Math.min(VW - 60, 880) } });
+    if (line) tx(cx, inRace ? 380 : 330, line, { fontFamily: M, fontSize: '11px', color: '#7fa596', align: 'center', wordWrap: { width: Math.min(VW - 60, 880) } });
     const btn = (x, y, label, fn) => {
       const t = this.add.text(x, y, label, { fontFamily: D, fontSize: '24px', color: '#cfe8dc', fontStyle: '700', backgroundColor: 'rgba(20,48,41,0.9)', padding: { x: 14, y: 6 } }).setOrigin(0.5).setInteractive({ useHandCursor: true });
       t.on('pointerover', () => t.setColor('#ffd47a')); t.on('pointerout', () => t.setColor('#cfe8dc')); t.on('pointerdown', fn); items.push(t); return t;
@@ -9516,8 +9861,8 @@ Object.assign(Speedrun, {
       const cp = btn(cx - 190, by, 'Скопировать результат', () => Speedrun.copy(line, (ok) => { cp.setText(ok ? 'Скопировано!' : 'Выделите и скопируйте строку выше'); setTimeout(() => cp.setText('Скопировать результат'), 2200); }));
     }
     btn(cx + (line ? 190 : -120), by, 'Таблица друзей', () => Speedrun.friendsOpen(res));
-    if (!Speedrun.race) btn(cx - 130, by + 52, 'Ещё раз (N)', () => this.retry());
-    btn(cx + (Speedrun.race ? 0 : 130), by + 52, 'В главное меню', () => this.restart());
+    if (!inRace) btn(cx - 130, by + 52, 'Ещё раз (N)', () => this.retry());
+    btn(cx + (inRace ? 0 : 130), by + 52, 'В главное меню', () => this.restart());
     this.win.add(items); this.win.setVisible(true).setAlpha(0); this.winAt = performance.now();
     this.tweens.add({ targets: this.win, alpha: 1, duration: 700 });
     this.srBanner = null; Speedrun.resUpdate(this);
@@ -10063,6 +10408,1381 @@ Object.assign(UIScene.prototype, {
   if (typeof MapTravel !== 'undefined') {
     const coO = MapTravel.canOpen;
     MapTravel.canOpen = function (gs) { return !gs.benchMenuOpen && coO.call(this, gs); };
+  }
+}
+
+// ===== ЖУРНАЛ ВВОДА: восстановление забега после падения или перезагрузки вкладки =====
+// Логика игры детерминирована по зерну и идёт тиками по 1/60 с (GameScene.tick). Поэтому забег целиком описывается зерном, настройками и
+// вводом по тикам. Журнал пишет сжатый (RLE) ввод каждого тика, действия интерфейса (пауза, скамья, лавка, карта) и контрольные хэши
+// состояния; раз в ~2 с он сохраняется в localStorage (tt_jr). «Восстановить забег» заново создаёт сцену и гонит тики без отрисовки
+// и звука, проверяя хэши: при расхождении забег не продолжается (честнее, чем играть в другом состоянии).
+// Время простоя идёт в зачёт: RTA считается от настенного времени старта (wallT0), а в итоге помечается «восстановлен».
+// Журнал ведётся только для одиночных забегов (спидран, гонки): сцена с online/2 игроками его не пишет.
+const Journal = {
+  KEY: 'tt_jr', J: null, seg: null, rp: null, depth: 0, lastSave: 0, dirty: false,
+  BITS: ['left', 'right', 'up', 'down', 'jump', 'atk', 'dash', 'heal', 'bomb', 'tool'],
+  EBITS: ['jumpP', 'atkP', 'dashP', 'healP', 'upP', 'bombP', 'toolP'],
+  CHK: 300, // как часто (в тиках) писать контрольный хэш
+  enc(o, names) { let m = 0; if (o) for (let i = 0; i < names.length; i++) if (o[names[i]]) m |= 1 << i; return m; },
+  dec(m, names) { const o = {}; for (let i = 0; i < names.length; i++) o[names[i]] = !!(m & (1 << i)); return o; },
+
+  // ----- хранилище -----
+  load() { try { const j = JSON.parse(localStorage.getItem(this.KEY) || 'null'); return j && j.v === 1 && Array.isArray(j.segs) ? j : null; } catch (_) { return null; } },
+  write(force) {
+    const J = this.J; if (!J) return;
+    const now = performance.now(); if (!force && now - this.lastSave < 2000) return;
+    this.lastSave = now; this.dirty = false; J.wallSave = Date.now();
+    try { localStorage.setItem(this.KEY, JSON.stringify(J)); } catch (_) { /* переполнение или режим «инкогнито»: забег идёт без журнала */ }
+  },
+  // можно ли восстановить: есть журнал, версия та же, забег не закончен
+  info() {
+    const j = this.load(); if (!j) return null;
+    const ticks = j.segs.reduce((s, g) => s + g.n, 0);
+    return { j, ok: j.ver === GAME_VERSION && ticks > 0, why: j.ver !== GAME_VERSION ? `журнал от версии ${j.ver}, у вас ${GAME_VERSION}` : '', ticks, sec: Math.round(ticks / 60), cat: j.cat, race: j.race, down: Math.max(0, Date.now() - (j.wallSave || Date.now())) };
+  },
+  clear() { this.J = null; this.seg = null; this.rp = null; try { localStorage.removeItem(this.KEY); } catch (_) { } },
+
+  // ----- запись -----
+  startRun(info) {
+    this.J = { v: 1, ver: GAME_VERSION, cat: info.cat, race: info.race || null, seed: info.seed >>> 0, wall0: Date.now(), wallT0: null, wallSave: Date.now(), restored: 0, splits: [], pauses: [], segs: [], st: { easy: !!Settings.s.easy, speed: Settings.s.speed || 100 } };
+    this.seg = null; this.write(true);
+  },
+  // начало сцены: новый отрезок журнала (или привязка к воспроизводимому)
+  segBegin(gs) {
+    gs.jr = null; gs.replaying = false;
+    if (!this.J || !gs.sr || gs.online || gs.nPlayers !== 1) return;
+    const rp = this.rp;
+    if (rp) {
+      const seg = this.J.segs[rp.si];
+      if (!seg || seg.seed !== gs.seed) { this.fail(gs, `зерно сцены не совпало (${seg ? seg.seed : '—'} ≠ ${gs.seed})`); return; }
+      this.seg = seg; gs.jr = this; gs.replaying = true; gs.quiet = true; rp.gs = gs; rp.ready = false;
+      return;
+    }
+    const sd = gs.startData || {};
+    this.seg = { seed: gs.seed, data: { mode: sd.mode || 'story', boss: sd.boss || null, camp: sd.camp ? JSON.parse(JSON.stringify(sd.camp)) : null }, n: 0, rle: [], acts: [], chk: [] };
+    this.J.segs.push(this.seg); gs.jr = this; this.dirty = true;
+  },
+  // вызывается из GameScene.tick на каждом тике до обработки ввода
+  rec(gs) {
+    const seg = this.seg; if (!seg || gs.replaying) return;
+    const p = gs.players[0];
+    if (seg.n > 0 && seg.n % this.CHK === 0) seg.chk.push(seg.n, this.hash(gs));
+    const v = this.enc(p.raw, this.BITS) | (this.enc(p.pend, this.EBITS) << 10), r = seg.rle, L = r.length;
+    if (L && r[L - 2] === v) r[L - 1]++; else r.push(v, 1);
+    seg.n++; this.dirty = true;
+  },
+  // действие интерфейса вне тика: пауза, скамья, лавка, карта
+  act(gs, name, a, b, c) {
+    if (!gs.jr || gs.replaying || gs.inTick || !this.seg) return;
+    this.seg.acts.push([this.seg.n, name, a == null ? 0 : a, b == null ? 0 : b, c == null ? 0 : c]); this.dirty = true;
+  },
+  // мелкое состояние для контрольных хэшей
+  hash(gs) {
+    const p = gs.players[0], b = gs.testBoss() || gs.boss; let h = 2166136261;
+    const mix = (n) => { h = Math.imul(h ^ (Math.round(n) | 0), 16777619) >>> 0; };
+    mix(p.x * 16); mix(p.y * 16); mix(p.hp); mix(gs.beads | 0); mix(((b && b.hp) || 0) * 10); mix(gs.deaths | 0);
+    mix(gs.enemies.filter((e) => !e.dead).length); mix(gs.beadsArr.length); mix(gs.projs.length); mix(gs.bossDead ? 1 : 0);
+    return h;
+  },
+  // сохранять не чаще раза в 2 с (зовём каждый кадр) и при уходе со страницы
+  pulse() { if (this.J && this.dirty && !this.rp) this.write(false); },
+
+  // ----- воспроизведение -----
+  // Запускает сцену по журналу. menu — активная MenuScene. Возвращает false, если восстановить нельзя.
+  restore(menu, opt) {
+    const inf = this.info(); if (!inf || !inf.ok) return false;
+    const J = inf.j; this.J = J; this.seg = null;
+    J.restored = (J.restored | 0) + 1; J.downMs = (J.downMs | 0) + inf.down;
+    const first = J.segs[0], data = Speedrun.begin(J.cat, null, { seed: first.seed, restoring: J });
+    const r = Speedrun.run; r.restored = J.restored; r.downMs = J.downMs; r.rc = J.race || null; r.hold = !!J.race; // гонка: до «go» герой стоит, дальше действие 'rel' из журнала
+    if (first.data.camp) data.camp = first.data.camp;
+    data.seed = first.seed;
+    this.rp = { si: 0, gs: null, ready: false, t0: performance.now(), total: J.segs.reduce((s, g) => s + g.n, 0), done: 0, opt: opt || {}, muted: null };
+    this.mute(true); this.overlay(true);
+    if (menu) { menu.leaving = true; menu.scene.start('game', data); } else window.__game.scene.start('game', data);
+    this.timer = setInterval(() => { const rp = this.rp; if (!rp) { clearInterval(this.timer); return; } if (rp.gs && rp.gs.sys && rp.gs.sys.isActive()) this.pump(rp.gs); else if (!rp.gs && rp.waitT && performance.now() - rp.waitT > 8000) this.fail(null, 'переход между отрезками не произошёл'); }, 16);
+    return true;
+  },
+  mute(on) {
+    if (on) { if (!this._snd) { this._snd = Snd.play; Snd.play = () => { }; } }
+    else if (this._snd) { Snd.play = this._snd; this._snd = null; }
+  },
+  overlay(on, text) {
+    let el = document.getElementById('jr-ov');
+    if (!on) { if (el) el.hidden = true; return; }
+    if (!el) {
+      el = document.createElement('div'); el.id = 'jr-ov'; el.setAttribute('role', 'status');
+      el.style.cssText = 'position:fixed;inset:0;z-index:9;background:#070d0c;color:#e8e2cf;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;font:600 20px var(--body,system-ui,sans-serif);text-align:center;padding:16px';
+      el.innerHTML = '<div>Восстанавливаем забег…</div><div id="jr-ov-p" style="font:400 15px var(--body,system-ui,sans-serif);color:#9fc4b4"></div>';
+      document.body.appendChild(el);
+    }
+    el.hidden = false; const p = el.querySelector('#jr-ov-p'); if (p) p.textContent = text || '';
+  },
+  fail(gs, why) {
+    const rp = this.rp; if (!rp) return;
+    this.mute(false); this.overlay(false); clearInterval(this.timer);
+    if (gs) { gs.replaying = false; gs.quiet = false; gs.jr = null; }
+    const cb = rp.opt && rp.opt.onFail; this.rp = null; this.J = null; this.seg = null;
+    this.error = why; try { console.warn('Журнал: восстановление не удалось — ' + why); } catch (_) { }
+    try { localStorage.removeItem(this.KEY); } catch (_) { }
+    Speedrun.run = null; if (cb) cb(why);
+    const u = window.__game && window.__game.scene.getScene('ui');
+    if (u && u.ready && u.toast) u.toast('Не удалось восстановить забег: ' + why, 6);
+  },
+  runAct(gs, a) {
+    const [, name, x, y, z] = a, p0 = gs.players[0];
+    switch (name) {
+      case 'T': gs.togglePause(); break;
+      case 'bc': gs.benchClose(!!x); break;
+      case 'br': gs.benchRest(gs.players[x] || p0, gs.benches[y], !!z); break;
+      case 'so': Campaign.openShop(gs, gs.players[x] || p0); break;
+      case 'sc': Campaign.closeShop(gs); break;
+      case 'sb': Campaign.buy(gs, SHOP[x] ? SHOP[x].id : ''); break;
+      case 'mo': MapTravel.show(gs); break;
+      case 'mc': MapTravel.close(gs); break;
+      case 'mm': MapTravel.move(gs, x); break;
+      case 'mg': MapTravel.sel = x; MapTravel.go(gs); break;
+      case 'rel': Speedrun.release(true); break;
+      case 'tp': Speedrun.techPause(gs, !!x, true); break;
+      case 'ex': if (this.ext && this.ext[x]) this.ext[x](gs); break; // подключаемые действия (тесты, будущие режимы)
+    }
+  },
+  // порция тиков (до ~40 мс на кадр), чтобы страница не зависала
+  pump(gs) {
+    const rp = this.rp; if (!rp || rp.gs !== gs || this.pumping) return;
+    const ui = gs.ui && gs.ui();
+    if (!gs.sys.isActive()) return;
+    if (!rp.ready) { if (!ui || !ui.ready) return; rp.ready = true; }
+    this.pumping = true;
+    try {
+      const seg = this.J.segs[rp.si], p = gs.players[0], t0 = performance.now(), acts = seg.acts, chk = {};
+      for (let i = 0; i < seg.chk.length; i += 2) chk[seg.chk[i]] = seg.chk[i + 1];
+      if (rp.rleSeg !== rp.si) { rp.rleSeg = rp.si; rp.rleI = 0; rp.rleLeft = seg.rle.length ? seg.rle[1] : 0; rp.ai = 0; }
+      while (performance.now() - t0 < 40 && gs.tickN < seg.n) {
+        // действия интерфейса, случившиеся до этого тика
+        while (rp.ai < acts.length && acts[rp.ai][0] <= gs.tickN) this.runAct(gs, acts[rp.ai++]);
+        if (gs.tickN > 0 && gs.tickN % this.CHK === 0 && chk[gs.tickN] != null && chk[gs.tickN] !== this.hash(gs)) { this.fail(gs, `состояние разошлось на тике ${gs.tickN} (отрезок ${rp.si + 1})`); return; }
+        const v = seg.rle[rp.rleI];
+        p.raw = this.dec(v & 1023, this.BITS); p.pend = this.dec(v >> 10, this.EBITS);
+        if (--rp.rleLeft <= 0) { rp.rleI += 2; rp.rleLeft = rp.rleI < seg.rle.length ? seg.rle[rp.rleI + 1] : 0; }
+        gs.tick(); rp.done++;
+      }
+      this.overlay(true, `${Math.min(100, Math.round(100 * rp.done / Math.max(1, rp.total)))} %`);
+      if (gs.tickN >= seg.n) {
+        while (rp.ai < acts.length) this.runAct(gs, acts[rp.ai++]); // действия после последнего тика (например, пауза перед падением)
+        if (rp.si >= this.J.segs.length - 1) this.finishRestore(gs);
+        else { rp.si++; rp.gs = null; rp.ready = false; rp.waitT = performance.now(); } // дальше сцена сменится сама (таймеры тиков)
+      }
+    } finally { this.pumping = false; }
+  },
+  finishRestore(gs) {
+    const rp = this.rp, J = this.J, r = Speedrun.run, p = gs.players[0];
+    clearInterval(this.timer);
+    gs.replaying = false; gs.quiet = false; gs.jr = this;
+    p.prev = p.raw || p.prev; p.pend = {}; p.carry = {};
+    this.mute(false); this.overlay(false);
+    if (r) {
+      // часы забега: простой идёт в зачёт, поэтому старт считаем от настенного времени
+      if (J.wallT0 != null) r.t0 = performance.now() - (Date.now() - J.wallT0);
+      r.restored = J.restored; r.downMs = J.downMs;
+      // технические паузы организатора не идут в зачёт: считаем по настенному времени из журнала
+      r.pausedMs = 0; r.tp = null;
+      for (const [a, b] of J.pauses || []) { if (b != null) r.pausedMs += b - a; else r.tp = performance.now() - (Date.now() - a); }
+    }
+    this.rp = null; this.dirty = true; this.write(true);
+    // игрок решает сам, когда продолжить: восстановленный забег ставим на паузу. В гонке паузы нет: время идёт, продолжаем сразу
+    if (!(r && r.rc) && !gs.paused && !gs.won) gs.togglePause();
+    const u = gs.ui(); if (u && u.toast) u.toast(r && r.rc ? 'Забег восстановлен: время простоя идёт в зачёт' : 'Забег восстановлен. Время простоя идёт в зачёт. Продолжить — в меню паузы.', 6);
+    if (rp.opt && rp.opt.onDone) rp.opt.onDone(gs);
+  },
+};
+
+// ===== подключение к сцене =====
+(function () {
+  const G = GameScene.prototype, createO = G.create, tickO = G.tick, updO = G.update;
+  G.create = function (...a) { this.inTick = false; createO.apply(this, a); Journal.segBegin(this); };
+  G.tick = function () { this.inTick = true; try { return tickO.call(this); } finally { this.inTick = false; } };
+  // во время воспроизведения кадровая логика не нужна: тики гонит Journal.pump
+  G.update = function (t, d) {
+    if (this.replaying) { Journal.pump(this); return undefined; }
+    const out = updO.call(this, t, d); Journal.pulse(); return out;
+  };
+  // действия интерфейса пишем после вызова, если они что-то изменили
+  const sig = (gs) => { const p = gs.players && gs.players[0], u = gs.ui && gs.ui(); return [gs.paused, !!gs.benchMenuOpen, gs.shopOpen, MapTravel.open, MapTravel.busy, u && u.pause && u.pause.visible, p && p.sit, p && p.hp, gs.beads, gs.respawn && gs.respawn.x, gs.up && gs.up.hp + ',' + gs.up.dmg + ',' + gs.up.silk].join('|'); };
+  const wrap = (obj, fn, name, args, gsOf) => {
+    const o = obj[fn];
+    obj[fn] = function (...a) {
+      const gs = gsOf(this, a);
+      if (!gs || !gs.jr || gs.replaying || gs.inTick || Journal.depth > 0) return o.apply(this, a);
+      const before = sig(gs); Journal.depth++;
+      try { return o.apply(this, a); } finally { Journal.depth--; if (sig(gs) !== before) Journal.act(gs, name, ...args(a, gs)); }
+    };
+  };
+  const self = (t) => t;
+  wrap(G, 'togglePause', 'T', () => [], self);
+  wrap(G, 'benchClose', 'bc', (a) => [a[0] ? 1 : 0], self);
+  wrap(G, 'benchRest', 'br', (a, gs) => [a[0] ? a[0].i : 0, gs.benches.indexOf(a[1]), a[2] ? 1 : 0], self);
+  wrap(Campaign, 'openShop', 'so', (a) => [a[1] ? a[1].i : 0], (t, a) => a[0]);
+  wrap(Campaign, 'closeShop', 'sc', () => [], (t, a) => a[0]);
+  wrap(Campaign, 'buy', 'sb', (a) => [SHOP.findIndex((s) => s.id === a[1])], (t, a) => a[0]);
+  wrap(MapTravel, 'show', 'mo', () => [], (t, a) => a[0]);
+  wrap(MapTravel, 'close', 'mc', () => [], (t, a) => a[0]);
+  wrap(MapTravel, 'move', 'mm', (a) => [a[1]], (t, a) => a[0]);
+  wrap(MapTravel, 'go', 'mg', () => [MapTravel.sel], (t, a) => a[0]);
+  // уходим со страницы — сохраняем журнал сразу
+  for (const ev of ['pagehide', 'beforeunload']) window.addEventListener(ev, () => { if (Journal.J && !Journal.rp) Journal.write(true); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden && Journal.J && !Journal.rp) Journal.write(true); });
+  // сообщения «Куплено…» и прочие всплывашки не нужны, пока идёт воспроизведение
+  const toastO = UIScene.prototype.toast;
+  UIScene.prototype.toast = function (...a) { if (Journal.rp && !Journal.rp.opt.toasts) return undefined; return toastO.apply(this, a); };
+})();
+
+// ===== меню: «Восстановить забег» (раздел «Спидран») =====
+Object.assign(MenuScene.prototype, {
+  jrRestore() {
+    if (this.leaving) return;
+    const inf = Journal.info(); if (!inf || !inf.ok) { Snd.play('hit'); return; }
+    Snd.init(); Snd.play('bench');
+    Journal.restore(this, { onFail: () => { const m = window.__game.scene.getScene('menu'); if (m && !m.sys.isActive()) { window.__game.scene.stop('game'); window.__game.scene.stop('ui'); window.__game.scene.stop('bg'); window.__game.scene.start('menu'); } } });
+  },
+});
+{
+  const d = MENU.speedrun, itemsO = d.items;
+  d.items = (m, ctx) => {
+    const list = itemsO(m, ctx), inf = Journal.info();
+    if (inf) {
+      const t = `${Speedrun.fmt(inf.ticks / 60 * 1000)} игрового времени`;
+      list.push({ key: String(list.length + 1), label: 'Восстановить забег', sub: inf.ok ? `${SR_CATS[inf.cat] ? SR_CATS[inf.cat].name : inf.cat} · ${t}` : 'недоступно: ' + inf.why, enabled: inf.ok, act: (mm) => mm.jrRestore() });
+      list.push({ key: String(list.length + 1), label: 'Удалить сохранённый забег', sub: 'журнал ввода будет стёрт', danger: true, act: (mm) => { Journal.clear(); mm.menuRender(); } });
+    }
+    return list;
+  };
+}
+
+// ===== СТАТИСТИКА ЗАБЕГА: урон, DPS, точность, отбивы, увороты, казни, комбо, фазы, покупки =====
+// Считается из самой симуляции (по тикам и хукам вокруг боевых функций) и ничего в игре не меняет. Поэтому при воспроизведении журнала
+// (journal.js) получается то же самое. Живёт в Speedrun.run.stats; в гонке уходит организатору в телеметрии и в итоговом результате.
+const RaceStats = {
+  fresh() { return { dmg: 0, bossDmg: 0, taken: 0, heals: 0, swings: 0, hits: 0, parries: 0, dodges: 0, stuns: 0, execs: 0, combo: 0, kills: 0, fight: 0, ph: {}, buys: [], _: {} }; },
+  of(gs) { const r = gs.sr; if (!r) return null; return r.stats || (r.stats = this.fresh()); },
+  // компактный итог для сети и архива (без служебных полей)
+  pack(S, igtTicks) {
+    if (!S) return null;
+    const fightSec = S.fight / 60, acc = S.swings ? Math.min(1, S.hits / S.swings) : 0;
+    const ph = {}; for (const k in S.ph) ph[k] = Math.round(S.ph[k] / 6) / 10;
+    const r1 = (x) => Math.round(x * 10) / 10;
+    return { dmg: r1(S.dmg), bossDmg: r1(S.bossDmg), dps: fightSec > 0.5 ? r1(S.bossDmg / fightSec) : 0, taken: S.taken, deaths: undefined, heals: S.heals, swings: S.swings, hits: S.hits, acc: Math.round(acc * 100) / 100,
+      parries: S.parries, dodges: S.dodges, stuns: S.stuns, execs: S.execs, combo: S.combo, kills: S.kills, fight: r1(fightSec), ph, buys: S.buys.slice(0, 20), igt: igtTicks != null ? Math.round(igtTicks) : undefined };
+  },
+  tick(gs) {
+    const S = this.of(gs); if (!S) return;
+    const p = gs.players[0], q = S._; if (!p) return;
+    const sw = p.atkT > 0; if (sw && !q.atk) S.swings++; q.atk = sw;
+    if ((p.combo | 0) > S.combo) S.combo = p.combo | 0;
+    if (q.hp != null && p.hp > q.hp && p.healT > 0 && !gs.wiping) S.heals++;
+    q.hp = p.hp;
+    const b = gs.testBoss() || gs.boss;
+    if (b && b.state && !gs.bossDead && !['sleep', 'dead', 'gone', 'intro'].includes(b.state) && !(b.hp <= 0)) {
+      S.fight++;
+      const key = (gs.camp ? gs.camp.ch : 1) + ':' + (b.phase || 1); S.ph[key] = (S.ph[key] | 0) + 1;
+      const st = b.stagger > 0; if (st && !q.st) S.stuns++; q.st = st;
+    } else q.st = false;
+  },
+};
+(function () {
+  const G = GameScene.prototype;
+  const hpOf = (gs) => { const b = gs.testBoss() || gs.boss; return b ? b.hp : 0; };
+  // удары по врагам и боссам: попадание считаем всегда, урон — по изменению здоровья
+  const dmgWrap = (fn, boss) => {
+    const o = G[fn]; if (!o) return;
+    G[fn] = function (...a) {
+      const S = this.sr && !this.replaying0 ? RaceStats.of(this) : null; if (!S) return o.apply(this, a);
+      const e = boss ? null : a[0], b = boss ? (this.testBoss() || this.boss) : null, h0 = boss ? (b ? b.hp : 0) : (e ? e.hp : 0);
+      const out = o.apply(this, a);
+      const h1 = boss ? (b ? b.hp : 0) : (e ? e.hp : 0), d = Math.max(0, h0 - h1);
+      if (d > 0 || boss) { S.hits++; S.dmg += d; if (boss) S.bossDmg += d; }
+      if (!boss && e && e.dead && h0 > 0) S.kills++;
+      return out;
+    };
+  };
+  dmgWrap('damageEnemy', false);
+  for (const f of ['damageBoss', 'damageVladik', 'damageTima', 'mishaBagHit']) dmgWrap(f, true);
+  { // Миша бьётся иглой отдельной функцией: hp у него в долях
+    const o = G.mishaNeedleHit;
+    if (o) G.mishaNeedleHit = function (...a) {
+      const S = this.sr ? RaceStats.of(this) : null; if (!S) return o.apply(this, a);
+      const m = a[1], h0 = m ? m.hp : 0, out = o.apply(this, a), d = Math.max(0, h0 - (m ? m.hp : 0));
+      S.hits++; S.dmg += d; S.bossDmg += d; return out;
+    };
+  }
+  {
+    const o = G.hurtPlayer;
+    G.hurtPlayer = function (p, ...a) {
+      const S = this.sr && !p.remote ? RaceStats.of(this) : null; if (!S) return o.call(this, p, ...a);
+      const h0 = p.hp, pd0 = p.pdodge || 0, out = o.call(this, p, ...a);
+      if (p.hp < h0) S.taken += h0 - p.hp;
+      else if ((p.pdodge || 0) >= 0.39 && pd0 < 0.39) S.dodges++; // идеальный уворот: рывок сквозь удар
+      return out;
+    };
+  }
+  {
+    const o = G.parrySuccess;
+    if (o) G.parrySuccess = function (p, ...a) { const S = this.sr && !p.remote ? RaceStats.of(this) : null; if (S) S.parries++; return o.call(this, p, ...a); };
+  }
+  {
+    const o = G.execBoss;
+    if (o) G.execBoss = function (p, kit, dir) {
+      const S = this.sr ? RaceStats.of(this) : null; const was = S && (this.testBoss() || this.boss) ? !!(this.testBoss() || this.boss).executed : false;
+      const out = o.call(this, p, kit, dir);
+      if (S && !was) { const b = this.testBoss() || this.boss; if (b && b.executed) S.execs++; }
+      return out;
+    };
+  }
+  void hpOf;
+  // покупки в лавке
+  const buyO = Campaign.buy;
+  Campaign.buy = function (gs, id, fromGuest) {
+    const S = gs.sr ? RaceStats.of(gs) : null, b0 = gs.beads, up0 = gs.up ? gs.up[id] : 0, out = buyO.call(this, gs, id, fromGuest);
+    if (S && gs.beads < b0 && gs.up && gs.up[id] > up0) S.buys.push({ id, ch: gs.camp ? gs.camp.ch : 1, igt: Math.round(gs.sr.igt / 100) / 10, price: b0 - gs.beads });
+    return out;
+  };
+  // тик: после основной логики (Speedrun.onTick вызывает RaceStats.tick)
+  const onTickO = Speedrun.onTick;
+  Speedrun.onTick = function (gs) { const out = onTickO.call(this, gs); const r = this.run; if (r && gs.sr && !r.hold && r.t0 != null && !r.done) RaceStats.tick(gs); return out; };
+})();
+
+// ===== «ГОНКИ ТКАЧЕЙ»: ИГРОК =====
+// Игрок входит по коду комнаты (?race=play&room=КОД или меню «Гонки Ткачей → Войти игроком»), вводит имя и жмёт «Готов».
+// По команде организатора запускается обычный забег «Тропа целиком» с общим зерном (Speedrun.begin с { rc }): мир считается у игрока
+// локально и от сети не зависит. По сети уходят: телеметрия (~15 Гц, без нумерации), события (надёжно, с нумерацией: сплит, смерть, покупка,
+// отбив, казнь, фаза, финиш) и ответы на команды (готов, загружен). Команды организатора: подготовка, отсчёт, «пошёл», тех. пауза, сброс.
+// При обрыве забег идёт дальше, события копятся и уходят после возвращения связи. Если вкладка упала — забег восстанавливается по журналу ввода.
+const RacePlay = {
+  S: null, last: null,
+  // ----- хранилище -----
+  key() { try { let k = localStorage.getItem('tt_rc_key'); if (!k || k.length < 12) { k = RaceNet.makeKey(); localStorage.setItem('tt_rc_key', k); } return k; } catch (_) { return RaceNet.makeKey(); } },
+  names() { try { const a = JSON.parse(localStorage.getItem('tt_rc_names') || '[]'); return Array.isArray(a) ? a.slice(0, 40) : []; } catch (_) { return []; } },
+  addName(n) { try { const a = this.names().filter((x) => this.norm(x) !== this.norm(n)); a.unshift(n); localStorage.setItem('tt_rc_names', JSON.stringify(a.slice(0, 40))); localStorage.setItem('tt_sr_name', n.slice(0, 20)); } catch (_) { } },
+  norm(n) { return String(n || '').toLowerCase().replace(/\s+/g, ''); },
+  saveSess() { const S = this.S; if (!S) return; const c = S.client; try { localStorage.setItem('tt_rc_play', JSON.stringify({ code: S.code, name: S.name, gSeen: c ? c.gSeen : 0, id: S.state && S.state.id, sid: c ? c.sid : null, n: c ? c.n : 0, outbox: c ? c.outbox.slice(-200) : [] })); } catch (_) { } },
+  loadSess() { try { const o = JSON.parse(localStorage.getItem('tt_rc_play') || 'null'); return o && o.code ? o : null; } catch (_) { return null; } },
+  clearSess() { try { localStorage.removeItem('tt_rc_play'); } catch (_) { } },
+  tr() { return RaceNet.use(); },
+
+  // ----- вход -----
+  // Показывает окно входа (code — подставить в поле). opt.auto — сразу подключиться, если известно имя
+  open(code, opt) {
+    Speedrun.css(); this.build();
+    const el = document.getElementById('rc-join'); el.hidden = false; Ov.opened(el);
+    const c = el.querySelector('#rcj-code'), n = el.querySelector('#rcj-name');
+    if (code) c.value = String(code).toUpperCase();
+    if (!n.value) n.value = Speedrun.myName();
+    el.querySelector('#rcj-names').innerHTML = this.names().map((x) => `<option value="${x.replace(/"/g, '&quot;')}">`).join('');
+    this.view();
+    if (opt && opt.auto && c.value && n.value) this.join(c.value, n.value);
+    else setTimeout(() => (c.value ? n : c).focus(), 0);
+  },
+  build() {
+    if (document.getElementById('rc-join')) return;
+    const el = document.createElement('div'); el.id = 'rc-join'; el.className = 'sr-ov'; el.hidden = true;
+    el.innerHTML = `<div class="card" role="dialog" aria-labelledby="rcj-t"><h2 id="rcj-t">Гонка Ткачей</h2>
+<p class="lead" id="rcj-lead">Вы играете у себя, организатор запускает общий отсчёт. По сети идут только положение, события и итог.</p>
+<div id="rcj-form"><label class="nm">Код комнаты<input id="rcj-code" maxlength="8" autocomplete="off" autocapitalize="characters" placeholder="например, K7P4Q"></label>
+<label class="nm">Ваше имя (так вас увидит организатор и зрители)<input id="rcj-name" maxlength="20" autocomplete="off" list="rcj-names" placeholder="например, Ярь"></label><datalist id="rcj-names"></datalist>
+<div class="row"><button id="rcj-go" class="primary" type="button">Войти</button></div></div>
+<div id="rcj-room" hidden><div id="rcj-st"></div><div id="rcj-pl"></div><div id="rcj-warn" class="bad"></div>
+<div class="row"><button id="rcj-ready" class="primary" type="button">Готов</button><button id="rcj-fix" type="button" hidden>Отключить запрещённые настройки</button></div></div>
+<div id="rcj-msg" role="status"></div>
+<div class="row"><button id="rcj-back" class="ghost" type="button">← Выйти из комнаты</button></div></div>`;
+    document.body.appendChild(el);
+    Ov.chrome(el, { crumbs: ['Гонки Ткачей', 'Игрок'], back: () => this.leave(true), hint: { act: 'нажать' } });
+    el.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Escape') this.leave(true); if (e.key === 'Enter' && (e.target.id === 'rcj-code' || e.target.id === 'rcj-name')) this.join(el.querySelector('#rcj-code').value, el.querySelector('#rcj-name').value); });
+    el.addEventListener('keyup', (e) => e.stopPropagation());
+    el.querySelector('#rcj-go').onclick = () => this.join(el.querySelector('#rcj-code').value, el.querySelector('#rcj-name').value);
+    el.querySelector('#rcj-back').onclick = () => this.leave(true);
+    el.querySelector('#rcj-ready').onclick = () => { const S = this.S; if (!S || !S.client) return; S.me = !S.me; S.client.send({ k: 'ready', v: S.me, viol: Speedrun.violation() }); this.view(); };
+    el.querySelector('#rcj-fix').onclick = () => { Speedrun.fixRules(); this.view(); };
+    el.querySelector('#rcj-code').addEventListener('input', (e) => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); });
+  },
+  join(code, name) {
+    code = String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); name = String(name || '').trim().replace(/\s+/g, ' ').slice(0, 20);
+    const msg = (t) => { const m = document.getElementById('rcj-msg'); if (m) { m.textContent = t; m.className = 'bad'; } };
+    if (code.length < 4) { msg('Введите код комнаты (5 символов).'); return; }
+    if (!name) { msg('Введите имя: по нему организатор и зрители узнают вас.'); return; }
+    if (this.S && this.S.client) this.S.client.stop(true);
+    this.addName(name);
+    const S = this.S = { code, name, me: false, state: null, seat: null, status: 'connecting', conn: '', client: null, run: null, started: false, rv: null, events: 0, evT: 0, telT: 0, tele: 0, fin: null, res: null, msgT: 0 };
+    const sess = this.loadSess(), resume = !!(sess && sess.code === code);
+    S.client = new RaceNet.RaceClient({
+      code, key: this.key(), role: 'play', name, transport: this.tr(), resume, gSeen: resume ? sess.gSeen | 0 : 0,
+      sid: resume ? sess.sid : null, n: resume ? sess.n | 0 : 0, outbox: resume ? sess.outbox : [], onQueue: () => this.saveSess(),
+      hello: () => ({ ver: GAME_VERSION, viol: Speedrun.violation(), room: code }),
+      onWelcome: (w) => this.onWelcome(w), onMsg: (m) => this.onMsg(m), onTel: (t) => this.onTel(t), onStatus: (s, i) => this.onStatus(s, i),
+    });
+    this.saveSess(); this.view(); S.client.start();
+    // закрытие вкладки: организатор узнаёт сразу
+    if (!this._pg) { this._pg = true; for (const ev of ['pagehide', 'beforeunload']) window.addEventListener(ev, () => { if (this.S && this.S.client) { this.saveSess(); this.S.client.bye(); } }); }
+  },
+  leave(toMenu) {
+    const S = this.S; this.S = null; this.clearSess();
+    if (S && S.client) S.client.stop(true);
+    const el = document.getElementById('rc-join'); if (el) el.hidden = true;
+    const menu = window.__game && window.__game.scene.getScene('menu'); if (menu) menu.leaving = false;
+    void toMenu;
+  },
+
+  // ----- сеть -----
+  onStatus(s, info) {
+    const S = this.S; if (!S) return; S.status = s;
+    if (s === 'denied') { S.denied = info && info.why; this.clearSess(); }
+    this.view();
+  },
+  onWelcome(w) {
+    const S = this.S; if (!S) return; S.seat = w.seat; S.state = w.snap || S.state; S.late = false;
+    if (S.client) S.skew = S.client.skew || 0;
+    this.saveSess(); this.view();
+    const st = S.state, r = Speedrun.run;
+    // вернулись в идущую гонку: если вкладку перезагружали — забег восстанавливается по журналу
+    if (st && (st.phase === 'run' || st.phase === 'count' || st.phase === 'prep') && !(r && r.rc)) this.tryRestore(st);
+    else if (st && r && r.rc) this.syncRun(st);
+  },
+  onMsg(m) {
+    const S = this.S; if (!S || !m) return;
+    switch (m.k) {
+      case 'state': S.state = m.s; this.saveSess(); this.view(); this.syncRun(m.s); break;
+      case 'prep': this.startRun(m); break;
+      case 'cd': { const r = Speedrun.run; if (r && r.rc && r.hold) { r.cd = String(m.n); Snd.play('bead'); } break; }
+      case 'go': this.go(m); break;
+      case 'pause': this.tech(!!m.on); break;
+      case 'reset': this.reset(m); break;
+      case 'end': this.end(m); break;
+      case 'res': {
+        S.res = m.r; this.resultUpdate();
+        const r = Speedrun.run, gs = window.__game.scene.getScene('game');
+        if (m.r && m.r.awarded && r && r.rc && !r.done && gs && gs.ui && gs.ui().ready) gs.ui().toast(`Организатор присудил победу: ${((m.r.players || []).find((p) => p.seat === m.r.winner) || {}).name || ''}`, 5);
+        break;
+      }
+    }
+  },
+  onTel(t) { const S = this.S; if (S && t && t.rv) S.rv = t.rv; },
+  say(t, kind) { const m = document.getElementById('rcj-msg'); if (m) { m.textContent = t || ''; m.className = kind || ''; } },
+
+  // ----- окно ожидания -----
+  view() {
+    const el = document.getElementById('rc-join'); if (!el || el.hidden) return; const S = this.S;
+    const room = el.querySelector('#rcj-room'), form = el.querySelector('#rcj-form');
+    form.hidden = !!S; room.hidden = !S;
+    if (!S) return;
+    const st = S.state, v = Speedrun.violation(), esc = (x) => String(x).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const conn = S.status === 'online' ? '<span class="good">связь есть</span>' : S.status === 'denied' ? `<span class="bad">отказ: ${esc(S.denied || '')}</span>` : '<span class="bad">нет связи, пробуем снова…</span>';
+    const ph = { lobby: 'ожидание игроков', prep: 'загрузка', count: 'отсчёт', run: 'гонка идёт', done: 'гонка окончена', cancel: 'отменена' };
+    el.querySelector('#rcj-st').innerHTML = `<div>Комната <b>${esc(S.code)}</b> · вы: <b>${esc(S.name)}</b> · ${conn}${S.client && S.client.rtt != null ? ` · пинг ~${Math.round(S.client.rtt)} мс` : ''}</div>` + (st ? `<div class="lead">${esc((st.discName || 'Тропа целиком'))} · ${ph[st.phase] || st.phase}</div>` : '');
+    el.querySelector('#rcj-pl').innerHTML = st ? (st.players || []).map((p) => `<div class="${p.ready ? 'good' : ''}">${p.seat === S.seat ? '▸ ' : ''}${esc(p.name || '—')}: ${!p.online ? 'нет связи' : p.ready ? 'готов' : 'не готов'}</div>`).join('') : '';
+    const warn = [];
+    if (v.length) warn.push(`Запрещено в гонке: ${v.join(', ')}.`);
+    if (st && st.phase !== 'lobby' && !(Speedrun.run && Speedrun.run.rc)) warn.push('Гонка уже идёт без вас: можно только смотреть.');
+    el.querySelector('#rcj-warn').textContent = warn.join(' ');
+    el.querySelector('#rcj-fix').hidden = !v.length;
+    const b = el.querySelector('#rcj-ready'); b.textContent = S.me ? 'Не готов' : 'Готов';
+    b.disabled = S.status !== 'online' || v.length > 0 || !st || st.phase !== 'lobby';
+    el.querySelector('#rcj-lead').textContent = S.status === 'online' ? 'Когда оба готовы, организатор запустит общий отсчёт. Игра идёт у вас локально.' : 'Подключаемся к организатору…';
+    if (S.denied) { const m = el.querySelector('#rcj-msg'); m.textContent = 'Не удалось войти: ' + S.denied; m.className = 'bad'; }
+  },
+
+  // ----- забег -----
+  hidePanel() { const el = document.getElementById('rc-join'); if (el) el.hidden = true; },
+  startRun(m) {
+    const S = this.S; if (!S) return; if (S.runId === m.id && Speedrun.run && Speedrun.run.rc) return; // повторная доставка
+    if (Speedrun.violation().length) { S.client.send({ k: 'bad', why: Speedrun.violation().join(', ') }); return; }
+    Journal.clear();
+    S.runId = m.id; S.started = true; S.fin = null; S.res = null; S.loadedSent = false;
+    const data = Speedrun.begin(m.cat || 'trail', null, { seed: m.seed, rc: { code: S.code, seat: S.seat, id: m.id, name: S.name } });
+    Speedrun.run.cd = 'Загрузка…';
+    this.hidePanel();
+    const g = window.__game, menu = g.scene.getScene('menu'), gs = g.scene.getScene('game'), ui = g.scene.getScene('ui');
+    Snd.init(); Snd.play('bench');
+    if (menu && menu.sys.isActive()) { menu.leaving = true; menu.cameras.main.fadeOut(450, 3, 8, 7); menu.time.delayedCall(460, () => menu.scene.start('game', data)); }
+    else if (gs && gs.sys.isActive()) { if (ui) ui.ready = false; g.scene.stop('bg'); gs.scene.start('game', data); }
+    else g.scene.start('game', data);
+  },
+  sceneReady(gs) {
+    const S = this.S, r = Speedrun.run; if (!S || !r || !r.rc || S.loadedSent || gs.replaying) return;
+    S.loadedSent = true; r.cd = 'Ждём соперника…'; S.client.send({ k: 'loaded', id: r.rc.id });
+    this.syncRun(S.state);
+  },
+  // сверка с состоянием организатора: «пошёл» мог прийти, пока игрок был без связи или вкладка перезагружалась
+  syncRun(st) {
+    const S = this.S, r = Speedrun.run; if (!S || !st || !r || !r.rc) return;
+    if (st.phase === 'run' && r.hold && S.loadedSent !== false) this.go({ at: st.goAt, late: true });
+    if (st.pause && st.pause.on) this.tech(true); else if (r.tp != null && !(st.pause && st.pause.on)) this.tech(false);
+    if (st.phase === 'lobby' && S.started && r.rc.id !== st.id) this.reset({});
+  },
+  go(m) {
+    const S = this.S, r = Speedrun.run; if (!S || !r || !r.rc || !r.hold) return;
+    // опоздавший «пошёл» (связь была потеряна): время считается от настоящего старта по часам организатора
+    const late = m.late || (m.at != null && S.client && S.client.skew != null && (Date.now() + S.client.skew - m.at) > 800);
+    Speedrun.release();
+    if (late && m.at != null && S.client && S.client.skew != null) {
+      const el = Math.max(0, Date.now() + S.client.skew - m.at); r.t0 = Speedrun.clock() - el; if (Journal.J) Journal.J.wallT0 = Date.now() - el;
+      const gs = window.__game.scene.getScene('game'); if (gs && gs.ui && gs.ui().ready) gs.ui().toast(`Связь вернулась: гонка идёт уже ${Speedrun.fmt(el)}`, 4);
+    }
+    r.cd = late ? '' : r.cd;
+  },
+  tech(on) {
+    const gs = window.__game.scene.getScene('game'), r = Speedrun.run; if (!gs || !r || !r.rc || gs.replaying) return;
+    if (!!on === (r.tp != null)) return;
+    Speedrun.techPause(gs, on);
+    const u = gs.ui(); if (u && u.ready) u.toast(on ? 'Техническая пауза: организатор остановил гонку' : 'Гонка продолжается', 3);
+    if (on) Snd.play('bench');
+  },
+  reset() { // «Переиграть»: организатор вернул всех в комнату ожидания
+    const S = this.S; if (!S) return;
+    this.toLobby('Организатор перезапускает гонку: вернитесь к кнопке «Готов».');
+  },
+  end(m) { // присуждена победа / отменена гонка: забег останавливается
+    const S = this.S, r = Speedrun.run; if (!S) return;
+    if (r && r.rc && !r.done) { S.endNote = m.awarded ? 'Организатор завершил гонку' : 'Гонка отменена'; this.toLobby(S.endNote); }
+  },
+  toLobby(note) {
+    const S = this.S; if (!S) return;
+    S.me = false; S.started = false; S.fin = null; S.loadedSent = false;
+    Journal.clear(); Speedrun.run = null;
+    const g = window.__game, gs = g.scene.getScene('game'), ui = g.scene.getScene('ui');
+    if (gs && gs.sys.isActive()) { if (ui) { ui.srShown = null; ui.ready = false; } g.scene.stop('ui'); g.scene.stop('bg'); g.scene.stop('game'); g.scene.start('menu'); }
+    const menu = g.scene.getScene('menu'); if (menu) menu.leaving = false;
+    setTimeout(() => { const el = document.getElementById('rc-join'); if (el) { el.hidden = false; Ov.opened(el); } this.view(); this.say(note, 'good'); }, 600);
+  },
+  // восстановление забега после перезагрузки вкладки
+  tryRestore(st) {
+    const S = this.S, inf = Journal.info();
+    if (!S || !inf || !inf.race || inf.race.code !== S.code || (st && inf.race.id !== st.id) || !inf.ok) { if (inf && inf.race && st && inf.race.id !== st.id) Journal.clear(); return false; }
+    this.say('Найден незавершённый забег этой гонки: восстанавливаем…', 'good');
+    this.hidePanel(); S.started = true; S.runId = inf.race.id; S.loadedSent = true;
+    const menu = window.__game.scene.getScene('menu');
+    return Journal.restore(menu && menu.sys.isActive() ? menu : null, { onDone: () => { S.client.send({ k: 'restored', id: inf.race.id }); this.syncRun(S.state); }, onFail: () => { this.say('Восстановить забег не удалось: сообщите организатору.', 'bad'); } });
+  },
+
+  // ----- события и телеметрия (зовёт игровой цикл) -----
+  event(k, d) {
+    const S = this.S, r = Speedrun.run; if (!S || !S.client || !r || !r.rc || r.hold || r.done) return;
+    if (k === 'parry' || k === 'stun') { const n = performance.now(); if (n - S.evT < 900) return; S.evT = n; }
+    S.client.send({ k: 'pev', e: { k, el: Math.round(Speedrun.rta()), ...(d || {}) } });
+  },
+  onSplit(i, sp, gs) { const S = this.S; if (!S) return; this.event('split', { i, rta: sp.rta, igt: sp.igt }); void gs; },
+  onFinish(res, gs) {
+    const S = this.S, r = Speedrun.run; if (!S || !S.client) return;
+    const stats = RaceStats.pack(r && r.stats, res.igt / 1000 * 60);
+    S.fin = { rta: res.rta, igt: res.igt, deaths: res.deaths };
+    S.client.send({ k: 'fin', rta: res.rta, igt: res.igt, deaths: res.deaths, splits: res.splits.map((s) => ({ rta: s.rta, igt: s.igt })), stats, ver: GAME_VERSION, restored: r ? r.restored | 0 : 0 });
+    void gs;
+  },
+  // каждый кадр: телеметрия ~15 Гц
+  frame(gs) {
+    const S = this.S, r = Speedrun.run; if (!S || !S.client || !r || !r.rc || gs.replaying) return;
+    const now = performance.now(); if (now - S.telT < 66) return; S.telT = now;
+    const p = gs.players[0], b = gs.testBoss() || gs.boss, camp = gs.camp;
+    const kind = camp ? CHAPTERS[camp.ch].boss : 'korne', K = { korne: 'k', misha: 'm', vladik: 'v', tima: 't' };
+    const o = { s: S.seat, el: Math.round(Speedrun.rta()), ig: Math.round(r.igt), ch: camp ? camp.ch : 1, st: camp ? camp.st : 'level', x: Math.round(p.x), y: Math.round(p.y), f: p.face, g: p.onGround ? 1 : 0, vx: Math.round(p.vx), vy: Math.round(p.vy),
+      d: p.dashT > 0 ? 1 : 0, a: p.atkT > 0 ? (p.atkDir === 'u' ? 2 : p.atkDir === 'd' ? 3 : 1) : 0, hp: p.hp, mh: p.maxHp, sk: Math.round(p.silk * 10) / 10, ps: P.SILK, bd: gs.beads | 0, dn: p.downed ? 1 : 0, sit: p.sit ? 1 : 0,
+      pa: gs.paused ? 1 : 0, sp: r.splits.length, dt: r.deaths, hold: r.hold ? 1 : 0, w: gs.wiping ? 1 : 0, dm: Math.round((r.stats ? r.stats.bossDmg : 0) * 10) / 10 };
+    if (b && b.maxHp) o.bs = { k: K[kind] || 'k', x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.w), h: Math.round(b.h), s: b.state, hp: Math.round(b.hp * 10) / 10, mh: b.maxHp, ph: b.phase || 1, f: b.face || 1, on: ['sleep', 'dead', 'gone'].includes(b.state) ? 0 : 1 };
+    const pr = []; for (const q of gs.projs) { if (q.dead || pr.length >= 14) continue; if (Math.abs(q.x - p.x) < 520 && Math.abs(q.y - p.y) < 340) pr.push([q.kind, Math.round(q.x), Math.round(q.y), Math.round(q.w || 8), Math.round(q.h || 8)]); }
+    if (pr.length) o.pr = pr;
+    const en = []; for (const e of gs.enemies) { if (e.dead || en.length >= 10) continue; if (Math.abs(e.x - p.x) < 520 && Math.abs(e.y - p.y) < 340) en.push([e.type, Math.round(e.x), Math.round(e.y), Math.round(e.w), Math.round(e.h), e.face || 1]); }
+    if (en.length) o.en = en;
+    S.client.tel(o); S.tele++;
+  },
+  // табличка во время гонки (под таймером)
+  rival() {
+    const S = this.S, r = Speedrun.run; if (!S || !r) return null;
+    if (S.status !== 'online') return { text: 'Связь с организатором потеряна: играем локально, итог уйдёт при возвращении', col: '#d28a6a' };
+    if (r.tp != null) return { text: 'Техническая пауза организатора', col: '#ffd47a' };
+    const pending = S.client ? S.client.pending() : 0;
+    return { text: pending > 4 ? `Связь есть, досылаем события (${pending})` : 'Связь с организатором: есть', col: '#86a89a' };
+  },
+  banner() {
+    const S = this.S, r = Speedrun.run; if (!r || !r.result) return null;
+    const st = S && S.state, res = S && S.res;
+    if (res && res.winner != null) {
+      const me = (res.players || []).find((p) => p.seat === S.seat), you = res.winner === S.seat;
+      if (res.winner === 'draw') return { text: 'НИЧЬЯ', sub: 'время совпало до сотых', col: '#ffd47a' };
+      return you ? { text: 'ПОБЕДА', sub: res.awarded ? 'победа присуждена организатором' : `вы быстрее соперника${res.gap != null ? ' на ' + Speedrun.fmt(res.gap) : ''}`, col: '#9ff0c8' }
+        : { text: 'ПОРАЖЕНИЕ', sub: me && res.gap != null ? `соперник быстрее на ${Speedrun.fmt(res.gap)}` : 'соперник финишировал раньше', col: '#ff9a8a' };
+    }
+    const other = st && (st.players || []).find((p) => p.seat !== S.seat);
+    if (other && other.fin) { const d = other.fin.rta - r.result.rta; return d > 0 ? { text: 'ПОБЕДА?', sub: `соперник пришёл позже на ${Speedrun.fmt(d)}: ждём подтверждения организатора`, col: '#9ff0c8' } : { text: 'ПОРАЖЕНИЕ?', sub: `соперник финишировал на ${Speedrun.fmt(-d)} быстрее: ждём подтверждения`, col: '#ff9a8a' }; }
+    return { text: 'Финиш!', sub: S && S.status === 'online' ? 'ждём, когда соперник закончит…' : 'нет связи: результат уйдёт организатору, как только она вернётся', col: '#ffe3a3' };
+  },
+  resultUpdate() { const u = window.__game && window.__game.scene.getScene('ui'); if (u && u.srShown) { u.srBanner = null; Speedrun.resUpdate(u); } },
+  // ссылка из адресной строки: ?race=play&room=КОД
+  fromUrl() {
+    const q = new URLSearchParams(location.search), m = q.get('race');
+    if (m !== 'play') return false;
+    const room = q.get('room') || '', sess = this.loadSess();
+    this.open(room || (sess && sess.code) || '', { auto: !!(Speedrun.myName() && (room || sess)) });
+    return true;
+  },
+};
+
+// ===== подключение к игре =====
+(function () {
+  const P = GameScene.prototype;
+  // смерть героя уходит событием
+  const wipeO = P.teamWipe;
+  P.teamWipe = function () { const w = this.wiping; wipeO.call(this); if (!w && this.wiping && this.sr && this.sr.rc && !this.replaying) RacePlay.event('death', {}); };
+  const buyO = Campaign.buy;
+  Campaign.buy = function (gs, id, fromGuest) { const b0 = gs.beads, out = buyO.call(this, gs, id, fromGuest); if (gs.sr && gs.sr.rc && gs.beads < b0 && !gs.replaying) { const it = SHOP.find((s) => s.id === id); RacePlay.event('buy', { id, name: it ? it.name : id }); } return out; };
+  const parryO = P.parrySuccess;
+  if (parryO) P.parrySuccess = function (p, ...a) { if (this.sr && this.sr.rc && !p.remote && !this.replaying) RacePlay.event('parry', {}); return parryO.call(this, p, ...a); };
+  const execO = P.execBoss;
+  if (execO) P.execBoss = function (p, kit, dir) { const b = this.testBoss() || this.boss, was = !!(b && b.executed), out = execO.call(this, p, kit, dir); if (this.sr && this.sr.rc && !this.replaying && b && b.executed && !was) RacePlay.event('exec', {}); return out; };
+  // смена фазы босса
+  const tickO = Speedrun.onTick;
+  Speedrun.onTick = function (gs) {
+    const out = tickO.call(this, gs), r = this.run;
+    if (r && r.rc && !gs.replaying && gs.sr) {
+      const b = gs.testBoss() || gs.boss, ph = b && b.maxHp ? (b.phase || 1) : 0, q = r._ph || (r._ph = {});
+      if (ph && q.k === (gs.camp ? gs.camp.ch : 1) && ph > q.v) RacePlay.event('phase', { ph, ch: gs.camp ? gs.camp.ch : 1 });
+      if (ph) { q.k = gs.camp ? gs.camp.ch : 1; q.v = ph; }
+    }
+    return out;
+  };
+  // выход из забега в меню = сдача (DNF), забег гонки прерван
+  const leaveO = Speedrun.leave;
+  Speedrun.leave = function () { const r = this.run, S = RacePlay.S; if (r && r.rc && !r.done && S && S.client) S.client.send({ k: 'dnf', el: Math.round(Speedrun.rta()), why: 'вышел из забега' }); return leaveO.call(this); };
+  // меню: URL и кнопки раздела «Гонки Ткачей» подключает race-org.js
+})();
+
+// ===== «ГОНКИ ТКАЧЕЙ»: ОРГАНИЗАТОР =====
+// Организатор сам не играет: создаёт одну гонку в одной дисциплине, раздаёт ссылки, запускает общий отсчёт, при необходимости ставит
+// техническую паузу, переигрывает, присуждает победу, отменяет своё последнее действие. Всё состояние гонки пишется в localStorage
+// (tt_rc_org): после перезагрузки страницы комната поднимается с тем же кодом, места игроков и ход гонки восстанавливаются, а игроки и
+// обсерверы переподключаются сами (см. race-net.js). Итоги гонок копятся в архиве (tt_races) в формате races.json.
+const RaceOrg = {
+  S: null, hub: null, KEY: 'tt_rc_org', ARCH: 'tt_races', saveT: null, flushT: null, cdT: null, status: 'idle',
+  DISC: { trail: { name: 'Тропа целиком', ready: true }, boss: { name: 'Босс-раш', ready: false, note: 'в версии 1.11' }, duel: { name: 'Дуэль ткачей', ready: false, note: 'в версии 1.12' } },
+  tr() { return RaceNet.use(); },
+  id() { return Date.now().toString(36) + RaceNet.makeCode().toLowerCase(); },
+  fresh(code) {
+    return { v: 1, code, id: this.id(), created: Date.now(), phase: 'lobby', disc: 'trail', seed: newSeed(), seats: {}, goAt: null, pause: { on: false, since: null, total: 0 }, winner: null, awarded: false, events: [], acts: [], result: null, ver: GAME_VERSION, prepAt: null };
+  },
+
+  // ----- хранилище -----
+  stored() { try { const o = JSON.parse(localStorage.getItem(this.KEY) || 'null'); return o && o.S && o.S.code && o.S.v === 1 ? o : null; } catch (_) { return null; } },
+  save(now) {
+    if (!this.S) return;
+    const go = () => { this.saveT = null; try { const S = JSON.parse(JSON.stringify(this.S, (k, v) => (k === 'tel' ? undefined : v))); localStorage.setItem(this.KEY, JSON.stringify({ S, hub: this.hub ? this.hub.dump() : null, at: Date.now() })); } catch (_) { } };
+    if (now) { clearTimeout(this.saveT); go(); } else if (!this.saveT) this.saveT = setTimeout(go, 250);
+  },
+  archive() { try { const a = JSON.parse(localStorage.getItem(this.ARCH) || '[]'); return Array.isArray(a) ? a : []; } catch (_) { return []; } },
+  saveArchive(a) { try { localStorage.setItem(this.ARCH, JSON.stringify(a)); } catch (_) { } },
+
+  // ----- запуск -----
+  create() {
+    if (this.hub) return;
+    this.S = this.fresh(RaceNet.makeCode()); this.openHub(null); this.save(true);
+    this.panel(); this.render();
+  },
+  resume() {
+    const st = this.stored(); if (!st) return false;
+    if (this.hub) { this.panel(); this.render(); return true; }
+    this.S = st.S; this.openHub(st.hub);
+    // перезагрузка посреди отсчёта: отсчёт начнётся заново (игроки отпускаются только по «go»)
+    if (this.S.phase === 'count') this.countdown();
+    this.panel(); this.render(); this.note(`Организатор вернулся после перезагрузки: комната ${this.S.code} восстановлена, ждём игроков`);
+    return true;
+  },
+  openHub(state) {
+    const S = this.S;
+    this.hub = new RaceNet.RaceHub({
+      code: S.code, transport: this.tr(), state,
+      accept: (h, seat) => this.accept(h, seat), snap: (seat) => this.snap(seat),
+      onMsg: (seat, m) => this.onMsg(seat, m), onSeat: (seat, kind) => this.onSeat(seat, kind), onTel: (seat, t) => this.onTel(seat, t),
+      onStatus: (s, i) => { this.status = s; this.srvInfo = i; this.render(); },
+    });
+    this.hub.open();
+    // телеметрия: игроки → организатор → обсерверы (пачкой ~15 Гц) и сопернику (редко)
+    this.pend = {}; this.rvT = 0;
+    this.flushT = setInterval(() => this.flush(), 66);
+    if (!this._pg) { this._pg = true; for (const ev of ['pagehide', 'beforeunload']) window.addEventListener(ev, () => { if (this.S) this.save(true); }); }
+  },
+  close(clear) {
+    clearInterval(this.flushT); clearTimeout(this.cdT); this.flushT = null;
+    if (this.hub) { this.hub.close(); this.hub = null; }
+    if (clear) { try { localStorage.removeItem(this.KEY); } catch (_) { } }
+    this.S = null; this.status = 'idle';
+    const el = document.getElementById('rc-org'); if (el) el.hidden = true;
+  },
+
+  // ----- представление состояния -----
+  seatList() { return Object.values(this.S.seats).filter((x) => x.role === 'play').sort((a, b) => a.id - b.id); },
+  watchers() { return this.hub ? [...this.hub.seats.values()].filter((s) => s.role === 'watch' && s.online).length : 0; },
+  pub() {
+    const S = this.S, now = Date.now();
+    return {
+      v: 1, id: S.id, code: S.code, phase: S.phase, disc: S.disc, discName: this.DISC[S.disc].name, goAt: S.goAt, ver: S.ver, now,
+      pause: { on: S.pause.on, total: S.pause.total, since: S.pause.since }, winner: S.winner, awarded: S.awarded, watchers: this.watchers(),
+      players: this.seatList().map((p) => { const hs = this.hub && this.hub.seatById(p.id); if (hs && hs.rtt != null) p.rtt = hs.rtt; return ({ seat: p.id, name: p.name, ready: !!p.ready, loaded: !!p.loaded, online: !!p.online, rtt: p.rtt != null ? Math.round(p.rtt) : null, fin: p.fin ? { rta: p.fin.rta, igt: p.fin.igt, deaths: p.fin.deaths } : null, dnf: !!p.dnf,
+        sp: p.splits.length, splits: p.splits.slice(), restored: p.restored | 0 }); }),
+    };
+  },
+  snap(seat) {
+    const S = this.S, tel = {}; for (const p of this.seatList()) if (p.tel) tel[p.id] = p.tel;
+    return { ...this.pub(), seat: seat.id, tel, log: S.events.slice(-60), result: S.result, stats: this.statsOf() };
+  },
+  statsOf() { const o = {}; for (const p of this.seatList()) if (p.fin && p.fin.stats) o[p.id] = p.fin.stats; return o; },
+  pushState() { if (this.hub && this.S) this.hub.broadcast({ k: 'state', s: this.pub() }); this.save(); this.render(); },
+  // событие для ленты: уходит всем надёжно и пишется в журнал гонки
+  logEv(kind, text, seat, extra) {
+    const S = this.S, el = S.goAt ? this.elapsed() : null, e = { n: (S.events.length ? S.events[S.events.length - 1].n : 0) + 1, t: el, k: kind, s: seat != null ? seat : null, x: text, ...(extra || {}) };
+    S.events.push(e); if (S.events.length > 600) S.events.splice(0, S.events.length - 600);
+    if (this.hub) this.hub.broadcast({ k: 'ev', e });
+    this.save(); this.render(); return e;
+  },
+  note(text) { if (this.S) { this.S.note = text; this.logEv('org', text); } },
+  elapsed() { const S = this.S; if (!S.goAt) return 0; const now = Date.now(); return Math.max(0, now - S.goAt - S.pause.total - (S.pause.on ? now - S.pause.since : 0)); },
+  nameOf(id) { const p = this.S.seats[id]; return p ? p.name : '—'; },
+
+  // ----- сеть: вход, потери, сообщения -----
+  accept(h, seat) {
+    const S = this.S; if (!S) return { ok: false, why: 'комната закрыта' };
+    if (h.room && String(h.room).toUpperCase() !== S.code) return { ok: false, why: 'другая комната' };
+    if (h.ver !== GAME_VERSION) return { ok: false, why: `версия игры ${h.ver || '?'} не совпадает с версией организатора ${GAME_VERSION}: обновите страницу` };
+    if (h.role === 'watch') return { ok: true, role: 'watch' };
+    if (seat) return { ok: true, role: 'play' };
+    const name = String(h.name || '').trim(); if (!name) return { ok: false, why: 'введите имя' };
+    if (S.phase !== 'lobby') return { ok: false, why: 'гонка уже идёт' };
+    const ps = this.seatList(); if (ps.length >= 2) return { ok: false, why: 'в комнате уже два игрока' };
+    const n = RacePlay.norm(name); if (ps.some((p) => RacePlay.norm(p.name) === n)) return { ok: false, why: `имя «${name}» уже занято в этой комнате` };
+    return { ok: true, role: 'play' };
+  },
+  seatRec(seat) {
+    const S = this.S; let p = S.seats[seat.id];
+    if (!p) p = S.seats[seat.id] = { id: seat.id, key: seat.key, role: seat.role, name: seat.name, ready: false, loaded: false, online: false, fin: null, dnf: false, splits: [], viol: [], restored: 0, rtt: null, tel: null };
+    return p;
+  },
+  onSeat(seat, kind) {
+    const S = this.S; if (!S) return; const p = this.seatRec(seat);
+    p.online = seat.online; p.name = seat.name || p.name; p.rtt = seat.rtt;
+    if (seat.role === 'play') {
+      if (kind === 'on') this.logEv('join', `${p.name} вошёл в комнату`, p.id);
+      else if (kind === 're') this.logEv('re', `${p.name}: связь восстановлена`, p.id);
+      else if (kind === 'off') this.logEv('off', `${p.name}: связь потеряна`, p.id);
+      else if (kind === 'bye') this.logEv('bye', `${p.name} закрыл вкладку или вышел`, p.id);
+      if (kind === 'off' || kind === 'bye') { if (S.phase === 'lobby') p.ready = false; }
+    }
+    this.pushState();
+  },
+  onTel(seat, t) { const p = this.S && this.S.seats[seat.id]; if (!p || seat.role !== 'play' || !t) return; p.tel = t; this.pend[seat.id] = t; },
+  flush() {
+    const S = this.S, hub = this.hub; if (!S || !hub) return;
+    const ids = Object.keys(this.pend); if (!ids.length) return;
+    const tl = ids.map((i) => this.pend[i]); this.pend = {};
+    hub.light({ tl }, ['watch']);
+    // сопернику — реже и в коротком виде
+    const now = performance.now();
+    if (now - this.rvT > 250) {
+      this.rvT = now;
+      for (const p of this.seatList()) { const o = this.seatList().find((q) => q.id !== p.id); if (o && o.tel) { const t = o.tel; hub.lightTo(hub.seatById(p.id), { rv: { s: o.id, el: t.el, ch: t.ch, st: t.st, x: t.x, y: t.y, f: t.f, sp: t.sp, dn: t.dn } }); } }
+    }
+  },
+  onMsg(seat, m) {
+    const S = this.S; if (!S || !m) return; const p = this.seatRec(seat);
+    if (seat.role !== 'play') return;
+    switch (m.k) {
+      case 'ready': {
+        p.viol = Array.isArray(m.viol) ? m.viol : []; p.ready = !!m.v && !p.viol.length && S.phase === 'lobby'; this.pushState(); break;
+      }
+      case 'loaded': { if (S.phase === 'prep' && m.id === S.id) { p.loaded = true; this.pushState(); this.maybeCount(); } break; }
+      case 'restored': this.logEv('restored', `${p.name}: забег восстановлен по журналу`, p.id); p.restored = (p.restored | 0) + 1; this.pushState(); break;
+      case 'bad': this.logEv('bad', `${p.name} не может стартовать: ${m.why}`, p.id); break;
+      case 'pev': this.playerEvent(p, m.e || {}); break;
+      case 'fin': this.playerFin(p, m); break;
+      case 'dnf': if (!p.dnf && !p.fin && (S.phase === 'run' || S.phase === 'count')) { p.dnf = true; p.dnfAt = m.el | 0; this.logEv('dnf', `${p.name} сошёл с дистанции (${m.why || 'без причины'})`, p.id); this.pushState(); this.checkFinish(); } break;
+    }
+  },
+  playerEvent(p, e) {
+    const S = this.S; if (S.phase !== 'run' && S.phase !== 'done') return;
+    const f = (ms) => Speedrun.fmt(ms), tag = (i) => SR_CATS.trail.tags[i] || ('#' + (i + 1));
+    switch (e.k) {
+      case 'split': if (!p.splits[e.i] && e.i >= 0 && e.i < 4) { p.splits[e.i] = e.rta; this.logEv('split', `${p.name}: ${tag(e.i)} · ${f(e.rta)}`, p.id, { i: e.i, rta: e.rta }); } break;
+      case 'death': this.logEv('death', `${p.name}: нить оборвалась`, p.id); break;
+      case 'buy': this.logEv('buy', `${p.name} купил: ${e.name || e.id}`, p.id); break;
+      case 'parry': this.logEv('parry', `${p.name}: отбив`, p.id); break;
+      case 'exec': this.logEv('exec', `${p.name}: казнь босса`, p.id); break;
+      case 'phase': this.logEv('phase', `${p.name}: босс перешёл в фазу ${e.ph}`, p.id, { ph: e.ph }); break;
+      case 'stun': this.logEv('stun', `${p.name}: босс оглушён`, p.id); break;
+    }
+    this.pushState();
+  },
+  playerFin(p, m) {
+    const S = this.S; if (p.fin || S.phase === 'lobby') return;
+    p.fin = { rta: m.rta | 0, igt: m.igt | 0, deaths: m.deaths | 0, splits: Array.isArray(m.splits) ? m.splits : [], stats: m.stats || null, restored: m.restored | 0 };
+    if (p.fin.splits.length === 4) p.splits = p.fin.splits.map((s) => s.rta);
+    this.logEv('fin', `${p.name} финишировал: ${Speedrun.fmt(p.fin.rta)}`, p.id, { rta: p.fin.rta });
+    this.pushState(); this.checkFinish();
+  },
+
+  // ----- ход гонки -----
+  canStart() { const ps = this.seatList(); return this.S.phase === 'lobby' && ps.length === 2 && ps.every((p) => p.online && p.ready); },
+  start() {
+    const S = this.S; if (!this.canStart()) return;
+    S.phase = 'prep'; S.prepAt = Date.now(); S.acts = []; S.winner = null; S.awarded = false; S.result = null; S.goAt = null; S.pause = { on: false, since: null, total: 0 };
+    for (const p of this.seatList()) { p.loaded = false; p.fin = null; p.dnf = false; p.splits = []; }
+    this.logEv('prep', 'Гонка: загрузка у игроков…');
+    this.hub.broadcast({ k: 'prep', id: S.id, seed: S.seed, cat: S.disc, ver: GAME_VERSION }, null, ['play']);
+    this.pushState();
+  },
+  maybeCount(force) {
+    const S = this.S; if (S.phase !== 'prep') return;
+    const ps = this.seatList(); if (!force && !ps.every((p) => p.loaded)) return;
+    this.countdown();
+  },
+  countdown() {
+    const S = this.S; clearTimeout(this.cdT); S.phase = 'count'; this.pushState(); let n = 3;
+    const step = () => {
+      if (!this.S || this.S.phase !== 'count') return;
+      if (n > 0) { this.hub.broadcast({ k: 'cd', n }); this.logEv('cd', String(n)); n--; this.cdT = setTimeout(step, 1000); }
+      else {
+        S.phase = 'run'; S.goAt = Date.now(); this.hub.broadcast({ k: 'go', at: S.goAt }); this.logEv('go', 'ПОШЁЛ!'); this.pushState();
+      }
+    };
+    step();
+  },
+  checkFinish() { const ps = this.seatList(); if (this.S.phase === 'run' && ps.length === 2 && ps.every((p) => p.fin || p.dnf)) this.finish(null); },
+  // результат: время игрока — его собственные часы забега (без технических пауз)
+  buildResult(awardedSeat) {
+    const S = this.S, ps = this.seatList(), rows = ps.map((p) => ({ seat: p.id, name: p.name, dnf: !p.fin, time: p.fin ? p.fin.rta : null, finalTime: p.fin ? p.fin.rta : null, igt: p.fin ? p.fin.igt : null, deaths: p.fin ? p.fin.deaths : null, stats: p.fin ? p.fin.stats : null, splits: p.fin && p.fin.splits.length ? p.fin.splits.map((s) => s.rta) : p.splits.filter((x) => x != null), eloBefore: null, eloAfter: null }));
+    rows.sort((a, b) => (a.dnf - b.dnf) || ((a.time || 0) - (b.time || 0)));
+    let winner = null, gap = null;
+    if (awardedSeat != null) winner = awardedSeat;
+    else if (rows[0] && !rows[0].dnf) {
+      if (rows[1] && !rows[1].dnf) { gap = rows[1].time - rows[0].time; winner = Math.abs(gap) < 10 ? 'draw' : rows[0].seat; } else winner = rows[0].seat;
+    }
+    rows.forEach((r, i) => { r.place = winner === 'draw' ? 1 : i + 1; });
+    if (awardedSeat != null) { rows.sort((a, b) => (b.seat === awardedSeat) - (a.seat === awardedSeat)); rows.forEach((r, i) => { r.place = i + 1; }); }
+    return { id: S.id, date: new Date().toISOString(), version: GAME_VERSION, discipline: S.disc, settings: { cat: S.disc, easy: false, speed: 100 }, seed: S.seed, players: rows, winner: winner === 'draw' ? 'draw' : winner == null ? null : this.nameOf(winner), winnerSeat: winner, awarded: awardedSeat != null, gap, goAt: S.goAt, pauseMs: S.pause.total, events: S.events.slice(-400) };
+  },
+  finish(awardedSeat) {
+    const S = this.S; if (S.phase === 'done') return;
+    if (S.pause.on) { S.pause.total += Date.now() - S.pause.since; S.pause.on = false; S.pause.since = null; }
+    const r = this.buildResult(awardedSeat);
+    S.phase = 'done'; S.winner = r.winnerSeat; S.awarded = !!r.awarded; S.result = r;
+    const a = this.archive().filter((x) => x.id !== r.id); a.push(r); this.saveArchive(a);
+    this.logEv('done', r.winner === 'draw' ? 'Ничья' : r.winner ? `Победил ${r.winner}${r.gap != null ? ' (+' + Speedrun.fmt(r.gap) + ')' : ''}${r.awarded ? ' — присуждено организатором' : ''}` : 'Гонка окончена без победителя');
+    this.hub.broadcast({ k: 'res', r: { id: r.id, winner: r.winnerSeat, awarded: r.awarded, gap: r.gap, players: r.players.map((p) => ({ seat: p.seat, name: p.name, place: p.place, time: p.time, dnf: p.dnf })) } });
+    this.pushState();
+  },
+  techPause(noAct) {
+    const S = this.S; if (S.phase !== 'run') return;
+    if (!S.pause.on) { S.pause.on = true; S.pause.since = Date.now(); if (!noAct) S.acts.push({ k: 'pause', on: true }); this.logEv('pause', 'Техническая пауза: гонка остановлена'); }
+    else { S.pause.total += Date.now() - S.pause.since; S.pause.on = false; S.pause.since = null; if (!noAct) S.acts.push({ k: 'pause', on: false }); this.logEv('pause', 'Гонка продолжается'); }
+    this.hub.broadcast({ k: 'pause', on: S.pause.on }, null, ['play']);
+    this.pushState();
+  },
+  award(seatId) {
+    const S = this.S; if (S.phase !== 'run' && S.phase !== 'count') return;
+    S.acts.push({ k: 'award', seat: seatId, from: S.phase });
+    this.finish(seatId);
+  },
+  // отменить последнее действие: пауза/продолжение или присуждение победы
+  undo() {
+    const S = this.S, a = S.acts.pop(); if (!a) return;
+    if (a.k === 'pause') { this.techPause(true); this.logEv('undo', 'Отменено: ' + (a.on ? 'техническая пауза' : 'возобновление')); }
+    else if (a.k === 'award' && S.phase === 'done') {
+      S.phase = 'run'; S.winner = null; S.awarded = false; const rid = S.result && S.result.id; S.result = null;
+      this.saveArchive(this.archive().filter((x) => x.id !== rid));
+      for (const p of this.seatList()) if (!p.fin) p.dnf = false;
+      this.logEv('undo', 'Отменено: присуждение победы. Гонка продолжается');
+      this.hub.broadcast({ k: 'state', s: this.pub() }); this.hub.broadcast({ k: 'resume' }, null, ['play']);
+    }
+    this.pushState();
+  },
+  restart() { // «Переиграть»: новое зерно, все возвращаются в комнату ожидания
+    const S = this.S; clearTimeout(this.cdT);
+    if (S.phase !== 'lobby') this.logEv('reset', 'Гонка перезапущена: новое зерно, игроки возвращаются в комнату');
+    S.phase = 'lobby'; S.id = this.id(); S.seed = newSeed(); S.goAt = null; S.pause = { on: false, since: null, total: 0 }; S.winner = null; S.awarded = false; S.result = null; S.acts = []; S.prepAt = null;
+    for (const p of this.seatList()) { p.ready = false; p.loaded = false; p.fin = null; p.dnf = false; p.splits = []; p.tel = null; }
+    this.hub.broadcast({ k: 'reset' }, null, ['play']); this.pushState();
+  },
+  cancel() { // отменить гонку: не попадает в архив
+    const S = this.S; if (S.phase === 'lobby' || S.phase === 'done') return; clearTimeout(this.cdT);
+    this.hub.broadcast({ k: 'end', awarded: false }, null, ['play']); this.logEv('cancel', 'Гонка отменена организатором'); this.restart();
+  },
+
+  // ----- ссылки -----
+  base() { return location.origin + location.pathname; },
+  links() { const c = this.S.code; return { play: `${this.base()}?race=play&room=${c}`, watch: `${this.base()}?race=watch&room=${c}`, stream: `${this.base()}?race=watch&room=${c}&stream=1`, overlay: `${this.base()}?race=watch&room=${c}&stream=1&overlay=1` }; },
+
+  // ----- панель -----
+  panel() {
+    Speedrun.css(); this.css();
+    let el = document.getElementById('rc-org'); if (el) { el.hidden = false; Ov.opened(el); return el; }
+    el = document.createElement('div'); el.id = 'rc-org'; el.className = 'sr-ov rc-ov'; el.hidden = true;
+    el.innerHTML = `<div class="card wide" role="dialog" aria-labelledby="rco-t"><h2 id="rco-t">Организатор гонки</h2><div id="rco-body"></div></div>`;
+    document.body.appendChild(el);
+    Ov.chrome(el, { crumbs: ['Гонки Ткачей', 'Организатор'], back: () => this.hidePanel(), hint: { act: 'нажать' } });
+    el.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Escape') this.hidePanel(); });
+    el.addEventListener('keyup', (e) => e.stopPropagation());
+    el.hidden = false; Ov.opened(el);
+    return el;
+  },
+  hidePanel() { const el = document.getElementById('rc-org'); if (el) el.hidden = true; const m = window.__game && window.__game.scene.getScene('menu'); if (m) m.leaving = false; },
+  css() {
+    if (document.getElementById('rc-css')) return;
+    const st = document.createElement('style'); st.id = 'rc-css';
+    st.textContent = `.rc-ov .card.wide{width:min(1040px,100%)}.rc-ov .grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}.rc-ov .grid2>*{min-width:0}@media(max-width:760px){.rc-ov .grid2{grid-template-columns:minmax(0,1fr)}}
+.rc-ov .box{align-content:start;background:#0a1512;border:1px solid #1d3630;border-radius:8px;padding:10px 12px;display:grid;gap:6px;min-width:0}.rc-ov .box h3{margin:0}
+.rc-ov .link{display:flex;gap:6px;align-items:center;min-width:0}.rc-ov .link span{flex:none;width:96px;font-size:12px;color:var(--muted)}@media(max-width:760px){.rc-ov .link{flex-wrap:wrap}.rc-ov .link span{width:100%}}.rc-ov .link button{flex:none}.rc-ov .link code{flex:1;min-width:0;overflow-wrap:anywhere;word-break:break-all;white-space:normal;background:#08130f;border:1px solid #24433a;border-radius:6px;padding:6px 8px;font:12px ui-monospace,Consolas,monospace;color:#cfe8dc;user-select:all}
+.rc-ov .dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#d28a6a;margin-right:6px}.rc-ov .dot.on{background:#7ff0a8}
+.rc-ov .log{max-height:220px;overflow:auto;font:12px/1.5 ui-monospace,Consolas,monospace;background:#08130f;border:1px solid #24433a;border-radius:6px;padding:6px 8px}.rc-ov .log div{white-space:pre-wrap}.rc-ov .log .t{color:#6f9586}
+.rc-ov .big{font:700 30px var(--display);color:var(--bone)}.rc-ov .chip{display:inline-block;padding:2px 9px;border-radius:99px;background:#143029;border:1px solid #3a6b5a;font-size:12px}.rc-ov .chip.warn{border-color:#d28a6a;color:#ffb48a}
+.rc-ov label.nm{align-content:start}.rc-ov select{font:14px var(--body);background:#08130f;color:var(--bone);border:1px solid #2c5246;border-radius:6px;padding:7px 9px}.rc-ov .row.end{justify-content:flex-end}`;
+    document.head.appendChild(st);
+  },
+  esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); },
+  render() {
+    const el = document.getElementById('rc-org'), S = this.S; if (!el || !S || el.hidden) return;
+    const body = el.querySelector('#rco-body'), E = this.esc, L = this.links(), ps = this.seatList(), f = (ms) => Speedrun.fmt(ms);
+    const focus = document.activeElement && el.contains(document.activeElement) ? document.activeElement.id : '';
+    const phase = { lobby: 'ожидание игроков', prep: 'загрузка у игроков', count: 'отсчёт', run: S.pause.on ? 'ТЕХНИЧЕСКАЯ ПАУЗА' : 'гонка идёт', done: 'гонка окончена' }[S.phase];
+    const srv = { open: 'сервер: на связи', opening: 'сервер: подключаемся…', busy: `сервер: прежний код ещё занят, ждём (${(this.srvInfo && this.srvInfo.tries) || 0})`, error: 'сервер: ошибка связи', closed: 'закрыто', idle: '' }[this.status] || this.status;
+    const card = (i) => {
+      const p = ps[i]; if (!p) return `<div class="box"><h3>Игрок ${i + 1}</h3><div class="lead">Ждём: отправьте ссылку игроку</div></div>`;
+      const t = p.tel, hp = t ? `${t.hp}/${t.mh}` : '—', ph = p.fin ? 'финиш ' + f(p.fin.rta) : p.dnf ? 'сошёл' : S.phase === 'run' && t ? `${t.pa ? 'пауза · ' : ''}Гл. ${SR_CATS.trail.tags[Math.min(3, p.splits.length)] || ''} · ${f(t.el)}` : S.phase === 'lobby' ? (p.ready ? 'готов' : 'не готов') : p.loaded ? 'загружен' : 'загружается…';
+      return `<div class="box"><h3><span class="dot ${p.online ? 'on' : ''}"></span>${E(p.name)}</h3><div>${ph}</div><div class="lead">${p.online ? `пинг ${p.rtt != null ? Math.round(p.rtt) + ' мс' : '…'}` : 'нет связи'}${t && S.phase === 'run' ? ` · маски ${hp} · смертей ${t.dt}` : ''}${p.restored ? ` · восстановлен ×${p.restored}` : ''}</div>${p.splits.length ? `<div class="lead">${p.splits.map((s, k) => `${SR_CATS.trail.tags[k]} ${f(s)}`).join(' · ')}</div>` : ''}</div>`;
+    };
+    const disc = `<select id="rco-disc" ${S.phase !== 'lobby' ? 'disabled' : ''}>${Object.entries(this.DISC).map(([id, d]) => `<option value="${id}" ${S.disc === id ? 'selected' : ''} ${d.ready ? '' : 'disabled'}>${d.name}${d.ready ? '' : ' — ' + d.note}</option>`).join('')}</select>`;
+    const btn = (id, label, cls, dis) => `<button id="${id}" class="${cls || ''}" type="button" ${dis ? 'disabled' : ''}>${label}</button>`;
+    body.innerHTML = `<div class="row"><span class="big">${E(S.code)}</span><span class="chip">${phase}</span><span class="chip ${this.status === 'open' ? '' : 'warn'}">${srv}</span><span class="chip">обсерверов: ${this.watchers()}</span>${S.phase === 'run' || S.phase === 'done' ? `<span class="chip" id="rco-clock">${f(S.phase === 'done' && S.result ? ((S.result.players[0] || {}).time || 0) : this.elapsed())}</span>` : ''}</div>
+<div class="grid2"><div class="box"><h3>Ссылки</h3>
+<div class="link"><span>Игрокам</span><code>${E(L.play)}</code><button data-copy="play" type="button">Копировать</button></div>
+<div class="link"><span>Обсервер</span><code>${E(L.watch)}</code><button data-copy="watch" type="button">Копировать</button></div>
+<div class="link"><span>Для стрима</span><code>${E(L.stream)}</code><button data-copy="stream" type="button">Копировать</button></div>
+<div class="link"><span>OBS (фон прозрачный)</span><code>${E(L.overlay)}</code><button data-copy="overlay" type="button">Копировать</button></div></div>
+<div class="box"><h3>Гонка</h3><label class="nm">Дисциплина${disc}</label><div class="lead">Одна гонка — одна дисциплина. Зерно общее: одинаковые враги и бусины у обоих. Зерно: <code>${S.seed}</code> ${S.phase === 'lobby' ? '<button id="rco-seed" type="button" class="ghost">другое</button>' : ''}</div>
+<div class="lead">Лёгкий режим и замедление игры игроку запрещены. Версия игры у всех должна быть ${GAME_VERSION}.</div></div></div>
+<div class="grid2">${card(0)}${card(1)}</div>
+<div class="row">${btn('rco-start', S.phase === 'prep' ? 'Начать без ожидания' : 'Старт гонки', 'primary', !(this.canStart() || (S.phase === 'prep' && ps.some((p) => p.online))))}${btn('rco-pause', S.pause.on ? 'Продолжить гонку' : 'Тех. пауза', '', S.phase !== 'run')}${btn('rco-restart', 'Переиграть', '', S.phase === 'lobby')}
+${btn('rco-aw1', 'Присудить: ' + E(ps[0] ? ps[0].name : '—'), '', !(S.phase === 'run' || S.phase === 'count') || !ps[0])}${btn('rco-aw2', 'Присудить: ' + E(ps[1] ? ps[1].name : '—'), '', !(S.phase === 'run' || S.phase === 'count') || !ps[1])}
+${btn('rco-undo', 'Отменить действие', '', !S.acts.length)}${btn('rco-cancel', 'Отменить гонку', 'ghost', S.phase === 'lobby' || S.phase === 'done')}</div>
+${S.phase === 'done' && S.result ? `<div class="box"><h3>Итог</h3>${S.result.players.map((p) => `<div>${p.place}. ${E(p.name)} — ${p.dnf ? 'не финишировал' : f(p.time)}${p.deaths != null ? ` · смертей ${p.deaths}` : ''}</div>`).join('')}<div class="lead">${S.result.winner === 'draw' ? 'Ничья' : S.result.winner ? 'Победитель: ' + E(S.result.winner) : ''}${S.result.awarded ? ' (присуждено)' : ''}. Результат записан в архив.</div></div>` : ''}
+<div class="box"><h3>Лог</h3><div class="log" id="rco-log">${S.events.slice(-80).map((e) => `<div><span class="t">${e.t != null ? f(e.t) : '—:--'}</span> ${E(e.x)}</div>`).join('')}</div></div>
+<div class="row"><button id="rco-arch" type="button">Архив гонок</button><button id="rco-dl" type="button">Скачать races.json</button><button id="rco-hide" class="ghost" type="button">Свернуть панель (комната работает)</button><button id="rco-end" class="ghost" type="button">Закрыть комнату</button></div>
+<div id="rco-msg" role="status" class="lead"></div>`;
+    const $ = (id) => body.querySelector('#' + id), on = (id, fn) => { const b = $(id); if (b) b.onclick = fn; };
+    body.querySelectorAll('[data-copy]').forEach((b) => { b.onclick = () => Speedrun.copy(L[b.dataset.copy], (ok) => { b.textContent = ok ? 'Скопировано' : 'Выделите вручную'; setTimeout(() => { b.textContent = 'Копировать'; }, 1500); }); });
+    on('rco-start', () => (S.phase === 'prep' ? this.maybeCount(true) : this.start()));
+    on('rco-pause', () => this.techPause()); on('rco-restart', () => this.confirm('Переиграть: все вернутся в комнату, зерно сменится.', () => this.restart()));
+    on('rco-aw1', () => this.confirm(`Присудить победу: ${ps[0].name}?`, () => this.award(ps[0].id))); on('rco-aw2', () => this.confirm(`Присудить победу: ${ps[1].name}?`, () => this.award(ps[1].id)));
+    on('rco-undo', () => this.undo()); on('rco-cancel', () => this.confirm('Отменить гонку без результата?', () => this.cancel()));
+    on('rco-arch', () => this.archiveOpen()); on('rco-dl', () => this.download()); on('rco-hide', () => this.hidePanel());
+    on('rco-end', () => this.confirm('Закрыть комнату? Игроки и обсерверы потеряют связь, незаписанная гонка пропадёт.', () => this.close(true)));
+    on('rco-seed', () => { S.seed = newSeed(); this.save(); this.render(); });
+    const sel = $('rco-disc'); if (sel) sel.onchange = () => { S.disc = sel.value; this.pushState(); };
+    const lg = $('rco-log'); if (lg) lg.scrollTop = lg.scrollHeight;
+    if (focus && body.querySelector('#' + focus)) body.querySelector('#' + focus).focus();
+    // таймер в шапке тикает без полной перерисовки
+    clearInterval(this.clockT);
+    if (S.phase === 'run') this.clockT = setInterval(() => { const c = document.getElementById('rco-clock'); if (c && this.S) c.textContent = f(this.elapsed()); else clearInterval(this.clockT); }, 200);
+  },
+  // подтверждение (чтобы случайный клик не сломал гонку)
+  confirm(text, fn) {
+    const m = document.getElementById('rco-msg'); if (!m) { fn(); return; }
+    m.innerHTML = `${this.esc(text)} <button id="rco-yes" class="primary" type="button">Да</button> <button id="rco-no" type="button">Нет</button>`;
+    m.querySelector('#rco-yes').onclick = () => { m.textContent = ''; fn(); }; m.querySelector('#rco-no').onclick = () => { m.textContent = ''; };
+    m.querySelector('#rco-no').focus();
+  },
+  // ----- архив -----
+  download() {
+    const data = JSON.stringify({ format: 'tropa-tkachei/races', version: 1, game: GAME_VERSION, exported: new Date().toISOString(), races: this.archive() }, null, 1);
+    try {
+      const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([data], { type: 'application/json' })); a.download = 'races.json'; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+    } catch (_) { const m = document.getElementById('rco-msg'); if (m) m.textContent = 'Не удалось скачать файл в этом браузере.'; }
+  },
+  archiveOpen() {
+    Speedrun.css(); this.css();
+    let el = document.getElementById('rc-arch');
+    if (!el) {
+      el = document.createElement('div'); el.id = 'rc-arch'; el.className = 'sr-ov rc-ov'; el.hidden = true;
+      el.innerHTML = `<div class="card wide" role="dialog" aria-labelledby="rca-t"><h2 id="rca-t">Архив гонок</h2><div id="rca-body"></div></div>`;
+      document.body.appendChild(el);
+      Ov.chrome(el, { crumbs: ['Гонки Ткачей', 'Архив'], back: () => { el.hidden = true; }, hint: { act: 'нажать' } });
+      el.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Escape') el.hidden = true; });
+      el.addEventListener('keyup', (e) => e.stopPropagation());
+    }
+    el.hidden = false; Ov.opened(el); this.archiveRender();
+  },
+  archiveRender() {
+    const el = document.getElementById('rc-arch'); if (!el) return; const body = el.querySelector('#rca-body'), E = this.esc, f = (ms) => Speedrun.fmt(ms), a = this.archive();
+    const names = [...new Set(a.flatMap((r) => r.players.map((p) => p.name)))];
+    body.innerHTML = `<p class="lead">Рейтинг Эло и общая страница появятся в версии 1.9; пока здесь хранится история, которую можно скачать как <b>races.json</b>.</p>
+<div class="row"><button id="rca-dl" class="primary" type="button">Скачать races.json</button><button id="rca-clear" class="ghost" type="button">Очистить архив</button></div>
+<div class="box"><h3>Объединить игроков</h3><div class="lead">Один человек мог войти под разными именами («Ярь» и «ярь »): выберите, кого в кого слить. Сравнение по умолчанию без учёта регистра и пробелов.</div>
+<div class="row"><select id="rca-a">${names.map((n) => `<option>${E(n)}</option>`).join('')}</select><span>→</span><select id="rca-b">${names.map((n) => `<option>${E(n)}</option>`).join('')}</select><button id="rca-merge" type="button">Объединить</button></div><div id="rca-msg" role="status" class="lead"></div></div>
+${a.length ? `<table><tr><th>Дата</th><th>Дисциплина</th><th>Игроки и время</th><th>Победитель</th></tr>${a.slice().reverse().map((r) => `<tr><td>${E(new Date(r.date).toLocaleString('ru-RU'))}</td><td>${E((this.DISC[r.discipline] || {}).name || r.discipline)}</td><td>${r.players.map((p) => `${E(p.name)} ${p.dnf ? '—' : f(p.time)}`).join(' · ')}</td><td>${r.winner === 'draw' ? 'ничья' : E(r.winner || '—')}${r.awarded ? ' (присуждено)' : ''}</td></tr>`).join('')}</table>` : '<div class="lead">Пока нет ни одной гонки.</div>'}`;
+    const $ = (id) => body.querySelector('#' + id);
+    $('rca-dl').onclick = () => this.download();
+    $('rca-clear').onclick = () => { if (confirm('Стереть весь архив гонок?')) { this.saveArchive([]); this.archiveRender(); } };
+    $('rca-merge').onclick = () => {
+      const from = $('rca-a').value, to = $('rca-b').value, m = $('rca-msg');
+      if (!from || !to || from === to) { m.textContent = 'Выберите двух разных игроков.'; return; }
+      let n = 0; const arr = this.archive(); for (const r of arr) for (const p of r.players) if (p.name === from) { p.name = to; n++; }
+      for (const r of arr) if (r.winner === from) r.winner = to;
+      this.saveArchive(arr); this.archiveRender(); const m2 = document.getElementById('rca-msg'); if (m2) m2.textContent = `Объединено записей: ${n}.`;
+    };
+  },
+};
+
+// ===== меню «Гонки Ткачей»: рабочие пункты вместо заглушки =====
+{
+  const d = MENU.races;
+  d.info = () => {
+    const st = RaceOrg.stored(), out = ['Соревнование для двоих: организатор создаёт гонку, два игрока играют у себя, обсервер показывает обоих сразу.'];
+    if (st) out.push({ t: `Есть незавершённая комната организатора: ${st.S.code}`, c: '#ffd47a' });
+    const sess = RacePlay.loadSess(); if (sess) out.push({ t: `Вы были в комнате ${sess.code} как игрок`, c: '#ffd47a' });
+    return out;
+  };
+  d.items = () => {
+    const st = RaceOrg.stored(), items = [];
+    if (st && !RaceOrg.S) items.push({ label: 'Продолжить комнату организатора', sub: `код ${st.S.code} · ${st.S.phase === 'run' ? 'гонка шла' : 'ожидание'}`, act: () => RaceOrg.resume() });
+    if (RaceOrg.S) items.push({ label: 'Панель организатора', sub: `комната ${RaceOrg.S.code} работает`, act: () => RaceOrg.panel() && RaceOrg.render() });
+    else items.push({ label: 'Создать гонку', sub: 'вы организатор и сами не играете', act: () => RaceOrg.create() });
+    items.push({ label: 'Войти игроком по коду', sub: 'код или ссылка от организатора', act: () => RacePlay.open('', {}) });
+    items.push({ label: 'Обсервер', sub: 'смотреть гонку: 1920×1080, две половины и табло', act: () => RaceWatch.open('', {}) });
+    items.push({ label: 'Архив гонок', sub: 'история, races.json (рейтинг — в 1.9)', act: () => RaceOrg.archiveOpen() });
+    return items.map((it, i) => ({ key: String(i + 1), ...it }));
+  };
+}
+// ссылки ?race=org | play | watch: открываем нужное окно сразу после меню
+{
+  const createO = MenuScene.prototype.create;
+  MenuScene.prototype.create = function (...a) {
+    const r = createO.apply(this, a);
+    if (!window.__rcUrlDone) {
+      window.__rcUrlDone = true;
+      const q = new URLSearchParams(location.search), m = q.get('race');
+      if (m) setTimeout(() => {
+        try {
+          if (m === 'org') { if (!RaceOrg.resume()) RaceOrg.create(); }
+          else if (m === 'play') RacePlay.fromUrl();
+          else if (m === 'watch') RaceWatch.fromUrl();
+        } catch (e) { console.error(e); }
+      }, 500);
+      else { // обычный запуск: если организатор перезагрузил вкладку посреди гонки — подсказка в меню, игроку — автовосстановление
+        const sess = RacePlay.loadSess(), inf = Journal.info();
+        if (sess && inf && inf.race && inf.race.code === sess.code) setTimeout(() => { try { RacePlay.open(sess.code, { auto: true }); } catch (e) { console.error(e); } }, 500);
+      }
+    }
+    return r;
+  };
+}
+
+// ===== «ГОНКИ ТКАЧЕЙ»: ОБСЕРВЕР =====
+// Окно для зрителя и для стрима (1920×1080): две равные половины с картинкой обоих игроков по телеметрии (уровень, герои, боссы, снаряды
+// рисуются игровой отрисовкой; камера идёт за героем своей половины), по центру табло (таймер, имена, маски, босс, разница времени),
+// внизу лента событий. До старта — карточки игроков, после гонки — разбор. Табло и лента — HTML поверх холста: чёткий текст при любом размере
+// окна и при сжатии стрима. Обсервер НЕ ставится на паузу, когда окно скрыто: состояние обновляется сетевыми сообщениями, а не кадрами,
+// и при возврате картинка догоняет по последней телеметрии. Подключение — тот же надёжный канал (race-net.js): обрыв и возврат без вмешательства.
+const RaceWatch = {
+  S: null, client: null, scene: null, started: false, lastEv: 0, feed: [], tel: {}, hist: { 1: [], 2: [] },
+  tr() { return RaceNet.use(); },
+  open(code, opt) {
+    Speedrun.css(); this.build();
+    const el = document.getElementById('rw-join'); el.hidden = false; Ov.opened(el);
+    const c = el.querySelector('#rwj-code'); if (code) c.value = String(code).toUpperCase();
+    if (opt && opt.auto && c.value) this.join(c.value); else setTimeout(() => c.focus(), 0);
+  },
+  build() {
+    if (document.getElementById('rw-join')) return;
+    const el = document.createElement('div'); el.id = 'rw-join'; el.className = 'sr-ov'; el.hidden = true;
+    el.innerHTML = `<div class="card" role="dialog" aria-labelledby="rwj-t"><h2 id="rwj-t">Обсервер гонки</h2>
+<p class="lead">Смотреть гонку Ткачей: две половины, табло и лента событий. Окно лучше держать на втором мониторе и не сворачивать: Chrome «усыпляет» скрытые окна. Для стрима откройте ссылку со <b>stream=1</b>.</p>
+<label class="nm">Код комнаты<input id="rwj-code" maxlength="8" autocomplete="off" autocapitalize="characters" placeholder="например, K7P4Q"></label>
+<div class="row"><button id="rwj-go" class="primary" type="button">Смотреть</button></div><div id="rwj-msg" role="status"></div>
+<div class="row"><button id="rwj-back" class="ghost" type="button">← Назад</button></div></div>`;
+    document.body.appendChild(el);
+    Ov.chrome(el, { crumbs: ['Гонки Ткачей', 'Обсервер'], back: () => this.leave(), hint: { act: 'нажать' } });
+    el.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Escape') this.leave(); if (e.key === 'Enter') this.join(el.querySelector('#rwj-code').value); });
+    el.addEventListener('keyup', (e) => e.stopPropagation());
+    el.querySelector('#rwj-go').onclick = () => this.join(el.querySelector('#rwj-code').value);
+    el.querySelector('#rwj-back').onclick = () => this.leave();
+    el.querySelector('#rwj-code').addEventListener('input', (e) => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); });
+  },
+  fromUrl() {
+    const q = new URLSearchParams(location.search); this.stream = q.get('stream') === '1'; this.overlay = q.get('overlay') === '1';
+    this.open(q.get('room') || '', { auto: !!q.get('room') });
+  },
+  leave() {
+    if (this.client) this.client.stop(true); this.client = null; this.S = null; this.started = false;
+    const el = document.getElementById('rw-join'); if (el) el.hidden = true;
+    const hud = document.getElementById('rw-hud'); if (hud) hud.remove();
+    if (this.silent) { try { this.silent.close(); } catch (_) { } this.silent = null; }
+    clearInterval(this.hudT); this.hudT = null;
+    const g = window.__game; if (g) { for (const k of ['watch']) if (g.scene.getScene(k) && g.scene.isActive(k)) g.scene.stop(k); if (!g.scene.isActive('menu')) { g.scale.setGameSize(VW, VH); g.scene.start('menu'); } const m = g.scene.getScene('menu'); if (m) m.leaving = false; }
+  },
+  join(code) {
+    code = String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); const msg = document.getElementById('rwj-msg');
+    if (code.length < 4) { if (msg) { msg.textContent = 'Введите код комнаты.'; msg.className = 'bad'; } return; }
+    if (this.client) this.client.stop(true);
+    this.feed = []; this.tel = {}; this.hist = { 1: [], 2: [] };
+    const key = (() => { try { let k = localStorage.getItem('tt_rc_wkey'); if (!k) { k = RaceNet.makeKey(); localStorage.setItem('tt_rc_wkey', k); } return k; } catch (_) { return RaceNet.makeKey(); } })();
+    this.code = code;
+    this.client = new RaceNet.RaceClient({
+      code, key, role: 'watch', name: 'Обсервер', transport: this.tr(), hello: () => ({ ver: GAME_VERSION, room: code }),
+      onWelcome: (w) => this.onWelcome(w), onMsg: (m) => this.onMsg(m), onTel: (t) => this.onTel(t), onStatus: (s, i) => this.onStatus(s, i),
+    });
+    this.connStatus = 'connecting'; this.client.start(); this.keepAlive();
+    // табло живёт не от кадров холста: таймер и скрытое окно (Chrome не рисует кадры, но таймеры и сеть идут)
+    if (!this.hudT) this.hudT = setInterval(() => { if (this.started) this.hud(); }, 100);
+    if (msg) { msg.textContent = 'Подключаемся…'; msg.className = ''; }
+    if (!this._pg) { this._pg = true; for (const ev of ['pagehide', 'beforeunload']) window.addEventListener(ev, () => { if (this.client) this.client.bye(); }); }
+  },
+  // окно не должно «засыпать»: тихий звук и блокировка Web Locks удерживают вкладку активной (WebRTC-связь уже освобождает её от глубокого троттлинга)
+  keepAlive() {
+    try { if (navigator.locks && !this._lock) { this._lock = true; navigator.locks.request('tropa-race-watch', () => new Promise(() => { })); } } catch (_) { }
+    const arm = () => {
+      if (this.silent) return;
+      try { const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return; const ctx = new AC(), o = ctx.createOscillator(), g = ctx.createGain(); g.gain.value = 0.00001; o.connect(g); g.connect(ctx.destination); o.start(); this.silent = ctx; } catch (_) { }
+    };
+    arm(); if (!this.silent) { const h = () => { arm(); if (this.silent) { window.removeEventListener('pointerdown', h, true); window.removeEventListener('keydown', h, true); } }; window.addEventListener('pointerdown', h, true); window.addEventListener('keydown', h, true); }
+  },
+
+  // ----- сеть -----
+  onStatus(s, info) {
+    this.connStatus = s; void info; this.hud();
+    const msg = document.getElementById('rwj-msg'); if (msg && s === 'denied') { msg.textContent = 'Не удалось подключиться: ' + (info && info.why); msg.className = 'bad'; }
+  },
+  onWelcome(w) {
+    const S = this.S = w.snap; S.recvAt = performance.now();
+    this.tel = {}; for (const id in (S.tel || {})) this.tel[id] = { ...S.tel[id], at: performance.now() };
+    if (w.resync || !this.feed.length) this.feed = (S.log || []).slice(-60);
+    this.stats = S.stats || {}; this.result = S.result || null; this.begin(); this.hud();
+  },
+  onMsg(m) {
+    if (!m || !this.S) return;
+    switch (m.k) {
+      case 'state': { const p = this.S; this.S = { ...p, ...m.s, tel: p.tel, log: p.log, result: p.result }; this.S.recvAt = performance.now(); if (m.s.phase === 'lobby') { this.result = null; this.stats = {}; this.tel = {}; this.hist = { 1: [], 2: [] }; } break; }
+      case 'ev': this.addEv(m.e); break;
+      case 'cd': this.cd = { n: m.n, at: performance.now() }; break;
+      case 'go': this.cd = { n: 0, at: performance.now() }; break;
+      case 'res': this.resultLite = m.r; break;
+      case 'reset': this.result = null; this.stats = {}; this.resultLite = null; break;
+    }
+    this.hud();
+  },
+  onTel(t) {
+    const now = performance.now();
+    for (const o of (t && t.tl) || []) { const prev = this.tel[o.s]; this.tel[o.s] = { ...o, at: now }; const h = this.hist[o.s] || (this.hist[o.s] = []); h.push({ ...o, at: now }); while (h.length && now - h[0].at > 10000) h.shift(); void prev; }
+  },
+  addEv(e) { if (!e || (this.feed.length && this.feed[this.feed.length - 1].n >= e.n && e.n)) return; this.feed.push(e); if (this.feed.length > 200) this.feed.shift(); this.onFeed(e); },
+  onFeed() { /* звук по событиям — версия 1.9 */ },
+
+  // ----- запуск сцены -----
+  begin() {
+    if (this.started) return; this.started = true;
+    document.body.classList.add('rw-on'); if (this.overlay) document.body.classList.add('rw-overlay');
+    const el = document.getElementById('rw-join'); if (el) el.hidden = true;
+    const g = window.__game, menu = g.scene.getScene('menu'); if (menu) { menu.leaving = true; if (menu.sys.isActive()) menu.scene.stop(); }
+    g.scale.setGameSize(1920, 1080);
+    if (!g.scene.getScene('watch')) g.scene.add('watch', WatchScene, false);
+    g.scene.start('watch');
+  },
+
+  // ----- табло (HTML поверх холста) -----
+  css() {
+    if (document.getElementById('rw-css')) return;
+    const st = document.createElement('style'); st.id = 'rw-css';
+    st.textContent = `body.rw-on{background:#050a09;overflow:hidden}body.rw-overlay{background:transparent!important}body.rw-overlay canvas{opacity:0!important}
+#rw-hud{position:fixed;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0;z-index:5;pointer-events:none;color:#f1ecd8;font:600 24px/1.25 var(--body,"Fira Sans",system-ui,sans-serif);text-shadow:0 2px 3px #000,0 0 6px #000}
+#rw-hud *{box-sizing:border-box}#rw-hud .mid{position:absolute;left:660px;width:600px;top:10px;display:grid;grid-template-columns:1fr;gap:2px;justify-items:center;background:rgba(5,12,11,.82);border:2px solid #2c5246;border-radius:14px;padding:8px 14px 10px}
+#rw-hud .tm{font:800 64px/1 ui-monospace,Consolas,monospace;letter-spacing:.02em}#rw-hud .df{font:800 48px/1 ui-monospace,Consolas,monospace}#rw-hud .df.p{color:#9ff0c8}#rw-hud .df.n{color:#ff9a8a}
+#rw-hud .names{display:grid;grid-template-columns:1fr auto 1fr;gap:12px;width:100%;align-items:center;font-size:28px;font-weight:800}#rw-hud .names .a{text-align:left}#rw-hud .names .b{text-align:right}
+#rw-hud .masks{font-size:26px;letter-spacing:2px}#rw-hud .st{font-size:22px;color:#cfe8dc}#rw-hud .badge{display:inline-block;background:#143029;border:2px solid #3a6b5a;border-radius:99px;padding:0 12px;font-size:22px}
+#rw-hud .feed{position:absolute;left:30px;right:30px;bottom:18px;background:rgba(5,12,11,.78);border:2px solid #24433a;border-radius:12px;padding:8px 18px;min-height:56px}#rw-hud .feed div{font-size:24px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#rw-hud .feed .t{color:#8fb8a8;font-family:ui-monospace,Consolas,monospace;margin-right:10px}#rw-hud .feed .split{color:#9ff0c8}#rw-hud .feed .death{color:#ff9a8a}#rw-hud .feed .fin,#rw-hud .feed .done{color:#ffd47a}#rw-hud .feed .buy{color:#ffe3a3}#rw-hud .feed .off,#rw-hud .feed .bye{color:#d28a6a}
+#rw-hud .bar{position:absolute;bottom:196px;width:420px}#rw-hud .bar .hp{height:18px;background:#2a1612;border:2px solid #000;border-radius:9px;overflow:hidden}#rw-hud .bar .hp i{display:block;height:100%;background:#ff9a3c}#rw-hud .bar span{font-size:22px}
+#rw-hud .big{position:absolute;left:0;right:0;top:300px;text-align:center;font:800 220px/1 var(--display,"Cormorant SC",serif);color:#e8e2cf;text-shadow:0 0 30px #9ff0c8,0 4px 8px #000}
+#rw-hud .cards{position:absolute;left:260px;right:260px;top:210px;display:grid;grid-template-columns:1fr 1fr;gap:60px}#rw-hud .card{background:rgba(5,12,11,.9);border:3px solid #3a6b5a;border-radius:18px;padding:28px 34px;text-align:center}#rw-hud .card .nm{font:800 54px var(--display,serif)}#rw-hud .card .rd{font-size:30px}
+#rw-hud .conn{position:absolute;right:20px;top:112px;background:#4a2a1a;border:2px solid #d28a6a;border-radius:10px;padding:2px 14px;font-size:22px}
+#rw-hud .over{position:absolute;left:150px;right:150px;top:120px;background:rgba(5,12,11,.94);border:3px solid #3a6b5a;border-radius:18px;padding:24px 34px}#rw-hud .over h2{margin:0 0 8px;font:800 52px var(--display,serif);text-align:center}
+#rw-hud table{width:100%;border-collapse:collapse;font-size:26px}#rw-hud td,#rw-hud th{padding:4px 10px;border-bottom:1px solid #1d3630;text-align:right}#rw-hud th:first-child,#rw-hud td:first-child{text-align:left;color:#cfe8dc}#rw-hud th{color:#8fb8a8;font-weight:600}
+#rw-hud .half{position:absolute;top:0;width:960px;height:1080px}#rw-hud .wait{position:absolute;top:480px;width:960px;text-align:center;font-size:40px;color:#8fb8a8}`;
+    document.head.appendChild(st);
+  },
+  hud() {
+    if (!this.started) return; this.css();
+    let el = document.getElementById('rw-hud');
+    if (!el) { el = document.createElement('div'); el.id = 'rw-hud'; document.body.appendChild(el); window.addEventListener('resize', () => this.fit()); }
+    this.fit();
+    const S = this.S, E = (s) => RaceOrg.esc(s), f = (ms) => Speedrun.fmt(ms), ps = (S && S.players) || [];
+    const p1 = ps[0], p2 = ps[1], t1 = p1 && this.tel[p1.seat], t2 = p2 && this.tel[p2.seat];
+    const masks = (t) => (t ? '●'.repeat(Math.max(0, t.hp)) + '○'.repeat(Math.max(0, t.mh - t.hp)) : '');
+    const phase = S ? S.phase : 'lobby';
+    const el0 = this.clockMs();
+    let out = '';
+    // центральное табло
+    const lead = this.lead(p1, p2, t1, t2);
+    const chap = (t, p) => (!t ? '' : p && p.fin ? 'финиш' : `${SR_CATS.trail.tags[Math.min(3, (t.ch || 1) - 1)]}${t.st === 'arena' ? ' · бой' : ''}`);
+    out += `<div class="mid"><div class="names"><div class="a" style="color:#8fe8d2">${E(p1 ? p1.name : '—')}</div><div class="st">${phase === 'run' ? (S.pause.on ? 'ПАУЗА' : 'гонка') : phase === 'done' ? 'финиш' : ''}</div><div class="b" style="color:#ffc46e">${E(p2 ? p2.name : '—')}</div></div>
+<div class="tm">${phase === 'run' || phase === 'done' ? f(el0) : phase === 'count' || phase === 'prep' ? 'старт' : '0:00.00'}</div>
+<div class="df ${lead && lead.ms < 0 ? 'p' : 'n'}">${lead ? (lead.ms === 0 ? '±0.0' : Speedrun.fmtD(lead.ms)) : ' '}</div><div class="st">${lead ? E(lead.txt) : ' '}</div>
+<div class="names"><div class="a masks">${masks(t1)}</div><div class="st">${E(chap(t1, p1))}${t1 && t2 ? ' · ' : ''}${E(chap(t2, p2))}</div><div class="b masks">${masks(t2)}</div></div></div>`;
+    if (this.connStatus !== 'online') out += `<div class="conn">нет связи с организатором, пробуем снова…</div>`;
+    // полосы боссов
+    for (const [t, x] of [[t1, 20], [t2, 980]]) if (t && t.bs && t.bs.on) out += `<div class="bar" style="left:${x + 270}px"><span>${E(this.bossName(t.bs.k))} · фаза ${t.bs.ph}</span><div class="hp"><i style="width:${Math.max(0, Math.round(100 * t.bs.hp / t.bs.mh))}%"></i></div></div>`;
+    // лента
+    const lines = this.feed.slice(-4).map((e) => `<div class="${e.k}"><span class="t">${e.t != null ? f(e.t) : '—:--'}</span>${E(e.x)}</div>`).join('');
+    out += `<div class="feed">${lines || '<div>Ждём событий…</div>'}</div>`;
+    if (!S || phase === 'lobby' || phase === 'prep' || phase === 'count') {
+      const card = (p, t) => `<div class="card"><div class="nm">${E(p ? p.name : 'Ждём игрока…')}</div><div class="rd">${p ? (!p.online ? 'нет связи' : phase === 'lobby' ? (p.ready ? '✔ готов' : 'не готов') : p.loaded ? '✔ загружен' : 'загружается…') : ''}</div>${p && p.rtt != null ? `<div class="st">пинг ${p.rtt} мс</div>` : ''}</div>`;
+      out += `<div class="cards">${card(p1, t1)}${card(p2, t2)}</div>`;
+      const cd = this.cd && this.cd.n > 0 && performance.now() - this.cd.at < 1500 ? String(this.cd.n) : this.cd && this.cd.n === 0 && performance.now() - this.cd.at < 900 ? 'ПОШЁЛ!' : '';
+      if (cd) out += `<div class="big">${cd}</div>`;
+      out += `<div class="mid" style="top:110px;width:auto;padding:4px 24px;left:auto;right:auto;margin:0 auto;position:absolute;inset-inline:0;max-width:760px"><div class="st">${S ? E(S.discName || 'Тропа целиком') : ''} · комната ${E(this.code)}</div></div>`;
+    }
+    if (phase === 'done' && (this.resultLite || this.S.result)) out += this.over();
+    el.innerHTML = out;
+  },
+  over() {
+    const E = RaceOrg.esc, f = (ms) => Speedrun.fmt(ms), r = this.S.result || this.resultLite, ps = ((this.S.players) || []);
+    if (!r) return '';
+    const rows = (r.players || []).slice().sort((a, b) => a.seat - b.seat);
+    const A = rows[0], B = rows[1], S1 = this.stats && A && this.stats[A.seat], S2 = this.stats && B && this.stats[B.seat];
+    const cell = (a, b, fmt, lowerBetter) => { const x = a == null ? '—' : fmt ? fmt(a) : a, y = b == null ? '—' : fmt ? fmt(b) : b; return `<td>${x}</td><td>${y}</td>`; };
+    const mk = (label, k, fmt) => `<tr><td>${label}</td>${cell(S1 && S1[k], S2 && S2[k], fmt)}</tr>`;
+    const win = r.winner === 'draw' ? 'Ничья' : r.winner != null ? 'Победил ' + E((rows.find((x) => x.seat === r.winner) || {}).name || '') : 'Гонка окончена';
+    const sp = (p, i) => { const q = ps.find((x) => x.seat === p.seat); return q && q.splits && q.splits[i] != null ? f(q.splits[i]) : '—'; };
+    return `<div class="over"><h2>${win}${r.awarded ? ' (присуждено)' : ''}${r.gap != null ? ' · +' + f(Math.abs(r.gap)) : ''}</h2><table><tr><th></th><th>${E(A ? A.name : '')}</th><th>${E(B ? B.name : '')}</th></tr>
+<tr><td>Время</td><td>${A && !A.dnf ? f(A.time) : '—'}</td><td>${B && !B.dnf ? f(B.time) : '—'}</td></tr>
+${[0, 1, 2, 3].map((i) => `<tr><td>${SR_CATS.trail.tags[i]}</td><td>${A ? sp(A, i) : ''}</td><td>${B ? sp(B, i) : ''}</td></tr>`).join('')}
+${mk('Урон боссам', 'bossDmg')}${mk('DPS в боях', 'dps')}${mk('Получено урона', 'taken')}${mk('Лечений', 'heals')}${mk('Точность', 'acc', (v) => Math.round(v * 100) + ' %')}${mk('Отбивы', 'parries')}${mk('Идеальные увороты', 'dodges')}${mk('Оглушения', 'stuns')}${mk('Казни', 'execs')}${mk('Самое длинное комбо', 'combo')}${mk('Покупок в лавке', 'buys', (v) => v.length)}</table></div>`;
+  },
+  bossName(k) { return { k: 'Корнематка', m: 'Миша Додик', v: 'Владик Скрипка', t: 'Тима Пиво' }[k] || 'Босс'; },
+  // время на табло: по часам организатора (не зависит от кадров и скрытого окна)
+  clockMs() {
+    const S = this.S; if (!S || !S.goAt) return 0;
+    if (S.phase === 'done') { const rs = (S.result || this.resultLite || {}).players; const best = rs && rs.filter((p) => !p.dnf).map((p) => p.time); if (best && best.length) return Math.max(...best); }
+    const orgNow = S.now + (performance.now() - (S.recvAt || performance.now())), pausedNow = S.pause.on && S.pause.since ? orgNow - S.pause.since : 0;
+    return Math.max(0, orgNow - S.goAt - ((S.pause && S.pause.total) || 0) - pausedNow);
+  },
+  // разница: пока оба в одном отрезке — по сплитам; иначе лидер по отрезкам
+  lead(p1, p2, t1, t2) {
+    if (!p1 || !p2 || !p1.splits || !p2.splits || !this.S || this.S.phase === 'lobby') return null;
+    const a = p1.splits.filter((x) => x != null), b = p2.splits.filter((x) => x != null), n = Math.min(a.length, b.length);
+    if (a.length === b.length && n > 0) return { ms: a[n - 1] - b[n - 1], txt: `${SR_CATS.trail.tags[n - 1]}: ${a[n - 1] < b[n - 1] ? p1.name : p2.name} впереди` };
+    if (a.length > b.length) { const el = t2 ? t2.el + (performance.now() - t2.at) : null; return el == null ? null : { ms: a[b.length] != null ? a[b.length] - el : 0, txt: `${p1.name} прошёл ${SR_CATS.trail.tags[b.length]}` }; }
+    if (b.length > a.length) { const el = t1 ? t1.el + (performance.now() - t1.at) : null; return el == null ? null : { ms: el - b[a.length], txt: `${p2.name} прошёл ${SR_CATS.trail.tags[a.length]}` }; }
+    return null;
+  },
+  fit() {
+    const el = document.getElementById('rw-hud'), cv = window.__game && window.__game.canvas; if (!el || !cv) return;
+    const r = cv.getBoundingClientRect(), s = r.width / 1920;
+    el.style.transform = `translate(${r.left}px,${r.top}px) scale(${s})`;
+  },
+};
+
+// ===== сцена обсервера: две половины =====
+class WatchScene extends Phaser.Scene {
+  constructor() { super('watch'); }
+  create() {
+    const W = 1920, H = 1080, HW = 960;
+    this.views = {};
+    this.cams = [this.cameras.main, this.cameras.add(HW, 0, HW, H)];
+    this.cams[0].setViewport(0, 0, HW, H).setBackgroundColor('#070d0c'); this.cams[1].setBackgroundColor('#070d0c');
+    this.conts = [this.add.container(0, 0), this.add.container(0, 0)];
+    this.cams[0].ignore(this.conts[1]); this.cams[1].ignore(this.conts[0]);
+    this.zoom = 1.55;
+    // разделитель и подписи «ждём игрока» — вне камер игроков (камера по умолчанию не нужна: рисуем HTML)
+    this.levels = {}; this.hint = [this.add.text(0, 0, '', {}), this.add.text(0, 0, '', {})];
+    for (const h of this.hint) h.setVisible(false);
+    RaceWatch.scene = this; RaceWatch.hud();
+    // обсервер не засыпает при скрытом окне и потере фокуса: снимаем только стандартные паузы Phaser, на время работы сцены
+    const g = this.game, E = Phaser.Core.Events;
+    g.events.off(E.HIDDEN, g.onHidden, g); g.events.off(E.BLUR, g.onBlur, g);
+    this.events.once('shutdown', () => { RaceWatch.scene = null; g.events.on(E.HIDDEN, g.onHidden, g); g.events.on(E.BLUR, g.onBlur, g); });
+  }
+  levelOf(ch, st) {
+    const key = `${ch}:${st}`; if (this.levels[key]) return this.levels[key];
+    let L = null;
+    try {
+      if (st === 'level') L = buildLevel(); else if (st === 'road') L = buildRoad(ch);
+      else L = { misha: buildMishaArena, vladik: buildVladikArena, tima: buildTimaArena }[CHAPTERS[ch].boss]();
+    } catch (_) { return null; }
+    const chunks = L.theme === 'class' ? drawClassroom(this, L) : L.theme === 'den' ? drawDen(this, L) : drawLevelChunks(this, L), keys = [];
+    for (const c of chunks) { const nk = `wv:${key}:${c.key}`; if (this.textures.exists(nk)) this.textures.remove(nk); this.textures.renameTexture(c.key, nk); keys.push({ x: c.x, key: nk }); }
+    return (this.levels[key] = { L, key, chunks: keys, W: L.W * T, H: L.H * T });
+  }
+  viewFor(i, seat) {
+    let v = this.views[seat]; if (v) return v;
+    const cont = this.conts[i];
+    v = this.views[seat] = { i, seat, cont, level: null, imgs: [], g: this.add.graphics(), tag: this.add.text(0, 0, '', { fontFamily: '"Fira Sans", sans-serif', fontSize: '15px', fontStyle: '700', color: PAL[i].hex }).setOrigin(0.5), wait: this.add.text(480, 500, 'Ждём данные игрока…', { fontFamily: '"Fira Sans", sans-serif', fontSize: '30px', color: '#8fb8a8' }).setOrigin(0.5), cx: 0, cy: 0, hx: null, hy: null, an: 0 };
+    cont.add([v.g, v.tag]); v.g.setDepth(5); v.tag.setDepth(6);
+    return v;
+  }
+  setLevel(v, lv) {
+    for (const im of v.imgs) im.destroy(); v.imgs = [];
+    v.level = lv; if (!lv) return;
+    for (const c of lv.chunks) { const im = this.add.image(c.x, 0, c.key).setOrigin(0).setDepth(1); v.cont.add(im); v.imgs.push(im); }
+    const cam = this.cams[v.i]; cam.setBounds(0, 0, lv.W, lv.H);
+    v.hx = null;
+  }
+  update(time, delta) {
+    const dt = Math.min(delta, 100) / 1000, S = RaceWatch.S; if (!S) return;
+    const now = performance.now();
+    (S.players || []).slice(0, 2).forEach((p, i) => {
+      const t = RaceWatch.tel[p.seat], v = this.viewFor(i, p.seat);
+      v.wait.setVisible(!t);
+      if (!t) { v.g.clear(); return; }
+      const key = `${t.ch}:${t.st}`;
+      if (!v.level || v.level.key !== key) this.setLevel(v, this.levelOf(t.ch, t.st));
+      if (!v.level) return;
+      // положение героя: сглаживание и небольшой вынос по скорости (телеметрия ~15 Гц)
+      const age = Math.min(0.25, (now - t.at) / 1000), ex = t.x + (t.vx || 0) * age, ey = t.y + (t.vy || 0) * age;
+      if (v.hx == null) { v.hx = ex; v.hy = ey; v.cx = ex; v.cy = ey - 60; }
+      const k = Math.min(1, dt * 14); v.hx += (ex - v.hx) * k; v.hy += (ey - v.hy) * k;
+      const cam = this.cams[v.i]; cam.setZoom(this.zoom);
+      v.cx += (v.hx + (t.f || 1) * 50 - v.cx) * Math.min(1, dt * 5); v.cy += (v.hy - 40 - v.cy) * Math.min(1, dt * 5);
+      cam.centerOn(v.cx, v.cy);
+      this.drawView(v, t, p, now / 1000);
+    });
+  }
+  drawView(v, t, p, tm) {
+    const g = v.g; g.clear(); g.setAlpha(1);
+    const pal = PAL[v.i], f = t.f || 1;
+    // враги
+    for (const e of t.en || []) {
+      const [type, x, y, w, h, face] = e, cx = x + w / 2, fy = y + h;
+      g.fillStyle(type === 'gnat' ? 0x6a5a8a : type === 'beetle' ? 0x5a6a3a : 0x3f4a3a, 1);
+      if (type === 'gnat') { g.fillEllipse(cx, y + h / 2, w, h * 0.8); g.fillStyle(0xffffff, 0.4); g.fillEllipse(cx - 6, y + h / 2 - 6, 10, 5); g.fillEllipse(cx + 6, y + h / 2 - 6, 10, 5); }
+      else { g.fillRoundedRect(x, y, w, h, 6); g.fillStyle(0xff9a3c, 1); g.fillCircle(cx + (face || 1) * w * 0.25, y + h * 0.35, 2.5); }
+      void fy;
+    }
+    // босс
+    const b = t.bs;
+    if (b && b.on) {
+      const pal2 = { k: [0x34482f, 0x5d8a46], m: [0x4f5b78, 0xc8463c], v: [0x5a3f78, 0xe0b84a], t: [0x7a5a2a, 0xf0d070] }[b.k] || [0x444444, 0xaaaaaa];
+      const cx = b.x + b.w / 2, fl = b.s === 'stun';
+      g.fillStyle(0x000000, 0.25); g.fillEllipse(cx, b.y + b.h, b.w * 0.9, 12);
+      g.fillStyle(fl ? 0xffffff : pal2[0], 1); g.fillRoundedRect(b.x, b.y, b.w, b.h, 16);
+      g.fillStyle(pal2[1], 1); g.fillRoundedRect(b.x + b.w * 0.12, b.y + b.h * 0.12, b.w * 0.76, b.h * 0.34, 12);
+      const ex = cx + (b.f || 1) * b.w * 0.22; g.fillStyle(b.ph >= 2 ? 0xff5a3c : 0xffd47a, 1); g.fillCircle(ex, b.y + b.h * 0.34, 4.5); g.fillCircle(ex - (b.f || 1) * 14, b.y + b.h * 0.34, 4);
+      if (/Wind|wind|warn|tell/.test(b.s || '')) { g.lineStyle(3, 0xffe3a3, 0.85); g.strokeRoundedRect(b.x - 3, b.y - 3, b.w + 6, b.h + 6, 18); }
+      g.fillStyle(0x000000, 0.7); g.fillRect(b.x, b.y - 14, b.w, 7); g.fillStyle(0xff9a3c, 1); g.fillRect(b.x + 1, b.y - 13, (b.w - 2) * Math.max(0, b.hp / b.mh), 5);
+    }
+    // снаряды
+    for (const q of t.pr || []) { const [kind, x, y, w, h] = q; const col = { spore: 0xc7f08a, wave: 0xd8c08a, rock: 0x9a8a7a, letter: 0xf4efe0, note: 0xffe3a3, clef: 0xe0b84a, bomb: 0x3a3f45, drip: 0x9fe0d8 }[kind] || 0xff9a8a; g.fillStyle(col, 0.95); g.fillRoundedRect(x, y, Math.max(6, w), Math.max(6, h), 3); }
+    // герой
+    const x = v.hx, y = v.hy, cx = x + 7, fy = y + 26, run = t.g && Math.abs(t.vx) > 10, ph = tm * 14;
+    if (t.dn) { g.fillStyle(pal.cloak, 0.5); g.fillEllipse(cx, fy - 10, 30, 22); }
+    else {
+      const blink = t.w ? 0.4 : 1; g.setAlpha(blink);
+      if (t.d) { g.fillStyle(pal.accent, 0.3); g.fillEllipse(cx - f * 18, fy - 13, 26, 18); }
+      drawWeaver(g, cx, fy, f, pal, { leg: run ? Math.sin(ph) * 5 : (t.g ? 0 : 2), bob: run ? Math.abs(Math.sin(ph)) * 1.5 : 0, sway: run ? -4 : (!t.g ? (t.vy < 0 ? -2 : 3) : 0), lift: (!t.g && t.vy > 0) ? -4 : 0 }, 1);
+      if (t.a) { g.lineStyle(4, 0xe8e2cf, 0.9); const r = 34; g.beginPath(); if (t.a === 2) g.arc(cx, fy - 20, r, -Math.PI * 0.95, -Math.PI * 0.05); else g.arc(cx, fy - 14, r, f > 0 ? -0.9 : Math.PI - 0.9 + 0.0, f > 0 ? 0.9 : Math.PI + 0.9); g.strokePath(); }
+      g.setAlpha(1);
+    }
+    v.tag.setText(p.name).setPosition(cx, fy - 44).setAlpha(0.9);
   }
 }
 

@@ -1,9 +1,14 @@
 // ===== ИГРА: «Тропа Ткачей» — кооперативная метроидвания =====
 let VW = 960; const VH = 540;
 // версия игры; номер сборки подставляет build.py
-const GAME_VERSION = '1.7';
+const GAME_VERSION = '1.8';
 const GAME_BUILD = '__BUILD__';
 const CHANGELOG = [
+  'Гонки Ткачей: организатор создаёт гонку и раздаёт ссылки, двое играют у себя, обсервер показывает обоих (1920×1080: две половины, табло, лента событий, разбор)',
+  'Надёжная сеть гонок: пульс, автопереподключение, нумерация событий и догонка после обрыва, организатор восстанавливает комнату после перезагрузки',
+  'Забег можно восстановить после падения вкладки: журнал ввода по тикам логики пишется в браузер, «Восстановить забег» в разделе «Спидран»; время простоя идёт в зачёт',
+  'Общее зерно гонки: у обоих игроков одинаковые враги и бусины; техническая пауза, переигровка, присуждение победы, статистика боя и скачиваемый races.json',
+  'Логика игры считается тиками по 1/60 с: возрождение, победа над боссом, переходы глав и замедление больше не зависят от реального времени',
   'Новое меню: Продолжить, Кампания, Босс-тест, Спидран, Гонки Ткачей (скоро), Как играть, Настройки; хлебные крошки, подсказки под ваше устройство, цифры 1–7, Esc / B / «← Назад» на уровень выше',
   'Настройки разбиты на разделы: Звук, Экран, Управление, Игра, Прогресс',
   'Снаряжение: 5 видов оружия, заряженный удар, 4 инструмента (клавиша E), 9 оберегов, яд и ожог; экран на скамье',
@@ -306,7 +311,7 @@ class GameScene extends Phaser.Scene {
     cam.centerOn(this.camX, this.camY);
     cam.fadeIn(600, 3, 8, 7);
 
-    this.acc = 0; this.hitstop = 0; this.paused = false; this.wiping = false; this.won = false; this.animT = 0;
+    this.acc = 0; this.racc = 0; this.tickN = 0; this.tmr = []; this.slowT = 0; this.jr = null; this.hitstop = 0; this.paused = false; this.wiping = false; this.won = false; this.animT = 0;
     this.areaIdx = -1; this.events.emit('ready');
     this.input.keyboard.on('keydown-ESC', () => this.togglePause());
     this.input.keyboard.on('keydown', (e) => { Snd.init(); this.onKeyTap(e); });
@@ -485,13 +490,56 @@ class GameScene extends Phaser.Scene {
   }
 
   // ----- основной цикл -----
+  // ----- часы логики -----
+  // Один тик = 1/60 с реального времени. Всё, что влияет на исход (возрождение, победа босса, переходы глав, замедление, «стоп-кадр» от удара),
+  // считается в тиках, а не в миллисекундах таймеров Phaser: тогда журнал ввода (journal.js) воспроизводит забег без отрисовки в тот же исход.
+  after(sec, fn) { this.tmr.push({ t: Math.max(1, Math.round(sec * 60)), fn }); }
+  tickTimers() {
+    if (!this.tmr.length) return;
+    const due = [];
+    for (const m of this.tmr) if (--m.t <= 0) due.push(m);
+    if (due.length) { this.tmr = this.tmr.filter((m) => m.t > 0); for (const m of due) m.fn(); }
+  }
+  slowK() { // замедление времени на смерть босса: сначала почти стоп, потом плавно разгоняемся
+    if (!(this.slowT > 0)) return 1;
+    const k = Math.max(0, this.slowT) / this.slowDur;
+    return k > 0.35 ? 0.22 : 0.22 + 0.78 * (1 - k / 0.35);
+  }
+  // Один тик логики. Ввод берётся из p.raw (удержание) и p.pend (фронты нажатий, пришедшие с прошлого тика); журнал пишет именно их.
+  tick() {
+    this.tickN++;
+    if (this.jr) this.jr.rec(this);
+    if (this.slowT > 0) this.slowT -= STEP;
+    const k = this.slowK(), dt = STEP * k;
+    this.animT += dt;
+    for (const p of this.players) {
+      if (p.remote) continue;
+      const pd = p.pend || (p.pend = {}), cr = p.carry || (p.carry = {});
+      for (const a in pd) if (pd[a]) cr[a] = true;
+      p.pend = {};
+    }
+    if (!this.paused && !this.wiping && !this.won) {
+      if (this.hitstop > 0) { this.hitstop -= dt; }
+      else {
+        this.acc += dt;
+        while (this.acc >= STEP) {
+          for (const p of this.players) {
+            if (p.remote) { p.inp = { up: p.netUp }; continue; }
+            p.inp = { ...p.raw, ...p.carry }; p.carry = {};
+          }
+          this.step(STEP); this.acc -= STEP;
+          if (this.hitstop > 0 || this.wiping) { this.acc = 0; break; }
+        }
+        this.timeSec += dt;
+      }
+    }
+    this.tickTimers();
+    if (this.shopOpen) Campaign.shopGuard(this);
+    if (this.sr) Speedrun.onTick(this);
+  }
   update(time, delta) {
     const rdt = Math.min(delta, 100) / 1000;
-    let dt = rdt;
-    // замедление времени на смерть босса: сначала почти стоп, потом плавно разгоняемся
-    if (this.slowT > 0) { this.slowT -= rdt; const k = Math.max(0, this.slowT) / this.slowDur; dt = rdt * (k > 0.35 ? 0.22 : 0.22 + 0.78 * (1 - k / 0.35)); }
-    this.animT += dt;
-    // ввод с фронтами нажатий
+    // ввод с фронтами нажатий (накапливаются в p.pend до ближайшего тика)
     for (const p of this.players) {
       if (p.remote) continue;
       const r = this.rawInput(p.i), pr = p.prev, pd = p.pend || (p.pend = {});
@@ -499,26 +547,13 @@ class GameScene extends Phaser.Scene {
       pd.jumpP ||= r.jump && !pr.jump; pd.atkP ||= r.atk && !pr.atk; pd.dashP ||= r.dash && !pr.dash; pd.healP ||= r.heal && !pr.heal; pd.upP ||= r.up && !pr.up; pd.bombP ||= r.bomb && !pr.bomb; pd.toolP ||= r.tool && !pr.tool;
       p.raw = r; p.prev = r;
     }
-    if (!this.paused && !this.wiping && !this.won) {
-      if (this.hitstop > 0) { this.hitstop -= dt; }
-      else {
-        this.acc += dt;
-        let first = true;
-        while (this.acc >= STEP) {
-          for (const p of this.players) {
-            if (p.remote) { p.inp = { up: p.netUp }; continue; }
-            if (first) { p.inp = { ...p.raw, ...p.pend }; p.pend = {}; }
-            else p.inp = { ...p.raw, jumpP: false, atkP: false, dashP: false, healP: false, upP: false, bombP: false, toolP: false };
-          }
-          this.step(STEP); this.acc -= STEP; first = false;
-          if (this.hitstop > 0 || this.wiping) { this.acc = 0; break; }
-        }
-        this.timeSec += dt;
-      }
-    }
-    if (this.online) { this.netSmooth(dt); this.netTick(dt); }
+    this.racc += rdt;
+    for (let n = 0; this.racc >= STEP && n < 7; n++) { this.racc -= STEP; this.tick(); }
+    if (this.racc > STEP * 7) this.racc = 0;
+    if (this.online) { this.netSmooth(rdt * this.slowK()); this.netTick(rdt * this.slowK()); }
     Music.play(this.musicTrack());
     Music.intensity = 1 + 0.07 * (this.bossPhaseForMusic() - 1);
+    const dt = rdt * this.slowK();
     this.render(dt);
     this.updateCamera(dt);
   }
@@ -755,8 +790,8 @@ class GameScene extends Phaser.Scene {
     for (const p of this.players) if (!p.remote) p.downed = true;
     this.sendEv({ k: 'wipe' });
     this.ui().toast('Нить оборвалась…');
-    this.time.delayedCall(700, () => this.cameras.main.fadeOut(600, 3, 8, 7));
-    this.time.delayedCall(1350, () => this.respawnAll());
+    this.after(0.7, () => this.cameras.main.fadeOut(600, 3, 8, 7));
+    this.after(1.35, () => this.respawnAll());
   }
   respawnAll() {
     this.spawnEnemies();
@@ -995,7 +1030,7 @@ class GameScene extends Phaser.Scene {
     for (const pr of this.projs) pr.dead = true;
     this.sfx('roar'); this.shake(1200, 0.01); this.hitstop = 0.25; this.bossDeathFx(b);
     for (let i = 0; i < 6; i++) this.time.delayedCall(i * 180, () => this.burst(24, b.x + Math.random() * b.w, b.y + Math.random() * b.h, i % 2 ? 0xffd47a : 0x9ff0c8));
-    this.time.delayedCall(1300, () => {
+    this.after(1.3, () => {
       this.dropBeads(b.x + b.w / 2, b.y + b.h / 2, 30);
       this.setGate(this.gates[0], false); this.setGate(this.gates[1], false); this.sfx('gate');
       this.ui().bossBar(false); this.toastAll('Корнематка повержена. Путь на восток открыт');

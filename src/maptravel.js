@@ -102,7 +102,7 @@ const MapTravel = {
     if (!gs.online) { gs.paused = true; this.ownPause = false; } // на время затемнения мир стоит
     Snd.play('bench');
     gs.cameras.main.fadeOut(350, 3, 8, 7); gs.ui().cameras.main.fadeOut(350, 3, 8, 7);
-    gs.time.delayedCall(420, () => {
+    gs.after(0.42, () => {
       if (!gs.players) return;
       for (const p of gs.players) {
         if (p.remote) continue;
