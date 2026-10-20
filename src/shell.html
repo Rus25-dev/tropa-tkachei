@@ -94,6 +94,7 @@
   /* сенсорное управление */
   html.touch, html.touch body { touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; overscroll-behavior: none; }
   #touch { position: fixed; left: 0; top: var(--app-top, 0px); width: var(--app-w, 100vw); height: var(--app-h, 100vh); z-index: 3; pointer-events: none; }
+  #touch.padmode .t-zone, #touch.padmode .t-btns, #touch.padmode .t-hint { display: none; }
   #touch .t-zone { position: absolute; left: 0; top: 18%; bottom: 0; width: 46%; pointer-events: auto; touch-action: none; }
   #touch .t-hint { position: absolute; left: calc(var(--sl) + 28px); bottom: calc(var(--sb) + 70px); font-size: 12px; color: rgba(232,226,207,0.5); transition: opacity 0.6s; }
   #touch .t-hint.gone { opacity: 0; }
@@ -172,7 +173,7 @@
       <label class="opt" for="st-mvol">Музыка <input id="st-mvol" type="range" min="0" max="100" step="10"><span class="val" id="st-mvol-v"></span></label>
       <label class="opt" for="st-shake"><input id="st-shake" type="checkbox"><span>Тряска экрана<small>выключите, если укачивает</small></span></label>
       <label class="opt" for="st-easy"><input id="st-easy" type="checkbox"><span>Лёгкий режим<small>8 бутонов здоровья вместо 5</small></span></label>
-      <label class="opt st-touch" for="st-vibro"><input id="st-vibro" type="checkbox"><span>Вибрация<small>при нажатии и уроне (Android)</small></span></label>
+      <label class="opt" for="st-vibro"><input id="st-vibro" type="checkbox"><span>Вибрация<small>телефон (Android) и геймпад: удар, отбив, рёв босса</small></span></label>
       <label class="opt st-touch" for="st-lefty"><input id="st-lefty" type="checkbox"><span>Для левши<small>кнопки слева, стик справа</small></span></label>
       <label class="opt st-touch" for="st-bop">Видимость кнопок <input id="st-bop" type="range" min="30" max="100" step="10"><span class="val" id="st-bop-v"></span></label>
     </div>

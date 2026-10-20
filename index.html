@@ -110,6 +110,7 @@
   /* сенсорное управление */
   html.touch, html.touch body { touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; overscroll-behavior: none; }
   #touch { position: fixed; left: 0; top: var(--app-top, 0px); width: var(--app-w, 100vw); height: var(--app-h, 100vh); z-index: 3; pointer-events: none; }
+  #touch.padmode .t-zone, #touch.padmode .t-btns, #touch.padmode .t-hint { display: none; }
   #touch .t-zone { position: absolute; left: 0; top: 18%; bottom: 0; width: 46%; pointer-events: auto; touch-action: none; }
   #touch .t-hint { position: absolute; left: calc(var(--sl) + 28px); bottom: calc(var(--sb) + 70px); font-size: 12px; color: rgba(232,226,207,0.5); transition: opacity 0.6s; }
   #touch .t-hint.gone { opacity: 0; }
@@ -188,7 +189,7 @@
       <label class="opt" for="st-mvol">Музыка <input id="st-mvol" type="range" min="0" max="100" step="10"><span class="val" id="st-mvol-v"></span></label>
       <label class="opt" for="st-shake"><input id="st-shake" type="checkbox"><span>Тряска экрана<small>выключите, если укачивает</small></span></label>
       <label class="opt" for="st-easy"><input id="st-easy" type="checkbox"><span>Лёгкий режим<small>8 бутонов здоровья вместо 5</small></span></label>
-      <label class="opt st-touch" for="st-vibro"><input id="st-vibro" type="checkbox"><span>Вибрация<small>при нажатии и уроне (Android)</small></span></label>
+      <label class="opt" for="st-vibro"><input id="st-vibro" type="checkbox"><span>Вибрация<small>телефон (Android) и геймпад: удар, отбив, рёв босса</small></span></label>
       <label class="opt st-touch" for="st-lefty"><input id="st-lefty" type="checkbox"><span>Для левши<small>кнопки слева, стик справа</small></span></label>
       <label class="opt st-touch" for="st-bop">Видимость кнопок <input id="st-bop" type="range" min="30" max="100" step="10"><span class="val" id="st-bop-v"></span></label>
     </div>
@@ -1080,9 +1081,10 @@ const Lobby = {
 // ===== ИГРА: «Тропа Ткачей» — кооперативная метроидвания =====
 let VW = 960; const VH = 540;
 // версия игры; номер сборки подставляет build.py
-const GAME_VERSION = '1.4';
-const GAME_BUILD = '261020.1358';
+const GAME_VERSION = '1.5';
+const GAME_BUILD = '261020.1407';
 const CHANGELOG = [
+  'Геймпады: DualSense, Xbox и Steam Deck — удобная раскладка, вибрация, сенсорные кнопки прячутся',
   'Спидран (клавиша 6): «Тропа целиком» и «Босс-раш», таймер RTA/IGT, сплиты с дельтой к рекорду, код результата и таблица друзей',
   'Гонка 1×1 по сети: оба проходят один забег в своей игре, видят прогресс и призрака соперника',
   'Рекорды боссов (попытки, лучшее время), возрождение у арены Корнематки, подсказки про отбив и всполох',
@@ -1516,20 +1518,12 @@ class GameScene extends Phaser.Scene {
     const sets = this.keySets(i);
     for (const s of sets) for (const n in out) if (s[n] && s[n].some((key) => key.isDown)) out[n] = true;
     if (Touch.enabled && i === this.touchIdx()) for (const n in out) if (Touch.state[n]) out[n] = true;
-    const pads = this.input.gamepad ? this.input.gamepad.gamepads.filter((p) => p && p.connected !== false) : [];
+    const pads = Pads.list();
     let pad = null;
     if (solo) pad = pads[0];
     else if (pads.length >= 2) pad = pads[i];
     else if (pads.length === 1 && i === 1) pad = pads[0];
-    if (pad) {
-      const b = (n) => !!(pad.buttons[n] && pad.buttons[n].pressed);
-      const ax = pad.axes[0] ? pad.axes[0].getValue() : 0, ay = pad.axes[1] ? pad.axes[1].getValue() : 0;
-      out.left ||= pad.left || ax < -0.4; out.right ||= pad.right || ax > 0.4;
-      out.up ||= pad.up || ay < -0.5; out.down ||= pad.down || ay > 0.5;
-      out.jump ||= b(0); out.atk ||= b(2); out.dash ||= b(1) || b(5) || b(7); out.heal ||= b(3); out.bomb ||= b(4) || b(6);
-      if (b(9) && !this._startHeld) this.togglePause();
-      this._startHeld = b(9);
-    }
+    if (pad) { const s = Pads.read(pad); for (const n in out) if (s[n]) out[n] = true; }
     return out;
   }
 
@@ -6020,6 +6014,114 @@ Object.assign(UIScene.prototype, {
     if (best === MapTravel.sel) MapTravel.go(gs); else { MapTravel.sel = best; Snd.play('bead'); this.mapRefresh(); }
   },
 });
+
+// ===== ГЕЙМПАДЫ: DualSense / DualShock, Xbox, Steam Deck =====
+// Читаем navigator.getGamepads() напрямую (стандартная раскладка): сам Phaser отдаёт кнопки, но не стик и не триггеры как нужно.
+// Раскладка (индексы стандартного геймпада; в скобках PlayStation):
+//   A (✕) прыжок · X (□) удар · B (○) / RB (R1) / RT (R2) рывок · Y (△) / LT (L2) нить (лечение, отбив, ↑+нить — всполох)
+//   LB (L1) дымовуха · Start (Options) пауза · Back (Create/Share) или тачпад — карта · стик/крестовина — движение
+const Pads = {
+  active: false, idleT: 0, held: {}, name: '', kindNow: 'xbox',
+  list() {
+    let a = []; try { a = Array.from(navigator.getGamepads ? navigator.getGamepads() : []); } catch (_) { }
+    return a.filter((p) => p && p.connected !== false && p.buttons && p.buttons.length >= 4);
+  },
+  kind(p) {
+    const id = (p.id || '').toLowerCase();
+    if (/054c|dualsense|dualshock|wireless controller|playstation|sony/.test(id)) return 'ps';
+    if (/steam|28de|deck/.test(id)) return 'deck';
+    if (/xbox|xinput|045e|microsoft/.test(id)) return 'xbox';
+    return 'generic';
+  },
+  label(k) { return { ps: 'DualSense / DualShock', deck: 'Steam Deck', xbox: 'Xbox', generic: 'геймпад' }[k]; },
+  // нормализованное состояние одного геймпада
+  read(p) {
+    const B = (n) => !!(p.buttons[n] && (p.buttons[n].pressed || p.buttons[n].value > 0.5));
+    const T = (n) => !!(p.buttons[n] && (p.buttons[n].pressed || p.buttons[n].value > 0.35));
+    const ax = p.axes[0] || 0, ay = p.axes[1] || 0, dz = 0.32;
+    const s = {
+      left: ax < -dz || B(14), right: ax > dz || B(15), up: ay < -0.5 || B(12), down: ay > 0.5 || B(13),
+      jump: B(0), atk: B(2), dash: B(1) || B(5) || T(7), heal: B(3) || T(6), bomb: B(4),
+      pause: B(9), map: B(8) || B(17),
+    };
+    s.any = s.left || s.right || s.up || s.down || s.jump || s.atk || s.dash || s.heal || s.bomb || s.pause;
+    return s;
+  },
+  // кадр: определяем «режим геймпада» (прячем сенсорные кнопки) и ловим фронт паузы/карты
+  frame(scene, dt) {
+    const ps = this.list();
+    let any = false;
+    ps.forEach((p, i) => {
+      const s = this.read(p); if (s.any) any = true;
+      const h = this.held[i] || (this.held[i] = {});
+      if (s.pause && !h.pause && scene.togglePause) scene.togglePause();
+      if (s.map && !h.map && typeof MapTravel !== 'undefined' && scene.sys.isActive() && !MapTravel.open && MapTravel.canOpen(scene)) { scene._mapPad = { back: true }; MapTravel.show(scene); }
+      h.pause = s.pause; h.map = s.map;
+      this.kindNow = this.kind(p); this.name = this.label(this.kindNow);
+    });
+    if (any) { this.idleT = 0; if (!this.active) this.setActive(true); } else { this.idleT += dt; }
+    return ps.length;
+  },
+  setActive(on) {
+    this.active = on;
+    if (typeof Touch !== 'undefined' && Touch.root) Touch.root.classList.toggle('padmode', on);
+  },
+  hint(k) {
+    k = k || this.kindNow;
+    const ps = k === 'ps';
+    const A = ps ? '✕' : 'A', X = ps ? '□' : 'X', B_ = ps ? '○' : 'B', Y = ps ? '△' : 'Y';
+    const L1 = ps ? 'L1' : 'LB', R1 = ps ? 'R1' : 'RB', L2 = ps ? 'L2' : 'LT', R2 = ps ? 'R2' : 'RT';
+    return `${this.label(k)}: ${A} прыжок · ${X} удар · ${B_} / ${R1} / ${R2} рывок · ${Y} / ${L2} нить (лечение, отбив; ↑+нить — всполох) · ${L1} дымовуха · ${ps ? 'Options' : 'Start'} пауза · ${ps ? 'Create' : 'Back'} карта`;
+  },
+};
+
+// вибрация геймпада (Chrome/Edge: DualSense и Xbox; Firefox пока не умеет)
+const Haptics = {
+  rumble(ms, strong, weak) {
+    if (typeof Settings !== 'undefined' && Settings.s && Settings.s.vibro === false) return;
+    for (const p of Pads.list()) {
+      const a = p.vibrationActuator; if (!a || !a.playEffect) continue;
+      try { a.playEffect('dual-rumble', { startDelay: 0, duration: ms, strongMagnitude: strong, weakMagnitude: weak }).catch(() => { }); } catch (_) { }
+    }
+  },
+};
+
+(function () {
+  const proto = GameScene.prototype;
+  // опрос каждый кадр
+  const update = proto.update;
+  proto.update = function (time, delta) { Pads.frame(this, delta / 1000); return update.call(this, time, delta); };
+  // отдача
+  const hurt = proto.hurtPlayer;
+  proto.hurtPlayer = function (p, ...a) {
+    const hp = p.hp, inv = p.inv; hurt.call(this, p, ...a);
+    if (!p.remote && (p.hp < hp)) Haptics.rumble(p.hp <= 0 ? 420 : 180, 0.9, 0.5);
+    return undefined;
+  };
+  const parry = proto.parrySuccess;
+  proto.parrySuccess = function (p, ...a) { if (!p.remote) Haptics.rumble(110, 0.25, 0.9); return parry.call(this, p, ...a); };
+  const burst = proto.silkBurst;
+  proto.silkBurst = function (p, ...a) { if (!p.remote) Haptics.rumble(220, 0.8, 0.6); return burst.call(this, p, ...a); };
+  const shift = proto.phaseShift;
+  if (shift) proto.phaseShift = function (...a) { Haptics.rumble(380, 1, 0.8); return shift.apply(this, a); };
+  const poise = proto.poiseAdd;
+  if (poise) proto.poiseAdd = function (b, n) { const was = b && b.stagger; const r = poise.call(this, b, n); if (b && b.stagger > 0 && !was) Haptics.rumble(260, 0.7, 0.7); return r; };
+  // строка раскладки в паузе
+  const showPause = UIScene.prototype.showPause;
+  UIScene.prototype.showPause = function (on) {
+    showPause.call(this, on);
+    if (!this.ready || !on || !Pads.list().length) { if (this.padHint) this.padHint.setVisible(false); return; }
+    if (!this.padHint) { this.padHint = this.add.text(VW / 2, VH - 44, '', { fontFamily: '"Fira Sans", sans-serif', fontSize: '13px', color: '#9ff0c8', align: 'center', wordWrap: { width: VW - 80 } }).setOrigin(0.5); this.pause.add(this.padHint); }
+    this.padHint.setText(Pads.hint()).setVisible(true);
+  };
+})();
+
+// подключение: сообщение о геймпаде; касание экрана возвращает сенсорные кнопки
+window.addEventListener('gamepadconnected', (e) => {
+  const k = Pads.kind(e.gamepad);
+  try { const ui = window.__game && window.__game.scene.getScene('ui'); if (ui && ui.toast && ui.ready) ui.toast('Подключён геймпад: ' + Pads.label(k), 3); } catch (_) { }
+});
+document.addEventListener('pointerdown', (e) => { if (e.pointerType === 'touch' && Pads.active) Pads.setActive(false); }, true);
 
 // ===== СПИДРАН: забеги на время, сплиты, код результата, таблица друзей, гонка 1×1 по сети =====
 // Забег живёт в Speedrun.run и переживает смену сцен (главы). Пока забег идёт, обычное сохранение не читается и не пишется,

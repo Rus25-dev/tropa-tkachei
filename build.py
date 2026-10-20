@@ -22,6 +22,7 @@ parts = [
     "access.js",
     "training.js",
     "maptravel.js",
+    "gamepad.js",
     "speedrun.js",
     # новые модули добавляй строкой выше (по одному на строку — меньше конфликтов слияния)
     "update.js",

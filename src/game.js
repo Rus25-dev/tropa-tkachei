@@ -1,9 +1,10 @@
 // ===== ИГРА: «Тропа Ткачей» — кооперативная метроидвания =====
 let VW = 960; const VH = 540;
 // версия игры; номер сборки подставляет build.py
-const GAME_VERSION = '1.4';
+const GAME_VERSION = '1.5';
 const GAME_BUILD = '__BUILD__';
 const CHANGELOG = [
+  'Геймпады: DualSense, Xbox и Steam Deck — удобная раскладка, вибрация, сенсорные кнопки прячутся',
   'Спидран (клавиша 6): «Тропа целиком» и «Босс-раш», таймер RTA/IGT, сплиты с дельтой к рекорду, код результата и таблица друзей',
   'Гонка 1×1 по сети: оба проходят один забег в своей игре, видят прогресс и призрака соперника',
   'Рекорды боссов (попытки, лучшее время), возрождение у арены Корнематки, подсказки про отбив и всполох',
@@ -437,20 +438,12 @@ class GameScene extends Phaser.Scene {
     const sets = this.keySets(i);
     for (const s of sets) for (const n in out) if (s[n] && s[n].some((key) => key.isDown)) out[n] = true;
     if (Touch.enabled && i === this.touchIdx()) for (const n in out) if (Touch.state[n]) out[n] = true;
-    const pads = this.input.gamepad ? this.input.gamepad.gamepads.filter((p) => p && p.connected !== false) : [];
+    const pads = Pads.list();
     let pad = null;
     if (solo) pad = pads[0];
     else if (pads.length >= 2) pad = pads[i];
     else if (pads.length === 1 && i === 1) pad = pads[0];
-    if (pad) {
-      const b = (n) => !!(pad.buttons[n] && pad.buttons[n].pressed);
-      const ax = pad.axes[0] ? pad.axes[0].getValue() : 0, ay = pad.axes[1] ? pad.axes[1].getValue() : 0;
-      out.left ||= pad.left || ax < -0.4; out.right ||= pad.right || ax > 0.4;
-      out.up ||= pad.up || ay < -0.5; out.down ||= pad.down || ay > 0.5;
-      out.jump ||= b(0); out.atk ||= b(2); out.dash ||= b(1) || b(5) || b(7); out.heal ||= b(3); out.bomb ||= b(4) || b(6);
-      if (b(9) && !this._startHeld) this.togglePause();
-      this._startHeld = b(9);
-    }
+    if (pad) { const s = Pads.read(pad); for (const n in out) if (s[n]) out[n] = true; }
     return out;
   }
 
