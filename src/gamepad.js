@@ -24,7 +24,7 @@ const Pads = {
     const ax = p.axes[0] || 0, ay = p.axes[1] || 0, dz = 0.32;
     const s = {
       left: ax < -dz || B(14), right: ax > dz || B(15), up: ay < -0.5 || B(12), down: ay > 0.5 || B(13),
-      jump: B(0), atk: B(2), dash: B(1) || B(5) || T(7), heal: B(3) || T(6), bomb: B(4),
+      jump: B(0), atk: B(2), dash: B(1) || T(7), heal: B(3) || T(6), bomb: B(4), tool: B(5),
       pause: B(9), map: B(8) || B(17),
     };
     s.any = s.left || s.right || s.up || s.down || s.jump || s.atk || s.dash || s.heal || s.bomb || s.pause;
@@ -54,7 +54,7 @@ const Pads = {
     const ps = k === 'ps';
     const A = ps ? '✕' : 'A', X = ps ? '□' : 'X', B_ = ps ? '○' : 'B', Y = ps ? '△' : 'Y';
     const L1 = ps ? 'L1' : 'LB', R1 = ps ? 'R1' : 'RB', L2 = ps ? 'L2' : 'LT', R2 = ps ? 'R2' : 'RT';
-    return `${this.label(k)}: ${A} прыжок · ${X} удар · ${B_} / ${R1} / ${R2} рывок · ${Y} / ${L2} нить (лечение, отбив; ↑+нить — всполох) · ${L1} дымовуха · ${ps ? 'Options' : 'Start'} пауза · ${ps ? 'Create' : 'Back'} карта`;
+    return `${this.label(k)}: ${A} прыжок · ${X} удар · ${B_} / ${R2} рывок · ${Y} / ${L2} нить (лечение, отбив; ↑+нить — всполох) · ${L1} дымовуха · ${R1} инструмент · ${ps ? 'Options' : 'Start'} пауза · ${ps ? 'Create' : 'Back'} карта`;
   },
 };
 

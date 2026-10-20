@@ -359,6 +359,7 @@ class GameScene extends Phaser.Scene {
     }
     this.abil = this.mode === 'bosstest' ? { double: true } : { ...(prog && prog.abil || {}) };
     this.initItems();
+    this.applyLoadout();
     this.beads = prog ? prog.beads || 0 : 0; this.deaths = 0; this.timeSec = 0;
     Campaign.setup(this);
 
@@ -383,7 +384,7 @@ class GameScene extends Phaser.Scene {
     this._vis = () => { if (document.hidden && !this.online && !this.paused && !this.won && this.sys.isActive()) this.togglePause(); };
     document.addEventListener('visibilitychange', this._vis);
     this.events.once('shutdown', () => { document.removeEventListener('visibilitychange', this._vis); Music.setDuck(1); });
-    Touch.show(true, { bombs: !!this.L.crates });
+    Touch.show(true, { bombs: !!this.L.crates, tool: !!(this.players[this.touchIdx()] && this.players[this.touchIdx()].toolId) });
     this.events.once('shutdown', () => { Touch.show(false); Touch.onTap = null; });
   }
   ui() { return this.scene.get('ui'); }
@@ -408,9 +409,9 @@ class GameScene extends Phaser.Scene {
     const k = this.input.keyboard, K = KC();
     const add = (arr) => arr.map((c) => k.addKey(c));
     const set = (m) => { const o = {}; for (const n in m) o[n] = add(m[n]); return o; };
-    this.kb1 = set({ left: [K.A], right: [K.D], up: [K.W], down: [K.S], jump: [K.SPACE], atk: [K.F], dash: [K.G], heal: [K.Q], bomb: [K.R] });
-    this.kbArrows = set({ left: [K.LEFT], right: [K.RIGHT], up: [K.UP], down: [K.DOWN], jump: [K.Z], atk: [K.X], dash: [K.C], heal: [K.V], bomb: [K.B] });
-    this.kb2 = set({ left: [K.LEFT], right: [K.RIGHT], up: [K.UP], down: [K.DOWN], jump: [K.NUMPAD_ONE, K.FORWARD_SLASH], atk: [K.NUMPAD_TWO, K.PERIOD], dash: [K.NUMPAD_THREE, K.COMMA], heal: [K.NUMPAD_ZERO, K.M], bomb: [K.NUMPAD_FOUR, K.N] });
+    this.kb1 = set({ left: [K.A], right: [K.D], up: [K.W], down: [K.S], jump: [K.SPACE], atk: [K.F], dash: [K.G], heal: [K.Q], bomb: [K.R], tool: [K.E] });
+    this.kbArrows = set({ left: [K.LEFT], right: [K.RIGHT], up: [K.UP], down: [K.DOWN], jump: [K.Z], atk: [K.X], dash: [K.C], heal: [K.V], bomb: [K.B], tool: [K.E] });
+    this.kb2 = set({ left: [K.LEFT], right: [K.RIGHT], up: [K.UP], down: [K.DOWN], jump: [K.NUMPAD_ONE, K.FORWARD_SLASH], atk: [K.NUMPAD_TWO, K.PERIOD], dash: [K.NUMPAD_THREE, K.COMMA], heal: [K.NUMPAD_ZERO, K.M], bomb: [K.NUMPAD_FOUR, K.N], tool: [K.NUMPAD_FIVE, K.J] });
   }
   keySets(i) {
     if (this.online && i !== this.localIdx) return [];
@@ -426,13 +427,13 @@ class GameScene extends Phaser.Scene {
     if (e.repeat || !this.players) return;
     for (const p of this.players) {
       if (p.remote) continue;
-      for (const set of this.keySets(p.i)) for (const act of ['jump', 'atk', 'dash', 'heal', 'bomb', 'up']) {
+      for (const set of this.keySets(p.i)) for (const act of ['jump', 'atk', 'dash', 'heal', 'bomb', 'tool', 'up']) {
         if (set[act] && set[act].some((k) => k.keyCode === e.keyCode)) { const pd = p.pend || (p.pend = {}); pd[act + 'P'] = true; p.tapHold = p.tapHold || {}; p.tapHold[act] = 2; }
       }
     }
   }
   rawInput(i) {
-    const out = { left: false, right: false, up: false, down: false, jump: false, atk: false, dash: false, heal: false, bomb: false };
+    const out = { left: false, right: false, up: false, down: false, jump: false, atk: false, dash: false, heal: false, bomb: false, tool: false };
     const solo = this.nPlayers === 1 || !!this.online;
     if (this.online && i !== this.localIdx) return out;
     const sets = this.keySets(i);
@@ -562,7 +563,7 @@ class GameScene extends Phaser.Scene {
       if (p.remote) continue;
       const r = this.rawInput(p.i), pr = p.prev, pd = p.pend || (p.pend = {});
       if (p.tapHold) for (const a in p.tapHold) if (p.tapHold[a] > 0) { r[a] = true; p.tapHold[a]--; }
-      pd.jumpP ||= r.jump && !pr.jump; pd.atkP ||= r.atk && !pr.atk; pd.dashP ||= r.dash && !pr.dash; pd.healP ||= r.heal && !pr.heal; pd.upP ||= r.up && !pr.up; pd.bombP ||= r.bomb && !pr.bomb;
+      pd.jumpP ||= r.jump && !pr.jump; pd.atkP ||= r.atk && !pr.atk; pd.dashP ||= r.dash && !pr.dash; pd.healP ||= r.heal && !pr.heal; pd.upP ||= r.up && !pr.up; pd.bombP ||= r.bomb && !pr.bomb; pd.toolP ||= r.tool && !pr.tool;
       p.raw = r; p.prev = r;
     }
     if (!this.paused && !this.wiping && !this.won) {
@@ -574,7 +575,7 @@ class GameScene extends Phaser.Scene {
           for (const p of this.players) {
             if (p.remote) { p.inp = { up: p.netUp }; continue; }
             if (first) { p.inp = { ...p.raw, ...p.pend }; p.pend = {}; }
-            else p.inp = { ...p.raw, jumpP: false, atkP: false, dashP: false, healP: false, upP: false, bombP: false };
+            else p.inp = { ...p.raw, jumpP: false, atkP: false, dashP: false, healP: false, upP: false, bombP: false, toolP: false };
           }
           this.step(STEP); this.acc -= STEP; first = false;
           if (this.hitstop > 0 || this.wiping) { this.acc = 0; break; }
@@ -693,12 +694,15 @@ class GameScene extends Phaser.Scene {
         p.atkBuf = 0;
         p.atkDir = inp.up ? 'u' : (inp.down && !p.onGround ? 'd' : 'f');
         // комбо: третий удар подряд (в пределах 0.6 с) — тяжёлый финишер: шире, бьёт дважды, но дольше восстанавливается
-        p.combo = p.comboT > 0 ? p.combo + 1 : 1; if (p.combo > 3) p.combo = 1;
-        p.heavy = p.combo === 3 && p.atkDir === 'f'; p.comboT = 0.6;
-        p.atkT = p.heavy ? 0.16 : P.ATK_T; p.atkCd = p.heavy ? 0.42 : P.ATK_CD; p.atkHits = new Set(); p.pogoed = false; p.seq = (p.seq || 0) + 1;
+        const W = this.wdef(p);
+        p.combo = p.comboT > 0 ? p.combo + 1 : 1; if (p.combo > W.combo) p.combo = 1;
+        p.heavy = !!W.finisher && p.combo === W.combo && p.atkDir === 'f'; p.comboT = W.comboWin;
+        p.atkT = p.heavy ? W.finT : W.atkT; p.atkCd = (p.heavy ? W.finCd : W.cd) * (this.cdMul ? this.cdMul(p) : 1); p.atkHits = new Set(); p.pogoed = false; p.seq = (p.seq || 0) + 1;
         Snd.play(p.heavy ? 'slam' : 'slash');
+        if (W.onSwing) W.onSwing(this, p);
       }
       if (inp.bombP) this.throwBomb(p);
+      if (inp.toolP) this.useTool(p);
       if (inp.healP) {
         if (inp.up && p.silk >= P.BURST) this.silkBurst(p);
         else if (p.silk >= P.SILK && p.hp < p.maxHp) {
@@ -731,9 +735,10 @@ class GameScene extends Phaser.Scene {
 
   atkBox(p) {
     const cx = p.x + p.w / 2, cy = p.y + p.h / 2;
-    if (p.atkDir === 'f') { const w = p.heavy ? 68 : 48; return { x: p.face > 0 ? cx + 2 : cx - 2 - w, y: cy - 17, w, h: 32 }; }
-    if (p.atkDir === 'u') return { x: cx - 19, y: p.y - 40, w: 38, h: 46 };
-    return { x: cx - 18, y: p.y + p.h - 8, w: 36, h: 44 };
+    const W = this.wdef(p), rm = W.reach * (this.reachMul ? this.reachMul(p) : 1);
+    if (p.atkDir === 'f') { const w = Math.round((p.heavy ? 68 : 48) * rm); return { x: p.face > 0 ? cx + 2 : cx - 2 - w, y: cy - 17 * W.thick, w, h: 32 * W.thick }; }
+    if (p.atkDir === 'u') return { x: cx - 19, y: p.y - Math.round(40 * rm), w: 38, h: Math.round(46 * rm) };
+    return { x: cx - 18, y: p.y + p.h - 8, w: 36, h: Math.round(44 * rm) };
   }
   resolveAttack(p) {
     if (p.downed || p.atkT <= 0 || !p.atkHits) return;
@@ -1129,7 +1134,7 @@ class GameScene extends Phaser.Scene {
     const r = (v) => Math.round(v * 10) / 10, f2 = (v) => Math.round(Math.max(0, v) * 100) / 100;
     return { t: 'p', i: p.i, x: r(p.x), y: r(p.y), vx: Math.round(p.vx), vy: Math.round(p.vy), f: p.face, g: p.onGround ? 1 : 0,
       d: f2(p.dashT), s: p.sit ? 1 : 0, h: f2(p.healT), l: f2(p.landT), hp: p.hp, mh: p.maxHp, sk: p.silk, dn: p.downed ? 1 : 0,
-      iv: f2(p.inv), u: p.raw && p.raw.up ? 1 : 0, rv: f2(p.reviveT), sq: p.seq || 0, ad: p.atkDir, bm: p.bombs, hv: p.heavy ? 1 : 0, tp: this.td ? [Math.round(p.tdx), Math.round(p.tdy)] : null };
+      iv: f2(p.inv), u: p.raw && p.raw.up ? 1 : 0, rv: f2(p.reviveT), sq: p.seq || 0, ad: p.atkDir, bm: p.bombs, hv: p.heavy ? 1 : 0, wp: p.weaponId || 'needle', tl: p.toolId || '', tp: this.td ? [Math.round(p.tdx), Math.round(p.tdy)] : null };
   }
   packSnap() {
     const r = Math.round, b = this.boss;
@@ -1151,7 +1156,7 @@ class GameScene extends Phaser.Scene {
     if (m.t === 'p') {
       const p = this.players[m.i]; if (!p || !p.remote) return;
       Object.assign(p, { tx: m.x, ty: m.y, vx: m.vx, vy: m.vy, face: m.f, onGround: !!m.g, dashT: m.d, sit: !!m.s, healT: m.h, landT: m.l,
-        hp: m.hp, maxHp: m.mh, silk: m.sk, downed: !!m.dn, inv: m.iv, netUp: !!m.u, reviveT: m.rv, netT: 0, bombs: m.bm || 0, heavy: !!m.hv });
+        hp: m.hp, maxHp: m.mh, silk: m.sk, downed: !!m.dn, inv: m.iv, netUp: !!m.u, reviveT: m.rv, netT: 0, bombs: m.bm || 0, heavy: !!m.hv, weaponId: m.wp || 'needle', toolId: m.tl || '' });
       if (m.tp) { p.tdx = m.tp[0]; p.tdy = m.tp[1]; }
       p.inp = { up: p.netUp };
       if (m.sq !== p.lastSeq) { p.lastSeq = m.sq; p.atkT = P.ATK_T; p.atkHits = new Set(); p.atkDir = m.ad; p.pogoed = true; }
