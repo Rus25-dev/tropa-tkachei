@@ -42,8 +42,27 @@
   #boot .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--glow); margin: 14px auto 0; box-shadow: 0 0 16px var(--glow); animation: pulse 1.2s ease-in-out infinite; }
   @keyframes pulse { 50% { opacity: 0.25; } }
   @media (prefers-reduced-motion: reduce) { #boot .dot { animation: none; } }
-  #lobby { position: fixed; inset: 0; z-index: 5; display: grid; place-items: center; overflow-y: auto; background: rgba(3, 8, 7, 0.82);
-    padding-block: 16px; padding-left: max(16px, var(--sl)); padding-right: max(16px, var(--sr)); }
+  /* общий каркас всех экранов поверх игры: непрозрачный фон, сверху «← Назад» и хлебные крошки, снизу строка подсказок */
+  .ov { position: fixed; inset: 0; display: flex; flex-direction: column; background: #060d0b; }
+  .ov[hidden] { display: none; }
+  .ovbar { flex: none; display: flex; align-items: center; gap: 14px; min-height: 52px; box-sizing: border-box; border-bottom: 1px solid #1d3630; background: #08130f;
+    padding: 4px max(16px, var(--sr)) 4px max(10px, var(--sl)); }
+  .ovbar .ovback { font: 600 16px var(--body); min-height: 44px; min-width: 44px; padding: 0 16px; border-radius: 8px; border: 1px solid #3a6b5a; background: #143029; color: var(--bone); cursor: pointer; flex: none; }
+  .ovbar .ovback:hover { background: #1b3f35; }
+  .ovbar .crumbs { font: 600 15px var(--body); color: #7fa596; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ovbar .crumbs b { color: var(--ember); font-weight: 600; }
+  .ovbody { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: grid; place-items: center; padding: 12px max(16px, var(--sr)) 12px max(16px, var(--sl)); }
+  .ovhint { flex: none; text-align: center; font: 13px var(--body); color: #7fa596; padding: 7px 12px max(8px, var(--sb)); border-top: 1px solid #1d3630; background: #08130f; }
+  .ov button, .ov label.opt, .ov .seg label { min-height: 44px; box-sizing: border-box; }
+  .ov :focus-visible, html.navpad .ov :focus { outline: 2px solid var(--glow); outline-offset: 2px; }
+  .ov .seg label:has(input:focus-visible), html.navpad .ov .seg label:has(input:focus) { outline: 2px solid var(--glow); outline-offset: -2px; }
+  #howto, #changelog { z-index: 6; }
+  #howto .card, #changelog .card { width: min(720px, 100%); background: #0c1815; border: 1px solid #24433a; border-radius: 10px; padding: 18px 22px; display: grid; gap: 8px; margin-block: auto; color: #cfe2d8; font-size: 14px; line-height: 1.5; }
+  #howto h2, #changelog h2 { font: 700 30px var(--display); margin: 0; color: var(--bone); }
+  #howto h3 { font: 700 20px var(--display); margin: 6px 0 0; color: var(--ember); }
+  #howto p, #changelog li { margin: 0; }
+  #changelog ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+  #lobby { z-index: 5; }
   #lobby .card { width: min(460px, 100%); background: #0c1815; border: 1px solid #24433a; border-radius: 10px; padding: 22px 24px 18px; display: grid; gap: 13px; margin-block: auto; box-shadow: 0 0 60px rgba(159, 240, 200, 0.08); }
   #lobby h2 { font-family: var(--display); font-weight: 700; font-size: 34px; margin: 0; color: var(--bone); text-wrap: balance; }
   #lobby .lead { margin: -8px 0 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
@@ -65,29 +84,37 @@
   #lb-status[data-kind="ok"] { color: var(--glow); }
   #lb-status[data-kind="err"] { color: #ff9a7a; }
   #lb-status[data-kind="wait"] { color: var(--ember); }
-  /* настройки */
-  #settings { position: fixed; inset: 0; z-index: 6; display: grid; place-items: center; overflow-y: auto; background: rgba(3, 8, 7, 0.84);
-    padding-block: 12px; padding-left: max(16px, var(--sl)); padding-right: max(16px, var(--sr)); }
-  #settings .card { width: min(520px, 100%); background: #0c1815; border: 1px solid #24433a; border-radius: 10px; padding: 18px 22px 16px; display: grid; gap: 10px; margin-block: auto; }
+  /* настройки: список разделов и страницы разделов */
+  #settings { z-index: 6; }
+  #settings .card { width: min(560px, 100%); background: #0c1815; border: 1px solid #24433a; border-radius: 10px; padding: 16px 20px 14px; display: grid; gap: 8px; margin-block: auto; }
   #settings h2 { font: 700 30px var(--display); margin: 0; color: var(--bone); }
-  #settings .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 18px; }
-  @media (max-width: 520px) { #settings .grid { grid-template-columns: minmax(0, 1fr); } }
-  #settings label.opt { display: flex; align-items: center; gap: 10px; font-size: 14px; color: #cfe2d8; min-height: 34px; cursor: pointer; }
+  #settings .st-sec[hidden] { display: none; }
+  #settings .st-sec { display: grid; gap: 6px; }
+  #settings .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 18px; }
+  @media (max-width: 560px) { #settings .grid { grid-template-columns: minmax(0, 1fr); } }
+  #settings label.opt { display: flex; align-items: center; gap: 10px; font-size: 15px; color: #cfe2d8; cursor: pointer; }
   #settings label.opt small { display: block; color: var(--muted); font-size: 12px; }
-  #settings input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--moss); flex: none; }
-  #settings input[type=range] { flex: 1; min-width: 0; accent-color: var(--moss); }
+  #settings input[type=checkbox] { width: 22px; height: 22px; accent-color: var(--moss); flex: none; }
+  #settings input[type=range] { flex: 1; min-width: 0; min-height: 28px; accent-color: var(--moss); }
   #settings .val { width: 3.2em; text-align: right; font-variant-numeric: tabular-nums; color: var(--ember); font-size: 13px; }
-  #settings .label { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
+  #settings .label { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
   #settings .seg { display: inline-flex; border: 1px solid #2c5246; border-radius: 7px; overflow: hidden; }
-  #settings .seg label { padding: 6px 12px; font-size: 13px; cursor: pointer; color: #cfe2d8; }
+  #settings .seg label { padding: 0 14px; font-size: 14px; cursor: pointer; color: #cfe2d8; display: inline-flex; align-items: center; }
   #settings .seg input { position: absolute; opacity: 0; pointer-events: none; }
   #settings .seg label:has(input:checked) { background: var(--moss); color: #08130f; }
   #settings .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
-  #settings button { font: 600 14px var(--body); border-radius: 7px; padding: 9px 14px; cursor: pointer; border: 1px solid #3a6b5a; background: #143029; color: var(--bone); }
+  #settings button { font: 600 14px var(--body); border-radius: 7px; padding: 0 14px; cursor: pointer; border: 1px solid #3a6b5a; background: #143029; color: var(--bone); }
   #settings button:disabled { opacity: 0.45; cursor: default; }
   #settings button.primary { background: var(--moss); border-color: var(--moss); color: #08130f; }
-  #keys { position: fixed; inset: 0; z-index: 7; display: grid; place-items: center; overflow-y: auto; background: rgba(3, 8, 7, 0.9); padding: 16px; }
-  #keys[hidden] { display: none; }
+  #settings .st-go { display: grid; gap: 1px; text-align: left; padding: 6px 14px; min-height: 52px; }
+  #settings .st-go b { font: 600 17px var(--body); color: var(--bone); }
+  #settings .st-go small { font-size: 12.5px; color: var(--muted); font-weight: 400; }
+  #settings .padmap { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px 12px; font-size: 13px; color: #b9d4c8; }
+  @media (max-width: 440px) { #settings .padmap { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  #settings .padmap b { color: var(--ember); font-weight: 600; }
+  #settings .note { font-size: 12.5px; color: var(--muted); line-height: 1.4; }
+  @media (max-height: 470px) { #settings .card { padding: 8px 14px; gap: 3px; } #settings h2 { display: none; } #settings label.opt small { display: none; } #settings .st-go small { display: none; } #settings .st-go { min-height: 44px; padding-block: 2px; } .ovbar { min-height: 48px; } .ovhint { padding-block: 4px; } #lobby h2 { font-size: 26px; } #lobby .card { padding: 12px 16px; gap: 8px; } #lobby .lead { display: none; } }
+  #keys { z-index: 7; }
   #keys .card { width: min(480px, 100%); background: #0c1815; border: 1px solid #24433a; border-radius: 10px; padding: 18px 22px 16px; display: grid; gap: 10px; margin-block: auto; }
   #keys h2 { font: 700 30px var(--display); margin: 0; color: var(--bone); }
   #keys .label { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
@@ -147,9 +174,9 @@
     border-radius: 8px; border: 1px solid rgba(232,226,207,0.35); background: rgba(10,24,21,0.55); color: var(--bone); font: 700 16px var(--body); }
   #touch .t-fs { position: absolute; left: calc(50% + 34px); top: max(8px, var(--st)); pointer-events: auto; width: 40px; height: 34px;
     border-radius: 8px; border: 1px solid rgba(232,226,207,0.35); background: rgba(10,24,21,0.55); color: var(--bone); font: 700 16px var(--body); }
-  #fs-btn { position: fixed; z-index: 4; right: max(12px, var(--sr)); top: max(10px, var(--st)); display: none;
+  #fs-btn { position: fixed; z-index: 4; right: max(12px, var(--sr)); bottom: max(8px, var(--sb)); display: none; min-height: 44px;
     font: 600 13px var(--body); color: var(--bone); background: rgba(10,24,21,0.7); border: 1px solid #3a6b5a; border-radius: 8px; padding: 8px 12px; }
-  html.touch.in-menu #fs-btn:not([hidden]) { display: block; }
+  /* кнопка «На весь экран» в меню больше не нужна: она в «Настройки › Экран», а на Android экран разворачивается первым касанием */
   #ios-tip { position: fixed; z-index: 21; inset: 0; display: grid; place-items: center; background: rgba(3,8,7,0.86);
     padding-inline: max(16px, var(--sl)) max(16px, var(--sr)); }
   #ios-tip .card { max-width: 420px; background: #0c1815; border: 1px solid #24433a; border-radius: 10px; padding: 18px 20px; display: grid; gap: 10px; }
@@ -180,7 +207,6 @@
     <span class="label">Есть код от друга</span>
     <div class="row"><input id="lb-code" maxlength="6" autocomplete="off" spellcheck="false" placeholder="ABCDE" aria-label="Код комнаты"><button id="lb-join" type="button">Войти</button></div>
     <div id="lb-status" role="status"></div>
-    <div class="row"><button id="lb-back" class="ghost" type="button">← Назад в меню</button></div>
   </div>
 </div>
 <button id="fs-btn" type="button" hidden>На весь экран</button>
@@ -191,29 +217,39 @@
 <div id="settings" hidden>
   <div class="card" role="dialog" aria-labelledby="st-title">
     <h2 id="st-title">Настройки</h2>
-    <div class="grid">
+    <div class="st-sec" data-sec="list" id="st-list"></div>
+    <section class="st-sec" data-sec="sound" hidden>
       <label class="opt" for="st-vol">Звуки <input id="st-vol" type="range" min="0" max="100" step="10"><span class="val" id="st-vol-v"></span></label>
       <label class="opt" for="st-mvol">Музыка <input id="st-mvol" type="range" min="0" max="100" step="10"><span class="val" id="st-mvol-v"></span></label>
+    </section>
+    <section class="st-sec" data-sec="screen" hidden>
       <label class="opt" for="st-shake"><input id="st-shake" type="checkbox"><span>Тряска экрана<small>выключите, если укачивает</small></span></label>
-      <label class="opt" for="st-easy"><input id="st-easy" type="checkbox"><span>Лёгкий режим<small>8 бутонов здоровья вместо 5</small></span></label>
-      <label class="opt" for="st-vibro"><input id="st-vibro" type="checkbox"><span>Вибрация<small>телефон (Android) и геймпад: удар, отбив, рёв босса</small></span></label>
-      <label class="opt st-touch" for="st-lefty"><input id="st-lefty" type="checkbox"><span>Для левши<small>кнопки слева, стик справа</small></span></label>
-      <label class="opt st-touch" for="st-bop">Видимость кнопок <input id="st-bop" type="range" min="30" max="100" step="10"><span class="val" id="st-bop-v"></span></label>
-    </div>
-    <span class="label">Доступность</span>
-    <div class="grid">
       <label class="opt" for="st-noflash"><input id="st-noflash" type="checkbox"><span>Без вспышек<small>вместо белых вспышек — мягкое затемнение</small></span></label>
       <label class="opt" for="st-outl"><input id="st-outl" type="checkbox"><span>Контуры опасного<small>яркая обводка снарядов и шипов</small></span></label>
-    </div>
-    <div class="row"><span><span class="label">Скорость игры</span><br>
-      <span class="seg"><label><input type="radio" name="st-speed" value="100">100 %</label><label><input type="radio" name="st-speed" value="80">80 %</label><label><input type="radio" name="st-speed" value="60">60 %</label></span>
-      <small style="color:var(--muted);font-size:12px"> по сети всегда 100 %</small></span>
-      <button id="st-keys" type="button">Управление…</button></div>
-    <div class="st-touch"><span class="label">Размер кнопок</span><br>
-      <span class="seg"><label><input type="radio" name="st-bsize" value="S">Меньше</label><label><input type="radio" name="st-bsize" value="M">Обычные</label><label><input type="radio" name="st-bsize" value="L">Крупнее</label></span></div>
-    <span class="label">Прогресс главы</span>
-    <div class="row"><span id="st-prog"></span><button id="st-reset" type="button">Сбросить прогресс</button></div>
-    <div class="row"><span class="label">Лёгкий режим включится со следующего боя</span><button id="st-done" class="primary" type="button">Готово</button></div>
+      <div class="row"><span id="st-fs-note" class="note">Весь экран: игра занимает весь монитор или телефон</span><button id="st-fs" type="button">Весь экран</button></div>
+    </section>
+    <section class="st-sec" data-sec="controls" hidden>
+      <div class="grid">
+        <button id="st-keys" type="button">Клавиши игрока 1…</button>
+        <label class="opt" for="st-vibro"><input id="st-vibro" type="checkbox"><span>Вибрация<small>телефон (Android) и геймпад</small></span></label>
+        <label class="opt st-touch" for="st-lefty"><input id="st-lefty" type="checkbox"><span>Для левши<small>кнопки слева, стик справа</small></span></label>
+        <label class="opt st-touch" for="st-bop">Видимость кнопок <input id="st-bop" type="range" min="30" max="100" step="10"><span class="val" id="st-bop-v"></span></label>
+      </div>
+      <div class="st-touch row"><span class="label">Размер кнопок на телефоне</span>
+        <span class="seg"><label><input type="radio" name="st-bsize" value="S">Меньше</label><label><input type="radio" name="st-bsize" value="M">Обычные</label><label><input type="radio" name="st-bsize" value="L">Крупнее</label></span></div>
+      <span class="label" id="st-pad-t">Геймпад (раскладка только для просмотра)</span>
+      <div class="padmap" id="st-pad"></div>
+    </section>
+    <section class="st-sec" data-sec="game" hidden>
+      <label class="opt" for="st-easy"><input id="st-easy" type="checkbox"><span>Лёгкий режим<small>8 бутонов здоровья вместо 5; включится со следующего боя</small></span></label>
+      <div class="row"><span class="label">Скорость игры</span>
+        <span class="seg"><label><input type="radio" name="st-speed" value="100">100 %</label><label><input type="radio" name="st-speed" value="80">80 %</label><label><input type="radio" name="st-speed" value="60">60 %</label></span></div>
+      <span class="note">По сети скорость всегда 100 %. Лёгкий режим и замедление отключают спидран.</span>
+    </section>
+    <section class="st-sec" data-sec="progress" hidden>
+      <span id="st-prog"></span>
+      <div class="row"><span class="note">Сброс стирает сохранение главы: бусины, способности и улучшения.</span><button id="st-reset" type="button">Сбросить прогресс</button></div>
+    </section>
   </div>
 </div>
 <div id="keys" hidden>
@@ -222,7 +258,7 @@
     <span class="label">Игрок 1 (игрок 2 и стрелки не меняются)</span>
     <div class="kr"></div>
     <div id="kb-note" role="status"></div>
-    <div class="row"><button id="kb-def" type="button">По умолчанию</button><button id="kb-done" class="primary" type="button">Готово</button></div>
+    <div class="row"><button id="kb-def" type="button">По умолчанию</button></div>
   </div>
 </div>
 <div id="update" hidden role="status"><span id="upd-text">Вышла новая версия</span><button id="upd-btn" class="primary" type="button">Обновить</button><button id="upd-later" type="button">Позже</button></div>
@@ -802,7 +838,10 @@ const Music = {
 // ===== НАСТРОЙКИ И СОХРАНЕНИЕ (localStorage; без него всё работает на значениях по умолчанию) =====
 const Settings = {
   def: { vol: 80, mvol: 60, shake: true, easy: false, vibro: true, bsize: 'M', bop: 100, lefty: false, boss: 0, speed: 100, noflash: false, outl: false },
-  s: null, open: false, onClose: null,
+  s: null, open: false, onClose: null, cur: 'list', entry: null,
+  // разделы настроек: [id, название, подпись] — экран «Настройки» в меню и страницы оверлея строятся по этому списку
+  SECS: [['sound', 'Звук', 'громкость звуков и музыки'], ['screen', 'Экран', 'тряска, вспышки, контуры, весь экран'], ['controls', 'Управление', 'клавиши, геймпад, кнопки на телефоне, левша'],
+    ['game', 'Игра', 'лёгкий режим, скорость'], ['progress', 'Прогресс', 'сохранение, сброс']],
   load() {
     this.s = { ...this.def };
     try { const raw = localStorage.getItem('tt_settings'); if (raw) Object.assign(this.s, JSON.parse(raw)); } catch (_) { }
@@ -810,7 +849,10 @@ const Settings = {
   save() { try { localStorage.setItem('tt_settings', JSON.stringify(this.s)); } catch (_) { } this.apply(); },
   // прогресс главы: последняя скамья и бусины
   progress() { try { const p = JSON.parse(localStorage.getItem('tt_save') || 'null'); return p && typeof p.bench === 'number' ? p : null; } catch (_) { return null; } },
-  saveProgress(p) { try { localStorage.setItem('tt_save', JSON.stringify(p)); } catch (_) { } },
+  saveProgress(p) {
+    const cur = this.progress(), best = Math.max(p.best | 0, cur ? cur.best | 0 : 0, cur ? cur.chapter | 0 : 0, p.chapter | 0);
+    try { localStorage.setItem('tt_save', JSON.stringify({ ...p, best })); } catch (_) { }
+  },
   resetProgress() { try { localStorage.removeItem('tt_save'); } catch (_) { } },
   btnScale() { return { S: 0.85, M: 1, L: 1.18 }[this.s.bsize] || 1; },
   apply() {
@@ -836,6 +878,12 @@ const Settings = {
       const p = this.progress();
       $('st-prog').textContent = p ? `Сохранено: ${p.name || 'скамья'}, бусин ${p.beads || 0}` : 'Сохранения главы пока нет';
       $('st-reset').disabled = !p; $('st-reset').textContent = 'Сбросить прогресс';
+      this.fsSync();
+      // раскладка геймпада — только показ
+      const k = (typeof Pads !== 'undefined' && Pads.list().length) ? Pads.kindNow : 'xbox', ps = k === 'ps';
+      const rows = [[ps ? '✕' : 'A', 'прыжок'], [ps ? '□' : 'X', 'удар'], [ps ? '○ / R2' : 'B / RT', 'рывок'], [ps ? '△ / L2' : 'Y / LT', 'нить'], [ps ? 'L1' : 'LB', 'дымовуха'], [ps ? 'R1' : 'RB', 'инструмент'],
+        [ps ? 'Options' : 'Start', 'пауза'], [ps ? 'Create' : 'Back', 'карта'], ['Стик', 'движение']];
+      $('st-pad').innerHTML = rows.map(([b, t]) => `<span><b>${b}</b> — ${t}</span>`).join('');
     };
     this.bindUI = bind;
     $('st-vol').addEventListener('input', (e) => { this.s.vol = +e.target.value; $('st-vol-v').textContent = this.s.vol + '%'; this.save(); });
@@ -851,12 +899,57 @@ const Settings = {
       if (b.dataset.armed !== '1') { b.dataset.armed = '1'; b.textContent = 'Точно сбросить? Нажмите ещё раз'; setTimeout(() => { b.dataset.armed = ''; bind(); }, 3500); return; }
       b.dataset.armed = ''; this.resetProgress(); bind(); $('st-prog').textContent = 'Прогресс сброшен: глава начнётся с начала';
     });
-    $('st-done').addEventListener('click', () => this.hide());
-    el.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Escape') this.hide(); });
+    const list = $('st-list');
+    this.SECS.forEach(([id, name, sub], i) => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'st-go'; b.dataset.go = id;
+      b.innerHTML = `<b>${i + 1} · ${name}</b><small>${sub}</small>`;
+      b.addEventListener('click', () => this.go(id)); list.append(b);
+    });
+    $('st-fs').addEventListener('click', () => this.fsToggle());
+    document.addEventListener('fullscreenchange', () => this.fsSync());
+    Ov.chrome(el, { crumbs: ['Настройки'], back: () => this.back(), digits: true, hint: { act: 'переключить', lr: 'менять' } });
+    el.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Escape') { e.preventDefault(); this.back(); }
+      else if (e.key === 'Enter' && e.target.type === 'checkbox') e.target.click();
+    });
     el.querySelectorAll('.st-touch').forEach((n) => { n.hidden = !Touch.enabled; });
     this.apply();
   },
-  show(onClose) { this.onClose = onClose || null; this.bindUI(); this.open = true; document.getElementById('settings').hidden = false; setTimeout(() => document.getElementById('st-done').focus(), 0); },
+  // весь экран: на iPhone у сайтов такого режима нет
+  fsOk() { const d = document.documentElement; return !!(d.requestFullscreen || d.webkitRequestFullscreen); },
+  fsOn() { return !!(document.fullscreenElement || document.webkitFullscreenElement); },
+  fsToggle() {
+    if (!this.fsOk()) { const t = document.getElementById('ios-tip'); if (t) t.hidden = false; return; }
+    if (this.fsOn()) { try { (document.exitFullscreen || document.webkitExitFullscreen).call(document); } catch (_) { } } else Touch.fullscreen();
+    setTimeout(() => this.fsSync(), 250);
+  },
+  fsSync() {
+    const b = document.getElementById('st-fs'), n = document.getElementById('st-fs-note'); if (!b) return;
+    const tip = !this.fsOk() && !!document.getElementById('ios-tip');
+    b.disabled = !this.fsOk() && !tip;
+    b.textContent = this.fsOk() ? (this.fsOn() ? 'Выйти из полного экрана' : 'Весь экран') : tip ? 'Как убрать панели' : 'Недоступно';
+    n.textContent = this.fsOk() ? 'Игра занимает весь экран (F11 в браузере делает то же)' : 'На iPhone полного экрана у сайтов нет: поставьте игру на экран «Домой»';
+  },
+  // открыть оверлей: без section — список разделов, с section — сразу страница раздела
+  show(onClose, section) {
+    this.onClose = onClose || null; this.entry = this.SECS.some((x) => x[0] === section) ? section : null;
+    this.bindUI(); this.open = true;
+    const el = document.getElementById('settings'); el.hidden = false;
+    this.go(this.entry || 'list'); Ov.opened(el);
+  },
+  go(v) {
+    const el = document.getElementById('settings'); this.cur = v;
+    el.querySelectorAll('.st-sec').forEach((n) => { n.hidden = n.dataset.sec !== v; });
+    const sec = this.SECS.find((x) => x[0] === v);
+    document.getElementById('st-title').textContent = sec ? sec[1] : 'Настройки';
+    const base = Ov.base(['Пауза', 'Настройки']); // из меню — его путь («Настройки»), из паузы — «Пауза › Настройки»
+    this.crumbList = sec ? [...base, sec[1]] : base; Ov.crumbs(el, this.crumbList);
+    const n = Nav.focusables(el).length;
+    Ov.hint(el, { act: v === 'list' ? 'открыть' : 'переключить', nums: n, lr: v === 'list' ? '' : 'менять' });
+    const f = Nav.focusables(el)[0]; if (f) setTimeout(() => f.focus(), 0);
+  },
+  back() { if (this.cur !== 'list' && !this.entry) this.go('list'); else this.hide(); },
   hide() { this.open = false; document.getElementById('settings').hidden = true; const cb = this.onClose; this.onClose = null; if (cb) cb(); },
 };
 
@@ -1061,7 +1154,7 @@ const Lobby = {
     $('lb-join').onclick = () => this.doJoin($('lb-code').value);
     $('lb-code').addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') this.doJoin($('lb-code').value); });
     $('lb-code').addEventListener('keyup', (e) => e.stopPropagation());
-    $('lb-back').onclick = () => this.hide(true);
+    Ov.chrome(this.el, { crumbs: ['Вдвоём по сети'], back: () => this.hide(true), hint: { act: 'нажать' } });
     // Esc закрывает лобби, как окно настроек (фокус может быть и вне окна — слушаем документ)
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !this.el.hidden) { e.preventDefault(); e.stopPropagation(); this.hide(true); } }, true);
     $('lb-copy').onclick = () => {
@@ -1074,10 +1167,17 @@ const Lobby = {
     if (room) { this.room = room; }
   },
   selectLink() { const r = document.createRange(); r.selectNodeContents(document.getElementById('lb-link')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); },
-  show() {
-    document.getElementById('lb-title').textContent = this.mode === 'race' ? 'Гонка 1×1 по сети' : this.mode === 'bosstest' ? 'Босс-тест по сети: ' + (this.bossName || '') : 'Вдвоём по сети';
-    this.el.hidden = false; this.status(''); document.getElementById('lb-hostbox').hidden = true;
+  // intent: 'host' — сразу создать комнату, 'join' — сразу к полю кода (меню «Создать комнату» / «Войти по коду»)
+  show(intent) {
+    const title = this.mode === 'race' ? 'Гонка 1×1 по сети' : this.mode === 'bosstest' ? 'Босс-тест по сети: ' + (this.bossName || '') : 'Вдвоём по сети';
+    document.getElementById('lb-title').textContent = title;
+    const base = (this.crumbs && this.crumbs.length) ? this.crumbs.slice() : [title];
+    Ov.crumbs(this.el, [...base, intent === 'host' ? 'Создать комнату' : intent === 'join' ? 'Войти по коду' : 'Комната']);
+    this.el.hidden = false; this.status(''); document.getElementById('lb-hostbox').hidden = true; Ov.opened(this.el);
     if (this.room) { document.getElementById('lb-code').value = this.room; const r = this.room; this.room = null; this.doJoin(r); }
+    else if (intent === 'host') { this.doHost(); setTimeout(() => document.getElementById('lb-copy').focus(), 0); }
+    else if (intent === 'join') setTimeout(() => document.getElementById('lb-code').focus(), 0);
+    else setTimeout(() => document.getElementById('lb-host').focus(), 0);
   },
   hide(back) {
     this.el.hidden = true;
@@ -1098,7 +1198,7 @@ const Lobby = {
         if (this.mode !== 'race' && gs && gs.sys.isActive() && gs.players && !gs.online) { gs.rejoinGuest(); return; } // гость вернулся в идущую игру хоста
         if (this.mode === 'race') { Speedrun.raceOpen('host'); return; }
         const mode = this.mode || 'story', boss = this.boss || 'misha';
-        const camp = mode === 'story' ? Campaign.resume() : null;
+        const camp = mode === 'story' ? (this.camp || Campaign.resume()) : null;
         Net.seed = newSeed(); // зерно ГСЧ выбирает хост и шлёт гостю в стартовом сообщении
         setTimeout(() => { Net.send({ t: 'start', mode, boss, camp, seed: Net.seed }); this.start('host', mode, boss, camp); }, 400);
       } else if (ev === 'error') this.status(Net.errText(d), 'err');
@@ -1128,9 +1228,11 @@ const Lobby = {
 // ===== ИГРА: «Тропа Ткачей» — кооперативная метроидвания =====
 let VW = 960; const VH = 540;
 // версия игры; номер сборки подставляет build.py
-const GAME_VERSION = '1.6';
-const GAME_BUILD = '261020.1726';
+const GAME_VERSION = '1.7';
+const GAME_BUILD = '261020.1756';
 const CHANGELOG = [
+  'Новое меню: Продолжить, Кампания, Босс-тест, Спидран, Гонки Ткачей (скоро), Как играть, Настройки; хлебные крошки, подсказки под ваше устройство, цифры 1–7, Esc / B / «← Назад» на уровень выше',
+  'Настройки разбиты на разделы: Звук, Экран, Управление, Игра, Прогресс',
   'Снаряжение: 5 видов оружия, заряженный удар, 4 инструмента (клавиша E), 9 оберегов, яд и ожог; экран на скамье',
   'Хват за уступ и планер; Миша: иглой бьётся в первых двух фазах, в третьей — только бомбы',
   'Геймпады: DualSense, Xbox и Steam Deck — удобная раскладка, вибрация, сенсорные кнопки прячутся',
@@ -1192,10 +1294,11 @@ const inset = (r, d) => ({ x: r.x + d, y: r.y + d, w: r.w - 2 * d, h: r.h - 2 * 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 // ---------- МЕНЮ ----------
+// Каркас сцены: фон, заставка с двумя ткачами и запуск игры. Экраны, ввод и подсказки — в src/menu.js (карта MENU).
 class MenuScene extends Phaser.Scene {
   constructor() { super('menu'); }
   create() {
-    this.leaving = false;
+    this.leaving = false; this.busy = false;
     genBackgrounds(this);
     this.add.tileSprite(0, 0, VW, VH, 'bgFar').setOrigin(0);
     this.rays = this.add.tileSprite(0, 0, VW, VH, 'bgRays').setOrigin(0).setBlendMode(Phaser.BlendModes.ADD);
@@ -1209,137 +1312,51 @@ class MenuScene extends Phaser.Scene {
     }).setAlpha(0.7);
     this.add.image(0, 0, 'vignette').setOrigin(0).setDisplaySize(VW, VH);
 
-    const glow = this.add.graphics();
-    glow.fillStyle(0x9ff0c8, 0.06); for (let r = 140; r > 10; r -= 14) glow.fillCircle(VW / 2, 160, r);
+    this.mGlow = this.add.graphics();
     this.hero = this.add.graphics();
     this.heroTags = PAL.map((pal) => makeTag(this, pal, 1).setScale(1.6));
-
-    this.add.text(VW / 2, 92, 'ТРОПА ТКАЧЕЙ', { fontFamily: '"Cormorant SC", Georgia, serif', fontSize: '64px', color: '#e8e2cf', fontStyle: '700' }).setOrigin(0.5).setShadow(0, 0, '#9ff0c8', 18, false, true);
-    this.add.text(VW / 2, 136, Campaign.subtitle(), { fontFamily: '"Fira Sans", sans-serif', fontSize: '17px', color: '#8fb8a8' }).setOrigin(0.5);
-
-    const mkBtn = (y, label, sub, n) => {
-      const t = this.add.text(VW / 2, y, label, { fontFamily: '"Cormorant SC", Georgia, serif', fontSize: '29px', color: '#cfe8dc', fontStyle: '600' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-      const s = this.add.text(VW / 2, y + 21, sub, { fontFamily: '"Fira Sans", sans-serif', fontSize: '13px', color: '#6f9586' }).setOrigin(0.5);
-      t.on('pointerover', () => t.setColor('#ffd47a')); t.on('pointerout', () => t.setColor('#cfe8dc'));
-      t.on('pointerdown', () => (n === 3 ? this.openLobby() : n === 4 ? this.openPick() : n === 5 ? this.openSettings() : n === 6 ? this.openSpeedrun() : this.go(n)));
-      return [t, s];
-    };
-    const prog = Settings.progress(), cont = prog ? ` · продолжение: ${prog.name || 'скамья'}` : '';
-    mkBtn(230, '1 · Один ткач', 'клавиша 1 · геймпад A' + cont, 1);
-    mkBtn(270, '2 · Двое за одним компьютером', 'клавиша 2 · геймпад Y' + cont, 2);
-    mkBtn(310, '3 · Вдвоём по сети', 'клавиша 3 · комната с кодом, работает и с серым IP', 3);
-    mkBtn(350, '4 · Босс-тест', 'клавиша 4 · геймпад X · три босса на выбор, сразу в бой', 4);
-    mkBtn(390, '5 · Настройки', 'клавиша 5 · громкость, тряска, лёгкий режим, кнопки', 5);
-    mkBtn(430, '6 · Спидран', 'клавиша 6 · забег на время, сплиты, таблица друзей, гонка 1×1', 6);
-
-    const ctl = [
-      Access.line(false),
-      'Игрок 2:  стрелки   Num1 или / — прыжок   Num2 или . — удар   Num3 или , — рывок   Num0 или M — лечение   Num4 или N — дымовуха',
-      'В одиночку можно и так: стрелки + Z X C V B.   Геймпад: A прыжок, X удар, B/RB рывок, Y лечение, LB дымовуха.   Esc — пауза',
-    ];
-    if (Touch.enabled) ctl.splice(0, 3, 'Телефон: стик слева — идти (вверх: удар вверх, оживить напарника, скамья; вниз в прыжке: удар вниз).',
-      'Кнопки справа: прыжок, удар, рывок, лечение, а на арене Миши ещё и бомба.   Лучше держать телефон горизонтально.', 'Можно подключить геймпад по Bluetooth — он подхватится сам.');
+    this.mBase = [this.mGlow, this.hero, ...this.heroTags]; // видны только на главном экране
+    this.heroX = VW * 0.25; this.heroY = 300; this.mHero = true;
     document.documentElement.classList.add('in-menu');
     this.events.once('shutdown', () => document.documentElement.classList.remove('in-menu'));
-    this.ctlTxt = this.add.text(VW / 2, 496, ctl.join('\n'), { fontFamily: '"Fira Sans", sans-serif', fontSize: '12px', color: '#86a89a', align: 'center', lineSpacing: 7 }).setOrigin(0.5);
-
-    const k = this.input.keyboard;
-    // версия, сборка и что нового
-    const vF = '"Fira Sans", sans-serif';
-    this.add.text(14, 10, `Версия ${GAME_VERSION} · сборка ${GAME_BUILD}`, { fontFamily: vF, fontSize: '12px', fontStyle: '600', color: '#9fc4b4' });
-    this.chTxt = this.add.text(14, 28, 'Что нового:\n' + CHANGELOG.slice(0, 9).map((l) => '· ' + l).join('\n'), { fontFamily: vF, fontSize: '10.5px', color: '#7fa596', lineSpacing: 3, wordWrap: { width: Math.max(170, Math.min(230, VW / 2 - 300)) } });
-    // выбор для босс-теста
-    this.pick = this.add.container(0, 0).setVisible(false).setDepth(10);
-    const pg = this.add.graphics(); pg.fillStyle(0x030807, 0.9); pg.fillRect(0, 0, VW, VH);
-    const D = '"Cormorant SC", Georgia, serif', F = '"Fira Sans", sans-serif';
-    const pt = this.add.text(VW / 2, 84, 'Босс-тест', { fontFamily: D, fontSize: '44px', color: '#e8e2cf', fontStyle: '700' }).setOrigin(0.5);
-    this.pickIdx = 0;
-    this.bossBtns = BOSSES.map((b, i) => {
-      const t = this.add.text(VW / 2 + (i - 1) * 270, 150, b.name, { fontFamily: D, fontSize: '28px', color: '#8fb8a8', fontStyle: '700' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-      t.on('pointerdown', () => this.setPick(i));
-      return t;
-    });
-    this.pickLine = this.add.graphics();
-    const ph = this.add.text(VW / 2, 186, '← → выбрать босса', { fontFamily: F, fontSize: '12px', color: '#6f9586' }).setOrigin(0.5);
-    const ps = this.add.text(VW / 2, 222, '', { fontFamily: F, fontSize: '15px', color: '#cfe8dc' }).setOrigin(0.5);
-    this.pickAbout = ps;
-    const mkPick = (y, label, fn) => {
-      const t = this.add.text(VW / 2, y, label, { fontFamily: D, fontSize: '30px', color: '#cfe8dc', fontStyle: '600' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-      t.on('pointerover', () => t.setColor('#ffd47a')); t.on('pointerout', () => t.setColor('#cfe8dc')); t.on('pointerdown', fn);
-      return t;
-    };
-    const p1 = mkPick(290, '1 · В одиночку', () => this.go(1, 'bosstest'));
-    const p2 = mkPick(343, '2 · Вдвоём за одним компьютером', () => this.go(2, 'bosstest'));
-    const p3 = mkPick(396, '3 · Вдвоём по сети', () => this.openLobby('bosstest'));
-    const pb = mkPick(490, '← Назад (Esc)', () => this.closePick()); pb.setFontSize(22);
-    this.pick.add([pg, pt, ...this.bossBtns, this.pickLine, ph, ps, p1, p2, p3, pb]);
-    this.setPick(Settings.s.boss || 0);
-    k.on('keydown', (e) => {
-      Snd.init();
-      if (Settings.open || !Lobby.el.hidden) return;
-      if (this.srP && this.srP.visible) return;
-      if (this.pick.visible) {
-        if (e.key === '1') this.go(1, 'bosstest'); if (e.key === '2') this.go(2, 'bosstest'); if (e.key === '3') this.openLobby('bosstest');
-        if (e.key === 'Escape') this.closePick();
-        if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A' || e.key === 'ф' || e.key === 'Ф') this.setPick(this.pickIdx - 1);
-        if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D' || e.key === 'в' || e.key === 'В') this.setPick(this.pickIdx + 1);
-        return;
-      }
-      if (e.key === '1') this.go(1); if (e.key === '2') this.go(2); if (e.key === '3') this.openLobby(); if (e.key === '4') this.openPick(); if (e.key === '5') this.openSettings(); if (e.key === '6') this.openSpeedrun();
-    });
+    this.pickIdx = Settings.s.boss || 0;
+    this.input.keyboard.on('keydown', (e) => this.menuKey(e));
     if (Lobby.room) this.time.delayedCall(300, () => this.openLobby());
     Music.setDuck(1); Music.intensity = 1; Music.play('menu');
     this.input.on('pointerdown', () => Snd.init());
     this.t = 0;
+    this.menuInit();
   }
-  openSettings() { if (this.leaving || Settings.open) return; Snd.init(); Settings.show(() => this.scene.restart()); }
   setPick(i) {
     this.pickIdx = (i + BOSSES.length) % BOSSES.length;
     if (Settings.s.boss !== this.pickIdx) { Settings.s.boss = this.pickIdx; Settings.save(); }
-    this.bossBtns.forEach((t, k) => t.setColor(k === this.pickIdx ? '#ffd47a' : '#8fb8a8'));
-    const t = this.bossBtns[this.pickIdx], g = this.pickLine; g.clear();
-    g.fillStyle(0xffd47a, 1); g.fillRect(t.x - t.width / 2, 168, t.width, 2);
-    this.pickAbout.setText(BOSSES[this.pickIdx].about);
+    if (this.mStack) this.menuRender();
   }
-  openPick() { if (this.leaving) return; Snd.init(); this.pick.setVisible(true); this.pickT = 0.3; }
-  closePick() { this.pick.setVisible(false); }
-  openLobby(mode) {
+  // intent: 'host' — сразу создать комнату, 'join' — сразу к полю кода; camp — стартовые данные кампании для истории
+  openLobby(mode, intent, camp) {
     if (this.leaving) return; this.leaving = true; Snd.init();
-    Lobby.mode = mode || 'story'; Lobby.boss = BOSSES[this.pickIdx].id; Lobby.bossName = BOSSES[this.pickIdx].name; Lobby.show();
+    Lobby.mode = mode || 'story'; Lobby.boss = BOSSES[this.pickIdx].id; Lobby.bossName = BOSSES[this.pickIdx].name; Lobby.camp = camp || null;
+    Lobby.crumbs = this.menuCrumbs(); Lobby.show(intent);
   }
   goOnline(role, mode, boss, camp) {
     Snd.play('bench'); this.cameras.main.fadeOut(450, 3, 8, 7);
     this.time.delayedCall(460, () => this.scene.start('game', { players: 2, online: role, mode: mode || 'story', boss: boss || 'misha', camp: camp || null }));
   }
-  go(n, mode) {
+  go(n, mode, camp) {
     if (this.leaving) return; this.leaving = true; Snd.init(); Snd.play('bench');
+    if (!mode) { try { localStorage.setItem('tt_players', String(n)); } catch (_) { } }
     this.cameras.main.fadeOut(450, 3, 8, 7);
-    this.time.delayedCall(460, () => this.scene.start('game', { players: n, mode: mode || 'story', boss: BOSSES[this.pickIdx].id, camp: mode ? null : Campaign.resume() }));
+    this.time.delayedCall(460, () => this.scene.start('game', { players: n, mode: mode || 'story', boss: BOSSES[this.pickIdx].id, camp: mode ? null : (camp || Campaign.resume()) }));
   }
   update(time, delta) {
     this.t += delta / 1000;
     this.mid.tilePositionX += delta * 0.01; this.fog.tilePositionX += delta * 0.02; this.rays.setAlpha(0.75 + Math.sin(this.t * 0.6) * 0.25);
-    const pads = this.input.gamepad ? this.input.gamepad.gamepads.filter(Boolean) : [];
-    this.pickT = (this.pickT || 0) - delta / 1000;
-    if (Settings.open || (this.srP && this.srP.visible)) return;
-    for (const pad of pads) {
-      const b = (n) => !!(pad.buttons[n] && pad.buttons[n].pressed);
-      if (this.pick.visible) {
-        if (this.pickT > 0) continue;
-        if (b(0)) this.go(1, 'bosstest'); if (b(3)) this.go(2, 'bosstest'); if (b(1)) this.closePick();
-        const lr = (pad.left ? -1 : 0) + (pad.right ? 1 : 0);
-        if (lr && !this._lrHeld) this.setPick(this.pickIdx + lr);
-        this._lrHeld = !!lr;
-        continue;
-      }
-      if (b(0)) this.go(1);
-      if (b(3)) this.go(2);
-      if (b(2)) this.openPick();
-    }
-    // два ткача на заставке
+    this.menuUpdate(delta / 1000);
+    // два ткача на заставке (только на главном экране)
     const g = this.hero; g.clear();
+    if (!this.mHero) return;
     for (let i = 0; i < 2; i++) {
-      const x = VW / 2 + (i ? 26 : -26), y = 214 + Math.sin(this.t * 2 + i) * 3;
+      const x = this.heroX + (i ? 26 : -26), y = this.heroY + Math.sin(this.t * 2 + i) * 3;
       drawWeaver(g, x, y, i ? -1 : 1, PAL[i], { bob: 0, leg: 0, sway: Math.sin(this.t * 1.6 + i) * 1.5, lift: 0 }, 1.6);
       this.heroTags[i].setPosition(x + (i ? 1 : -1) * 0.5, y - 13 * 1.6);
     }
@@ -5494,12 +5511,7 @@ const Records = {
       g.lineStyle(1.5, 0xffffff, 0.35 + 0.25 * Math.sin(this.animT * 18)); g.strokeCircle(0, -14, 27); return;
     }
   };
-  // строка рекордов на экране выбора босса
-  const setPick = MenuScene.prototype.setPick;
-  MenuScene.prototype.setPick = function (i) {
-    setPick.call(this, i);
-    this.pickAbout.setText(BOSSES[this.pickIdx].about + '\n' + Records.line(BOSSES[this.pickIdx].id));
-  };
+  // (строка рекордов на экране выбора босса рисуется в menu.js)
 })();
 
 // ===== ДОСТУПНОСТЬ: переназначение клавиш, скорость игры, «без вспышек», «контуры опасного» =====
@@ -5584,7 +5596,7 @@ const Access = {
     };
     this.render = render;
     el.querySelector('#kb-def').addEventListener('click', () => { this.reset(); this.listening = null; render(); this.note('Клавиши возвращены по умолчанию', true); });
-    el.querySelector('#kb-done').addEventListener('click', () => this.hide());
+    Ov.chrome(el, { crumbs: ['Настройки', 'Управление', 'Клавиши'], back: () => this.hide(), hint: { act: 'назначить' } });
     document.getElementById('st-keys').addEventListener('click', () => this.show());
     window.addEventListener('keydown', (e) => {
       if (el.hidden) return;
@@ -5602,7 +5614,10 @@ const Access = {
     }, true);
   },
   note(t, keep) { const n = this.el.querySelector('#kb-note'); n.textContent = t || 'Нажмите на действие, затем на нужную клавишу. Если она уже занята, действия поменяются местами.'; n.dataset.keep = keep ? '1' : ''; },
-  show() { this.listening = null; this.render(); this.note(''); this.el.hidden = false; setTimeout(() => this.el.querySelector('#kb-done').focus(), 0); },
+  show() {
+    this.listening = null; this.render(); this.note(''); this.el.hidden = false; Ov.crumbs(this.el, [...(Settings.crumbList || ['Настройки']), 'Клавиши']); Ov.opened(this.el);
+    setTimeout(() => this.el.querySelector('.kb').focus(), 0);
+  },
   hide() { this.listening = null; this.el.hidden = true; if (this.scene && this.scene.ui) this.refreshPause(this.scene.ui()); const b = document.getElementById('st-keys'); if (b) b.focus(); },
 };
 
@@ -5774,36 +5789,7 @@ Training.load();
     this.toast('Тренировка: здоровье бесконечное, Y — сбросить босса', 3);
   };
 
-  // ----- выбор босса: переключатель и фаза -----
-  const mcreate = MenuScene.prototype.create;
-  MenuScene.prototype.create = function () {
-    mcreate.call(this);
-    const F = '"Fira Sans", sans-serif', D = '"Cormorant SC", Georgia, serif';
-    const st = { fontFamily: D, fontSize: '22px', fontStyle: '600' };
-    const tg = this.add.text(VW / 2 - 175, 432, '', st).setOrigin(0.5).setInteractive({ useHandCursor: true });
-    const ph = this.add.text(VW / 2 + 175, 432, '', st).setOrigin(0.5).setInteractive({ useHandCursor: true });
-    const hint = this.add.text(VW / 2, 454, 'Бесконечное здоровье, счётчик урона и DPS, сброс босса клавишей Y. Рекорды не пишутся. Только за одним компьютером.', { fontFamily: F, fontSize: '11px', color: '#6f9586' }).setOrigin(0.5);
-    this.pick.add([tg, ph, hint]);
-    const p3 = this.pick.list.find((o) => o.text && o.text.startsWith('3 ·'));
-    const refresh = () => {
-      tg.setText(`Тренировка: ${Training.on ? 'вкл' : 'выкл'} (T)`).setColor(Training.on ? '#ffd47a' : '#8fb8a8');
-      ph.setText(`Старт с фазы ${Training.phase} (P)`).setColor(Training.on ? '#ffd47a' : '#5d7a6e');
-      if (p3) p3.setAlpha(Training.on ? 0.3 : 1);
-    };
-    const toggle = () => { Training.on = !Training.on; Training.save(); refresh(); };
-    const cycle = () => { if (!Training.on) { toggle(); return; } Training.phase = Training.phase % 3 + 1; Training.save(); refresh(); };
-    tg.on('pointerdown', toggle); ph.on('pointerdown', cycle);
-    this.input.keyboard.on('keydown', (e) => {
-      if (!this.pick.visible || Settings.open || !Lobby.el.hidden || e.repeat) return;
-      if (e.code === 'KeyT') toggle(); else if (e.code === 'KeyP') cycle();
-    });
-    refresh();
-  };
-  const openLobby = MenuScene.prototype.openLobby;
-  MenuScene.prototype.openLobby = function (mode) {
-    if (mode === 'bosstest' && Training.on) return; // тренировка — только локально
-    return openLobby.call(this, mode);
-  };
+  // (переключатель тренировки и фаза старта теперь на экране «Босс-тест» в menu.js)
 })();
 
 // ===== КАРТА И БЫСТРЫЕ ПЕРЕХОДЫ: клавиша M / кнопка на телефоне, открытые участки, телепорт между скамьями =====
@@ -8367,6 +8353,553 @@ const Changelog = {
   hide() { if (this.open) Sheet.close(); },
 };
 
+// ===== МЕНЮ ИГРЫ (v1.7): карта экранов, ввод с клавиатуры / геймпада / касания, общий каркас =====
+// Экран меню — запись в MENU: { id, parent, title, crumb?, root?, items: [...] | (m, ctx) => [...], info?, lr?, keys?, extra? }.
+// Пункт: { key: '1'..'7', label, sub?, value?, act(m, ctx), lr?(m, ctx, dir), enabled?, hidden?, danger?, kind?: 'cards' }
+// (label / sub / value / enabled / hidden могут быть функциями (m, ctx)). Новый раздел подключается одной записью menuAdd({...})
+// и пунктом в items родителя. Переход — m.menuGo(id, ctx), назад — m.menuBack(); каркас сам рисует непрозрачный фон,
+// «хлебные крошки», кнопку «← Назад», подсказки под текущее устройство и обрабатывает цифры, стрелки, Enter / Esc, геймпад и касание.
+const MENU = {};
+function menuAdd(d) { MENU[d.id] = d; return d; }
+
+// ---------- какое устройство вводило последним (клавиатура / геймпад / касание) ----------
+const Dev = {
+  last: 'kb', subs: [],
+  init() {
+    this.last = Touch.enabled ? 'touch' : 'kb';
+    window.addEventListener('keydown', () => this.set('kb'), true);
+    window.addEventListener('pointerdown', (e) => this.set(e.pointerType === 'touch' ? 'touch' : 'kb'), true);
+    this.set(this.last, true);
+  },
+  set(k, force) {
+    if (this.last === k && !force) return;
+    this.last = k; document.documentElement.classList.toggle('navpad', k === 'pad');
+    this.refresh();
+    for (const f of this.subs.slice()) { try { f(k); } catch (_) { } }
+  },
+  // подписи кнопок геймпада (PlayStation: ✕ / ○ / □)
+  names() { let ps = false; try { const p = Pads.list()[0]; ps = !!p && Pads.kind(p) === 'ps'; } catch (_) { } return ps ? { ok: '✕', back: '○', x: '□' } : { ok: 'A', back: 'B', x: 'X' }; },
+  // одна строка подсказок под текущее устройство; o: { nums, lr, back, act, extra: {kb, pad, touch} }
+  hint(o) {
+    o = o || {}; const act = o.act || 'открыть', ex = (o.extra && o.extra[this.last]) || '', n = this.names(), p = [];
+    if (this.last === 'touch') {
+      p.push(o.touchAct || 'Коснитесь пункта'); if (o.back !== false) p.push('«← Назад» — на уровень выше');
+    } else if (this.last === 'pad') {
+      p.push('↑ ↓ — выбор', `${n.ok} — ${act}`); if (o.lr) p.push('← → — ' + o.lr); if (o.back !== false) p.push(`${n.back} — назад`);
+    } else {
+      p.push('↑ ↓ — выбор', `Enter — ${act}`); if (o.nums) p.push((typeof o.nums === 'number' ? (o.nums > 1 ? `1–${o.nums}` : '1') : o.nums) + ' — сразу к пункту'); if (o.lr) p.push('← → — ' + o.lr); if (o.back !== false) p.push('Esc — назад');
+    }
+    if (ex) p.push(ex);
+    return p.join(' · ');
+  },
+  refresh() { for (const el of Ov.all) if (el._hint) el._hint.textContent = this.hint(el._hintOpt); },
+};
+
+// ---------- геймпад в меню: общий опрос с краевыми срабатываниями и повтором для направлений ----------
+const PadNav = {
+  st: {}, t: {},
+  poll(dt) {
+    let ps = []; try { ps = Pads.list(); } catch (_) { }
+    const cur = { up: false, down: false, left: false, right: false, ok: false, back: false, x: false }; let any = false;
+    for (const p of ps) {
+      const B = (n) => !!(p.buttons[n] && (p.buttons[n].pressed || p.buttons[n].value > 0.5));
+      const ax = p.axes[0] || 0, ay = p.axes[1] || 0;
+      cur.up = cur.up || ay < -0.55 || B(12); cur.down = cur.down || ay > 0.55 || B(13);
+      cur.left = cur.left || ax < -0.55 || B(14); cur.right = cur.right || ax > 0.55 || B(15);
+      cur.ok = cur.ok || B(0); cur.back = cur.back || B(1); cur.x = cur.x || B(2);
+      if (B(0) || B(1) || B(2) || B(3) || B(9) || B(12) || B(13) || B(14) || B(15) || Math.abs(ax) > 0.4 || Math.abs(ay) > 0.4) any = true;
+    }
+    if (any) Dev.set('pad');
+    const out = {};
+    for (const k in cur) {
+      if (cur[k]) {
+        if (!this.st[k]) { out[k] = true; this.t[k] = 0.42; }
+        else if (k === 'up' || k === 'down' || k === 'left' || k === 'right') { this.t[k] -= dt; if (this.t[k] <= 0) { out[k] = true; this.t[k] = 0.11; } }
+      }
+      this.st[k] = cur[k];
+    }
+    return out;
+  },
+};
+
+// ---------- HTML-оверлеи (лобби, настройки, клавиши, таблица друзей…): общий каркас и управление с геймпада ----------
+const Ov = {
+  all: [],
+  // оборачивает оверлей: сверху «← Назад» и хлебные крошки, снизу строка подсказок; непрозрачный фон задаёт класс .ov
+  chrome(el, o) {
+    if (el._hint) { this.crumbs(el, o.crumbs); return; }
+    el.classList.add('ov');
+    const bar = document.createElement('header'); bar.className = 'ovbar';
+    bar.innerHTML = '<button type="button" class="ovback">← Назад</button><nav class="crumbs" aria-label="Где вы"></nav>';
+    const body = document.createElement('div'); body.className = 'ovbody';
+    while (el.firstChild) body.appendChild(el.firstChild);
+    const hint = document.createElement('div'); hint.className = 'ovhint'; hint.setAttribute('role', 'note');
+    el.append(bar, body, hint);
+    el._bar = bar; el._crumbs = bar.querySelector('.crumbs'); el._hint = hint; el._hintOpt = o.hint || { act: 'нажать' }; el._back = o.back;
+    bar.querySelector('.ovback').addEventListener('click', () => el._back && el._back());
+    // призрачный щелчок после касания по холсту: в первые 350 мс по новому оверлею не нажимаем
+    el.addEventListener('click', (e) => { if (Dev.last === 'touch' && performance.now() - (el._openAt || 0) < 350) { e.preventDefault(); e.stopPropagation(); } }, true);
+    this.all.push(el);
+    Nav.register(el, () => el._back && el._back(), o.digits);
+    this.crumbs(el, o.crumbs); this.hint(el, el._hintOpt);
+  },
+  crumbs(el, list) {
+    if (!el._crumbs) return;
+    el._crumbs.innerHTML = '';
+    (list || []).forEach((c, i, a) => {
+      if (i) { const s = document.createElement('span'); s.textContent = ' › '; s.className = 'sep'; el._crumbs.append(s); }
+      const e = document.createElement(i === a.length - 1 ? 'b' : 'span'); e.textContent = c; el._crumbs.append(e);
+    });
+  },
+  // путь до текущего экрана меню (если меню на экране), иначе запасной
+  base(def) { const m = window.__game && window.__game.scene.getScene('menu'); const c = m && m.sys.isActive() && m.menuCrumbs ? m.menuCrumbs() : []; return c.length ? c : def; },
+  hint(el, opt) { if (opt) el._hintOpt = opt; if (el._hint) el._hint.textContent = Dev.hint(el._hintOpt); },
+  // оверлей только что открыли: охрана от призрачного щелчка и подсказка под текущее устройство
+  opened(el) { el._openAt = performance.now(); this.hint(el); },
+};
+
+const Nav = {
+  list: [], last: 0,
+  register(el, back, digits) { this.list = this.list.filter((o) => o.el !== el); this.list.push({ el, back, digits }); },
+  top() {
+    let best = null, bz = -1;
+    for (const o of this.list) {
+      if (o.el.hidden || !o.el.isConnected) continue;
+      const z = +getComputedStyle(o.el).zIndex || 0; if (z >= bz) { bz = z; best = o; }
+    }
+    return best;
+  },
+  any() { return !!this.top(); },
+  focusables(el) {
+    const out = [], seen = new Set(), root = el.querySelector('.ovbody') || el; // кнопка «← Назад» в панели сверху в обход (назад — кнопка B / Esc)
+    for (const n of root.querySelectorAll('button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled])')) {
+      if (n.hidden || n.closest('[hidden]') || !n.getClientRects().length) continue;
+      if (n.type === 'radio') { if (seen.has(n.name)) continue; const g = [...root.querySelectorAll(`input[type=radio][name="${n.name}"]`)]; seen.add(n.name); out.push(g.find((r) => r.checked) || g[0]); continue; }
+      out.push(n);
+    }
+    return out;
+  },
+  groupOf(n) { return n.type === 'radio' ? [...n.closest('.ov, body').querySelectorAll(`input[type=radio][name="${n.name}"]`)] : null; },
+  focus(n) { n.focus({ preventScroll: true }); try { n.scrollIntoView({ block: 'nearest' }); } catch (_) { } },
+  act(o, c) {
+    const el = o.el;
+    if (c.back) { if (o.back) o.back(); return; }
+    const fl = this.focusables(el); if (!fl.length) return;
+    const a = document.activeElement, inside = el.contains(a);
+    let i = inside ? fl.findIndex((n) => n === a || (a.type === 'radio' && n.type === 'radio' && n.name === a.name)) : -1;
+    if (c.up || c.down) { this.focus(fl[i < 0 ? 0 : (i + (c.down ? 1 : -1) + fl.length) % fl.length]); return; }
+    if (c.left || c.right) {
+      const d = c.right ? 1 : -1;
+      if (inside && a.type === 'range') { const st = +a.step || 1, v = Math.max(+a.min, Math.min(+a.max, +a.value + d * st)); a.value = v; a.dispatchEvent(new Event('input', { bubbles: true })); a.dispatchEvent(new Event('change', { bubbles: true })); return; }
+      if (inside && a.type === 'radio') { const g = this.groupOf(a), k = (g.indexOf(a) + d + g.length) % g.length; g[k].click(); this.focus(g[k]); return; }
+      if (i >= 0) this.focus(fl[(i + d + fl.length) % fl.length]); return;
+    }
+    if (c.ok) {
+      if (!inside || i < 0) { this.focus(fl[0]); return; }
+      if (a.tagName === 'BUTTON' || a.type === 'checkbox' || a.type === 'radio') a.click();
+    }
+  },
+  init() {
+    let t0 = performance.now();
+    const loop = () => {
+      requestAnimationFrame(loop);
+      const now = performance.now(), dt = Math.min(0.1, (now - t0) / 1000); t0 = now;
+      const o = this.top(); if (!o) return;
+      const c = PadNav.poll(dt);
+      for (const k in c) { this.act(o, c); break; }
+    };
+    requestAnimationFrame(loop);
+    // Esc закрывает верхний оверлей, даже если фокус не внутри него (у лобби и клавиш свои обработчики: они помечают событие)
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape' || e.defaultPrevented || (Access && Access.listening)) return;
+      const o = this.top(); if (!o) return;
+      e.preventDefault(); e.stopPropagation(); if (o.back) o.back();
+    }, true);
+    // цифры 1–9 выбирают N-й пункт открытого оверлея (если он это разрешает и фокус не в поле ввода)
+    document.addEventListener('keydown', (e) => {
+      const o = this.top(); if (!o || !o.digits || e.ctrlKey || e.metaKey || e.altKey) return;
+      const a = document.activeElement; if (a && (a.type === 'text' || a.tagName === 'TEXTAREA' || a.type === 'search')) return;
+      if (!/^[1-9]$/.test(e.key) || (Access && Access.listening)) return;
+      const fl = this.focusables(o.el), n = fl[+e.key - 1]; if (!n) return;
+      e.preventDefault(); e.stopPropagation();
+      this.focus(n); if (n.tagName === 'BUTTON' || n.type === 'checkbox') n.click();
+    }, true);
+  },
+};
+
+// ---------- сцена меню: каркас экранов ----------
+Object.assign(MenuScene.prototype, {
+  mCs() { const d = this.scale && this.scale.displaySize; return d && d.height ? d.height / VH : 1; },
+  mTop() { return this.mStack[this.mStack.length - 1]; },
+  menuInit() {
+    this.mStack = [{ id: 'main', ctx: {}, foc: 0 }]; this.mObj = []; this.mRows = []; this.mFoc = 0; this.busy = false;
+    const onDev = () => { if (this.sys && this.sys.isActive()) this.menuRender(); };
+    Dev.subs.push(onDev);
+    const onRs = () => { const k = this.mCs().toFixed(3) + ':' + VW; if (k !== this.mKey) this.menuRender(); };
+    this.scale.on('resize', onRs);
+    this.events.once('shutdown', () => { Dev.subs = Dev.subs.filter((f) => f !== onDev); this.scale.off('resize', onRs); });
+    this.menuRender();
+  },
+  menuCrumbs() { return this.mStack.slice(1).map((e) => { const d = MENU[e.id], c = d.crumb || d.title; return typeof c === 'function' ? c(this, e.ctx) : c; }).filter((c, i, a) => !i || c !== a[i - 1]); },
+  menuGo(id, ctx) {
+    if (!MENU[id] || this.leaving) return;
+    this.mTop().foc = this.mFoc;
+    const d = MENU[id]; this.mStack.push({ id, ctx: ctx || {}, foc: 0 });
+    this.mFoc = d.foc != null ? d.foc : 0; Snd.play('bead'); this.menuRender();
+    if (d.enter) d.enter(this, ctx || {});
+  },
+  // открыть экран «с нуля» по цепочке родителей (для коротких путей и тестов)
+  menuOpen(id, ctx) {
+    const chain = []; for (let d = MENU[id]; d; d = d.parent && MENU[d.parent]) chain.unshift(d.id);
+    this.mStack = chain.map((x, i) => ({ id: x, ctx: i === chain.length - 1 ? (ctx || {}) : {}, foc: 0 }));
+    if (this.mStack[0].id !== 'main') this.mStack.unshift({ id: 'main', ctx: {}, foc: 0 });
+    this.mFoc = (MENU[id].foc) || 0; this.menuRender();
+  },
+  menuBack() {
+    if (this.busy || this.leaving) return;
+    if (this.mStack.length < 2) return;
+    this.mStack.pop(); this.mFoc = this.mTop().foc || 0; Snd.play('clink'); this.menuRender();
+  },
+  // вызвать внешний оверлей (Как играть, Что нового…): пока он открыт, меню не реагирует; onClose возвращает управление
+  menuBusy(fn) {
+    if (this.busy || this.leaving) return; this.busy = true; Snd.init();
+    let done = false; const end = () => { if (done) return; done = true; this.busy = false; if (this.sys.isActive()) this.menuRender(); };
+    try { fn(end); } catch (e) { end(); throw e; }
+  },
+  menuBlocked() {
+    if (this.busy || Settings.open || !Lobby.el.hidden || Nav.any()) return true;
+    return false;
+  },
+
+  // ----- рисование -----
+  menuRender() {
+    if (!this.mStack || !this.sys.isActive()) return;
+    for (const o of this.mObj) if (o && o.scene) o.destroy();
+    this.mObj = []; this.mRows = [];
+    const top = this.mTop(), desc = MENU[top.id], ctx = top.ctx, root = !!desc.root;
+    const val = (v) => (typeof v === 'function' ? v(this, ctx) : v);
+    const cs = this.mCs(), fmin = Math.ceil(11.4 / cs), zone = Math.ceil(44 / cs), pad = 36;
+    this.mKey = cs.toFixed(3) + ':' + VW;
+    const F = '"Fira Sans", sans-serif', D = '"Cormorant SC", Georgia, serif', fs = (n) => Math.max(n, fmin);
+    const add = (o, z) => { o.setDepth(z || 12); this.mObj.push(o); return o; };
+    const txt = (x, y, s, st, ox, oy) => add(this.add.text(x, y, s, st).setOrigin(ox == null ? 0 : ox, oy == null ? 0 : oy));
+    const fit = (t, maxW, minPx) => { let f = parseFloat(t.style.fontSize); while (t.width > maxW && f > minPx) { f -= 1; t.setFontSize(f); } return t; };
+    this.mBase.forEach((o) => o.setVisible(root)); this.mHero = root;
+    // непрозрачный фон: сквозь экран не просвечивает ни главное меню, ни фон сцены
+    if (!root) { const bg = add(this.add.rectangle(0, 0, VW, VH, 0x060d0b, 1).setOrigin(0), 9); bg.setInteractive(); }
+
+    const items = (val(desc.items) || []).filter((it) => !val(it.hidden));
+    const rows = items.map((it) => ({ it, kind: it.kind || 'btn', en: val(it.enabled) !== false, label: val(it.label), sub: val(it.sub), value: val(it.value), key: it.key, lr: !!it.lr }));
+    this.mItems = rows;
+    if (this.mFoc >= rows.length) this.mFoc = Math.max(0, rows.length - 1);
+
+    // ----- нижняя строка подсказок -----
+    const ks = rows.map((r) => r.key).filter(Boolean), nums = ks.length ? (ks.length > 1 ? ks[0] + '–' + ks[ks.length - 1] : ks[0]) : '', hasLR = rows.some((r) => r.lr || r.kind === 'cards') || !!desc.lr;
+    const hf = fs(15);
+    const hint = txt(VW / 2, VH - 8, Dev.hint({ nums, lr: hasLR ? (desc.lrText || 'менять') : '', back: !root, extra: val(desc.extra) }), { fontFamily: F, fontSize: hf + 'px', color: '#7fa596' }, 0.5, 1);
+    fit(hint, VW - 2 * pad - (Touch.enabled ? 170 : 0), fmin);
+    this.mHint = hint;
+    const hintTop = VH - 8 - hint.height;
+
+    // ----- верхняя полоса: «← Назад» и крошки (на корне — версия и «Что нового ›») -----
+    const TB = Math.max(zone, 48);
+    let ct;
+    if (root) {
+      const vt = txt(pad, zone / 2, `Версия ${GAME_VERSION} · сборка ${GAME_BUILD}`, { fontFamily: F, fontSize: fs(15) + 'px', color: '#9fc4b4', fontStyle: '600' }, 0, 0.5);
+      const lk = txt(vt.x + vt.width + 18, zone / 2, 'Что нового ›', { fontFamily: F, fontSize: fs(15) + 'px', color: '#ffd47a', fontStyle: '600' }, 0, 0.5);
+      const lz = add(this.add.zone(lk.x - 8, 0, lk.width + 16, zone).setOrigin(0).setInteractive({ useHandCursor: true }));
+      lz.on('pointerdown', () => this.menuChangelog());
+      ct = lk.x + lk.width > Math.round(VW * 0.46) - 12 ? zone + 4 : 8; // правая колонка поднимается к самому верху, если версия её не задевает
+    } else {
+      const bz = add(this.add.zone(0, 0, 150, TB).setOrigin(0).setInteractive({ useHandCursor: true }));
+      bz.on('pointerdown', () => this.menuBack());
+      const bt = txt(pad - 8, TB / 2, '← Назад', { fontFamily: F, fontSize: fs(19) + 'px', color: '#cfe8dc', fontStyle: '600' }, 0, 0.5);
+      bz.on('pointerover', () => bt.setColor('#ffd47a')); bz.on('pointerout', () => bt.setColor('#cfe8dc'));
+      const cr = this.menuCrumbs(), cx0 = 166, maxW = VW - cx0 - pad, cf = fs(16);
+      const mk = (parts) => {
+        const last = parts[parts.length - 1], pre = parts.slice(0, -1).join(' › ');
+        const a = pre ? txt(cx0, TB / 2, pre + ' › ', { fontFamily: F, fontSize: cf + 'px', color: '#7fa596' }, 0, 0.5) : null;
+        const b = txt(cx0 + (a ? a.width : 0), TB / 2, last, { fontFamily: F, fontSize: cf + 'px', color: '#ffd47a', fontStyle: '600' }, 0, 0.5);
+        return [a, b];
+      };
+      let parts = cr.slice(), pair = mk(parts);
+      while (pair[1].x + pair[1].width > cx0 + maxW && parts.length > 1) { pair.forEach((o) => o && o.destroy()); parts = parts.length > 2 ? ['…', ...parts.slice(2)] : parts.slice(1); pair = mk(parts); }
+      if (pair[1].x + pair[1].width > cx0 + maxW) fit(pair[1], cx0 + maxW - pair[1].x, fmin);
+      const ln = add(this.add.graphics(), 10); ln.fillStyle(0x1d3630, 1); ln.fillRect(0, TB, VW, 1);
+      ct = TB + 12;
+    }
+    const cb = hintTop - 10, avail = cb - ct;
+
+    // ----- правая колонка: пункты -----
+    const rx = Math.round(VW * 0.46), rw = VW - rx - pad;
+    const cards = rows.find((r) => r.kind === 'cards');
+    const nrows = rows.filter((r) => r.kind !== 'cards').length, chh = 92;
+    let rh = Math.min(68, Math.max(zone, 56));
+    const need0 = (cards ? chh + 8 : 0);
+    if (nrows * rh + need0 > avail) rh = Math.max(36, Math.floor((avail - need0) / Math.max(1, nrows)));
+    const used = nrows * rh + need0;
+    let y = ct + (root ? Math.max(0, (avail - used) / 2) : Math.max(0, Math.min(18, (avail - used) / 2)));
+    const paint = () => this.menuPaint();
+    rows.forEach((r, i) => {
+      const it = r.it;
+      if (r.kind === 'cards') {
+        const gap = 10, cw = Math.floor((rw - gap * (BOSSES.length - 1)) / BOSSES.length);
+        r.cards = BOSSES.map((b, k) => {
+          const x = rx + k * (cw + gap), rec = Records.get(b.id);
+          const bg = add(this.add.rectangle(x, y, cw, chh, 0x0e1f1b, 0.9).setOrigin(0).setInteractive({ useHandCursor: true }), 11);
+          const nm = txt(x + cw / 2, y + 9, b.name, { fontFamily: D, fontSize: '21px', fontStyle: '700', color: '#cfe8dc', align: 'center', wordWrap: { width: cw - 14 } }, 0.5, 0);
+          const rc = txt(x + cw / 2, y + chh - 8, rec.best ? 'рекорд ' + Records.fmt(rec.best) : 'нет рекорда', { fontFamily: F, fontSize: fs(15) + 'px', color: '#7fa596', align: 'center' }, 0.5, 1);
+          fit(rc, cw - 10, fmin);
+          bg.on('pointerdown', () => { this.mFoc = i; if (it.pick) it.pick(this, ctx, k); this.menuRender(); });
+          return { bg, nm, rc };
+        });
+        y += chh + 8; r.y = y; return;
+      }
+      const zn = add(this.add.rectangle(rx, y, rw, rh - 4, 0x0e1f1b, 0.62).setOrigin(0).setInteractive({ hitArea: new Phaser.Geom.Rectangle(0, -2, rw, rh), hitAreaCallback: Phaser.Geom.Rectangle.Contains, useHandCursor: r.en }), 11); // зона нажатия на весь шаг строки, с промежутком
+      const bar = add(this.add.rectangle(rx, y, 4, rh - 4, 0xffd47a, 1).setOrigin(0), 12);
+      const num = r.key ? txt(rx + 18, y + (rh - 4) / 2, r.key, { fontFamily: F, fontSize: '21px', fontStyle: '600', color: '#ffd47a' }, 0, 0.5) : null;
+      const lx = rx + (r.key ? 52 : 20);
+      const val2 = r.value != null && r.value !== '' ? txt(rx + rw - 16, y + (rh - 4) / 2, String(r.value), { fontFamily: F, fontSize: fs(17) + 'px', fontStyle: '600', color: '#ffd47a' }, 1, 0.5) : null;
+      const mw = rw - (lx - rx) - 14 - (val2 ? val2.width + 14 : 0);
+      const lf = rh >= 60 ? 27 : 24;
+      const lab = txt(lx, y, r.label, { fontFamily: D, fontSize: lf + 'px', fontStyle: '600', color: '#cfe8dc' }, 0, 0);
+      fit(lab, mw, 18);
+      let sub = null;
+      if (r.sub) { sub = txt(lx, y, r.sub, { fontFamily: F, fontSize: fs(15) + 'px', color: '#7fa596' }, 0, 0); fit(sub, mw, fmin); }
+      const th = lab.height + (sub ? sub.height + 1 : 0), ty = y + ((rh - 4) - th) / 2;
+      lab.y = ty; if (sub) sub.y = ty + lab.height + 1;
+      zn.on('pointerover', (p) => { if (!(p && p.wasTouch) && this.mFoc !== i) { this.mFoc = i; paint(); } });
+      zn.on('pointerdown', () => { this.mFoc = i; this.menuAct(i); });
+      Object.assign(r, { zn, bar, num, lab, sub, val2, y });
+      y += rh;
+    });
+
+    // ----- левая колонка: заголовок и описание -----
+    const lx0 = pad, lw = rx - pad - 30;
+    if (root) {
+      const cx = lx0 + lw / 2;
+      const t1 = txt(cx, zone + 40, 'ТРОПА ТКАЧЕЙ', { fontFamily: D, fontSize: '60px', fontStyle: '700', color: '#e8e2cf' }, 0.5, 0);
+      fit(t1, lw, 34); t1.setShadow(0, 0, '#9fc4b4', 16, false, true);
+      txt(cx, t1.y + t1.height + 2, Campaign.subtitle(), { fontFamily: F, fontSize: fs(17) + 'px', color: '#8fb8a8' }, 0.5, 0);
+      this.heroX = cx; this.heroY = Math.min(cb - 60, Math.max(t1.y + t1.height + 90, 300));
+      this.mGlow.clear(); this.mGlow.fillStyle(0x9fc4b4, 0.06); for (let rr = 110; rr > 10; rr -= 12) this.mGlow.fillCircle(cx, this.heroY - 24, rr);
+    } else {
+      const title = val(desc.title), t = txt(lx0, ct, title, { fontFamily: D, fontSize: '46px', fontStyle: '700', color: '#e8e2cf', wordWrap: { width: lw } });
+      fit(t, lw, 28); t.setShadow(0, 0, '#9ff0c8', 12, false, true);
+      let iy = t.y + t.height + 10;
+      const paras = (desc.info && desc.info(this, ctx)) || [];
+      const lay = (f) => {
+        const made = []; let yy = iy;
+        for (const p0 of paras) {
+          const p = typeof p0 === 'string' ? { t: p0 } : p0; if (!p.t) continue;
+          const big = p.head ? 1.25 : 1, size = Math.round(Math.max(fmin, (p.fs || 16) + f) * big);
+          const o = this.add.text(lx0, yy, p.t, { fontFamily: p.head ? D : F, fontSize: size + 'px', fontStyle: p.head ? '700' : '400', color: p.c || '#b9d4c8', wordWrap: { width: lw }, lineSpacing: Math.round(size / 5) }).setDepth(12);
+          this.mObj.push(o); made.push(o); yy += o.height + (p.head ? 4 : 10);
+        }
+        return { made, bottom: yy };
+      };
+      let f = 0, res = lay(f);
+      while (res.bottom > cb && f > -4) { res.made.forEach((o) => o.destroy()); f -= 1; res = lay(f); }
+    }
+    this.mRowsReady = true;
+    this.menuPaint();
+  },
+  menuPaint() {
+    const rows = this.mItems || [];
+    rows.forEach((r, i) => {
+      const foc = i === this.mFoc;
+      if (r.kind === 'cards') {
+        const sel = r.it.sel ? r.it.sel(this) : -1;
+        r.cards.forEach((c, k) => {
+          c.bg.setFillStyle(foc && k === sel ? 0x1c4a3d : k === sel ? 0x153329 : 0x0e1f1b, 0.95);
+          c.bg.setStrokeStyle(k === sel ? 2 : 1, k === sel ? 0xffd47a : 0x24433a, 1);
+          c.nm.setColor(k === sel ? '#ffd47a' : '#cfe8dc'); c.rc.setColor(k === sel ? '#ffe3a3' : '#7fa596');
+        });
+        return;
+      }
+      r.zn.setFillStyle(foc ? 0x184238 : 0x0e1f1b, foc ? 0.97 : 0.62);
+      r.bar.setVisible(foc);
+      const dis = !r.en;
+      r.lab.setColor(dis ? '#5f7a6f' : foc ? '#ffd47a' : (r.it.danger ? '#ffb48a' : '#cfe8dc'));
+      if (r.sub) r.sub.setColor(dis ? '#557064' : foc ? '#b9d4c8' : '#7fa596');
+      if (r.num) r.num.setColor(dis ? '#557064' : '#ffd47a');
+      if (r.val2) r.val2.setColor(dis ? '#557064' : '#ffd47a');
+    });
+  },
+
+  // ----- действия -----
+  menuAct(i) {
+    const r = this.mItems && this.mItems[i]; if (!r || this.menuBlocked() || this.leaving) return;
+    if (r.kind === 'cards') { const it = r.it; if (it.enter) it.enter(this, this.mTop().ctx); else { this.mFoc = Math.min(this.mItems.length - 1, i + 1); this.menuPaint(); } return; }
+    if (!r.en) { Snd.init(); Snd.play('hit'); return; }
+    Snd.init(); if (r.it.act) r.it.act(this, this.mTop().ctx);
+  },
+  menuKeyDigit(d) { const i = (this.mItems || []).findIndex((r) => r.key === d); if (i >= 0) { this.mFoc = i; this.menuAct(i); } },
+  menuLR(dir) {
+    const r = this.mItems && this.mItems[this.mFoc], desc = MENU[this.mTop().id], ctx = this.mTop().ctx; if (!r) return;
+    if (r.it.lr) r.it.lr(this, ctx, dir); else if (desc.lr) desc.lr(this, ctx, dir);
+  },
+  menuMove(d) {
+    const n = (this.mItems || []).length; if (!n) return;
+    this.mFoc = (this.mFoc + d + n) % n; Snd.play('bead'); this.menuPaint();
+  },
+  menuCmd(c) {
+    if (c.up) this.menuMove(-1); else if (c.down) this.menuMove(1);
+    if (c.left) this.menuLR(-1); else if (c.right) this.menuLR(1);
+    if (c.ok) this.menuAct(this.mFoc);
+    if (c.back) this.menuBack();
+    if (c.x && MENU[this.mTop().id].root) this.menuChangelog();
+  },
+  menuKey(e) {
+    Snd.init();
+    if (this.menuBlocked() || this.leaving || e.repeat === true && /^\d$/.test(e.key)) return;
+    const k = e.key, desc = MENU[this.mTop().id];
+    if (/^[1-9]$/.test(k)) { this.menuKeyDigit(k); return; }
+    if (k === 'ArrowUp' || k === 'w' || k === 'W' || k === 'ц' || k === 'Ц') this.menuMove(-1);
+    else if (k === 'ArrowDown' || k === 's' || k === 'S' || k === 'ы' || k === 'Ы') this.menuMove(1);
+    else if (k === 'ArrowLeft' || k === 'a' || k === 'A' || k === 'ф' || k === 'Ф') this.menuLR(-1);
+    else if (k === 'ArrowRight' || k === 'd' || k === 'D' || k === 'в' || k === 'В') this.menuLR(1);
+    else if (k === 'Enter' || k === ' ') { if (e.repeat) return; this.menuAct(this.mFoc); }
+    else if (k === 'Escape' || k === 'Backspace') this.menuBack();
+    else if ((e.code === 'KeyN') && desc.root) this.menuChangelog();
+    else if (desc.keys && desc.keys[e.code] && !e.repeat) desc.keys[e.code](this, this.mTop().ctx);
+  },
+  menuUpdate(dt) {
+    if (!this.mStack) return;
+    if (this.menuBlocked() || this.leaving) { return; }
+    const c = PadNav.poll(dt); for (const k in c) { this.menuCmd(c); break; }
+  },
+  menuChangelog() { this.menuBusy((done) => Changelog.show(done)); },
+  menuHowTo(section) { this.menuBusy((done) => HowTo.show(done, section)); },
+  // старые имена точек входа
+  openSettings() { this.menuOpen('settings'); },
+  openPick() { this.menuOpen('bosstest'); },
+  closePick() { if (this.mTop().id === 'bosstest') this.menuBack(); },
+  openSpeedrun() { this.menuOpen('speedrun'); },
+});
+
+// ---------- экраны ----------
+const MENU_LAST = 'tt_players';
+const menuPlayers = () => { try { return localStorage.getItem(MENU_LAST) === '2' ? 2 : 1; } catch (_) { return 1; } };
+const menuChapterCamp = (ch) => {
+  const p = Settings.progress() || {};
+  return { ch, st: ch === 1 ? 'level' : 'road', beads: ch === 1 ? 0 : (p.beads | 0), abil: ch === 1 ? {} : { ...(p.abil || {}) }, up: { ...Campaign.freshUp(), ...(p.up || {}) }, time: 0, deaths: 0 };
+};
+
+menuAdd({
+  id: 'main', root: true, title: 'Тропа Ткачей',
+  items: (m) => {
+    const p = Settings.progress();
+    return [
+      { key: '1', label: 'Продолжить', sub: () => (p ? (p.name || 'скамья') + (menuPlayers() === 2 ? ' · вдвоём' : '') : ''), hidden: !p,
+        act: (m) => m.go(menuPlayers(), undefined, Campaign.resume()) },
+      { key: '2', label: 'Кампания', sub: 'новая игра, главы, вдвоём', act: (m) => m.menuGo('campaign') },
+      { key: '3', label: 'Босс-тест', sub: 'три босса, тренировка, рекорды', act: (m) => m.menuGo('bosstest') },
+      { key: '4', label: 'Спидран', sub: 'Тропа целиком, Босс-раш, гонка 1×1', act: (m) => m.menuGo('speedrun') },
+      { key: '5', label: 'Гонки Ткачей', sub: 'скоро', act: (m) => m.menuGo('races') },
+      { key: '6', label: 'Как играть', sub: 'управление, приёмы, боссы', act: (m) => m.menuHowTo() },
+      { key: '7', label: 'Настройки', sub: 'звук, экран, управление, игра', act: (m) => m.menuGo('settings') },
+    ];
+  },
+  extra: () => ({ kb: 'N — что нового', pad: `${Dev.names().x} — что нового` }),
+});
+
+menuAdd({
+  id: 'campaign', parent: 'main', title: 'Кампания',
+  info: () => ['Четыре главы: Корнематка, Миша, Владик, Тима. Прогресс сохраняется на скамьях.', { t: Settings.progress() ? 'Сохранение: ' + (Settings.progress().name || 'скамья') : 'Сохранения пока нет.', c: '#ffe3a3' }],
+  items: () => {
+    const p = Settings.progress(), best = p ? Math.max(p.best | 0, p.chapter | 0) : 0;
+    return [
+      { key: '1', label: 'Новая игра', sub: p ? 'с главы I; старое сохранение заменится позже' : 'с главы I',
+        act: (m) => (Settings.progress() ? m.menuGo('newgame') : m.menuGo('mode', { camp: Campaign.fresh(), crumb: 'Новая игра' })) },
+      { key: '2', label: 'Выбрать главу', sub: best >= 2 ? 'пройденные главы' : 'откроется после главы I', enabled: best >= 2, act: (m) => m.menuGo('chapters') },
+    ];
+  },
+});
+
+menuAdd({
+  id: 'newgame', parent: 'campaign', title: 'Начать заново?', crumb: 'Новая игра', foc: 1,
+  info: () => [`Сейчас сохранено: ${(Settings.progress() || {}).name || 'скамья'}.`, 'Старое сохранение останется, пока вы не сядете на первую скамью новой игры: тогда оно заменится.'],
+  items: () => [
+    { key: '1', label: 'Да, начать заново', sub: 'бусины и улучшения с нуля', danger: true, act: (m) => m.menuGo('mode', { camp: Campaign.fresh(), crumb: 'Новая игра' }) },
+    { key: '2', label: 'Нет, назад', act: (m) => m.menuBack() },
+  ],
+});
+
+menuAdd({
+  id: 'chapters', parent: 'campaign', title: 'Выбор главы', crumb: 'Глава',
+  info: () => ['Можно переиграть любую пройденную главу. Сохранение продолжится с неё, но открытые главы не потеряются.'],
+  items: () => {
+    const p = Settings.progress() || {}, best = Math.max(p.best | 0, p.chapter | 0, 1);
+    return Object.keys(CHAPTERS).map((k) => +k).filter((ch) => ch <= best).map((ch) => ({
+      key: String(ch), label: `Глава ${CHAPTERS[ch].roman} · ${CHAPTERS[ch].name}`, sub: ch === 1 ? 'Корнематка' : `${CHAPTERS[ch].road} → ${BOSSES.find((b) => b.id === CHAPTERS[ch].boss).name}`,
+      act: (m) => m.menuGo('mode', { camp: menuChapterCamp(ch), crumb: `Глава ${CHAPTERS[ch].roman}` }),
+    }));
+  },
+});
+
+menuAdd({
+  id: 'mode', parent: 'campaign', title: 'Как играем?', crumb: (m, ctx) => ctx.crumb || 'Режим',
+  info: (m, ctx) => ['Выберите, с кем идёте по Тропе.', { t: 'Вдвоём по сети: один создаёт комнату и присылает код, второй входит по коду.', c: '#7fa596' }],
+  items: (m, ctx) => [
+    { key: '1', label: 'Один ткач', sub: 'клавиатура или геймпад', act: (m) => m.go(1, undefined, ctx.camp) },
+    { key: '2', label: 'Двое за одним компьютером', sub: 'игрок 2 — на стрелках', act: (m) => m.go(2, undefined, ctx.camp) },
+    { key: '3', label: 'Вдвоём по сети', sub: 'создать комнату или войти по коду', act: (m) => m.menuGo('net', { mode: 'story', camp: ctx.camp }) },
+  ],
+});
+
+menuAdd({
+  id: 'net', parent: 'mode', title: 'Вдвоём по сети', crumb: 'По сети',
+  info: () => ['Соединение идёт напрямую между браузерами, а если сеть не пускает — через ретранслятор. Порты и белый IP не нужны.'],
+  items: (m, ctx) => [
+    { key: '1', label: 'Создать комнату', sub: 'пришлите другу код или ссылку', act: (m) => m.openLobby(ctx.mode, 'host', ctx.camp) },
+    { key: '2', label: 'Войти по коду', sub: 'код из пяти символов от друга', act: (m) => m.openLobby(ctx.mode, 'join', ctx.camp) },
+  ],
+});
+
+menuAdd({
+  id: 'bosstest', parent: 'main', title: 'Босс-тест', crumb: 'Босс-тест',
+  lrText: 'менять',
+  info: (m) => {
+    const b = BOSSES[m.pickIdx], r = Records.get(b.id);
+    return [{ t: b.name, head: true, c: '#ffd47a' }, b.about, { t: Records.line(b.id), c: '#ffe3a3' },
+      { t: Training.on ? `Тренировка: бесконечное здоровье, счётчик урона и DPS, сброс босса клавишей Y. Старт с фазы ${Training.phase}. Рекорды не пишутся.` : 'Бой сразу с выбранным боссом.', c: '#7fa596' }];
+  },
+  lr: (m, ctx, d) => m.setPick(m.pickIdx + d),
+  keys: { KeyT: () => menuTrainToggle(), KeyP: () => menuTrainPhase() },
+  extra: () => ({ kb: 'T — тренировка, P — фаза' }),
+  items: () => [
+    { kind: 'cards', sel: (m) => m.pickIdx, pick: (m, ctx, k) => m.setPick(k), lr: (m, ctx, d) => m.setPick(m.pickIdx + d), enter: (m) => { m.mFoc = 1; m.menuPaint(); } },
+    { key: '1', label: 'Один ткач', sub: 'в бой сразу', act: (m) => m.go(1, 'bosstest') },
+    { key: '2', label: 'Двое за одним компьютером', act: (m) => m.go(2, 'bosstest') },
+    { key: '3', label: 'Вдвоём по сети', sub: () => (Training.on ? 'в тренировке — только вдвоём у одного компьютера' : 'создать комнату или войти по коду'), enabled: () => !Training.on, act: (m) => m.menuGo('net', { mode: 'bosstest' }) },
+    { key: '4', label: 'Тренировка', sub: 'здоровье бесконечное, счётчик урона', value: () => (Training.on ? 'вкл' : 'выкл'), act: () => menuTrainToggle(), lr: () => menuTrainToggle() },
+    { key: '5', label: 'Старт с фазы', sub: () => (Training.on ? 'только в тренировке' : 'включит тренировку'), value: () => String(Training.phase), act: () => menuTrainPhase(), lr: (m, c, d) => menuTrainPhase(d) },
+  ],
+});
+function menuTrainToggle() { Training.on = !Training.on; Training.save(); const m = window.__game && window.__game.scene.getScene('menu'); if (m) m.menuRender(); }
+function menuTrainPhase(d) {
+  if (!Training.on) { Training.on = true; } else Training.phase = ((Training.phase - 1 + (d || 1) + 3) % 3) + 1;
+  Training.save(); const m = window.__game && window.__game.scene.getScene('menu'); if (m) m.menuRender();
+}
+
+menuAdd({
+  id: 'races', parent: 'main', title: 'Гонки Ткачей', crumb: 'Гонки Ткачей',
+  info: () => [{ t: 'Скоро', head: true, c: '#ffd47a' }, 'Новый соревновательный режим появится в версии 1.8. Пока здесь заглушка.', { t: 'А пока: Спидран → Гонка 1×1 по сети уже работает.', c: '#7fa596' }],
+  items: () => [
+    { key: '1', label: 'Создать гонку', sub: 'появится в 1.8', enabled: false },
+    { key: '2', label: 'Войти игроком по коду', sub: 'появится в 1.8', enabled: false },
+    { key: '3', label: 'Обсервер', sub: 'появится в 1.8', enabled: false },
+    { key: '4', label: 'Рейтинг и архив', sub: 'появится в 1.8', enabled: false },
+  ],
+});
+
+menuAdd({
+  id: 'settings', parent: 'main', title: 'Настройки', crumb: 'Настройки',
+  info: () => ['Всё запоминается в этом браузере.', { t: 'Сброс прогресса — в разделе «Прогресс».', c: '#7fa596' }],
+  items: () => Settings.SECS.map(([id, name, sub], i) => ({ key: String(i + 1), label: name, sub, act: (m) => m.menuBusy((done) => Settings.show(done, id)) })),
+});
+
 // ===== СПИДРАН: забеги на время, сплиты, код результата, таблица друзей, гонка 1×1 по сети =====
 // Забег живёт в Speedrun.run и переживает смену сцен (главы). Пока забег идёт, обычное сохранение не читается и не пишется,
 // рекорды боссов не трогаются. RTA — настенные часы с первого движения до последнего удара финального босса,
@@ -8573,8 +9106,8 @@ const Speedrun = {
   Access.speed = function () { return Speedrun.run ? 1 : spO.call(this); };
   // во время забега лёгкий режим и замедление в настройках заблокированы
   const showO = S.show;
-  S.show = function (cb) {
-    showO.call(this, cb);
+  S.show = function (cb, section) {
+    showO.call(this, cb, section);
     const lock = !!Speedrun.run, el = document.getElementById('settings');
     document.getElementById('st-easy').disabled = lock;
     el.querySelectorAll('[name=st-speed]').forEach((r) => { r.disabled = lock; });
@@ -8582,7 +9115,7 @@ const Speedrun = {
     if (lock && !note) {
       note = document.createElement('p'); note.id = 'st-srnote'; note.style.cssText = 'margin:0;color:#ffb48a;font-size:13px';
       note.textContent = 'Идёт забег: лёгкий режим и замедление игры заблокированы.';
-      el.querySelector('h2').after(note);
+      el.querySelector('[data-sec=game]').prepend(note);
     }
     if (note) note.hidden = !lock;
   };
@@ -8761,7 +9294,7 @@ Object.assign(Speedrun, {
   css() {
     if (document.getElementById('sr-css')) return;
     const st = document.createElement('style'); st.id = 'sr-css';
-    st.textContent = `.sr-ov{position:fixed;inset:0;z-index:7;display:grid;place-items:center;overflow-y:auto;background:rgba(3,8,7,.86);padding:16px}
+    st.textContent = `.sr-ov{z-index:7}
 .sr-ov .card{width:min(620px,100%);background:#0c1815;border:1px solid #24433a;border-radius:10px;padding:18px 22px 16px;display:grid;gap:10px;margin-block:auto;color:#cfe2d8;font:14px/1.45 var(--body)}
 .sr-ov h2{font:700 32px var(--display);margin:0;color:var(--bone)}.sr-ov h3{font:700 22px var(--display);margin:6px 0 2px;color:var(--ember)}
 .sr-ov .lead{margin:0;color:var(--muted);font-size:13px}.sr-ov .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
@@ -8786,12 +9319,13 @@ Object.assign(Speedrun, {
 <div class="row"><button id="sr-ready" class="primary" type="button">Готов</button><button id="sr-rfix" type="button" hidden>Отключить запрещённые настройки</button></div>
 <div class="row"><button id="sr-rleave" class="ghost" type="button">← Выйти из комнаты</button></div></div>`;
     document.body.appendChild(el);
+    Ov.chrome(el, { crumbs: ['Спидран', 'Гонка 1×1', 'Комната'], back: () => this.raceLeave(), hint: { act: 'нажать' } });
     el.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Escape') this.raceLeave(); });
     el.querySelector('#sr-ready').onclick = () => { const R = this.race; if (!R || R.state !== 'room') return; R.me = !R.me; this.rmsg({ k: 'ready', v: R.me }); this.roomRefresh(); this.maybeStart(); };
     el.querySelector('#sr-rleave').onclick = () => this.raceLeave();
     el.querySelector('#sr-rfix').onclick = () => { this.fixRules(); this.roomRefresh(); };
   },
-  roomShow() { const el = document.getElementById('sr-room'); el.hidden = false; this.roomRefresh(); setTimeout(() => document.getElementById('sr-ready').focus(), 0); },
+  roomShow() { const el = document.getElementById('sr-room'); el.hidden = false; Ov.opened(el); this.roomRefresh(); setTimeout(() => document.getElementById('sr-ready').focus(), 0); },
   roomHide() { const el = document.getElementById('sr-room'); if (el) el.hidden = true; },
   roomRefresh() {
     const R = this.race, el = document.getElementById('sr-room'); if (!R || !el || el.hidden) return;
@@ -8836,17 +9370,18 @@ Object.assign(Speedrun, {
 <textarea id="sr-paste" spellcheck="false" placeholder="Вася: ТТ v1.4 Тропа целиком 23:41.52 (IGT 22:58.10) обрывов 3 · сплиты … · код A1B2C3"></textarea>
 <div class="row"><button id="sr-add" class="primary" type="button">Добавить в таблицу</button><button id="sr-clear" type="button">Очистить чужие результаты</button></div>
 <div id="sr-fmsg" role="status"></div><div id="sr-tabs"></div>
-<div class="row"><button id="sr-fclose" class="ghost" type="button">← Закрыть</button></div></div>`;
+</div>`;
       document.body.appendChild(el);
+      Ov.chrome(el, { crumbs: ['Спидран', 'Таблица друзей'], back: () => this.friendsClose(), hint: { act: 'нажать' } });
       el.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Escape') this.friendsClose(); });
-      el.querySelector('#sr-fclose').onclick = () => this.friendsClose();
       el.querySelector('#sr-name').addEventListener('input', (e) => { this.setMyName(e.target.value); });
       el.querySelector('#sr-clear').onclick = () => { this.saveFriends([]); this.friendsMsg('Чужие результаты очищены', 'good'); this.friendsRender(); };
       el.querySelector('#sr-add').onclick = () => this.friendsAdd(el.querySelector('#sr-paste').value);
     }
     this.frLast = last || null;
     el.querySelector('#sr-name').value = this.myName();
-    el.hidden = false; this.friendsMsg(''); this.friendsRender();
+    Ov.crumbs(el, [...Ov.base(['Спидран']), 'Таблица друзей']);
+    el.hidden = false; Ov.opened(el); this.friendsMsg(''); this.friendsRender();
     setTimeout(() => el.querySelector('#sr-paste').focus(), 0);
   },
   friendsClose() { const el = document.getElementById('sr-fr'); if (el) el.hidden = true; },
@@ -8996,89 +9531,59 @@ Object.assign(Speedrun, {
   };
 })();
 
-// ===== меню: пункт «Спидран» (клавиша 6) =====
-{
-  const mc = MenuScene.prototype.create;
-  MenuScene.prototype.create = function () { this.srP = null; this.srUi = null; mc.call(this); };
-}
+// ===== меню: экраны «Спидран» и категории забега (карта MENU, каркас — src/menu.js) =====
 Object.assign(MenuScene.prototype, {
-  srBuild() {
-    const D = '"Cormorant SC", Georgia, serif', F = '"Fira Sans", sans-serif', M = 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace', cx = VW / 2;
-    const c = this.add.container(0, 0).setVisible(false).setDepth(11), s = this.srUi = {};
-    const g = this.add.graphics(); g.fillStyle(0x030807, 0.985); g.fillRect(0, 0, VW, VH);
-    const t = (x, y, str, st, ox) => { const o = this.add.text(x, y, str, st).setOrigin(ox == null ? 0.5 : ox, 0); c.add(o); return o; };
-    c.add(g);
-    t(cx, 24, 'Спидран', { fontFamily: D, fontSize: '46px', color: '#e8e2cf', fontStyle: '700' }).setShadow(0, 0, '#9ff0c8', 14, false, true);
-    s.cat = 'trail';
-    s.tabs = ['trail', 'boss'].map((id, i) => {
-      const o = t(cx + (i ? 150 : -150), 86, SR_CATS[id].name, { fontFamily: D, fontSize: '28px', color: '#8fb8a8', fontStyle: '700' }).setInteractive({ useHandCursor: true });
-      o.on('pointerdown', () => this.srSetCat(id)); return o;
-    });
-    s.line = this.add.graphics(); c.add(s.line);
-    t(cx, 132, '← → выбрать категорию', { fontFamily: F, fontSize: '12px', color: '#6f9586' });
-    s.about = t(cx, 152, '', { fontFamily: F, fontSize: '14px', color: '#cfe8dc', align: 'center', lineSpacing: 5 });
-    s.rec = t(cx, 196, '', { fontFamily: M, fontSize: '13px', color: '#ffe3a3', align: 'center', lineSpacing: 4 });
-    t(cx, 248, 'RTA идёт с первого шага до последнего удара финального босса. Пауза останавливает только игровое время (IGT).\nОбычное сохранение и рекорды боссов не затрагиваются. Переназначение клавиш разрешено.', { fontFamily: F, fontSize: '12.5px', color: '#86a89a', align: 'center', lineSpacing: 4 });
-    s.rules = t(cx, 296, '', { fontFamily: F, fontSize: '14px', color: '#9ff0c8', align: 'center', lineSpacing: 5 });
-    s.fix = t(cx, 346, 'Отключить запрещённые настройки', { fontFamily: D, fontSize: '22px', color: '#ffb48a', fontStyle: '700', backgroundColor: 'rgba(60,24,16,0.85)', padding: { x: 12, y: 5 } }).setInteractive({ useHandCursor: true });
-    s.fix.on('pointerdown', () => { Speedrun.fixRules(); this.srRefresh(); });
-    const mk = (y, label, fn) => {
-      const o = t(cx, y, label, { fontFamily: D, fontSize: '28px', color: '#cfe8dc', fontStyle: '600' }).setInteractive({ useHandCursor: true });
-      o.on('pointerover', () => { if (!o._off) o.setColor('#ffd47a'); }); o.on('pointerout', () => o.setColor(o._off ? '#5f7a6f' : '#cfe8dc')); o.on('pointerdown', fn); return o;
-    };
-    s.b1 = mk(386, '1 · Забег в одиночку', () => this.srStart());
-    s.b2 = mk(424, '2 · Гонка 1×1 по сети', () => this.srRace());
-    mk(462, '3 · Таблица друзей', () => Speedrun.friendsOpen());
-    mk(496, '← Назад (Esc)', () => this.srClose()).setFontSize(22);
-    this.srP = c;
-    this.input.keyboard.on('keydown', (e) => {
-      if (!c.visible || Settings.open || !Lobby.el.hidden || this.leaving) return;
-      const k = e.key;
-      if (k === '1') this.srStart(); else if (k === '2') this.srRace(); else if (k === '3') Speedrun.friendsOpen();
-      else if (k === 'Escape') this.srClose();
-      else if (k === 'ArrowLeft' || k === 'ArrowRight' || k === 'a' || k === 'd' || k === 'A' || k === 'D' || k === 'ф' || k === 'в') this.srSetCat(s.cat === 'trail' ? 'boss' : 'trail');
-    });
-  },
-  openSpeedrun() {
-    if (this.leaving) return; Snd.init();
-    if (!this.srP) this.srBuild();
-    this.srSetCat(this.srUi.cat); this.srP.setVisible(true);
-  },
-  srClose() { if (this.srP) this.srP.setVisible(false); },
-  srSetCat(id) {
-    if (!this.srP) this.srBuild();
-    const s = this.srUi; s.cat = id;
-    s.tabs.forEach((o, i) => o.setColor(['trail', 'boss'][i] === id ? '#ffd47a' : '#8fb8a8'));
-    const o = s.tabs[id === 'trail' ? 0 : 1], g = s.line; g.clear(); g.fillStyle(0xffd47a, 1); g.fillRect(o.x - o.width / 2, 118, o.width, 2);
-    this.srRefresh();
-  },
-  srRefresh() {
-    const s = this.srUi, id = s.cat, rec = Speedrun.rec(id), pb = rec.pb, f = Speedrun.fmt.bind(Speedrun);
-    s.about.setText(SR_CATS[id].about);
-    const best = rec.seg.length === 4 && rec.seg.every(Boolean) ? rec.seg.reduce((a, b) => a + b, 0) : 0;
-    s.rec.setText(pb ? `Личный рекорд: ${f(pb.rta)}  (IGT ${f(pb.igt)}, обрывов ${pb.deaths}, v${pb.ver})\nСплиты: ${pb.splits.map((x) => f(x.rta)).join('  ')}${best ? `\nСумма лучших сегментов: ${f(best)}` : ''}` : 'Личного рекорда пока нет');
-    const v = Speedrun.violation();
-    s.rules.setText(`Лёгкий режим: ${Settings.s.easy ? 'ВКЛЮЧЁН — запрещено' : 'выключен'}\nЗамедление игры: ${(Settings.s.speed || 100) !== 100 ? Settings.s.speed + ' % — запрещено' : '100 %'}`);
-    s.rules.setColor(v.length ? '#ff9a8a' : '#9ff0c8');
-    s.fix.setVisible(v.length > 0);
-    for (const b of [s.b1, s.b2]) { b._off = v.length > 0; b.setColor(v.length ? '#5f7a6f' : '#cfe8dc'); }
-  },
+  srSetCat(id) { this.srCat = id; if (this.mStack) this.menuRender(); },
+  srRefresh() { if (this.mStack) this.menuRender(); },
+  srClose() { if (this.mStack && (this.mTop().id === 'srcat' || this.mTop().id === 'speedrun')) this.menuBack(); },
   srStart() {
     if (this.leaving || Speedrun.violation().length) { if (!this.leaving) Snd.play('hit'); return; }
     this.leaving = true; Snd.init(); Snd.play('bench');
-    const data = Speedrun.begin(this.srUi.cat);
+    const data = Speedrun.begin(this.srCat || 'trail');
     this.cameras.main.fadeOut(450, 3, 8, 7);
     this.time.delayedCall(460, () => this.scene.start('game', data));
   },
   srRace() {
     if (this.leaving || Speedrun.violation().length) { if (!this.leaving) Snd.play('hit'); return; }
-    Speedrun.lastCat = this.srUi.cat;
-    this.srClose(); this.openLobby('race');
+    Speedrun.lastCat = this.srCat || 'trail';
+    this.openLobby('race');
   },
 });
+{
+  const recLine = (id) => { const pb = Speedrun.rec(id).pb; return pb ? 'рекорд ' + Speedrun.fmt(pb.rta) : 'рекорда пока нет'; };
+  menuAdd({
+    id: 'speedrun', parent: 'main', title: 'Спидран', crumb: 'Спидран',
+    info: () => ['Забег на время: RTA идёт с первого шага до последнего удара финального босса, пауза останавливает только игровое время (IGT).', { t: 'Обычное сохранение и рекорды боссов не затрагиваются.', c: '#7fa596' }],
+    items: () => [
+      { key: '1', label: SR_CATS.trail.name, sub: () => recLine('trail'), act: (m) => { m.srCat = 'trail'; m.menuGo('srcat', { cat: 'trail' }); } },
+      { key: '2', label: SR_CATS.boss.name, sub: () => recLine('boss'), act: (m) => { m.srCat = 'boss'; m.menuGo('srcat', { cat: 'boss' }); } },
+      { key: '3', label: 'Мои рекорды и таблица друзей', sub: 'результаты друзей по коду', act: () => Speedrun.friendsOpen() },
+    ],
+  });
+  menuAdd({
+    id: 'srcat', parent: 'speedrun', title: (m, ctx) => SR_CATS[ctx.cat].name, crumb: (m, ctx) => SR_CATS[ctx.cat].name,
+    info: (m, ctx) => {
+      const id = ctx.cat, rec = Speedrun.rec(id), pb = rec.pb, f = Speedrun.fmt.bind(Speedrun), v = Speedrun.violation();
+      const best = rec.seg.length === 4 && rec.seg.every(Boolean) ? rec.seg.reduce((a, b) => a + b, 0) : 0;
+      const out = [SR_CATS[id].about];
+      out.push({ t: pb ? `Личный рекорд: ${f(pb.rta)} (IGT ${f(pb.igt)}, обрывов ${pb.deaths}, v${pb.ver})\nСплиты: ${pb.splits.map((x) => f(x.rta)).join('  ')}` + (best ? `\nСумма лучших сегментов: ${f(best)}` : '') : 'Личного рекорда пока нет', c: '#ffe3a3', fs: 15 });
+      out.push({ t: `Лёгкий режим: ${Settings.s.easy ? 'ВКЛЮЧЁН — запрещено' : 'выключен'}\nЗамедление игры: ${(Settings.s.speed || 100) !== 100 ? Settings.s.speed + ' % — запрещено' : '100 %'}`, c: v.length ? '#ff9a8a' : '#9ff0c8', fs: 15 });
+      return out;
+    },
+    items: (m, ctx) => {
+      const bad = Speedrun.violation().length > 0;
+      return [
+        { key: '1', label: 'Забег в одиночку', sub: bad ? 'сначала отключите запрещённые настройки' : 'с нуля, таймер ждёт первого шага', enabled: !bad, act: (m) => m.srStart() },
+        { key: '2', label: 'Гонка 1×1 с другом', sub: bad ? 'сначала отключите запрещённые настройки' : 'по сети: комната с кодом', enabled: !bad, act: (m) => m.srRace() },
+        { key: '3', label: 'Мои рекорды и таблица друзей', sub: 'результаты друзей по коду', act: () => Speedrun.friendsOpen() },
+        { key: '4', label: 'Отключить запрещённые настройки', sub: 'лёгкий режим и замедление', hidden: !bad, danger: true, act: (m) => { Speedrun.fixRules(); m.menuRender(); } },
+      ];
+    },
+  });
+}
 
-// ===== ИНТЕРФЕЙС: вёрстка паузы и меню, автопауза в портрете, реплики боссов и сенсорные кнопки на телефоне =====
-// Подключается последним среди модулей интерфейса: оборачивает методы UIScene, MenuScene и GameScene.
+// ===== ИНТЕРФЕЙС: вёрстка паузы, автопауза в портрете, реплики боссов и сенсорные кнопки на телефоне =====
+// Подключается последним среди модулей интерфейса: оборачивает методы UIScene и GameScene.
 const UIFix = {
   F: '"Fira Sans", sans-serif', D: '"Cormorant SC", Georgia, serif',
   // во сколько раз холст на экране отличается от игровых координат (на телефоне < 1)
@@ -9153,42 +9658,7 @@ Object.assign(UIScene.prototype, {
   };
 }
 
-// ----- меню: «Что нового» не залезает на кнопки и подсказки; оверлеи закрывают главное меню -----
-Object.assign(MenuScene.prototype, {
-  fitChangelog() {
-    const ch = this.chTxt; if (!ch || !ch.scene) return;
-    const cs = UIFix.cs(this), fs = Phaser.Math.Clamp(Math.ceil(10 / cs), 11, 14), max = Touch.enabled ? 3 : 7;
-    const obst = this.children.list.filter((o) => o !== ch && o.type === 'Text' && o.visible && !(o.y < 22 && o.x < 40));
-    ch.setFontSize(fs).setLineSpacing(Math.round(fs / 3.5));
-    for (let n = max; n >= 0; n--) {
-      if (!n) { ch.setVisible(false); return; }
-      ch.setText('Что нового:\n' + CHANGELOG.slice(0, n).map((l) => '· ' + l).join('\n'));
-      const b = ch.getBounds();
-      if (b.bottom <= VH - 6 && !obst.some((o) => UIFix.inter(b, o.getBounds(), 3))) { ch.setVisible(true); return; }
-    }
-  },
-  menuCover(on) {
-    if (on) {
-      if (this._cov) return;
-      this._cov = this.children.list.filter((o) => o.visible && o !== this.pick && o !== this.srP && (o.type === 'Text' || o.type === 'Graphics' || o.type === 'Container'));
-      for (const o of this._cov) o.setVisible(false);
-    } else if (this._cov && !(this.pick && this.pick.visible) && !(this.srP && this.srP.visible)) {
-      for (const o of this._cov) if (o.scene) o.setVisible(true);
-      this._cov = null; this.fitChangelog();
-    }
-  },
-});
-{
-  const mc = MenuScene.prototype.create;
-  MenuScene.prototype.create = function () { this._cov = null; mc.call(this); this.fitChangelog(); };
-  const wrap = (name, on) => { const f = MenuScene.prototype[name]; MenuScene.prototype[name] = function (...a) { const r = f.apply(this, a); this.menuCover(on); return r; }; };
-  const op = MenuScene.prototype.openPick;
-  MenuScene.prototype.openPick = function () { const was = this.pick.visible; op.call(this); if (this.pick.visible && !was) this.menuCover(true); };
-  wrap('closePick', false);
-  const os = MenuScene.prototype.openSpeedrun;
-  MenuScene.prototype.openSpeedrun = function () { os.call(this); if (this.srP && this.srP.visible) this.menuCover(true); };
-  wrap('srClose', false);
-}
+// (меню игры переехало в src/menu.js: непрозрачные экраны со своим каркасом, «Что нового» — отдельным экраном)
 
 // ----- портретная ориентация на телефоне: бой не идёт под заглушкой «Поверните телефон» -----
 {
@@ -9639,8 +10109,10 @@ const Updater = {
     Settings.load();
     Layout.init();
     Touch.init();
+    Dev.init();
     Settings.init();
     Lobby.init();
+    Nav.init();
     startGame();
     Updater.init();
   });

@@ -32,6 +32,7 @@ parts = [
     "movement2.js",
     "loadoutui.js",
     "howto.js",
+    "menu.js",
     "speedrun.js",
     "uifix.js",
     "ingame.js",

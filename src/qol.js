@@ -58,10 +58,5 @@ const Records = {
       g.lineStyle(1.5, 0xffffff, 0.35 + 0.25 * Math.sin(this.animT * 18)); g.strokeCircle(0, -14, 27); return;
     }
   };
-  // строка рекордов на экране выбора босса
-  const setPick = MenuScene.prototype.setPick;
-  MenuScene.prototype.setPick = function (i) {
-    setPick.call(this, i);
-    this.pickAbout.setText(BOSSES[this.pickIdx].about + '\n' + Records.line(BOSSES[this.pickIdx].id));
-  };
+  // (строка рекордов на экране выбора босса рисуется в menu.js)
 })();

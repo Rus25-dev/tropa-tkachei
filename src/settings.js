@@ -1,7 +1,10 @@
 // ===== НАСТРОЙКИ И СОХРАНЕНИЕ (localStorage; без него всё работает на значениях по умолчанию) =====
 const Settings = {
   def: { vol: 80, mvol: 60, shake: true, easy: false, vibro: true, bsize: 'M', bop: 100, lefty: false, boss: 0, speed: 100, noflash: false, outl: false },
-  s: null, open: false, onClose: null,
+  s: null, open: false, onClose: null, cur: 'list', entry: null,
+  // разделы настроек: [id, название, подпись] — экран «Настройки» в меню и страницы оверлея строятся по этому списку
+  SECS: [['sound', 'Звук', 'громкость звуков и музыки'], ['screen', 'Экран', 'тряска, вспышки, контуры, весь экран'], ['controls', 'Управление', 'клавиши, геймпад, кнопки на телефоне, левша'],
+    ['game', 'Игра', 'лёгкий режим, скорость'], ['progress', 'Прогресс', 'сохранение, сброс']],
   load() {
     this.s = { ...this.def };
     try { const raw = localStorage.getItem('tt_settings'); if (raw) Object.assign(this.s, JSON.parse(raw)); } catch (_) { }
@@ -9,7 +12,10 @@ const Settings = {
   save() { try { localStorage.setItem('tt_settings', JSON.stringify(this.s)); } catch (_) { } this.apply(); },
   // прогресс главы: последняя скамья и бусины
   progress() { try { const p = JSON.parse(localStorage.getItem('tt_save') || 'null'); return p && typeof p.bench === 'number' ? p : null; } catch (_) { return null; } },
-  saveProgress(p) { try { localStorage.setItem('tt_save', JSON.stringify(p)); } catch (_) { } },
+  saveProgress(p) {
+    const cur = this.progress(), best = Math.max(p.best | 0, cur ? cur.best | 0 : 0, cur ? cur.chapter | 0 : 0, p.chapter | 0);
+    try { localStorage.setItem('tt_save', JSON.stringify({ ...p, best })); } catch (_) { }
+  },
   resetProgress() { try { localStorage.removeItem('tt_save'); } catch (_) { } },
   btnScale() { return { S: 0.85, M: 1, L: 1.18 }[this.s.bsize] || 1; },
   apply() {
@@ -35,6 +41,12 @@ const Settings = {
       const p = this.progress();
       $('st-prog').textContent = p ? `Сохранено: ${p.name || 'скамья'}, бусин ${p.beads || 0}` : 'Сохранения главы пока нет';
       $('st-reset').disabled = !p; $('st-reset').textContent = 'Сбросить прогресс';
+      this.fsSync();
+      // раскладка геймпада — только показ
+      const k = (typeof Pads !== 'undefined' && Pads.list().length) ? Pads.kindNow : 'xbox', ps = k === 'ps';
+      const rows = [[ps ? '✕' : 'A', 'прыжок'], [ps ? '□' : 'X', 'удар'], [ps ? '○ / R2' : 'B / RT', 'рывок'], [ps ? '△ / L2' : 'Y / LT', 'нить'], [ps ? 'L1' : 'LB', 'дымовуха'], [ps ? 'R1' : 'RB', 'инструмент'],
+        [ps ? 'Options' : 'Start', 'пауза'], [ps ? 'Create' : 'Back', 'карта'], ['Стик', 'движение']];
+      $('st-pad').innerHTML = rows.map(([b, t]) => `<span><b>${b}</b> — ${t}</span>`).join('');
     };
     this.bindUI = bind;
     $('st-vol').addEventListener('input', (e) => { this.s.vol = +e.target.value; $('st-vol-v').textContent = this.s.vol + '%'; this.save(); });
@@ -50,11 +62,56 @@ const Settings = {
       if (b.dataset.armed !== '1') { b.dataset.armed = '1'; b.textContent = 'Точно сбросить? Нажмите ещё раз'; setTimeout(() => { b.dataset.armed = ''; bind(); }, 3500); return; }
       b.dataset.armed = ''; this.resetProgress(); bind(); $('st-prog').textContent = 'Прогресс сброшен: глава начнётся с начала';
     });
-    $('st-done').addEventListener('click', () => this.hide());
-    el.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Escape') this.hide(); });
+    const list = $('st-list');
+    this.SECS.forEach(([id, name, sub], i) => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'st-go'; b.dataset.go = id;
+      b.innerHTML = `<b>${i + 1} · ${name}</b><small>${sub}</small>`;
+      b.addEventListener('click', () => this.go(id)); list.append(b);
+    });
+    $('st-fs').addEventListener('click', () => this.fsToggle());
+    document.addEventListener('fullscreenchange', () => this.fsSync());
+    Ov.chrome(el, { crumbs: ['Настройки'], back: () => this.back(), digits: true, hint: { act: 'переключить', lr: 'менять' } });
+    el.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Escape') { e.preventDefault(); this.back(); }
+      else if (e.key === 'Enter' && e.target.type === 'checkbox') e.target.click();
+    });
     el.querySelectorAll('.st-touch').forEach((n) => { n.hidden = !Touch.enabled; });
     this.apply();
   },
-  show(onClose) { this.onClose = onClose || null; this.bindUI(); this.open = true; document.getElementById('settings').hidden = false; setTimeout(() => document.getElementById('st-done').focus(), 0); },
+  // весь экран: на iPhone у сайтов такого режима нет
+  fsOk() { const d = document.documentElement; return !!(d.requestFullscreen || d.webkitRequestFullscreen); },
+  fsOn() { return !!(document.fullscreenElement || document.webkitFullscreenElement); },
+  fsToggle() {
+    if (!this.fsOk()) { const t = document.getElementById('ios-tip'); if (t) t.hidden = false; return; }
+    if (this.fsOn()) { try { (document.exitFullscreen || document.webkitExitFullscreen).call(document); } catch (_) { } } else Touch.fullscreen();
+    setTimeout(() => this.fsSync(), 250);
+  },
+  fsSync() {
+    const b = document.getElementById('st-fs'), n = document.getElementById('st-fs-note'); if (!b) return;
+    const tip = !this.fsOk() && !!document.getElementById('ios-tip');
+    b.disabled = !this.fsOk() && !tip;
+    b.textContent = this.fsOk() ? (this.fsOn() ? 'Выйти из полного экрана' : 'Весь экран') : tip ? 'Как убрать панели' : 'Недоступно';
+    n.textContent = this.fsOk() ? 'Игра занимает весь экран (F11 в браузере делает то же)' : 'На iPhone полного экрана у сайтов нет: поставьте игру на экран «Домой»';
+  },
+  // открыть оверлей: без section — список разделов, с section — сразу страница раздела
+  show(onClose, section) {
+    this.onClose = onClose || null; this.entry = this.SECS.some((x) => x[0] === section) ? section : null;
+    this.bindUI(); this.open = true;
+    const el = document.getElementById('settings'); el.hidden = false;
+    this.go(this.entry || 'list'); Ov.opened(el);
+  },
+  go(v) {
+    const el = document.getElementById('settings'); this.cur = v;
+    el.querySelectorAll('.st-sec').forEach((n) => { n.hidden = n.dataset.sec !== v; });
+    const sec = this.SECS.find((x) => x[0] === v);
+    document.getElementById('st-title').textContent = sec ? sec[1] : 'Настройки';
+    const base = Ov.base(['Пауза', 'Настройки']); // из меню — его путь («Настройки»), из паузы — «Пауза › Настройки»
+    this.crumbList = sec ? [...base, sec[1]] : base; Ov.crumbs(el, this.crumbList);
+    const n = Nav.focusables(el).length;
+    Ov.hint(el, { act: v === 'list' ? 'открыть' : 'переключить', nums: n, lr: v === 'list' ? '' : 'менять' });
+    const f = Nav.focusables(el)[0]; if (f) setTimeout(() => f.focus(), 0);
+  },
+  back() { if (this.cur !== 'list' && !this.entry) this.go('list'); else this.hide(); },
   hide() { this.open = false; document.getElementById('settings').hidden = true; const cb = this.onClose; this.onClose = null; if (cb) cb(); },
 };
