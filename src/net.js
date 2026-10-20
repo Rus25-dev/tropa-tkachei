@@ -67,7 +67,7 @@ const Lobby = {
     $('lb-join').onclick = () => this.doJoin($('lb-code').value);
     $('lb-code').addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') this.doJoin($('lb-code').value); });
     $('lb-code').addEventListener('keyup', (e) => e.stopPropagation());
-    $('lb-back').onclick = () => this.hide(true);
+    Ov.chrome(this.el, { crumbs: ['Вдвоём по сети'], back: () => this.hide(true), hint: { act: 'нажать' } });
     // Esc закрывает лобби, как окно настроек (фокус может быть и вне окна — слушаем документ)
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !this.el.hidden) { e.preventDefault(); e.stopPropagation(); this.hide(true); } }, true);
     $('lb-copy').onclick = () => {
@@ -80,10 +80,17 @@ const Lobby = {
     if (room) { this.room = room; }
   },
   selectLink() { const r = document.createRange(); r.selectNodeContents(document.getElementById('lb-link')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); },
-  show() {
-    document.getElementById('lb-title').textContent = this.mode === 'race' ? 'Гонка 1×1 по сети' : this.mode === 'bosstest' ? 'Босс-тест по сети: ' + (this.bossName || '') : 'Вдвоём по сети';
-    this.el.hidden = false; this.status(''); document.getElementById('lb-hostbox').hidden = true;
+  // intent: 'host' — сразу создать комнату, 'join' — сразу к полю кода (меню «Создать комнату» / «Войти по коду»)
+  show(intent) {
+    const title = this.mode === 'race' ? 'Гонка 1×1 по сети' : this.mode === 'bosstest' ? 'Босс-тест по сети: ' + (this.bossName || '') : 'Вдвоём по сети';
+    document.getElementById('lb-title').textContent = title;
+    const base = (this.crumbs && this.crumbs.length) ? this.crumbs.slice() : [title];
+    Ov.crumbs(this.el, [...base, intent === 'host' ? 'Создать комнату' : intent === 'join' ? 'Войти по коду' : 'Комната']);
+    this.el.hidden = false; this.status(''); document.getElementById('lb-hostbox').hidden = true; Ov.opened(this.el);
     if (this.room) { document.getElementById('lb-code').value = this.room; const r = this.room; this.room = null; this.doJoin(r); }
+    else if (intent === 'host') { this.doHost(); setTimeout(() => document.getElementById('lb-copy').focus(), 0); }
+    else if (intent === 'join') setTimeout(() => document.getElementById('lb-code').focus(), 0);
+    else setTimeout(() => document.getElementById('lb-host').focus(), 0);
   },
   hide(back) {
     this.el.hidden = true;
@@ -104,7 +111,7 @@ const Lobby = {
         if (this.mode !== 'race' && gs && gs.sys.isActive() && gs.players && !gs.online) { gs.rejoinGuest(); return; } // гость вернулся в идущую игру хоста
         if (this.mode === 'race') { Speedrun.raceOpen('host'); return; }
         const mode = this.mode || 'story', boss = this.boss || 'misha';
-        const camp = mode === 'story' ? Campaign.resume() : null;
+        const camp = mode === 'story' ? (this.camp || Campaign.resume()) : null;
         setTimeout(() => { Net.send({ t: 'start', mode, boss, camp }); this.start('host', mode, boss, camp); }, 400);
       } else if (ev === 'error') this.status(Net.errText(d), 'err');
     });

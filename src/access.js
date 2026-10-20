@@ -80,7 +80,7 @@ const Access = {
     };
     this.render = render;
     el.querySelector('#kb-def').addEventListener('click', () => { this.reset(); this.listening = null; render(); this.note('Клавиши возвращены по умолчанию', true); });
-    el.querySelector('#kb-done').addEventListener('click', () => this.hide());
+    Ov.chrome(el, { crumbs: ['Настройки', 'Управление', 'Клавиши'], back: () => this.hide(), hint: { act: 'назначить' } });
     document.getElementById('st-keys').addEventListener('click', () => this.show());
     window.addEventListener('keydown', (e) => {
       if (el.hidden) return;
@@ -98,7 +98,10 @@ const Access = {
     }, true);
   },
   note(t, keep) { const n = this.el.querySelector('#kb-note'); n.textContent = t || 'Нажмите на действие, затем на нужную клавишу. Если она уже занята, действия поменяются местами.'; n.dataset.keep = keep ? '1' : ''; },
-  show() { this.listening = null; this.render(); this.note(''); this.el.hidden = false; setTimeout(() => this.el.querySelector('#kb-done').focus(), 0); },
+  show() {
+    this.listening = null; this.render(); this.note(''); this.el.hidden = false; Ov.crumbs(this.el, [...(Settings.crumbList || ['Настройки']), 'Клавиши']); Ov.opened(this.el);
+    setTimeout(() => this.el.querySelector('.kb').focus(), 0);
+  },
   hide() { this.listening = null; this.el.hidden = true; if (this.scene && this.scene.ui) this.refreshPause(this.scene.ui()); const b = document.getElementById('st-keys'); if (b) b.focus(); },
 };
 

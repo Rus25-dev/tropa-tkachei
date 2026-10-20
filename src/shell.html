@@ -26,8 +26,27 @@
   #boot .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--glow); margin: 14px auto 0; box-shadow: 0 0 16px var(--glow); animation: pulse 1.2s ease-in-out infinite; }
   @keyframes pulse { 50% { opacity: 0.25; } }
   @media (prefers-reduced-motion: reduce) { #boot .dot { animation: none; } }
-  #lobby { position: fixed; inset: 0; z-index: 5; display: grid; place-items: center; overflow-y: auto; background: rgba(3, 8, 7, 0.82);
-    padding-block: 16px; padding-left: max(16px, var(--sl)); padding-right: max(16px, var(--sr)); }
+  /* общий каркас всех экранов поверх игры: непрозрачный фон, сверху «← Назад» и хлебные крошки, снизу строка подсказок */
+  .ov { position: fixed; inset: 0; display: flex; flex-direction: column; background: #060d0b; }
+  .ov[hidden] { display: none; }
+  .ovbar { flex: none; display: flex; align-items: center; gap: 14px; min-height: 52px; box-sizing: border-box; border-bottom: 1px solid #1d3630; background: #08130f;
+    padding: 4px max(16px, var(--sr)) 4px max(10px, var(--sl)); }
+  .ovbar .ovback { font: 600 16px var(--body); min-height: 44px; min-width: 44px; padding: 0 16px; border-radius: 8px; border: 1px solid #3a6b5a; background: #143029; color: var(--bone); cursor: pointer; flex: none; }
+  .ovbar .ovback:hover { background: #1b3f35; }
+  .ovbar .crumbs { font: 600 15px var(--body); color: #7fa596; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ovbar .crumbs b { color: var(--ember); font-weight: 600; }
+  .ovbody { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: grid; place-items: center; padding: 12px max(16px, var(--sr)) 12px max(16px, var(--sl)); }
+  .ovhint { flex: none; text-align: center; font: 13px var(--body); color: #7fa596; padding: 7px 12px max(8px, var(--sb)); border-top: 1px solid #1d3630; background: #08130f; }
+  .ov button, .ov label.opt, .ov .seg label { min-height: 44px; box-sizing: border-box; }
+  .ov :focus-visible, html.navpad .ov :focus { outline: 2px solid var(--glow); outline-offset: 2px; }
+  .ov .seg label:has(input:focus-visible), html.navpad .ov .seg label:has(input:focus) { outline: 2px solid var(--glow); outline-offset: -2px; }
+  #howto, #changelog { z-index: 6; }
+  #howto .card, #changelog .card { width: min(720px, 100%); background: #0c1815; border: 1px solid #24433a; border-radius: 10px; padding: 18px 22px; display: grid; gap: 8px; margin-block: auto; color: #cfe2d8; font-size: 14px; line-height: 1.5; }
+  #howto h2, #changelog h2 { font: 700 30px var(--display); margin: 0; color: var(--bone); }
+  #howto h3 { font: 700 20px var(--display); margin: 6px 0 0; color: var(--ember); }
+  #howto p, #changelog li { margin: 0; }
+  #changelog ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+  #lobby { z-index: 5; }
   #lobby .card { width: min(460px, 100%); background: #0c1815; border: 1px solid #24433a; border-radius: 10px; padding: 22px 24px 18px; display: grid; gap: 13px; margin-block: auto; box-shadow: 0 0 60px rgba(159, 240, 200, 0.08); }
   #lobby h2 { font-family: var(--display); font-weight: 700; font-size: 34px; margin: 0; color: var(--bone); text-wrap: balance; }
   #lobby .lead { margin: -8px 0 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
@@ -49,29 +68,37 @@
   #lb-status[data-kind="ok"] { color: var(--glow); }
   #lb-status[data-kind="err"] { color: #ff9a7a; }
   #lb-status[data-kind="wait"] { color: var(--ember); }
-  /* настройки */
-  #settings { position: fixed; inset: 0; z-index: 6; display: grid; place-items: center; overflow-y: auto; background: rgba(3, 8, 7, 0.84);
-    padding-block: 12px; padding-left: max(16px, var(--sl)); padding-right: max(16px, var(--sr)); }
-  #settings .card { width: min(520px, 100%); background: #0c1815; border: 1px solid #24433a; border-radius: 10px; padding: 18px 22px 16px; display: grid; gap: 10px; margin-block: auto; }
+  /* настройки: список разделов и страницы разделов */
+  #settings { z-index: 6; }
+  #settings .card { width: min(560px, 100%); background: #0c1815; border: 1px solid #24433a; border-radius: 10px; padding: 16px 20px 14px; display: grid; gap: 8px; margin-block: auto; }
   #settings h2 { font: 700 30px var(--display); margin: 0; color: var(--bone); }
-  #settings .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 18px; }
-  @media (max-width: 520px) { #settings .grid { grid-template-columns: minmax(0, 1fr); } }
-  #settings label.opt { display: flex; align-items: center; gap: 10px; font-size: 14px; color: #cfe2d8; min-height: 34px; cursor: pointer; }
+  #settings .st-sec[hidden] { display: none; }
+  #settings .st-sec { display: grid; gap: 6px; }
+  #settings .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 18px; }
+  @media (max-width: 560px) { #settings .grid { grid-template-columns: minmax(0, 1fr); } }
+  #settings label.opt { display: flex; align-items: center; gap: 10px; font-size: 15px; color: #cfe2d8; cursor: pointer; }
   #settings label.opt small { display: block; color: var(--muted); font-size: 12px; }
-  #settings input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--moss); flex: none; }
-  #settings input[type=range] { flex: 1; min-width: 0; accent-color: var(--moss); }
+  #settings input[type=checkbox] { width: 22px; height: 22px; accent-color: var(--moss); flex: none; }
+  #settings input[type=range] { flex: 1; min-width: 0; min-height: 28px; accent-color: var(--moss); }
   #settings .val { width: 3.2em; text-align: right; font-variant-numeric: tabular-nums; color: var(--ember); font-size: 13px; }
-  #settings .label { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
+  #settings .label { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
   #settings .seg { display: inline-flex; border: 1px solid #2c5246; border-radius: 7px; overflow: hidden; }
-  #settings .seg label { padding: 6px 12px; font-size: 13px; cursor: pointer; color: #cfe2d8; }
+  #settings .seg label { padding: 0 14px; font-size: 14px; cursor: pointer; color: #cfe2d8; display: inline-flex; align-items: center; }
   #settings .seg input { position: absolute; opacity: 0; pointer-events: none; }
   #settings .seg label:has(input:checked) { background: var(--moss); color: #08130f; }
   #settings .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
-  #settings button { font: 600 14px var(--body); border-radius: 7px; padding: 9px 14px; cursor: pointer; border: 1px solid #3a6b5a; background: #143029; color: var(--bone); }
+  #settings button { font: 600 14px var(--body); border-radius: 7px; padding: 0 14px; cursor: pointer; border: 1px solid #3a6b5a; background: #143029; color: var(--bone); }
   #settings button:disabled { opacity: 0.45; cursor: default; }
   #settings button.primary { background: var(--moss); border-color: var(--moss); color: #08130f; }
-  #keys { position: fixed; inset: 0; z-index: 7; display: grid; place-items: center; overflow-y: auto; background: rgba(3, 8, 7, 0.9); padding: 16px; }
-  #keys[hidden] { display: none; }
+  #settings .st-go { display: grid; gap: 1px; text-align: left; padding: 6px 14px; min-height: 52px; }
+  #settings .st-go b { font: 600 17px var(--body); color: var(--bone); }
+  #settings .st-go small { font-size: 12.5px; color: var(--muted); font-weight: 400; }
+  #settings .padmap { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px 12px; font-size: 13px; color: #b9d4c8; }
+  @media (max-width: 440px) { #settings .padmap { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  #settings .padmap b { color: var(--ember); font-weight: 600; }
+  #settings .note { font-size: 12.5px; color: var(--muted); line-height: 1.4; }
+  @media (max-height: 470px) { #settings .card { padding: 8px 14px; gap: 3px; } #settings h2 { display: none; } #settings label.opt small { display: none; } #settings .st-go small { display: none; } #settings .st-go { min-height: 44px; padding-block: 2px; } .ovbar { min-height: 48px; } .ovhint { padding-block: 4px; } #lobby h2 { font-size: 26px; } #lobby .card { padding: 12px 16px; gap: 8px; } #lobby .lead { display: none; } }
+  #keys { z-index: 7; }
   #keys .card { width: min(480px, 100%); background: #0c1815; border: 1px solid #24433a; border-radius: 10px; padding: 18px 22px 16px; display: grid; gap: 10px; margin-block: auto; }
   #keys h2 { font: 700 30px var(--display); margin: 0; color: var(--bone); }
   #keys .label { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
@@ -131,9 +158,9 @@
     border-radius: 8px; border: 1px solid rgba(232,226,207,0.35); background: rgba(10,24,21,0.55); color: var(--bone); font: 700 16px var(--body); }
   #touch .t-fs { position: absolute; left: calc(50% + 34px); top: max(8px, var(--st)); pointer-events: auto; width: 40px; height: 34px;
     border-radius: 8px; border: 1px solid rgba(232,226,207,0.35); background: rgba(10,24,21,0.55); color: var(--bone); font: 700 16px var(--body); }
-  #fs-btn { position: fixed; z-index: 4; right: max(12px, var(--sr)); top: max(10px, var(--st)); display: none;
+  #fs-btn { position: fixed; z-index: 4; right: max(12px, var(--sr)); bottom: max(8px, var(--sb)); display: none; min-height: 44px;
     font: 600 13px var(--body); color: var(--bone); background: rgba(10,24,21,0.7); border: 1px solid #3a6b5a; border-radius: 8px; padding: 8px 12px; }
-  html.touch.in-menu #fs-btn:not([hidden]) { display: block; }
+  /* кнопка «На весь экран» в меню больше не нужна: она в «Настройки › Экран», а на Android экран разворачивается первым касанием */
   #ios-tip { position: fixed; z-index: 21; inset: 0; display: grid; place-items: center; background: rgba(3,8,7,0.86);
     padding-inline: max(16px, var(--sl)) max(16px, var(--sr)); }
   #ios-tip .card { max-width: 420px; background: #0c1815; border: 1px solid #24433a; border-radius: 10px; padding: 18px 20px; display: grid; gap: 10px; }
@@ -164,7 +191,6 @@
     <span class="label">Есть код от друга</span>
     <div class="row"><input id="lb-code" maxlength="6" autocomplete="off" spellcheck="false" placeholder="ABCDE" aria-label="Код комнаты"><button id="lb-join" type="button">Войти</button></div>
     <div id="lb-status" role="status"></div>
-    <div class="row"><button id="lb-back" class="ghost" type="button">← Назад в меню</button></div>
   </div>
 </div>
 <button id="fs-btn" type="button" hidden>На весь экран</button>
@@ -175,29 +201,39 @@
 <div id="settings" hidden>
   <div class="card" role="dialog" aria-labelledby="st-title">
     <h2 id="st-title">Настройки</h2>
-    <div class="grid">
+    <div class="st-sec" data-sec="list" id="st-list"></div>
+    <section class="st-sec" data-sec="sound" hidden>
       <label class="opt" for="st-vol">Звуки <input id="st-vol" type="range" min="0" max="100" step="10"><span class="val" id="st-vol-v"></span></label>
       <label class="opt" for="st-mvol">Музыка <input id="st-mvol" type="range" min="0" max="100" step="10"><span class="val" id="st-mvol-v"></span></label>
+    </section>
+    <section class="st-sec" data-sec="screen" hidden>
       <label class="opt" for="st-shake"><input id="st-shake" type="checkbox"><span>Тряска экрана<small>выключите, если укачивает</small></span></label>
-      <label class="opt" for="st-easy"><input id="st-easy" type="checkbox"><span>Лёгкий режим<small>8 бутонов здоровья вместо 5</small></span></label>
-      <label class="opt" for="st-vibro"><input id="st-vibro" type="checkbox"><span>Вибрация<small>телефон (Android) и геймпад: удар, отбив, рёв босса</small></span></label>
-      <label class="opt st-touch" for="st-lefty"><input id="st-lefty" type="checkbox"><span>Для левши<small>кнопки слева, стик справа</small></span></label>
-      <label class="opt st-touch" for="st-bop">Видимость кнопок <input id="st-bop" type="range" min="30" max="100" step="10"><span class="val" id="st-bop-v"></span></label>
-    </div>
-    <span class="label">Доступность</span>
-    <div class="grid">
       <label class="opt" for="st-noflash"><input id="st-noflash" type="checkbox"><span>Без вспышек<small>вместо белых вспышек — мягкое затемнение</small></span></label>
       <label class="opt" for="st-outl"><input id="st-outl" type="checkbox"><span>Контуры опасного<small>яркая обводка снарядов и шипов</small></span></label>
-    </div>
-    <div class="row"><span><span class="label">Скорость игры</span><br>
-      <span class="seg"><label><input type="radio" name="st-speed" value="100">100 %</label><label><input type="radio" name="st-speed" value="80">80 %</label><label><input type="radio" name="st-speed" value="60">60 %</label></span>
-      <small style="color:var(--muted);font-size:12px"> по сети всегда 100 %</small></span>
-      <button id="st-keys" type="button">Управление…</button></div>
-    <div class="st-touch"><span class="label">Размер кнопок</span><br>
-      <span class="seg"><label><input type="radio" name="st-bsize" value="S">Меньше</label><label><input type="radio" name="st-bsize" value="M">Обычные</label><label><input type="radio" name="st-bsize" value="L">Крупнее</label></span></div>
-    <span class="label">Прогресс главы</span>
-    <div class="row"><span id="st-prog"></span><button id="st-reset" type="button">Сбросить прогресс</button></div>
-    <div class="row"><span class="label">Лёгкий режим включится со следующего боя</span><button id="st-done" class="primary" type="button">Готово</button></div>
+      <div class="row"><span id="st-fs-note" class="note">Весь экран: игра занимает весь монитор или телефон</span><button id="st-fs" type="button">Весь экран</button></div>
+    </section>
+    <section class="st-sec" data-sec="controls" hidden>
+      <div class="grid">
+        <button id="st-keys" type="button">Клавиши игрока 1…</button>
+        <label class="opt" for="st-vibro"><input id="st-vibro" type="checkbox"><span>Вибрация<small>телефон (Android) и геймпад</small></span></label>
+        <label class="opt st-touch" for="st-lefty"><input id="st-lefty" type="checkbox"><span>Для левши<small>кнопки слева, стик справа</small></span></label>
+        <label class="opt st-touch" for="st-bop">Видимость кнопок <input id="st-bop" type="range" min="30" max="100" step="10"><span class="val" id="st-bop-v"></span></label>
+      </div>
+      <div class="st-touch row"><span class="label">Размер кнопок на телефоне</span>
+        <span class="seg"><label><input type="radio" name="st-bsize" value="S">Меньше</label><label><input type="radio" name="st-bsize" value="M">Обычные</label><label><input type="radio" name="st-bsize" value="L">Крупнее</label></span></div>
+      <span class="label" id="st-pad-t">Геймпад (раскладка только для просмотра)</span>
+      <div class="padmap" id="st-pad"></div>
+    </section>
+    <section class="st-sec" data-sec="game" hidden>
+      <label class="opt" for="st-easy"><input id="st-easy" type="checkbox"><span>Лёгкий режим<small>8 бутонов здоровья вместо 5; включится со следующего боя</small></span></label>
+      <div class="row"><span class="label">Скорость игры</span>
+        <span class="seg"><label><input type="radio" name="st-speed" value="100">100 %</label><label><input type="radio" name="st-speed" value="80">80 %</label><label><input type="radio" name="st-speed" value="60">60 %</label></span></div>
+      <span class="note">По сети скорость всегда 100 %. Лёгкий режим и замедление отключают спидран.</span>
+    </section>
+    <section class="st-sec" data-sec="progress" hidden>
+      <span id="st-prog"></span>
+      <div class="row"><span class="note">Сброс стирает сохранение главы: бусины, способности и улучшения.</span><button id="st-reset" type="button">Сбросить прогресс</button></div>
+    </section>
   </div>
 </div>
 <div id="keys" hidden>
@@ -206,7 +242,7 @@
     <span class="label">Игрок 1 (игрок 2 и стрелки не меняются)</span>
     <div class="kr"></div>
     <div id="kb-note" role="status"></div>
-    <div class="row"><button id="kb-def" type="button">По умолчанию</button><button id="kb-done" class="primary" type="button">Готово</button></div>
+    <div class="row"><button id="kb-def" type="button">По умолчанию</button></div>
   </div>
 </div>
 <div id="update" hidden role="status"><span id="upd-text">Вышла новая версия</span><button id="upd-btn" class="primary" type="button">Обновить</button><button id="upd-later" type="button">Позже</button></div>
@@ -227,8 +263,10 @@
     Settings.load();
     Layout.init();
     Touch.init();
+    Dev.init();
     Settings.init();
     Lobby.init();
+    Nav.init();
     startGame();
     Updater.init();
   });

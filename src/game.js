@@ -1,9 +1,11 @@
 // ===== ИГРА: «Тропа Ткачей» — кооперативная метроидвания =====
 let VW = 960; const VH = 540;
 // версия игры; номер сборки подставляет build.py
-const GAME_VERSION = '1.6';
+const GAME_VERSION = '1.7';
 const GAME_BUILD = '__BUILD__';
 const CHANGELOG = [
+  'Новое меню: Продолжить, Кампания, Босс-тест, Спидран, Гонки Ткачей (скоро), Как играть, Настройки; хлебные крошки, подсказки под ваше устройство, цифры 1–7, Esc / B / «← Назад» на уровень выше',
+  'Настройки разбиты на разделы: Звук, Экран, Управление, Игра, Прогресс',
   'Снаряжение: 5 видов оружия, заряженный удар, 4 инструмента (клавиша E), 9 оберегов, яд и ожог; экран на скамье',
   'Хват за уступ и планер; Миша: иглой бьётся в первых двух фазах, в третьей — только бомбы',
   'Геймпады: DualSense, Xbox и Steam Deck — удобная раскладка, вибрация, сенсорные кнопки прячутся',
@@ -65,10 +67,11 @@ const inset = (r, d) => ({ x: r.x + d, y: r.y + d, w: r.w - 2 * d, h: r.h - 2 * 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 // ---------- МЕНЮ ----------
+// Каркас сцены: фон, заставка с двумя ткачами и запуск игры. Экраны, ввод и подсказки — в src/menu.js (карта MENU).
 class MenuScene extends Phaser.Scene {
   constructor() { super('menu'); }
   create() {
-    this.leaving = false;
+    this.leaving = false; this.busy = false;
     genBackgrounds(this);
     this.add.tileSprite(0, 0, VW, VH, 'bgFar').setOrigin(0);
     this.rays = this.add.tileSprite(0, 0, VW, VH, 'bgRays').setOrigin(0).setBlendMode(Phaser.BlendModes.ADD);
@@ -82,137 +85,51 @@ class MenuScene extends Phaser.Scene {
     }).setAlpha(0.7);
     this.add.image(0, 0, 'vignette').setOrigin(0).setDisplaySize(VW, VH);
 
-    const glow = this.add.graphics();
-    glow.fillStyle(0x9ff0c8, 0.06); for (let r = 140; r > 10; r -= 14) glow.fillCircle(VW / 2, 160, r);
+    this.mGlow = this.add.graphics();
     this.hero = this.add.graphics();
     this.heroTags = PAL.map((pal) => makeTag(this, pal, 1).setScale(1.6));
-
-    this.add.text(VW / 2, 92, 'ТРОПА ТКАЧЕЙ', { fontFamily: '"Cormorant SC", Georgia, serif', fontSize: '64px', color: '#e8e2cf', fontStyle: '700' }).setOrigin(0.5).setShadow(0, 0, '#9ff0c8', 18, false, true);
-    this.add.text(VW / 2, 136, Campaign.subtitle(), { fontFamily: '"Fira Sans", sans-serif', fontSize: '17px', color: '#8fb8a8' }).setOrigin(0.5);
-
-    const mkBtn = (y, label, sub, n) => {
-      const t = this.add.text(VW / 2, y, label, { fontFamily: '"Cormorant SC", Georgia, serif', fontSize: '29px', color: '#cfe8dc', fontStyle: '600' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-      const s = this.add.text(VW / 2, y + 21, sub, { fontFamily: '"Fira Sans", sans-serif', fontSize: '13px', color: '#6f9586' }).setOrigin(0.5);
-      t.on('pointerover', () => t.setColor('#ffd47a')); t.on('pointerout', () => t.setColor('#cfe8dc'));
-      t.on('pointerdown', () => (n === 3 ? this.openLobby() : n === 4 ? this.openPick() : n === 5 ? this.openSettings() : n === 6 ? this.openSpeedrun() : this.go(n)));
-      return [t, s];
-    };
-    const prog = Settings.progress(), cont = prog ? ` · продолжение: ${prog.name || 'скамья'}` : '';
-    mkBtn(230, '1 · Один ткач', 'клавиша 1 · геймпад A' + cont, 1);
-    mkBtn(270, '2 · Двое за одним компьютером', 'клавиша 2 · геймпад Y' + cont, 2);
-    mkBtn(310, '3 · Вдвоём по сети', 'клавиша 3 · комната с кодом, работает и с серым IP', 3);
-    mkBtn(350, '4 · Босс-тест', 'клавиша 4 · геймпад X · три босса на выбор, сразу в бой', 4);
-    mkBtn(390, '5 · Настройки', 'клавиша 5 · громкость, тряска, лёгкий режим, кнопки', 5);
-    mkBtn(430, '6 · Спидран', 'клавиша 6 · забег на время, сплиты, таблица друзей, гонка 1×1', 6);
-
-    const ctl = [
-      Access.line(false),
-      'Игрок 2:  стрелки   Num1 или / — прыжок   Num2 или . — удар   Num3 или , — рывок   Num0 или M — лечение   Num4 или N — дымовуха',
-      'В одиночку можно и так: стрелки + Z X C V B.   Геймпад: A прыжок, X удар, B/RB рывок, Y лечение, LB дымовуха.   Esc — пауза',
-    ];
-    if (Touch.enabled) ctl.splice(0, 3, 'Телефон: стик слева — идти (вверх: удар вверх, оживить напарника, скамья; вниз в прыжке: удар вниз).',
-      'Кнопки справа: прыжок, удар, рывок, лечение, а на арене Миши ещё и бомба.   Лучше держать телефон горизонтально.', 'Можно подключить геймпад по Bluetooth — он подхватится сам.');
+    this.mBase = [this.mGlow, this.hero, ...this.heroTags]; // видны только на главном экране
+    this.heroX = VW * 0.25; this.heroY = 300; this.mHero = true;
     document.documentElement.classList.add('in-menu');
     this.events.once('shutdown', () => document.documentElement.classList.remove('in-menu'));
-    this.ctlTxt = this.add.text(VW / 2, 496, ctl.join('\n'), { fontFamily: '"Fira Sans", sans-serif', fontSize: '12px', color: '#86a89a', align: 'center', lineSpacing: 7 }).setOrigin(0.5);
-
-    const k = this.input.keyboard;
-    // версия, сборка и что нового
-    const vF = '"Fira Sans", sans-serif';
-    this.add.text(14, 10, `Версия ${GAME_VERSION} · сборка ${GAME_BUILD}`, { fontFamily: vF, fontSize: '12px', fontStyle: '600', color: '#9fc4b4' });
-    this.chTxt = this.add.text(14, 28, 'Что нового:\n' + CHANGELOG.slice(0, 9).map((l) => '· ' + l).join('\n'), { fontFamily: vF, fontSize: '10.5px', color: '#7fa596', lineSpacing: 3, wordWrap: { width: Math.max(170, Math.min(230, VW / 2 - 300)) } });
-    // выбор для босс-теста
-    this.pick = this.add.container(0, 0).setVisible(false).setDepth(10);
-    const pg = this.add.graphics(); pg.fillStyle(0x030807, 0.9); pg.fillRect(0, 0, VW, VH);
-    const D = '"Cormorant SC", Georgia, serif', F = '"Fira Sans", sans-serif';
-    const pt = this.add.text(VW / 2, 84, 'Босс-тест', { fontFamily: D, fontSize: '44px', color: '#e8e2cf', fontStyle: '700' }).setOrigin(0.5);
-    this.pickIdx = 0;
-    this.bossBtns = BOSSES.map((b, i) => {
-      const t = this.add.text(VW / 2 + (i - 1) * 270, 150, b.name, { fontFamily: D, fontSize: '28px', color: '#8fb8a8', fontStyle: '700' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-      t.on('pointerdown', () => this.setPick(i));
-      return t;
-    });
-    this.pickLine = this.add.graphics();
-    const ph = this.add.text(VW / 2, 186, '← → выбрать босса', { fontFamily: F, fontSize: '12px', color: '#6f9586' }).setOrigin(0.5);
-    const ps = this.add.text(VW / 2, 222, '', { fontFamily: F, fontSize: '15px', color: '#cfe8dc' }).setOrigin(0.5);
-    this.pickAbout = ps;
-    const mkPick = (y, label, fn) => {
-      const t = this.add.text(VW / 2, y, label, { fontFamily: D, fontSize: '30px', color: '#cfe8dc', fontStyle: '600' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-      t.on('pointerover', () => t.setColor('#ffd47a')); t.on('pointerout', () => t.setColor('#cfe8dc')); t.on('pointerdown', fn);
-      return t;
-    };
-    const p1 = mkPick(290, '1 · В одиночку', () => this.go(1, 'bosstest'));
-    const p2 = mkPick(343, '2 · Вдвоём за одним компьютером', () => this.go(2, 'bosstest'));
-    const p3 = mkPick(396, '3 · Вдвоём по сети', () => this.openLobby('bosstest'));
-    const pb = mkPick(490, '← Назад (Esc)', () => this.closePick()); pb.setFontSize(22);
-    this.pick.add([pg, pt, ...this.bossBtns, this.pickLine, ph, ps, p1, p2, p3, pb]);
-    this.setPick(Settings.s.boss || 0);
-    k.on('keydown', (e) => {
-      Snd.init();
-      if (Settings.open || !Lobby.el.hidden) return;
-      if (this.srP && this.srP.visible) return;
-      if (this.pick.visible) {
-        if (e.key === '1') this.go(1, 'bosstest'); if (e.key === '2') this.go(2, 'bosstest'); if (e.key === '3') this.openLobby('bosstest');
-        if (e.key === 'Escape') this.closePick();
-        if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A' || e.key === 'ф' || e.key === 'Ф') this.setPick(this.pickIdx - 1);
-        if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D' || e.key === 'в' || e.key === 'В') this.setPick(this.pickIdx + 1);
-        return;
-      }
-      if (e.key === '1') this.go(1); if (e.key === '2') this.go(2); if (e.key === '3') this.openLobby(); if (e.key === '4') this.openPick(); if (e.key === '5') this.openSettings(); if (e.key === '6') this.openSpeedrun();
-    });
+    this.pickIdx = Settings.s.boss || 0;
+    this.input.keyboard.on('keydown', (e) => this.menuKey(e));
     if (Lobby.room) this.time.delayedCall(300, () => this.openLobby());
     Music.setDuck(1); Music.intensity = 1; Music.play('menu');
     this.input.on('pointerdown', () => Snd.init());
     this.t = 0;
+    this.menuInit();
   }
-  openSettings() { if (this.leaving || Settings.open) return; Snd.init(); Settings.show(() => this.scene.restart()); }
   setPick(i) {
     this.pickIdx = (i + BOSSES.length) % BOSSES.length;
     if (Settings.s.boss !== this.pickIdx) { Settings.s.boss = this.pickIdx; Settings.save(); }
-    this.bossBtns.forEach((t, k) => t.setColor(k === this.pickIdx ? '#ffd47a' : '#8fb8a8'));
-    const t = this.bossBtns[this.pickIdx], g = this.pickLine; g.clear();
-    g.fillStyle(0xffd47a, 1); g.fillRect(t.x - t.width / 2, 168, t.width, 2);
-    this.pickAbout.setText(BOSSES[this.pickIdx].about);
+    if (this.mStack) this.menuRender();
   }
-  openPick() { if (this.leaving) return; Snd.init(); this.pick.setVisible(true); this.pickT = 0.3; }
-  closePick() { this.pick.setVisible(false); }
-  openLobby(mode) {
+  // intent: 'host' — сразу создать комнату, 'join' — сразу к полю кода; camp — стартовые данные кампании для истории
+  openLobby(mode, intent, camp) {
     if (this.leaving) return; this.leaving = true; Snd.init();
-    Lobby.mode = mode || 'story'; Lobby.boss = BOSSES[this.pickIdx].id; Lobby.bossName = BOSSES[this.pickIdx].name; Lobby.show();
+    Lobby.mode = mode || 'story'; Lobby.boss = BOSSES[this.pickIdx].id; Lobby.bossName = BOSSES[this.pickIdx].name; Lobby.camp = camp || null;
+    Lobby.crumbs = this.menuCrumbs(); Lobby.show(intent);
   }
   goOnline(role, mode, boss, camp) {
     Snd.play('bench'); this.cameras.main.fadeOut(450, 3, 8, 7);
     this.time.delayedCall(460, () => this.scene.start('game', { players: 2, online: role, mode: mode || 'story', boss: boss || 'misha', camp: camp || null }));
   }
-  go(n, mode) {
+  go(n, mode, camp) {
     if (this.leaving) return; this.leaving = true; Snd.init(); Snd.play('bench');
+    if (!mode) { try { localStorage.setItem('tt_players', String(n)); } catch (_) { } }
     this.cameras.main.fadeOut(450, 3, 8, 7);
-    this.time.delayedCall(460, () => this.scene.start('game', { players: n, mode: mode || 'story', boss: BOSSES[this.pickIdx].id, camp: mode ? null : Campaign.resume() }));
+    this.time.delayedCall(460, () => this.scene.start('game', { players: n, mode: mode || 'story', boss: BOSSES[this.pickIdx].id, camp: mode ? null : (camp || Campaign.resume()) }));
   }
   update(time, delta) {
     this.t += delta / 1000;
     this.mid.tilePositionX += delta * 0.01; this.fog.tilePositionX += delta * 0.02; this.rays.setAlpha(0.75 + Math.sin(this.t * 0.6) * 0.25);
-    const pads = this.input.gamepad ? this.input.gamepad.gamepads.filter(Boolean) : [];
-    this.pickT = (this.pickT || 0) - delta / 1000;
-    if (Settings.open || (this.srP && this.srP.visible)) return;
-    for (const pad of pads) {
-      const b = (n) => !!(pad.buttons[n] && pad.buttons[n].pressed);
-      if (this.pick.visible) {
-        if (this.pickT > 0) continue;
-        if (b(0)) this.go(1, 'bosstest'); if (b(3)) this.go(2, 'bosstest'); if (b(1)) this.closePick();
-        const lr = (pad.left ? -1 : 0) + (pad.right ? 1 : 0);
-        if (lr && !this._lrHeld) this.setPick(this.pickIdx + lr);
-        this._lrHeld = !!lr;
-        continue;
-      }
-      if (b(0)) this.go(1);
-      if (b(3)) this.go(2);
-      if (b(2)) this.openPick();
-    }
-    // два ткача на заставке
+    this.menuUpdate(delta / 1000);
+    // два ткача на заставке (только на главном экране)
     const g = this.hero; g.clear();
+    if (!this.mHero) return;
     for (let i = 0; i < 2; i++) {
-      const x = VW / 2 + (i ? 26 : -26), y = 214 + Math.sin(this.t * 2 + i) * 3;
+      const x = this.heroX + (i ? 26 : -26), y = this.heroY + Math.sin(this.t * 2 + i) * 3;
       drawWeaver(g, x, y, i ? -1 : 1, PAL[i], { bob: 0, leg: 0, sway: Math.sin(this.t * 1.6 + i) * 1.5, lift: 0 }, 1.6);
       this.heroTags[i].setPosition(x + (i ? 1 : -1) * 0.5, y - 13 * 1.6);
     }

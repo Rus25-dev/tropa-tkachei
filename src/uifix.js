@@ -1,5 +1,5 @@
-// ===== ИНТЕРФЕЙС: вёрстка паузы и меню, автопауза в портрете, реплики боссов и сенсорные кнопки на телефоне =====
-// Подключается последним среди модулей интерфейса: оборачивает методы UIScene, MenuScene и GameScene.
+// ===== ИНТЕРФЕЙС: вёрстка паузы, автопауза в портрете, реплики боссов и сенсорные кнопки на телефоне =====
+// Подключается последним среди модулей интерфейса: оборачивает методы UIScene и GameScene.
 const UIFix = {
   F: '"Fira Sans", sans-serif', D: '"Cormorant SC", Georgia, serif',
   // во сколько раз холст на экране отличается от игровых координат (на телефоне < 1)
@@ -74,42 +74,7 @@ Object.assign(UIScene.prototype, {
   };
 }
 
-// ----- меню: «Что нового» не залезает на кнопки и подсказки; оверлеи закрывают главное меню -----
-Object.assign(MenuScene.prototype, {
-  fitChangelog() {
-    const ch = this.chTxt; if (!ch || !ch.scene) return;
-    const cs = UIFix.cs(this), fs = Phaser.Math.Clamp(Math.ceil(10 / cs), 11, 14), max = Touch.enabled ? 3 : 7;
-    const obst = this.children.list.filter((o) => o !== ch && o.type === 'Text' && o.visible && !(o.y < 22 && o.x < 40));
-    ch.setFontSize(fs).setLineSpacing(Math.round(fs / 3.5));
-    for (let n = max; n >= 0; n--) {
-      if (!n) { ch.setVisible(false); return; }
-      ch.setText('Что нового:\n' + CHANGELOG.slice(0, n).map((l) => '· ' + l).join('\n'));
-      const b = ch.getBounds();
-      if (b.bottom <= VH - 6 && !obst.some((o) => UIFix.inter(b, o.getBounds(), 3))) { ch.setVisible(true); return; }
-    }
-  },
-  menuCover(on) {
-    if (on) {
-      if (this._cov) return;
-      this._cov = this.children.list.filter((o) => o.visible && o !== this.pick && o !== this.srP && (o.type === 'Text' || o.type === 'Graphics' || o.type === 'Container'));
-      for (const o of this._cov) o.setVisible(false);
-    } else if (this._cov && !(this.pick && this.pick.visible) && !(this.srP && this.srP.visible)) {
-      for (const o of this._cov) if (o.scene) o.setVisible(true);
-      this._cov = null; this.fitChangelog();
-    }
-  },
-});
-{
-  const mc = MenuScene.prototype.create;
-  MenuScene.prototype.create = function () { this._cov = null; mc.call(this); this.fitChangelog(); };
-  const wrap = (name, on) => { const f = MenuScene.prototype[name]; MenuScene.prototype[name] = function (...a) { const r = f.apply(this, a); this.menuCover(on); return r; }; };
-  const op = MenuScene.prototype.openPick;
-  MenuScene.prototype.openPick = function () { const was = this.pick.visible; op.call(this); if (this.pick.visible && !was) this.menuCover(true); };
-  wrap('closePick', false);
-  const os = MenuScene.prototype.openSpeedrun;
-  MenuScene.prototype.openSpeedrun = function () { os.call(this); if (this.srP && this.srP.visible) this.menuCover(true); };
-  wrap('srClose', false);
-}
+// (меню игры переехало в src/menu.js: непрозрачные экраны со своим каркасом, «Что нового» — отдельным экраном)
 
 // ----- портретная ориентация на телефоне: бой не идёт под заглушкой «Поверните телефон» -----
 {
