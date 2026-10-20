@@ -5,7 +5,8 @@ const Layout = {
     const de = document.documentElement, vv = window.visualViewport;
     const w = vv ? vv.width : window.innerWidth, h = vv ? vv.height : window.innerHeight, top = vv ? vv.offsetTop : 0;
     de.style.setProperty('--app-w', w + 'px'); de.style.setProperty('--app-h', h + 'px'); de.style.setProperty('--app-top', top + 'px');
-    de.style.setProperty('--ts', String(Math.max(0.72, Math.min(1.1, Math.min(w, h) / 430))));
+    const k = typeof Settings !== 'undefined' && Settings.s ? Settings.btnScale() : 1;
+    de.style.setProperty('--ts', String(Math.max(0.62, Math.min(1.3, (Math.min(w, h) / 430) * k))));
   },
   init() {
     // ?safe=Л,П,В,Н — имитация выреза для проверки без настоящего iPhone
@@ -116,7 +117,7 @@ const Touch = {
     if (!req) return;
     Promise.resolve(req.call(el)).then(() => { try { screen.orientation.lock('landscape').catch(() => { }); } catch (_) { } }).catch(() => { });
   },
-  buzz() { try { if (navigator.vibrate) navigator.vibrate(8); } catch (_) { } },
+  buzz(ms) { try { if (navigator.vibrate && (!Settings.s || Settings.s.vibro)) navigator.vibrate(ms || 8); } catch (_) { } },
   game() { const g = window.__game && window.__game.scene.getScene('game'); return g && g.sys.isActive() ? g : null; },
   show(on, opts) {
     if (!this.enabled || !this.root) return;

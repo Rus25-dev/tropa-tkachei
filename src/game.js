@@ -1,13 +1,14 @@
 // ===== ИГРА: «Тропа Ткачей» — кооперативная метроидвания =====
 let VW = 960; const VH = 540;
 // версия игры; номер сборки подставляет build.py
-const GAME_VERSION = '0.7';
+const GAME_VERSION = '0.8';
 const GAME_BUILD = '__BUILD__';
 const CHANGELOG = [
+  'Настройки: громкость, тряска, лёгкий режим, кнопки и левша',
+  'Сохранение на скамье, автопауза, «Заново» в паузе',
   'Игра с телефона: стик, кнопки, полный экран, iPhone 13–17',
   'Новые боссы: Владик Скрипка и Тима Пиво',
   'Босс-тест: Миша Додик, дымовухи и рюкзак',
-  'Онлайн-кооп по коду комнаты, работает с серым IP',
 ];
 // ширина поля подстраивается под пропорции экрана: на вытянутых телефонах без чёрных полос
 function computeVW() {
@@ -67,16 +68,18 @@ class MenuScene extends Phaser.Scene {
     this.add.text(VW / 2, 136, 'Глава I · Мшистая Глубь', { fontFamily: '"Fira Sans", sans-serif', fontSize: '17px', color: '#8fb8a8' }).setOrigin(0.5);
 
     const mkBtn = (y, label, sub, n) => {
-      const t = this.add.text(VW / 2, y, label, { fontFamily: '"Cormorant SC", Georgia, serif', fontSize: '32px', color: '#cfe8dc', fontStyle: '600' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-      const s = this.add.text(VW / 2, y + 24, sub, { fontFamily: '"Fira Sans", sans-serif', fontSize: '13px', color: '#6f9586' }).setOrigin(0.5);
+      const t = this.add.text(VW / 2, y, label, { fontFamily: '"Cormorant SC", Georgia, serif', fontSize: '29px', color: '#cfe8dc', fontStyle: '600' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+      const s = this.add.text(VW / 2, y + 21, sub, { fontFamily: '"Fira Sans", sans-serif', fontSize: '13px', color: '#6f9586' }).setOrigin(0.5);
       t.on('pointerover', () => t.setColor('#ffd47a')); t.on('pointerout', () => t.setColor('#cfe8dc'));
-      t.on('pointerdown', () => (n === 3 ? this.openLobby() : n === 4 ? this.openPick() : this.go(n)));
+      t.on('pointerdown', () => (n === 3 ? this.openLobby() : n === 4 ? this.openPick() : n === 5 ? this.openSettings() : this.go(n)));
       return [t, s];
     };
-    mkBtn(250, '1 · Один ткач', 'клавиша 1 · геймпад A', 1);
-    mkBtn(301, '2 · Двое за одним компьютером', 'клавиша 2 · геймпад Y', 2);
-    mkBtn(352, '3 · Вдвоём по сети', 'клавиша 3 · комната с кодом, работает и с серым IP', 3);
-    mkBtn(403, '4 · Босс-тест', 'клавиша 4 · геймпад X · три босса на выбор, сразу в бой', 4);
+    const prog = Settings.progress(), cont = prog ? ` · продолжение: ${prog.name || 'скамья'}` : '';
+    mkBtn(238, '1 · Один ткач', 'клавиша 1 · геймпад A' + cont, 1);
+    mkBtn(284, '2 · Двое за одним компьютером', 'клавиша 2 · геймпад Y' + cont, 2);
+    mkBtn(330, '3 · Вдвоём по сети', 'клавиша 3 · комната с кодом, работает и с серым IP', 3);
+    mkBtn(376, '4 · Босс-тест', 'клавиша 4 · геймпад X · три босса на выбор, сразу в бой', 4);
+    mkBtn(422, '5 · Настройки', 'клавиша 5 · громкость, тряска, лёгкий режим, кнопки', 5);
 
     const ctl = [
       'Игрок 1:  A D W S — ходить   Пробел — прыжок   F — удар   G — рывок   Q — лечение   R — дымовуха',
@@ -119,9 +122,10 @@ class MenuScene extends Phaser.Scene {
     const p3 = mkPick(396, '3 · Вдвоём по сети', () => this.openLobby('bosstest'));
     const pb = mkPick(470, '← Назад (Esc)', () => this.closePick()); pb.setFontSize(22);
     this.pick.add([pg, pt, ...this.bossBtns, this.pickLine, ph, ps, p1, p2, p3, pb]);
-    this.setPick(0);
+    this.setPick(Settings.s.boss || 0);
     k.on('keydown', (e) => {
       Snd.init();
+      if (Settings.open || !Lobby.el.hidden) return;
       if (this.pick.visible) {
         if (e.key === '1') this.go(1, 'bosstest'); if (e.key === '2') this.go(2, 'bosstest'); if (e.key === '3') this.openLobby('bosstest');
         if (e.key === 'Escape') this.closePick();
@@ -129,14 +133,16 @@ class MenuScene extends Phaser.Scene {
         if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D' || e.key === 'в' || e.key === 'В') this.setPick(this.pickIdx + 1);
         return;
       }
-      if (e.key === '1') this.go(1); if (e.key === '2') this.go(2); if (e.key === '3') this.openLobby(); if (e.key === '4') this.openPick();
+      if (e.key === '1') this.go(1); if (e.key === '2') this.go(2); if (e.key === '3') this.openLobby(); if (e.key === '4') this.openPick(); if (e.key === '5') this.openSettings();
     });
     if (Lobby.room) this.time.delayedCall(300, () => this.openLobby());
     this.input.on('pointerdown', () => Snd.init());
     this.t = 0;
   }
+  openSettings() { if (this.leaving || Settings.open) return; Snd.init(); Settings.show(() => this.scene.restart()); }
   setPick(i) {
     this.pickIdx = (i + BOSSES.length) % BOSSES.length;
+    if (Settings.s.boss !== this.pickIdx) { Settings.s.boss = this.pickIdx; Settings.save(); }
     this.bossBtns.forEach((t, k) => t.setColor(k === this.pickIdx ? '#ffd47a' : '#8fb8a8'));
     const t = this.bossBtns[this.pickIdx], g = this.pickLine; g.clear();
     g.fillStyle(0xffd47a, 1); g.fillRect(t.x - t.width / 2, 168, t.width, 2);
@@ -162,6 +168,7 @@ class MenuScene extends Phaser.Scene {
     this.mid.tilePositionX += delta * 0.01;
     const pads = this.input.gamepad ? this.input.gamepad.gamepads.filter(Boolean) : [];
     this.pickT = (this.pickT || 0) - delta / 1000;
+    if (Settings.open) return;
     for (const pad of pads) {
       const b = (n) => !!(pad.buttons[n] && pad.buttons[n].pressed);
       if (this.pick.visible) {
@@ -302,6 +309,8 @@ class GameScene extends Phaser.Scene {
 
     // игроки
     this.respawn = { x: L.spawn.x * T + 16, y: (L.spawn.y + 1) * T };
+    const prog = this.mode === 'story' && this.online !== 'guest' ? Settings.progress() : null;
+    if (prog && this.benches[prog.bench]) { const b = this.benches[prog.bench]; this.respawn = { x: b.x, y: b.y }; }
     this.players = [];
     for (let i = 0; i < this.nPlayers; i++) this.players.push(this.makePlayer(i, this.respawn.x + i * 26, this.respawn.y));
     if (this.online) {
@@ -319,7 +328,7 @@ class GameScene extends Phaser.Scene {
       else if (this.bossKind === 'tima') this.setupTimaArena();
       else this.setupMishaArena();
     }
-    this.beads = 0; this.deaths = 0; this.timeSec = 0;
+    this.beads = prog ? prog.beads || 0 : 0; this.deaths = 0; this.timeSec = 0;
 
     // ввод
     this.setupInput();
@@ -336,6 +345,12 @@ class GameScene extends Phaser.Scene {
     this.input.keyboard.on('keydown-ESC', () => this.togglePause());
     this.input.keyboard.on('keydown', (e) => { Snd.init(); this.onKeyTap(e); });
     Touch.onTap = (act) => this.onTouchTap(act);
+    const mcam = this.cameras.main, shakeOrig = mcam.shake.bind(mcam);
+    mcam.shake = (...a) => (Settings.s.shake ? shakeOrig(...a) : mcam);
+    // автопауза, когда вкладку свернули или переключились в другое приложение
+    this._vis = () => { if (document.hidden && !this.online && !this.paused && !this.won && this.sys.isActive()) this.togglePause(); };
+    document.addEventListener('visibilitychange', this._vis);
+    this.events.once('shutdown', () => document.removeEventListener('visibilitychange', this._vis));
     Touch.show(true, { bombs: !!this.L.crates });
     this.events.once('shutdown', () => { Touch.show(false); Touch.onTap = null; });
   }
@@ -343,7 +358,7 @@ class GameScene extends Phaser.Scene {
   testBoss() { return this.misha || this.vladik || this.tima; }
   speedMul() { return 1; }
   togglePause() {
-    if (this.won) return;
+    if (this.won || Settings.open) return;
     const u = this.ui();
     if (this.online) u.showPause(!u.pause.visible); // по сети мир не останавливаем
     else { this.paused = !this.paused; u.showPause(this.paused); }
@@ -457,7 +472,7 @@ class GameScene extends Phaser.Scene {
     return {
       i, pal: PAL[i], x: x - 7, y: y - 26, w: 14, h: 26, vx: 0, vy: 0, face: 1, onGround: false,
       coyote: 0, jumpBuf: 0, jumpCut: true, dashT: 0, dashCd: 0, canDash: true, atkT: 0, atkCd: 0, atkDir: 'f', atkHits: null, pogoed: false,
-      hp: 5, maxHp: 5, silk: 0, inv: 0, hurtT: 0, kbx: 0, downed: false, reviveT: 0, safeX: x - 7, safeY: y - 26, groundT: 0,
+      hp: Settings.s.easy ? 8 : 5, maxHp: Settings.s.easy ? 8 : 5, silk: 0, inv: 0, hurtT: 0, kbx: 0, downed: false, reviveT: 0, safeX: x - 7, safeY: y - 26, groundT: 0,
       wallDir: 0, wjLock: 0, healT: 0, landT: 0, sit: false, prev: {}, inp: {}, trail: [], bombs: this.L.crates ? 3 : 0, bombCd: 0,
       g: this.add.graphics().setDepth(5), tag: makeTag(this, PAL[i], 5.1),
     };
@@ -687,7 +702,7 @@ class GameScene extends Phaser.Scene {
   }
   hurtPlayer(p, dmg, srcX, spike) {
     if (p.inv > 0 || p.downed) return;
-    p.hp -= dmg; p.inv = P.INV; p.hurtT = P.HURT; p.dashT = 0; p.sit = false; p.atkT = 0;
+    p.hp -= dmg; p.inv = P.INV; if (!p.remote) Touch.buzz(45); p.hurtT = P.HURT; p.dashT = 0; p.sit = false; p.atkT = 0;
     p.vy = spike ? 0 : -320; p.kbx = srcX == null ? 0 : ((p.x + 7 < srcX) ? -1 : 1) * 260;
     this.hitstop = 0.09; this.cameras.main.shake(160, 0.008); Snd.play('hurt');
     this.parts.setParticleTint(0xffffff); this.parts.explode(10, p.x + 7, p.y + 13);
@@ -740,7 +755,11 @@ class GameScene extends Phaser.Scene {
             p.sit = true; p.x = b.x - 7; p.hp = p.maxHp; this.respawn = { x: b.x, y: b.y }; Snd.play('bench');
             for (const q of this.players) if (q.downed && !q.remote) { q.downed = false; q.hp = 2; q.inv = 1.5; q.x = b.x - 7 + 22; q.y = b.y - 26; }
             this.sendEv({ k: 'bench', x: b.x, y: b.y });
-            this.ui().toast('Скамья: здесь вы очнётесь');
+            this.ui().toast('Скамья: здесь вы очнётесь. Прогресс сохранён');
+            if (this.mode === 'story' && this.online !== 'guest') {
+              const bi = this.benches.indexOf(b), area = this.L.areas.reduce((a, ar) => (b.x / T >= ar.x ? ar : a), this.L.areas[0]);
+              Settings.saveProgress({ bench: bi, beads: this.beads, name: area.name });
+            }
           }
         }
       }
@@ -1396,8 +1415,7 @@ class UIScene extends Phaser.Scene {
       'Лечение: когда катушка нити полна, восстанавливает 3 бутона.',
       'Напарник в коконе: подойди и держи ↑ одну секунду.  Скамья (↑) лечит и оживляет.',
       'По сети каждый играет раскладкой игрока 1, а пауза не останавливает мир.',
-      '', 'Esc — продолжить',
-    ].join('\n'), { fontFamily: F, fontSize: '14px', color: '#b9d4c8', align: 'center', lineSpacing: 7 }).setOrigin(0.5);
+    ].join('\n'), { fontFamily: F, fontSize: '14px', color: '#b9d4c8', align: 'center', lineSpacing: 7 }).setOrigin(0.5).setY(285);
     if (Touch.enabled) pc.setText([
       'Стик слева — идти. Вверх + удар — удар вверх, в прыжке вниз + удар — отскок.',
       'Прыжок от стены: прижмись стиком к стене в падении и жми «Прыжок».',
@@ -1406,14 +1424,19 @@ class UIScene extends Phaser.Scene {
       'По сети пауза не останавливает мир.',
     ].join('\n')).setY(270);
     const mkB = (x, label, fn) => {
-      const t = this.add.text(x, 420, label, { fontFamily: D, fontSize: '28px', color: '#cfe8dc', fontStyle: '700', backgroundColor: 'rgba(20,48,41,0.9)', padding: { x: 18, y: 8 } })
+      const t = this.add.text(x, 420, label, { fontFamily: D, fontSize: '23px', color: '#cfe8dc', fontStyle: '700', backgroundColor: 'rgba(20,48,41,0.9)', padding: { x: 18, y: 8 } })
         .setOrigin(0.5).setInteractive({ useHandCursor: true });
       t.on('pointerover', () => t.setColor('#ffd47a')); t.on('pointerout', () => t.setColor('#cfe8dc')); t.on('pointerdown', fn);
       return t;
     };
-    const bCont = mkB(VW / 2 - 150, 'Продолжить', () => this.gs.togglePause());
-    const bMenu = mkB(VW / 2 + 150, 'В главное меню', () => this.restart());
-    this.pause.add([pb, pt, pc, bCont, bMenu]);
+    const online = !!this.gs.online;
+    const contL = Touch.enabled ? 'Продолжить' : 'Продолжить (Esc)';
+    const labels = online ? [[contL, () => this.gs.togglePause()], ['Настройки', () => this.openSettings()], ['В главное меню', () => this.restart()]]
+      : [[contL, () => this.gs.togglePause()], ['Заново', () => this.retry()], ['Настройки', () => this.openSettings()], ['В главное меню', () => this.restart()]];
+    const pbtns = labels.map(([l, fn]) => mkB(0, l, fn));
+    const gap = 18, total = pbtns.reduce((s, b) => s + b.width, 0) + gap * (pbtns.length - 1);
+    let px = VW / 2 - total / 2; for (const b of pbtns) { b.setX(px + b.width / 2); px += b.width + gap; }
+    this.pause.add([pb, pt, pc, ...pbtns]);
     this.win = this.add.container(0, 0).setVisible(false);
     this.t = 0;
     this.input.keyboard.on('keydown-ENTER', () => { if (this.gs.won) this.restart(); });
@@ -1422,6 +1445,7 @@ class UIScene extends Phaser.Scene {
     this.ready = true;
   }
   restart() { this.ready = false; Net.onClose = null; Net.close(); this.scene.stop('bg'); this.scene.stop('game'); this.scene.start('menu'); }
+  openSettings() { this.pause.setVisible(false); Settings.show(() => { if (this.ready) this.pause.setVisible(true); }); }
   retry() { const d = { ...this.gs.startData }; this.ready = false; this.scene.stop('bg'); this.scene.start('game', d); }
   removePlayer(i) { if (this.names[i]) this.names[i].setVisible(false); }
   showPause(on) { if (this.ready) this.pause.setVisible(on); }
@@ -1492,6 +1516,12 @@ class UIScene extends Phaser.Scene {
         else { g.lineStyle(1.5, 0x4a5a52, 1); g.strokeCircle(bx, by, 6); }
       }
     });
+    // последний бутон — края экрана пульсируют красным
+    const me = gs.players[gs.online ? gs.localIdx : 0];
+    if (me && !me.downed && me.hp === 1 && !gs.won) {
+      const a = 0.18 + Math.sin(this.t * 5) * 0.1;
+      for (let i = 0; i < 6; i++) { g.lineStyle(14 - i * 2, 0xd23a2a, a * (1 - i / 6)); g.strokeRect(i * 7, i * 7, VW - i * 14, VH - i * 14); }
+    }
     // бусины
     g.fillStyle(0xffd47a, 0.25); g.fillCircle(26, VH - 24, 10); g.fillStyle(0xffe3a3, 1); g.fillCircle(26, VH - 24, 5);
     this.beadTxt.setText(String(gs.beads));
@@ -1504,6 +1534,7 @@ class UIScene extends Phaser.Scene {
       g.fillStyle(0x0b1714, 0.9); g.fillRect(x - 3, y - 3, w + 6, 14);
       g.fillStyle(0x6b2a22, 1); g.fillRect(x, y, w * this.bossShown, 8);
       g.fillStyle(0xff9a3c, 1); g.fillRect(x, y, w * this.bossFrac, 8);
+      g.fillStyle(0xf4efe0, 0.85); g.fillRect(x + w / 2 - 1, y - 4, 2, 16);
     }
   }
 }

@@ -49,6 +49,29 @@
   #lb-status[data-kind="ok"] { color: var(--glow); }
   #lb-status[data-kind="err"] { color: #ff9a7a; }
   #lb-status[data-kind="wait"] { color: var(--ember); }
+  /* настройки */
+  #settings { position: fixed; inset: 0; z-index: 6; display: grid; place-items: center; overflow-y: auto; background: rgba(3, 8, 7, 0.84);
+    padding-block: 12px; padding-left: max(16px, var(--sl)); padding-right: max(16px, var(--sr)); }
+  #settings .card { width: min(520px, 100%); background: #0c1815; border: 1px solid #24433a; border-radius: 10px; padding: 18px 22px 16px; display: grid; gap: 10px; margin-block: auto; }
+  #settings h2 { font: 700 30px var(--display); margin: 0; color: var(--bone); }
+  #settings .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 18px; }
+  @media (max-width: 520px) { #settings .grid { grid-template-columns: minmax(0, 1fr); } }
+  #settings label.opt { display: flex; align-items: center; gap: 10px; font-size: 14px; color: #cfe2d8; min-height: 34px; cursor: pointer; }
+  #settings label.opt small { display: block; color: var(--muted); font-size: 12px; }
+  #settings input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--moss); flex: none; }
+  #settings input[type=range] { flex: 1; min-width: 0; accent-color: var(--moss); }
+  #settings .val { width: 3.2em; text-align: right; font-variant-numeric: tabular-nums; color: var(--ember); font-size: 13px; }
+  #settings .label { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
+  #settings .seg { display: inline-flex; border: 1px solid #2c5246; border-radius: 7px; overflow: hidden; }
+  #settings .seg label { padding: 6px 12px; font-size: 13px; cursor: pointer; color: #cfe2d8; }
+  #settings .seg input { position: absolute; opacity: 0; pointer-events: none; }
+  #settings .seg label:has(input:checked) { background: var(--moss); color: #08130f; }
+  #settings .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+  #settings button { font: 600 14px var(--body); border-radius: 7px; padding: 9px 14px; cursor: pointer; border: 1px solid #3a6b5a; background: #143029; color: var(--bone); }
+  #settings button:disabled { opacity: 0.45; cursor: default; }
+  #settings button.primary { background: var(--moss); border-color: var(--moss); color: #08130f; }
+  #settings button:focus-visible, #settings input:focus-visible { outline: 2px solid var(--glow); outline-offset: 2px; }
+  #st-prog { font-size: 13px; color: var(--muted); }
   /* сенсорное управление */
   html.touch, html.touch body { touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; overscroll-behavior: none; }
   #touch { position: fixed; left: 0; top: var(--app-top, 0px); width: var(--app-w, 100vw); height: var(--app-h, 100vh); z-index: 3; pointer-events: none; }
@@ -62,6 +85,13 @@
     border: 2px solid rgba(232,226,207,0.4); background: rgba(10,24,21,0.38); color: var(--bone); font: 600 10px var(--body); padding: 0; -webkit-tap-highlight-color: transparent; }
   #touch .t-btn b { font-size: 22px; line-height: 1; font-weight: 700; }
   #touch .t-btn i { font-style: normal; opacity: 0.8; }
+  #touch .t-btn, #touch .t-base { opacity: var(--bop, 1); }
+  html.lefty #touch .t-zone { left: auto; right: 0; }
+  html.lefty #touch .t-hint { left: auto; right: calc(var(--sr) + 28px); }
+  html.lefty #touch .t-btns { right: auto; left: max(14px, var(--sl)); transform-origin: left bottom; }
+  html.lefty #touch .t-btn { right: auto !important; }
+  html.lefty #touch .t-jump { left: 0; } html.lefty #touch .t-atk { left: 100px; } html.lefty #touch .t-dash { left: 6px; }
+  html.lefty #touch .t-heal { left: 98px; } html.lefty #touch .t-bomb { left: 166px; }
   #touch .t-btn.on { background: rgba(159,240,200,0.4); border-color: var(--glow); transform: scale(0.94); }
   #touch .t-jump { right: 0; bottom: 0; width: 88px; height: 88px; border-color: rgba(159,240,200,0.65); }
   #touch .t-atk { right: 100px; bottom: 10px; width: 76px; height: 76px; border-color: rgba(255,212,122,0.6); }
@@ -113,6 +143,24 @@
   <p>На iPhone браузер не даёт сайтам открываться на весь экран. Зато игру можно поставить как приложение: нажмите «Поделиться» → «На экран „Домой“» и запускайте с иконки — панелей не будет.</p>
   <button id="ios-tip-ok" type="button">Понятно</button></div></div>
 <div id="rotate"><div><div class="ph"></div><h3>Поверните телефон</h3><p>Тропа Ткачей играется горизонтально</p></div></div>
+<div id="settings" hidden>
+  <div class="card" role="dialog" aria-labelledby="st-title">
+    <h2 id="st-title">Настройки</h2>
+    <div class="grid">
+      <label class="opt" for="st-vol">Громкость <input id="st-vol" type="range" min="0" max="100" step="10"><span class="val" id="st-vol-v"></span></label>
+      <label class="opt" for="st-shake"><input id="st-shake" type="checkbox"><span>Тряска экрана<small>выключите, если укачивает</small></span></label>
+      <label class="opt" for="st-easy"><input id="st-easy" type="checkbox"><span>Лёгкий режим<small>8 бутонов здоровья вместо 5</small></span></label>
+      <label class="opt st-touch" for="st-vibro"><input id="st-vibro" type="checkbox"><span>Вибрация<small>при нажатии и уроне (Android)</small></span></label>
+      <label class="opt st-touch" for="st-lefty"><input id="st-lefty" type="checkbox"><span>Для левши<small>кнопки слева, стик справа</small></span></label>
+      <label class="opt st-touch" for="st-bop">Видимость кнопок <input id="st-bop" type="range" min="30" max="100" step="10"><span class="val" id="st-bop-v"></span></label>
+    </div>
+    <div class="st-touch"><span class="label">Размер кнопок</span><br>
+      <span class="seg"><label><input type="radio" name="st-bsize" value="S">Меньше</label><label><input type="radio" name="st-bsize" value="M">Обычные</label><label><input type="radio" name="st-bsize" value="L">Крупнее</label></span></div>
+    <span class="label">Прогресс главы</span>
+    <div class="row"><span id="st-prog"></span><button id="st-reset" type="button">Сбросить прогресс</button></div>
+    <div class="row"><span class="label">Лёгкий режим включится со следующего боя</span><button id="st-done" class="primary" type="button">Готово</button></div>
+  </div>
+</div>
 <div id="boot"><div><h1>Тропа Ткачей</h1><p>Плетём пещеру…</p><div class="dot"></div></div></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.90.0/phaser.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
@@ -127,8 +175,10 @@
   ]) : Promise.resolve();
   Promise.race([fonts, timeout]).catch(() => {}).then(() => {
     if (typeof Phaser === 'undefined') { document.querySelector('#boot p').textContent = 'Не удалось загрузить движок. Проверьте соединение и обновите страницу.'; return; }
+    Settings.load();
     Layout.init();
     Touch.init();
+    Settings.init();
     Lobby.init();
     startGame();
   });

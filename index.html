@@ -65,6 +65,29 @@
   #lb-status[data-kind="ok"] { color: var(--glow); }
   #lb-status[data-kind="err"] { color: #ff9a7a; }
   #lb-status[data-kind="wait"] { color: var(--ember); }
+  /* настройки */
+  #settings { position: fixed; inset: 0; z-index: 6; display: grid; place-items: center; overflow-y: auto; background: rgba(3, 8, 7, 0.84);
+    padding-block: 12px; padding-left: max(16px, var(--sl)); padding-right: max(16px, var(--sr)); }
+  #settings .card { width: min(520px, 100%); background: #0c1815; border: 1px solid #24433a; border-radius: 10px; padding: 18px 22px 16px; display: grid; gap: 10px; margin-block: auto; }
+  #settings h2 { font: 700 30px var(--display); margin: 0; color: var(--bone); }
+  #settings .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 18px; }
+  @media (max-width: 520px) { #settings .grid { grid-template-columns: minmax(0, 1fr); } }
+  #settings label.opt { display: flex; align-items: center; gap: 10px; font-size: 14px; color: #cfe2d8; min-height: 34px; cursor: pointer; }
+  #settings label.opt small { display: block; color: var(--muted); font-size: 12px; }
+  #settings input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--moss); flex: none; }
+  #settings input[type=range] { flex: 1; min-width: 0; accent-color: var(--moss); }
+  #settings .val { width: 3.2em; text-align: right; font-variant-numeric: tabular-nums; color: var(--ember); font-size: 13px; }
+  #settings .label { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
+  #settings .seg { display: inline-flex; border: 1px solid #2c5246; border-radius: 7px; overflow: hidden; }
+  #settings .seg label { padding: 6px 12px; font-size: 13px; cursor: pointer; color: #cfe2d8; }
+  #settings .seg input { position: absolute; opacity: 0; pointer-events: none; }
+  #settings .seg label:has(input:checked) { background: var(--moss); color: #08130f; }
+  #settings .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+  #settings button { font: 600 14px var(--body); border-radius: 7px; padding: 9px 14px; cursor: pointer; border: 1px solid #3a6b5a; background: #143029; color: var(--bone); }
+  #settings button:disabled { opacity: 0.45; cursor: default; }
+  #settings button.primary { background: var(--moss); border-color: var(--moss); color: #08130f; }
+  #settings button:focus-visible, #settings input:focus-visible { outline: 2px solid var(--glow); outline-offset: 2px; }
+  #st-prog { font-size: 13px; color: var(--muted); }
   /* сенсорное управление */
   html.touch, html.touch body { touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; overscroll-behavior: none; }
   #touch { position: fixed; left: 0; top: var(--app-top, 0px); width: var(--app-w, 100vw); height: var(--app-h, 100vh); z-index: 3; pointer-events: none; }
@@ -78,6 +101,13 @@
     border: 2px solid rgba(232,226,207,0.4); background: rgba(10,24,21,0.38); color: var(--bone); font: 600 10px var(--body); padding: 0; -webkit-tap-highlight-color: transparent; }
   #touch .t-btn b { font-size: 22px; line-height: 1; font-weight: 700; }
   #touch .t-btn i { font-style: normal; opacity: 0.8; }
+  #touch .t-btn, #touch .t-base { opacity: var(--bop, 1); }
+  html.lefty #touch .t-zone { left: auto; right: 0; }
+  html.lefty #touch .t-hint { left: auto; right: calc(var(--sr) + 28px); }
+  html.lefty #touch .t-btns { right: auto; left: max(14px, var(--sl)); transform-origin: left bottom; }
+  html.lefty #touch .t-btn { right: auto !important; }
+  html.lefty #touch .t-jump { left: 0; } html.lefty #touch .t-atk { left: 100px; } html.lefty #touch .t-dash { left: 6px; }
+  html.lefty #touch .t-heal { left: 98px; } html.lefty #touch .t-bomb { left: 166px; }
   #touch .t-btn.on { background: rgba(159,240,200,0.4); border-color: var(--glow); transform: scale(0.94); }
   #touch .t-jump { right: 0; bottom: 0; width: 88px; height: 88px; border-color: rgba(159,240,200,0.65); }
   #touch .t-atk { right: 100px; bottom: 10px; width: 76px; height: 76px; border-color: rgba(255,212,122,0.6); }
@@ -129,6 +159,24 @@
   <p>На iPhone браузер не даёт сайтам открываться на весь экран. Зато игру можно поставить как приложение: нажмите «Поделиться» → «На экран „Домой“» и запускайте с иконки — панелей не будет.</p>
   <button id="ios-tip-ok" type="button">Понятно</button></div></div>
 <div id="rotate"><div><div class="ph"></div><h3>Поверните телефон</h3><p>Тропа Ткачей играется горизонтально</p></div></div>
+<div id="settings" hidden>
+  <div class="card" role="dialog" aria-labelledby="st-title">
+    <h2 id="st-title">Настройки</h2>
+    <div class="grid">
+      <label class="opt" for="st-vol">Громкость <input id="st-vol" type="range" min="0" max="100" step="10"><span class="val" id="st-vol-v"></span></label>
+      <label class="opt" for="st-shake"><input id="st-shake" type="checkbox"><span>Тряска экрана<small>выключите, если укачивает</small></span></label>
+      <label class="opt" for="st-easy"><input id="st-easy" type="checkbox"><span>Лёгкий режим<small>8 бутонов здоровья вместо 5</small></span></label>
+      <label class="opt st-touch" for="st-vibro"><input id="st-vibro" type="checkbox"><span>Вибрация<small>при нажатии и уроне (Android)</small></span></label>
+      <label class="opt st-touch" for="st-lefty"><input id="st-lefty" type="checkbox"><span>Для левши<small>кнопки слева, стик справа</small></span></label>
+      <label class="opt st-touch" for="st-bop">Видимость кнопок <input id="st-bop" type="range" min="30" max="100" step="10"><span class="val" id="st-bop-v"></span></label>
+    </div>
+    <div class="st-touch"><span class="label">Размер кнопок</span><br>
+      <span class="seg"><label><input type="radio" name="st-bsize" value="S">Меньше</label><label><input type="radio" name="st-bsize" value="M">Обычные</label><label><input type="radio" name="st-bsize" value="L">Крупнее</label></span></div>
+    <span class="label">Прогресс главы</span>
+    <div class="row"><span id="st-prog"></span><button id="st-reset" type="button">Сбросить прогресс</button></div>
+    <div class="row"><span class="label">Лёгкий режим включится со следующего боя</span><button id="st-done" class="primary" type="button">Готово</button></div>
+  </div>
+</div>
 <div id="boot"><div><h1>Тропа Ткачей</h1><p>Плетём пещеру…</p><div class="dot"></div></div></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.90.0/phaser.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
@@ -485,6 +533,61 @@ const Snd = {
   },
 };
 
+// ===== НАСТРОЙКИ И СОХРАНЕНИЕ (localStorage; без него всё работает на значениях по умолчанию) =====
+const Settings = {
+  def: { vol: 80, shake: true, easy: false, vibro: true, bsize: 'M', bop: 100, lefty: false, boss: 0 },
+  s: null, open: false, onClose: null,
+  load() {
+    this.s = { ...this.def };
+    try { const raw = localStorage.getItem('tt_settings'); if (raw) Object.assign(this.s, JSON.parse(raw)); } catch (_) { }
+  },
+  save() { try { localStorage.setItem('tt_settings', JSON.stringify(this.s)); } catch (_) { } this.apply(); },
+  // прогресс главы: последняя скамья и бусины
+  progress() { try { const p = JSON.parse(localStorage.getItem('tt_save') || 'null'); return p && typeof p.bench === 'number' ? p : null; } catch (_) { return null; } },
+  saveProgress(p) { try { localStorage.setItem('tt_save', JSON.stringify(p)); } catch (_) { } },
+  resetProgress() { try { localStorage.removeItem('tt_save'); } catch (_) { } },
+  btnScale() { return { S: 0.85, M: 1, L: 1.18 }[this.s.bsize] || 1; },
+  apply() {
+    const de = document.documentElement;
+    de.classList.toggle('lefty', !!this.s.lefty);
+    de.style.setProperty('--bop', String(this.s.bop / 100));
+    if (Snd.master) Snd.master.gain.value = 0.35 * (this.s.vol / 100);
+    if (typeof Layout !== 'undefined') Layout.apply();
+  },
+  init() {
+    this.load();
+    const el = document.getElementById('settings');
+    const $ = (id) => document.getElementById(id);
+    const bind = () => {
+      $('st-vol').value = this.s.vol; $('st-vol-v').textContent = this.s.vol + '%';
+      $('st-shake').checked = this.s.shake; $('st-easy').checked = this.s.easy;
+      $('st-vibro').checked = this.s.vibro; $('st-lefty').checked = this.s.lefty;
+      $('st-bop').value = this.s.bop; $('st-bop-v').textContent = this.s.bop + '%';
+      el.querySelectorAll('[name=st-bsize]').forEach((r) => { r.checked = r.value === this.s.bsize; });
+      const p = this.progress();
+      $('st-prog').textContent = p ? `Сохранено: ${p.name || 'скамья'}, бусин ${p.beads || 0}` : 'Сохранения главы пока нет';
+      $('st-reset').disabled = !p; $('st-reset').textContent = 'Сбросить прогресс';
+    };
+    this.bindUI = bind;
+    $('st-vol').addEventListener('input', (e) => { this.s.vol = +e.target.value; $('st-vol-v').textContent = this.s.vol + '%'; this.save(); });
+    $('st-vol').addEventListener('change', () => { Snd.init(); Snd.play('bead'); });
+    $('st-bop').addEventListener('input', (e) => { this.s.bop = +e.target.value; $('st-bop-v').textContent = this.s.bop + '%'; this.save(); });
+    for (const k of ['shake', 'easy', 'vibro', 'lefty']) $('st-' + k).addEventListener('change', (e) => { this.s[k] = e.target.checked; this.save(); });
+    el.querySelectorAll('[name=st-bsize]').forEach((r) => r.addEventListener('change', () => { this.s.bsize = r.value; this.save(); }));
+    $('st-reset').addEventListener('click', (e) => {
+      const b = e.currentTarget;
+      if (b.dataset.armed !== '1') { b.dataset.armed = '1'; b.textContent = 'Точно сбросить? Нажмите ещё раз'; setTimeout(() => { b.dataset.armed = ''; bind(); }, 3500); return; }
+      b.dataset.armed = ''; this.resetProgress(); bind(); $('st-prog').textContent = 'Прогресс сброшен: глава начнётся с начала';
+    });
+    $('st-done').addEventListener('click', () => this.hide());
+    el.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Escape') this.hide(); });
+    el.querySelectorAll('.st-touch').forEach((n) => { n.hidden = !Touch.enabled; });
+    this.apply();
+  },
+  show(onClose) { this.onClose = onClose || null; this.bindUI(); this.open = true; document.getElementById('settings').hidden = false; setTimeout(() => document.getElementById('st-done').focus(), 0); },
+  hide() { this.open = false; document.getElementById('settings').hidden = true; const cb = this.onClose; this.onClose = null; if (cb) cb(); },
+};
+
 // ===== СЕНСОРНОЕ УПРАВЛЕНИЕ: стик слева, кнопки справа, пауза и полный экран =====
 // ----- раскладка под видимую область экрана (iPhone: вырез, полоска «Домой», панели Safari) -----
 const Layout = {
@@ -492,7 +595,8 @@ const Layout = {
     const de = document.documentElement, vv = window.visualViewport;
     const w = vv ? vv.width : window.innerWidth, h = vv ? vv.height : window.innerHeight, top = vv ? vv.offsetTop : 0;
     de.style.setProperty('--app-w', w + 'px'); de.style.setProperty('--app-h', h + 'px'); de.style.setProperty('--app-top', top + 'px');
-    de.style.setProperty('--ts', String(Math.max(0.72, Math.min(1.1, Math.min(w, h) / 430))));
+    const k = typeof Settings !== 'undefined' && Settings.s ? Settings.btnScale() : 1;
+    de.style.setProperty('--ts', String(Math.max(0.62, Math.min(1.3, (Math.min(w, h) / 430) * k))));
   },
   init() {
     // ?safe=Л,П,В,Н — имитация выреза для проверки без настоящего iPhone
@@ -603,7 +707,7 @@ const Touch = {
     if (!req) return;
     Promise.resolve(req.call(el)).then(() => { try { screen.orientation.lock('landscape').catch(() => { }); } catch (_) { } }).catch(() => { });
   },
-  buzz() { try { if (navigator.vibrate) navigator.vibrate(8); } catch (_) { } },
+  buzz(ms) { try { if (navigator.vibrate && (!Settings.s || Settings.s.vibro)) navigator.vibrate(ms || 8); } catch (_) { } },
   game() { const g = window.__game && window.__game.scene.getScene('game'); return g && g.sys.isActive() ? g : null; },
   show(on, opts) {
     if (!this.enabled || !this.root) return;
@@ -731,13 +835,14 @@ const Lobby = {
 // ===== ИГРА: «Тропа Ткачей» — кооперативная метроидвания =====
 let VW = 960; const VH = 540;
 // версия игры; номер сборки подставляет build.py
-const GAME_VERSION = '0.7';
-const GAME_BUILD = '11 от 20.10.2026';
+const GAME_VERSION = '0.8';
+const GAME_BUILD = '12 от 20.10.2026';
 const CHANGELOG = [
+  'Настройки: громкость, тряска, лёгкий режим, кнопки и левша',
+  'Сохранение на скамье, автопауза, «Заново» в паузе',
   'Игра с телефона: стик, кнопки, полный экран, iPhone 13–17',
   'Новые боссы: Владик Скрипка и Тима Пиво',
   'Босс-тест: Миша Додик, дымовухи и рюкзак',
-  'Онлайн-кооп по коду комнаты, работает с серым IP',
 ];
 // ширина поля подстраивается под пропорции экрана: на вытянутых телефонах без чёрных полос
 function computeVW() {
@@ -797,16 +902,18 @@ class MenuScene extends Phaser.Scene {
     this.add.text(VW / 2, 136, 'Глава I · Мшистая Глубь', { fontFamily: '"Fira Sans", sans-serif', fontSize: '17px', color: '#8fb8a8' }).setOrigin(0.5);
 
     const mkBtn = (y, label, sub, n) => {
-      const t = this.add.text(VW / 2, y, label, { fontFamily: '"Cormorant SC", Georgia, serif', fontSize: '32px', color: '#cfe8dc', fontStyle: '600' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-      const s = this.add.text(VW / 2, y + 24, sub, { fontFamily: '"Fira Sans", sans-serif', fontSize: '13px', color: '#6f9586' }).setOrigin(0.5);
+      const t = this.add.text(VW / 2, y, label, { fontFamily: '"Cormorant SC", Georgia, serif', fontSize: '29px', color: '#cfe8dc', fontStyle: '600' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+      const s = this.add.text(VW / 2, y + 21, sub, { fontFamily: '"Fira Sans", sans-serif', fontSize: '13px', color: '#6f9586' }).setOrigin(0.5);
       t.on('pointerover', () => t.setColor('#ffd47a')); t.on('pointerout', () => t.setColor('#cfe8dc'));
-      t.on('pointerdown', () => (n === 3 ? this.openLobby() : n === 4 ? this.openPick() : this.go(n)));
+      t.on('pointerdown', () => (n === 3 ? this.openLobby() : n === 4 ? this.openPick() : n === 5 ? this.openSettings() : this.go(n)));
       return [t, s];
     };
-    mkBtn(250, '1 · Один ткач', 'клавиша 1 · геймпад A', 1);
-    mkBtn(301, '2 · Двое за одним компьютером', 'клавиша 2 · геймпад Y', 2);
-    mkBtn(352, '3 · Вдвоём по сети', 'клавиша 3 · комната с кодом, работает и с серым IP', 3);
-    mkBtn(403, '4 · Босс-тест', 'клавиша 4 · геймпад X · три босса на выбор, сразу в бой', 4);
+    const prog = Settings.progress(), cont = prog ? ` · продолжение: ${prog.name || 'скамья'}` : '';
+    mkBtn(238, '1 · Один ткач', 'клавиша 1 · геймпад A' + cont, 1);
+    mkBtn(284, '2 · Двое за одним компьютером', 'клавиша 2 · геймпад Y' + cont, 2);
+    mkBtn(330, '3 · Вдвоём по сети', 'клавиша 3 · комната с кодом, работает и с серым IP', 3);
+    mkBtn(376, '4 · Босс-тест', 'клавиша 4 · геймпад X · три босса на выбор, сразу в бой', 4);
+    mkBtn(422, '5 · Настройки', 'клавиша 5 · громкость, тряска, лёгкий режим, кнопки', 5);
 
     const ctl = [
       'Игрок 1:  A D W S — ходить   Пробел — прыжок   F — удар   G — рывок   Q — лечение   R — дымовуха',
@@ -849,9 +956,10 @@ class MenuScene extends Phaser.Scene {
     const p3 = mkPick(396, '3 · Вдвоём по сети', () => this.openLobby('bosstest'));
     const pb = mkPick(470, '← Назад (Esc)', () => this.closePick()); pb.setFontSize(22);
     this.pick.add([pg, pt, ...this.bossBtns, this.pickLine, ph, ps, p1, p2, p3, pb]);
-    this.setPick(0);
+    this.setPick(Settings.s.boss || 0);
     k.on('keydown', (e) => {
       Snd.init();
+      if (Settings.open || !Lobby.el.hidden) return;
       if (this.pick.visible) {
         if (e.key === '1') this.go(1, 'bosstest'); if (e.key === '2') this.go(2, 'bosstest'); if (e.key === '3') this.openLobby('bosstest');
         if (e.key === 'Escape') this.closePick();
@@ -859,14 +967,16 @@ class MenuScene extends Phaser.Scene {
         if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D' || e.key === 'в' || e.key === 'В') this.setPick(this.pickIdx + 1);
         return;
       }
-      if (e.key === '1') this.go(1); if (e.key === '2') this.go(2); if (e.key === '3') this.openLobby(); if (e.key === '4') this.openPick();
+      if (e.key === '1') this.go(1); if (e.key === '2') this.go(2); if (e.key === '3') this.openLobby(); if (e.key === '4') this.openPick(); if (e.key === '5') this.openSettings();
     });
     if (Lobby.room) this.time.delayedCall(300, () => this.openLobby());
     this.input.on('pointerdown', () => Snd.init());
     this.t = 0;
   }
+  openSettings() { if (this.leaving || Settings.open) return; Snd.init(); Settings.show(() => this.scene.restart()); }
   setPick(i) {
     this.pickIdx = (i + BOSSES.length) % BOSSES.length;
+    if (Settings.s.boss !== this.pickIdx) { Settings.s.boss = this.pickIdx; Settings.save(); }
     this.bossBtns.forEach((t, k) => t.setColor(k === this.pickIdx ? '#ffd47a' : '#8fb8a8'));
     const t = this.bossBtns[this.pickIdx], g = this.pickLine; g.clear();
     g.fillStyle(0xffd47a, 1); g.fillRect(t.x - t.width / 2, 168, t.width, 2);
@@ -892,6 +1002,7 @@ class MenuScene extends Phaser.Scene {
     this.mid.tilePositionX += delta * 0.01;
     const pads = this.input.gamepad ? this.input.gamepad.gamepads.filter(Boolean) : [];
     this.pickT = (this.pickT || 0) - delta / 1000;
+    if (Settings.open) return;
     for (const pad of pads) {
       const b = (n) => !!(pad.buttons[n] && pad.buttons[n].pressed);
       if (this.pick.visible) {
@@ -1032,6 +1143,8 @@ class GameScene extends Phaser.Scene {
 
     // игроки
     this.respawn = { x: L.spawn.x * T + 16, y: (L.spawn.y + 1) * T };
+    const prog = this.mode === 'story' && this.online !== 'guest' ? Settings.progress() : null;
+    if (prog && this.benches[prog.bench]) { const b = this.benches[prog.bench]; this.respawn = { x: b.x, y: b.y }; }
     this.players = [];
     for (let i = 0; i < this.nPlayers; i++) this.players.push(this.makePlayer(i, this.respawn.x + i * 26, this.respawn.y));
     if (this.online) {
@@ -1049,7 +1162,7 @@ class GameScene extends Phaser.Scene {
       else if (this.bossKind === 'tima') this.setupTimaArena();
       else this.setupMishaArena();
     }
-    this.beads = 0; this.deaths = 0; this.timeSec = 0;
+    this.beads = prog ? prog.beads || 0 : 0; this.deaths = 0; this.timeSec = 0;
 
     // ввод
     this.setupInput();
@@ -1066,6 +1179,12 @@ class GameScene extends Phaser.Scene {
     this.input.keyboard.on('keydown-ESC', () => this.togglePause());
     this.input.keyboard.on('keydown', (e) => { Snd.init(); this.onKeyTap(e); });
     Touch.onTap = (act) => this.onTouchTap(act);
+    const mcam = this.cameras.main, shakeOrig = mcam.shake.bind(mcam);
+    mcam.shake = (...a) => (Settings.s.shake ? shakeOrig(...a) : mcam);
+    // автопауза, когда вкладку свернули или переключились в другое приложение
+    this._vis = () => { if (document.hidden && !this.online && !this.paused && !this.won && this.sys.isActive()) this.togglePause(); };
+    document.addEventListener('visibilitychange', this._vis);
+    this.events.once('shutdown', () => document.removeEventListener('visibilitychange', this._vis));
     Touch.show(true, { bombs: !!this.L.crates });
     this.events.once('shutdown', () => { Touch.show(false); Touch.onTap = null; });
   }
@@ -1073,7 +1192,7 @@ class GameScene extends Phaser.Scene {
   testBoss() { return this.misha || this.vladik || this.tima; }
   speedMul() { return 1; }
   togglePause() {
-    if (this.won) return;
+    if (this.won || Settings.open) return;
     const u = this.ui();
     if (this.online) u.showPause(!u.pause.visible); // по сети мир не останавливаем
     else { this.paused = !this.paused; u.showPause(this.paused); }
@@ -1187,7 +1306,7 @@ class GameScene extends Phaser.Scene {
     return {
       i, pal: PAL[i], x: x - 7, y: y - 26, w: 14, h: 26, vx: 0, vy: 0, face: 1, onGround: false,
       coyote: 0, jumpBuf: 0, jumpCut: true, dashT: 0, dashCd: 0, canDash: true, atkT: 0, atkCd: 0, atkDir: 'f', atkHits: null, pogoed: false,
-      hp: 5, maxHp: 5, silk: 0, inv: 0, hurtT: 0, kbx: 0, downed: false, reviveT: 0, safeX: x - 7, safeY: y - 26, groundT: 0,
+      hp: Settings.s.easy ? 8 : 5, maxHp: Settings.s.easy ? 8 : 5, silk: 0, inv: 0, hurtT: 0, kbx: 0, downed: false, reviveT: 0, safeX: x - 7, safeY: y - 26, groundT: 0,
       wallDir: 0, wjLock: 0, healT: 0, landT: 0, sit: false, prev: {}, inp: {}, trail: [], bombs: this.L.crates ? 3 : 0, bombCd: 0,
       g: this.add.graphics().setDepth(5), tag: makeTag(this, PAL[i], 5.1),
     };
@@ -1417,7 +1536,7 @@ class GameScene extends Phaser.Scene {
   }
   hurtPlayer(p, dmg, srcX, spike) {
     if (p.inv > 0 || p.downed) return;
-    p.hp -= dmg; p.inv = P.INV; p.hurtT = P.HURT; p.dashT = 0; p.sit = false; p.atkT = 0;
+    p.hp -= dmg; p.inv = P.INV; if (!p.remote) Touch.buzz(45); p.hurtT = P.HURT; p.dashT = 0; p.sit = false; p.atkT = 0;
     p.vy = spike ? 0 : -320; p.kbx = srcX == null ? 0 : ((p.x + 7 < srcX) ? -1 : 1) * 260;
     this.hitstop = 0.09; this.cameras.main.shake(160, 0.008); Snd.play('hurt');
     this.parts.setParticleTint(0xffffff); this.parts.explode(10, p.x + 7, p.y + 13);
@@ -1470,7 +1589,11 @@ class GameScene extends Phaser.Scene {
             p.sit = true; p.x = b.x - 7; p.hp = p.maxHp; this.respawn = { x: b.x, y: b.y }; Snd.play('bench');
             for (const q of this.players) if (q.downed && !q.remote) { q.downed = false; q.hp = 2; q.inv = 1.5; q.x = b.x - 7 + 22; q.y = b.y - 26; }
             this.sendEv({ k: 'bench', x: b.x, y: b.y });
-            this.ui().toast('Скамья: здесь вы очнётесь');
+            this.ui().toast('Скамья: здесь вы очнётесь. Прогресс сохранён');
+            if (this.mode === 'story' && this.online !== 'guest') {
+              const bi = this.benches.indexOf(b), area = this.L.areas.reduce((a, ar) => (b.x / T >= ar.x ? ar : a), this.L.areas[0]);
+              Settings.saveProgress({ bench: bi, beads: this.beads, name: area.name });
+            }
           }
         }
       }
@@ -2126,8 +2249,7 @@ class UIScene extends Phaser.Scene {
       'Лечение: когда катушка нити полна, восстанавливает 3 бутона.',
       'Напарник в коконе: подойди и держи ↑ одну секунду.  Скамья (↑) лечит и оживляет.',
       'По сети каждый играет раскладкой игрока 1, а пауза не останавливает мир.',
-      '', 'Esc — продолжить',
-    ].join('\n'), { fontFamily: F, fontSize: '14px', color: '#b9d4c8', align: 'center', lineSpacing: 7 }).setOrigin(0.5);
+    ].join('\n'), { fontFamily: F, fontSize: '14px', color: '#b9d4c8', align: 'center', lineSpacing: 7 }).setOrigin(0.5).setY(285);
     if (Touch.enabled) pc.setText([
       'Стик слева — идти. Вверх + удар — удар вверх, в прыжке вниз + удар — отскок.',
       'Прыжок от стены: прижмись стиком к стене в падении и жми «Прыжок».',
@@ -2136,14 +2258,19 @@ class UIScene extends Phaser.Scene {
       'По сети пауза не останавливает мир.',
     ].join('\n')).setY(270);
     const mkB = (x, label, fn) => {
-      const t = this.add.text(x, 420, label, { fontFamily: D, fontSize: '28px', color: '#cfe8dc', fontStyle: '700', backgroundColor: 'rgba(20,48,41,0.9)', padding: { x: 18, y: 8 } })
+      const t = this.add.text(x, 420, label, { fontFamily: D, fontSize: '23px', color: '#cfe8dc', fontStyle: '700', backgroundColor: 'rgba(20,48,41,0.9)', padding: { x: 18, y: 8 } })
         .setOrigin(0.5).setInteractive({ useHandCursor: true });
       t.on('pointerover', () => t.setColor('#ffd47a')); t.on('pointerout', () => t.setColor('#cfe8dc')); t.on('pointerdown', fn);
       return t;
     };
-    const bCont = mkB(VW / 2 - 150, 'Продолжить', () => this.gs.togglePause());
-    const bMenu = mkB(VW / 2 + 150, 'В главное меню', () => this.restart());
-    this.pause.add([pb, pt, pc, bCont, bMenu]);
+    const online = !!this.gs.online;
+    const contL = Touch.enabled ? 'Продолжить' : 'Продолжить (Esc)';
+    const labels = online ? [[contL, () => this.gs.togglePause()], ['Настройки', () => this.openSettings()], ['В главное меню', () => this.restart()]]
+      : [[contL, () => this.gs.togglePause()], ['Заново', () => this.retry()], ['Настройки', () => this.openSettings()], ['В главное меню', () => this.restart()]];
+    const pbtns = labels.map(([l, fn]) => mkB(0, l, fn));
+    const gap = 18, total = pbtns.reduce((s, b) => s + b.width, 0) + gap * (pbtns.length - 1);
+    let px = VW / 2 - total / 2; for (const b of pbtns) { b.setX(px + b.width / 2); px += b.width + gap; }
+    this.pause.add([pb, pt, pc, ...pbtns]);
     this.win = this.add.container(0, 0).setVisible(false);
     this.t = 0;
     this.input.keyboard.on('keydown-ENTER', () => { if (this.gs.won) this.restart(); });
@@ -2152,6 +2279,7 @@ class UIScene extends Phaser.Scene {
     this.ready = true;
   }
   restart() { this.ready = false; Net.onClose = null; Net.close(); this.scene.stop('bg'); this.scene.stop('game'); this.scene.start('menu'); }
+  openSettings() { this.pause.setVisible(false); Settings.show(() => { if (this.ready) this.pause.setVisible(true); }); }
   retry() { const d = { ...this.gs.startData }; this.ready = false; this.scene.stop('bg'); this.scene.start('game', d); }
   removePlayer(i) { if (this.names[i]) this.names[i].setVisible(false); }
   showPause(on) { if (this.ready) this.pause.setVisible(on); }
@@ -2222,6 +2350,12 @@ class UIScene extends Phaser.Scene {
         else { g.lineStyle(1.5, 0x4a5a52, 1); g.strokeCircle(bx, by, 6); }
       }
     });
+    // последний бутон — края экрана пульсируют красным
+    const me = gs.players[gs.online ? gs.localIdx : 0];
+    if (me && !me.downed && me.hp === 1 && !gs.won) {
+      const a = 0.18 + Math.sin(this.t * 5) * 0.1;
+      for (let i = 0; i < 6; i++) { g.lineStyle(14 - i * 2, 0xd23a2a, a * (1 - i / 6)); g.strokeRect(i * 7, i * 7, VW - i * 14, VH - i * 14); }
+    }
     // бусины
     g.fillStyle(0xffd47a, 0.25); g.fillCircle(26, VH - 24, 10); g.fillStyle(0xffe3a3, 1); g.fillCircle(26, VH - 24, 5);
     this.beadTxt.setText(String(gs.beads));
@@ -2234,6 +2368,7 @@ class UIScene extends Phaser.Scene {
       g.fillStyle(0x0b1714, 0.9); g.fillRect(x - 3, y - 3, w + 6, 14);
       g.fillStyle(0x6b2a22, 1); g.fillRect(x, y, w * this.bossShown, 8);
       g.fillStyle(0xff9a3c, 1); g.fillRect(x, y, w * this.bossFrac, 8);
+      g.fillStyle(0xf4efe0, 0.85); g.fillRect(x + w / 2 - 1, y - 4, 2, 16);
     }
   }
 }
@@ -3299,8 +3434,10 @@ Object.assign(GameScene.prototype, {
   ]) : Promise.resolve();
   Promise.race([fonts, timeout]).catch(() => {}).then(() => {
     if (typeof Phaser === 'undefined') { document.querySelector('#boot p').textContent = 'Не удалось загрузить движок. Проверьте соединение и обновите страницу.'; return; }
+    Settings.load();
     Layout.init();
     Touch.init();
+    Settings.init();
     Lobby.init();
     startGame();
   });
