@@ -2,7 +2,7 @@
 let VW = 960; const VH = 540;
 // ширина поля подстраивается под пропорции экрана: на вытянутых телефонах без чёрных полос
 function computeVW() {
-  const w = window.innerWidth || 960, h = window.innerHeight || 540;
+  const bx = Layout.box(), w = bx.w || window.innerWidth || 960, h = bx.h || window.innerHeight || 540;
   const a = Math.max(w, h) / Math.max(1, Math.min(w, h));
   return Math.round(clamp(VH * a, 960, 1280) / 2) * 2;
 }
@@ -47,7 +47,7 @@ class MenuScene extends Phaser.Scene {
       scale: { min: 0.3, max: 0.9 }, alpha: { start: 0.8, end: 0 }, tint: [0x9ff0c8, 0xffd47a], frequency: 120,
       blendMode: 'ADD',
     }).setAlpha(0.7);
-    this.add.image(0, 0, 'vignette').setOrigin(0);
+    this.add.image(0, 0, 'vignette').setOrigin(0).setDisplaySize(VW, VH);
 
     const glow = this.add.graphics();
     glow.fillStyle(0x9ff0c8, 0.06); for (let r = 140; r > 10; r -= 14) glow.fillCircle(VW / 2, 160, r);
@@ -1360,7 +1360,7 @@ class UIScene extends Phaser.Scene {
   create() {
     this.ready = false;
     this.gs = this.scene.get('game');
-    this.add.image(0, 0, 'vignette').setOrigin(0);
+    this.add.image(0, 0, 'vignette').setOrigin(0).setDisplaySize(VW, VH);
     this.hud = this.add.graphics();
     const F = '"Fira Sans", sans-serif', D = '"Cormorant SC", Georgia, serif';
     this.names = this.gs.players.map((p, i) => this.add.text(i === 0 ? 72 : VW - 72, 20, p.pal.name, { fontFamily: D, fontSize: '20px', color: p.pal.hex, fontStyle: '700' }).setOrigin(i === 0 ? 0 : 1, 0));
@@ -1506,7 +1506,18 @@ function startGame() {
     scene: [MenuScene, BGScene, GameScene, UIScene],
   });
   // после поворота мобильные браузеры сообщают размер с опозданием — пересчитываем несколько раз
-  const refit = () => { try { window.scrollTo(0, 0); window.__game.scale.refresh(); } catch (_) { } };
+  const refit = () => {
+    try {
+      Layout.apply(); window.scrollTo(0, 0);
+      const game = window.__game, menu = game.scene.getScene('menu');
+      // в меню после поворота подгоняем ширину поля заново (в бою не трогаем — всё уже расставлено)
+      if (menu && menu.sys.isActive() && !menu.leaving) {
+        const nv = computeVW();
+        if (Math.abs(nv - VW) >= 6) { VW = nv; game.scale.setGameSize(VW, VH); menu.scene.restart(); }
+      }
+      game.scale.refresh();
+    } catch (_) { }
+  };
   const later = () => { refit(); setTimeout(refit, 120); setTimeout(refit, 400); setTimeout(refit, 900); };
   window.addEventListener('resize', later);
   window.addEventListener('orientationchange', later);

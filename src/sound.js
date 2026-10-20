@@ -10,7 +10,7 @@ const Snd = {
         for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
         this.noise = b;
       }
-      if (this.ctx.state === 'suspended') this.ctx.resume();
+      if (this.ctx.state !== 'running') this.ctx.resume();
     } catch (e) { /* звук недоступен */ }
   },
   tone(type, f0, f1, dur, vol) {

@@ -1,4 +1,29 @@
 // ===== СЕНСОРНОЕ УПРАВЛЕНИЕ: стик слева, кнопки справа, пауза и полный экран =====
+// ----- раскладка под видимую область экрана (iPhone: вырез, полоска «Домой», панели Safari) -----
+const Layout = {
+  apply() {
+    const de = document.documentElement, vv = window.visualViewport;
+    const w = vv ? vv.width : window.innerWidth, h = vv ? vv.height : window.innerHeight, top = vv ? vv.offsetTop : 0;
+    de.style.setProperty('--app-w', w + 'px'); de.style.setProperty('--app-h', h + 'px'); de.style.setProperty('--app-top', top + 'px');
+    de.style.setProperty('--ts', String(Math.max(0.72, Math.min(1.1, Math.min(w, h) / 430))));
+  },
+  init() {
+    // ?safe=Л,П,В,Н — имитация выреза для проверки без настоящего iPhone
+    const sf = new URLSearchParams(location.search).get('safe');
+    if (sf) { const [l, r, t, b] = sf.split(',').map((v) => (+v || 0) + 'px'); const st = document.documentElement.style;
+      st.setProperty('--sl', l); st.setProperty('--sr', r); st.setProperty('--st', t); st.setProperty('--sb', b); }
+    this.apply();
+    const on = () => this.apply();
+    window.addEventListener('resize', on); window.addEventListener('orientationchange', () => { on(); setTimeout(on, 150); setTimeout(on, 500); });
+    if (window.visualViewport) { visualViewport.addEventListener('resize', on); visualViewport.addEventListener('scroll', on); }
+    // iOS: без масштабирования щипком и двойным тапом; звук разблокируется первым касанием
+    document.addEventListener('gesturestart', (e) => e.preventDefault(), { passive: false });
+    document.addEventListener('dblclick', (e) => e.preventDefault(), { passive: false });
+    for (const ev of ['touchend', 'click', 'keydown']) document.addEventListener(ev, () => Snd.init(), { passive: true });
+  },
+  box() { const r = document.getElementById('game').getBoundingClientRect(); return { w: r.width, h: r.height }; },
+};
+
 const Touch = {
   enabled: false, visible: false, bombs: false,
   state: { left: false, right: false, up: false, down: false, jump: false, atk: false, dash: false, heal: false, bomb: false },
@@ -96,6 +121,7 @@ const Touch = {
   show(on, opts) {
     if (!this.enabled || !this.root) return;
     this.visible = on; this.root.hidden = !on;
+    if (on) { const h = this.root.querySelector('#t-hint'); clearTimeout(this._ht); h.classList.remove('gone'); this._ht = setTimeout(() => h.classList.add('gone'), 6000); }
     if (opts && opts.bombs != null) this.root.querySelector('.t-bomb').hidden = !opts.bombs;
     if (!on) for (const k in this.state) this.state[k] = false;
   },

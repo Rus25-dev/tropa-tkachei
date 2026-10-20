@@ -24,12 +24,15 @@
     --display: "Cormorant SC", Georgia, serif; --body: "Fira Sans", system-ui, sans-serif;
     color-scheme: dark;
   }
+  :root { --sl: env(safe-area-inset-left, 0px); --sr: env(safe-area-inset-right, 0px); --st: env(safe-area-inset-top, 0px); --sb: env(safe-area-inset-bottom, 0px); --ts: 1; }
   [hidden] { display: none !important; }
   html, body { height: 100%; margin: 0; }
   body { background: var(--void); color: var(--bone); font-family: var(--body); overflow: hidden; }
   /* поле игры обходит вырез и скруглённые углы экрана; центрирует CSS, а не движок */
-  #game { position: fixed; top: env(safe-area-inset-top, 0px); bottom: env(safe-area-inset-bottom, 0px);
-    left: env(safe-area-inset-left, 0px); right: env(safe-area-inset-right, 0px); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  /* размеры берём из видимой области (visualViewport): на iPhone она меняется вместе с панелями Safari */
+  #game { position: fixed; top: calc(var(--app-top, 0px) + var(--st)); left: var(--sl);
+    width: calc(var(--app-w, 100vw) - var(--sl) - var(--sr)); height: calc(var(--app-h, 100vh) - var(--st) - var(--sb));
+    display: flex; align-items: center; justify-content: center; overflow: hidden; }
   #game canvas { display: block; }
   html.touch body { position: fixed; inset: 0; }
   #game canvas { outline: none; }
@@ -40,7 +43,7 @@
   @keyframes pulse { 50% { opacity: 0.25; } }
   @media (prefers-reduced-motion: reduce) { #boot .dot { animation: none; } }
   #lobby { position: fixed; inset: 0; z-index: 5; display: grid; place-items: center; overflow-y: auto; background: rgba(3, 8, 7, 0.82);
-    padding-block: 16px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+    padding-block: 16px; padding-left: max(16px, var(--sl)); padding-right: max(16px, var(--sr)); }
   #lobby .card { width: min(460px, 100%); background: #0c1815; border: 1px solid #24433a; border-radius: 10px; padding: 22px 24px 18px; display: grid; gap: 13px; margin-block: auto; box-shadow: 0 0 60px rgba(159, 240, 200, 0.08); }
   #lobby h2 { font-family: var(--display); font-weight: 700; font-size: 34px; margin: 0; color: var(--bone); text-wrap: balance; }
   #lobby .lead { margin: -8px 0 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
@@ -64,12 +67,13 @@
   #lb-status[data-kind="wait"] { color: var(--ember); }
   /* сенсорное управление */
   html.touch, html.touch body { touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; overscroll-behavior: none; }
-  #touch { position: fixed; inset: 0; z-index: 3; pointer-events: none; }
+  #touch { position: fixed; left: 0; top: var(--app-top, 0px); width: var(--app-w, 100vw); height: var(--app-h, 100vh); z-index: 3; pointer-events: none; }
   #touch .t-zone { position: absolute; left: 0; top: 18%; bottom: 0; width: 46%; pointer-events: auto; touch-action: none; }
-  #touch .t-hint { position: absolute; left: max(28px, env(safe-area-inset-left, 0px)); bottom: max(26px, env(safe-area-inset-bottom, 0px)); font-size: 12px; color: rgba(232,226,207,0.45); }
-  #touch .t-base { position: absolute; width: 124px; height: 124px; margin: -62px 0 0 -62px; border-radius: 50%; border: 2px solid rgba(159,240,200,0.35); background: rgba(8,20,17,0.35); }
+  #touch .t-hint { position: absolute; left: calc(var(--sl) + 28px); bottom: calc(var(--sb) + 70px); font-size: 12px; color: rgba(232,226,207,0.5); transition: opacity 0.6s; }
+  #touch .t-hint.gone { opacity: 0; }
+  #touch .t-base { position: absolute; width: 124px; height: 124px; margin: -62px 0 0 -62px; transform: scale(var(--ts)); border-radius: 50%; border: 2px solid rgba(159,240,200,0.35); background: rgba(8,20,17,0.35); }
   #touch .t-knob { position: absolute; left: 50%; top: 50%; width: 56px; height: 56px; margin: -28px 0 0 -28px; border-radius: 50%; background: rgba(159,240,200,0.42); border: 2px solid rgba(232,226,207,0.6); }
-  #touch .t-btns { position: absolute; right: max(14px, env(safe-area-inset-right, 0px)); bottom: max(12px, env(safe-area-inset-bottom, 0px)); width: 236px; height: 214px; pointer-events: none; }
+  #touch .t-btns { position: absolute; right: max(14px, var(--sr)); bottom: max(12px, var(--sb)); width: 236px; height: 214px; pointer-events: none; transform: scale(var(--ts)); transform-origin: right bottom; }
   #touch .t-btn { position: absolute; pointer-events: auto; touch-action: none; display: grid; place-items: center; align-content: center; gap: 1px; border-radius: 50%;
     border: 2px solid rgba(232,226,207,0.4); background: rgba(10,24,21,0.38); color: var(--bone); font: 600 10px var(--body); padding: 0; -webkit-tap-highlight-color: transparent; }
   #touch .t-btn b { font-size: 22px; line-height: 1; font-weight: 700; }
@@ -80,15 +84,15 @@
   #touch .t-dash { right: 6px; bottom: 100px; width: 66px; height: 66px; }
   #touch .t-heal { right: 98px; bottom: 98px; width: 58px; height: 58px; }
   #touch .t-bomb { right: 166px; bottom: 112px; width: 58px; height: 58px; }
-  #touch .t-pause { position: absolute; left: 50%; top: max(8px, env(safe-area-inset-top, 0px)); transform: translateX(-50%); pointer-events: auto; width: 46px; height: 34px;
+  #touch .t-pause { position: absolute; left: 50%; top: max(8px, var(--st)); transform: translateX(-50%); pointer-events: auto; width: 46px; height: 34px;
     border-radius: 8px; border: 1px solid rgba(232,226,207,0.35); background: rgba(10,24,21,0.55); color: var(--bone); font: 700 13px var(--body); letter-spacing: -2px; }
-  #touch .t-fs { position: absolute; left: calc(50% + 34px); top: max(8px, env(safe-area-inset-top, 0px)); pointer-events: auto; width: 40px; height: 34px;
+  #touch .t-fs { position: absolute; left: calc(50% + 34px); top: max(8px, var(--st)); pointer-events: auto; width: 40px; height: 34px;
     border-radius: 8px; border: 1px solid rgba(232,226,207,0.35); background: rgba(10,24,21,0.55); color: var(--bone); font: 700 16px var(--body); }
-  #fs-btn { position: fixed; z-index: 4; right: max(12px, env(safe-area-inset-right, 0px)); top: max(10px, env(safe-area-inset-top, 0px)); display: none;
+  #fs-btn { position: fixed; z-index: 4; right: max(12px, var(--sr)); top: max(10px, var(--st)); display: none;
     font: 600 13px var(--body); color: var(--bone); background: rgba(10,24,21,0.7); border: 1px solid #3a6b5a; border-radius: 8px; padding: 8px 12px; }
   html.touch.in-menu #fs-btn:not([hidden]) { display: block; }
   #ios-tip { position: fixed; z-index: 21; inset: 0; display: grid; place-items: center; background: rgba(3,8,7,0.86);
-    padding-inline: max(16px, env(safe-area-inset-left, 0px)) max(16px, env(safe-area-inset-right, 0px)); }
+    padding-inline: max(16px, var(--sl)) max(16px, var(--sr)); }
   #ios-tip .card { max-width: 420px; background: #0c1815; border: 1px solid #24433a; border-radius: 10px; padding: 18px 20px; display: grid; gap: 10px; }
   #ios-tip h4 { margin: 0; font: 700 24px var(--display); color: var(--bone); }
   #ios-tip p { margin: 0; color: #b9d4c8; font-size: 14px; line-height: 1.5; }
@@ -423,7 +427,7 @@ const Snd = {
         for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
         this.noise = b;
       }
-      if (this.ctx.state === 'suspended') this.ctx.resume();
+      if (this.ctx.state !== 'running') this.ctx.resume();
     } catch (e) { /* звук недоступен */ }
   },
   tone(type, f0, f1, dur, vol) {
@@ -482,6 +486,31 @@ const Snd = {
 };
 
 // ===== СЕНСОРНОЕ УПРАВЛЕНИЕ: стик слева, кнопки справа, пауза и полный экран =====
+// ----- раскладка под видимую область экрана (iPhone: вырез, полоска «Домой», панели Safari) -----
+const Layout = {
+  apply() {
+    const de = document.documentElement, vv = window.visualViewport;
+    const w = vv ? vv.width : window.innerWidth, h = vv ? vv.height : window.innerHeight, top = vv ? vv.offsetTop : 0;
+    de.style.setProperty('--app-w', w + 'px'); de.style.setProperty('--app-h', h + 'px'); de.style.setProperty('--app-top', top + 'px');
+    de.style.setProperty('--ts', String(Math.max(0.72, Math.min(1.1, Math.min(w, h) / 430))));
+  },
+  init() {
+    // ?safe=Л,П,В,Н — имитация выреза для проверки без настоящего iPhone
+    const sf = new URLSearchParams(location.search).get('safe');
+    if (sf) { const [l, r, t, b] = sf.split(',').map((v) => (+v || 0) + 'px'); const st = document.documentElement.style;
+      st.setProperty('--sl', l); st.setProperty('--sr', r); st.setProperty('--st', t); st.setProperty('--sb', b); }
+    this.apply();
+    const on = () => this.apply();
+    window.addEventListener('resize', on); window.addEventListener('orientationchange', () => { on(); setTimeout(on, 150); setTimeout(on, 500); });
+    if (window.visualViewport) { visualViewport.addEventListener('resize', on); visualViewport.addEventListener('scroll', on); }
+    // iOS: без масштабирования щипком и двойным тапом; звук разблокируется первым касанием
+    document.addEventListener('gesturestart', (e) => e.preventDefault(), { passive: false });
+    document.addEventListener('dblclick', (e) => e.preventDefault(), { passive: false });
+    for (const ev of ['touchend', 'click', 'keydown']) document.addEventListener(ev, () => Snd.init(), { passive: true });
+  },
+  box() { const r = document.getElementById('game').getBoundingClientRect(); return { w: r.width, h: r.height }; },
+};
+
 const Touch = {
   enabled: false, visible: false, bombs: false,
   state: { left: false, right: false, up: false, down: false, jump: false, atk: false, dash: false, heal: false, bomb: false },
@@ -579,6 +608,7 @@ const Touch = {
   show(on, opts) {
     if (!this.enabled || !this.root) return;
     this.visible = on; this.root.hidden = !on;
+    if (on) { const h = this.root.querySelector('#t-hint'); clearTimeout(this._ht); h.classList.remove('gone'); this._ht = setTimeout(() => h.classList.add('gone'), 6000); }
     if (opts && opts.bombs != null) this.root.querySelector('.t-bomb').hidden = !opts.bombs;
     if (!on) for (const k in this.state) this.state[k] = false;
   },
@@ -702,7 +732,7 @@ const Lobby = {
 let VW = 960; const VH = 540;
 // ширина поля подстраивается под пропорции экрана: на вытянутых телефонах без чёрных полос
 function computeVW() {
-  const w = window.innerWidth || 960, h = window.innerHeight || 540;
+  const bx = Layout.box(), w = bx.w || window.innerWidth || 960, h = bx.h || window.innerHeight || 540;
   const a = Math.max(w, h) / Math.max(1, Math.min(w, h));
   return Math.round(clamp(VH * a, 960, 1280) / 2) * 2;
 }
@@ -747,7 +777,7 @@ class MenuScene extends Phaser.Scene {
       scale: { min: 0.3, max: 0.9 }, alpha: { start: 0.8, end: 0 }, tint: [0x9ff0c8, 0xffd47a], frequency: 120,
       blendMode: 'ADD',
     }).setAlpha(0.7);
-    this.add.image(0, 0, 'vignette').setOrigin(0);
+    this.add.image(0, 0, 'vignette').setOrigin(0).setDisplaySize(VW, VH);
 
     const glow = this.add.graphics();
     glow.fillStyle(0x9ff0c8, 0.06); for (let r = 140; r > 10; r -= 14) glow.fillCircle(VW / 2, 160, r);
@@ -2060,7 +2090,7 @@ class UIScene extends Phaser.Scene {
   create() {
     this.ready = false;
     this.gs = this.scene.get('game');
-    this.add.image(0, 0, 'vignette').setOrigin(0);
+    this.add.image(0, 0, 'vignette').setOrigin(0).setDisplaySize(VW, VH);
     this.hud = this.add.graphics();
     const F = '"Fira Sans", sans-serif', D = '"Cormorant SC", Georgia, serif';
     this.names = this.gs.players.map((p, i) => this.add.text(i === 0 ? 72 : VW - 72, 20, p.pal.name, { fontFamily: D, fontSize: '20px', color: p.pal.hex, fontStyle: '700' }).setOrigin(i === 0 ? 0 : 1, 0));
@@ -2206,7 +2236,18 @@ function startGame() {
     scene: [MenuScene, BGScene, GameScene, UIScene],
   });
   // после поворота мобильные браузеры сообщают размер с опозданием — пересчитываем несколько раз
-  const refit = () => { try { window.scrollTo(0, 0); window.__game.scale.refresh(); } catch (_) { } };
+  const refit = () => {
+    try {
+      Layout.apply(); window.scrollTo(0, 0);
+      const game = window.__game, menu = game.scene.getScene('menu');
+      // в меню после поворота подгоняем ширину поля заново (в бою не трогаем — всё уже расставлено)
+      if (menu && menu.sys.isActive() && !menu.leaving) {
+        const nv = computeVW();
+        if (Math.abs(nv - VW) >= 6) { VW = nv; game.scale.setGameSize(VW, VH); menu.scene.restart(); }
+      }
+      game.scale.refresh();
+    } catch (_) { }
+  };
   const later = () => { refit(); setTimeout(refit, 120); setTimeout(refit, 400); setTimeout(refit, 900); };
   window.addEventListener('resize', later);
   window.addEventListener('orientationchange', later);
@@ -3245,6 +3286,7 @@ Object.assign(GameScene.prototype, {
   ]) : Promise.resolve();
   Promise.race([fonts, timeout]).catch(() => {}).then(() => {
     if (typeof Phaser === 'undefined') { document.querySelector('#boot p').textContent = 'Не удалось загрузить движок. Проверьте соединение и обновите страницу.'; return; }
+    Layout.init();
     Touch.init();
     Lobby.init();
     startGame();
