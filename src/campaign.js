@@ -34,7 +34,7 @@ function buildRoad(ch) {
   for (const [a, b, top] of cfg.blocks) set(a, top, b, 17, SOLID);
   for (const [a, b, y] of cfg.plats) set(a, y, b, y, PLAT);
   const signs = [
-    { x: 4, y: 17, text: 'Скамья: ↑ — отдохнуть.\nНа скамье ↓ — лавка: маски, игла, катушка', touch: 'Скамья: стик вверх — отдохнуть.\nНа скамье стик вниз — лавка улучшений' },
+    { x: 4, y: 17, text: 'Скамья: ↑ — меню: отдых, лавка, карта.\nНа скамье ↓ — сразу лавка: маски, игла, катушка', touch: 'Скамья: стик вверх — меню: отдых, лавка, карта.\nНа скамье стик вниз — лавка улучшений' },
     { x: 12, y: 17, text: 'Враги дают бусины.\nБусины тратятся в лавке на скамье' },
     { x: 62, y: 17, text: 'Дальше — арена.\nЗагляни в лавку перед боем' },
   ];
@@ -237,18 +237,13 @@ Object.assign(UIScene.prototype, {
       lines = `Время главы: ${m}:${sec}\nБусин при себе: ${gs.beads}\nОбрывов нити: ${s.deaths != null ? s.deaths : gs.deaths}\nТкачей: ${s.players}\n\nДальше: Глава ${nx.roman} · ${nx.name}`;
     }
     const t2 = this.add.text(VW / 2, 215, lines, { fontFamily: F, fontSize: '17px', color: '#b9d4c8', align: 'center', lineSpacing: 7 }).setOrigin(0.5, 0);
-    const btn = (x, y, label, fn) => {
-      const t = this.add.text(x, y, label, { fontFamily: D, fontSize: '26px', color: '#cfe8dc', fontStyle: '700', backgroundColor: 'rgba(20,48,41,0.9)', padding: { x: 16, y: 7 } })
-        .setOrigin(0.5).setInteractive({ useHandCursor: true });
-      t.on('pointerover', () => t.setColor('#ffd47a')); t.on('pointerout', () => t.setColor('#cfe8dc')); t.on('pointerdown', fn);
-      return t;
-    };
     const guest = gs.online === 'guest', items = [bg, t1, t0, t2];
-    if (k.next && !guest) items.push(btn(VW / 2 - 130, 420, `Глава ${CHAPTERS[k.ch + 1].roman} →`, () => this.winEnter()), btn(VW / 2 + 130, 420, 'В главное меню', () => this.restart()));
-    else items.push(btn(VW / 2, 420, 'В главное меню', () => this.restart()));
-    const hint = guest ? 'Ждём, когда хост поведёт дальше…' : k.next ? 'Enter — дальше' : 'Enter — в главное меню';
-    if (!Touch.enabled) items.push(this.add.text(VW / 2, 478, hint, { fontFamily: F, fontSize: '15px', color: '#ffe3a3' }).setOrigin(0.5));
-    else if (guest) items.push(this.add.text(VW / 2, 478, hint, { fontFamily: F, fontSize: '15px', color: '#ffe3a3' }).setOrigin(0.5));
+    // пункты: Дальше (хост/один) · Заново (не по сети) · В главное меню
+    const entries = [];
+    if (k.next && !guest) entries.push([`Дальше · глава ${CHAPTERS[k.ch + 1].roman} →`, () => this.winEnter()]);
+    if (!gs.online) entries.push(['Заново', () => this.retry()]);
+    entries.push(['В главное меню', () => this.restart()]);
+    items.push(...this.winMenuBuild(entries, { title: t1, sub: t0, body: t2 }, guest ? 'Ждём, когда хост поведёт дальше…' : ''));
     Touch.show(false);
     this.campWinS = k;
     this.win.add(items); this.win.setVisible(true).setAlpha(0); this.winAt = performance.now();

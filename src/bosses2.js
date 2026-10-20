@@ -59,7 +59,7 @@ Object.assign(GameScene.prototype, {
         pr.vy = Math.min(pr.vy + 1100 * dt, 820); pr.x += pr.vx * dt; pr.y += pr.vy * dt;
         if (this.isSolid(Math.floor((pr.x + 15) / T), Math.floor((pr.y + 30) / T)) && pr.vy > 0) {
           pr.y = Math.floor((pr.y + 30) / T) * T - 30; this.dustAt(8, pr.x + 15, pr.y + 30); this.sfx('glass');
-          if (pr.bounces-- > 0) { pr.vy = -320; pr.vx = (Math.random() - 0.5) * 300; } else pr.dead = true;
+          if (pr.bounces-- > 0) { pr.vy = -320; pr.vx = (this.rBoss() - 0.5) * 300; } else pr.dead = true;
         }
         return true;
       case 'echo': // призрак Владика: бежит вдоль пола и исчезает за дальней стеной

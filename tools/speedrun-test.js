@@ -95,17 +95,20 @@ async function solo(browser) {
   ok(c1.hours === '1:02:05.00', 'формат часов ' + c1.hours);
 
   // ----- меню, правила честности -----
-  await page.keyboard.press('6');
-  await page.waitForTimeout(300);
-  ok(await page.evaluate(() => window.__game.scene.getScene('menu').srP.visible), 'клавиша 6 открывает меню спидрана');
+  await page.keyboard.press('4');
+  await page.waitForTimeout(500);
+  ok(await page.evaluate(() => window.__game.scene.getScene('menu').mTop().id === 'speedrun'), 'клавиша 4 открывает меню спидрана');
+  await page.keyboard.press('1');
+  await page.waitForTimeout(500);
+  ok(await page.evaluate(() => window.__game.scene.getScene('menu').mTop().id === 'srcat'), 'клавиша 1 — категория «Тропа целиком»');
   await shot(page, '1-menu');
   await page.evaluate(() => { Settings.s.easy = true; Settings.s.speed = 80; Settings.save(); window.__game.scene.getScene('menu').srRefresh(); });
   await page.keyboard.press('1');
-  await page.waitForTimeout(800);
+  await page.waitForTimeout(1200);
   ok(await page.evaluate(() => !window.__game.scene.getScene('game').sys.isActive() && !Speedrun.run), 'с лёгким режимом и замедлением забег не стартует');
   ok(await page.evaluate(() => Speedrun.violation().length === 2), 'нарушения распознаны');
   await shot(page, '2-menu-blocked');
-  await page.evaluate(() => { const m = window.__game.scene.getScene('menu'); m.srUi.fix.emit('pointerdown'); });
+  await page.keyboard.press('4'); await page.waitForTimeout(500); // пункт «Отключить запрещённые настройки»
   ok(await page.evaluate(() => Speedrun.violation().length === 0 && !Settings.s.easy && Settings.s.speed === 100), 'кнопка снимает запрещённые настройки');
   // сохранение, которое нельзя затирать
   await page.evaluate(() => { localStorage.setItem('tt_save', JSON.stringify({ bench: 0, beads: 77, abil: { double: true }, chapter: 3, stage: 'road', name: 'Гл. III · тест' })); localStorage.setItem('tt_records', JSON.stringify({ misha: { tries: 5, wins: 2, best: 99 } })); });
@@ -216,7 +219,7 @@ async function race(browser) {
     }, side);
   }
   // оба открывают меню спидрана → «Гонка»
-  for (const p of [A, B]) { await p.keyboard.press('6'); await p.waitForTimeout(250); await p.keyboard.press('2'); await p.waitForTimeout(300); }
+  for (const p of [A, B]) { await p.keyboard.press('4'); await p.waitForTimeout(500); await p.keyboard.press('1'); await p.waitForTimeout(500); await p.keyboard.press('2'); await p.waitForTimeout(600); }
   ok(await A.evaluate(() => Lobby.mode === 'race' && !Lobby.el.hidden), 'гонка: открылось лобби в режиме race');
   await A.evaluate(() => document.getElementById('lb-host').click());
   await B.evaluate(() => { document.getElementById('lb-code').value = 'TEST1'; document.getElementById('lb-join').click(); });

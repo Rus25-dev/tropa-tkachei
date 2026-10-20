@@ -10,7 +10,7 @@ const phaserSrc = fs.readFileSync(require.resolve('phaser/dist/phaser.min.js'), 
   let errs = 0;
   await page.route('**/*', (r) => { const u = r.request().url(); if (u.includes('phaser')) return r.fulfill({ contentType: 'application/javascript', body: phaserSrc }); if (u.startsWith('file://')) return r.continue(); return r.fulfill({ status: 200, body: '' }); });
   page.on('pageerror', (e) => { errs++; console.log('PAGEERROR', e.message); });
-  await page.goto('file://' + path.resolve(__dirname, '../index.html'));
+  await page.goto('file://' + path.resolve(__dirname, '../index.html') + (process.env.CANVAS ? '?canvas=1' : ''));
   await page.waitForFunction(() => window.__game && window.__game.scene.getScene('menu') && window.__game.scene.getScene('menu').sys.isActive());
   if (mode === 'enemies2') {
     const res = await page.evaluate(() => new Promise((resolve) => {

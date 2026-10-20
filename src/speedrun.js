@@ -204,8 +204,8 @@ const Speedrun = {
   Access.speed = function () { return Speedrun.run ? 1 : spO.call(this); };
   // во время забега лёгкий режим и замедление в настройках заблокированы
   const showO = S.show;
-  S.show = function (cb) {
-    showO.call(this, cb);
+  S.show = function (cb, section) {
+    showO.call(this, cb, section);
     const lock = !!Speedrun.run, el = document.getElementById('settings');
     document.getElementById('st-easy').disabled = lock;
     el.querySelectorAll('[name=st-speed]').forEach((r) => { r.disabled = lock; });
@@ -213,7 +213,7 @@ const Speedrun = {
     if (lock && !note) {
       note = document.createElement('p'); note.id = 'st-srnote'; note.style.cssText = 'margin:0;color:#ffb48a;font-size:13px';
       note.textContent = 'Идёт забег: лёгкий режим и замедление игры заблокированы.';
-      el.querySelector('h2').after(note);
+      el.querySelector('[data-sec=game]').prepend(note);
     }
     if (note) note.hidden = !lock;
   };
@@ -392,7 +392,7 @@ Object.assign(Speedrun, {
   css() {
     if (document.getElementById('sr-css')) return;
     const st = document.createElement('style'); st.id = 'sr-css';
-    st.textContent = `.sr-ov{position:fixed;inset:0;z-index:7;display:grid;place-items:center;overflow-y:auto;background:rgba(3,8,7,.86);padding:16px}
+    st.textContent = `.sr-ov{z-index:7}
 .sr-ov .card{width:min(620px,100%);background:#0c1815;border:1px solid #24433a;border-radius:10px;padding:18px 22px 16px;display:grid;gap:10px;margin-block:auto;color:#cfe2d8;font:14px/1.45 var(--body)}
 .sr-ov h2{font:700 32px var(--display);margin:0;color:var(--bone)}.sr-ov h3{font:700 22px var(--display);margin:6px 0 2px;color:var(--ember)}
 .sr-ov .lead{margin:0;color:var(--muted);font-size:13px}.sr-ov .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
@@ -417,12 +417,13 @@ Object.assign(Speedrun, {
 <div class="row"><button id="sr-ready" class="primary" type="button">Готов</button><button id="sr-rfix" type="button" hidden>Отключить запрещённые настройки</button></div>
 <div class="row"><button id="sr-rleave" class="ghost" type="button">← Выйти из комнаты</button></div></div>`;
     document.body.appendChild(el);
+    Ov.chrome(el, { crumbs: ['Спидран', 'Гонка 1×1', 'Комната'], back: () => this.raceLeave(), hint: { act: 'нажать' } });
     el.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Escape') this.raceLeave(); });
     el.querySelector('#sr-ready').onclick = () => { const R = this.race; if (!R || R.state !== 'room') return; R.me = !R.me; this.rmsg({ k: 'ready', v: R.me }); this.roomRefresh(); this.maybeStart(); };
     el.querySelector('#sr-rleave').onclick = () => this.raceLeave();
     el.querySelector('#sr-rfix').onclick = () => { this.fixRules(); this.roomRefresh(); };
   },
-  roomShow() { const el = document.getElementById('sr-room'); el.hidden = false; this.roomRefresh(); setTimeout(() => document.getElementById('sr-ready').focus(), 0); },
+  roomShow() { const el = document.getElementById('sr-room'); el.hidden = false; Ov.opened(el); this.roomRefresh(); setTimeout(() => document.getElementById('sr-ready').focus(), 0); },
   roomHide() { const el = document.getElementById('sr-room'); if (el) el.hidden = true; },
   roomRefresh() {
     const R = this.race, el = document.getElementById('sr-room'); if (!R || !el || el.hidden) return;
@@ -467,17 +468,18 @@ Object.assign(Speedrun, {
 <textarea id="sr-paste" spellcheck="false" placeholder="Вася: ТТ v1.4 Тропа целиком 23:41.52 (IGT 22:58.10) обрывов 3 · сплиты … · код A1B2C3"></textarea>
 <div class="row"><button id="sr-add" class="primary" type="button">Добавить в таблицу</button><button id="sr-clear" type="button">Очистить чужие результаты</button></div>
 <div id="sr-fmsg" role="status"></div><div id="sr-tabs"></div>
-<div class="row"><button id="sr-fclose" class="ghost" type="button">← Закрыть</button></div></div>`;
+</div>`;
       document.body.appendChild(el);
+      Ov.chrome(el, { crumbs: ['Спидран', 'Таблица друзей'], back: () => this.friendsClose(), hint: { act: 'нажать' } });
       el.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Escape') this.friendsClose(); });
-      el.querySelector('#sr-fclose').onclick = () => this.friendsClose();
       el.querySelector('#sr-name').addEventListener('input', (e) => { this.setMyName(e.target.value); });
       el.querySelector('#sr-clear').onclick = () => { this.saveFriends([]); this.friendsMsg('Чужие результаты очищены', 'good'); this.friendsRender(); };
       el.querySelector('#sr-add').onclick = () => this.friendsAdd(el.querySelector('#sr-paste').value);
     }
     this.frLast = last || null;
     el.querySelector('#sr-name').value = this.myName();
-    el.hidden = false; this.friendsMsg(''); this.friendsRender();
+    Ov.crumbs(el, [...Ov.base(['Спидран']), 'Таблица друзей']);
+    el.hidden = false; Ov.opened(el); this.friendsMsg(''); this.friendsRender();
     setTimeout(() => el.querySelector('#sr-paste').focus(), 0);
   },
   friendsClose() { const el = document.getElementById('sr-fr'); if (el) el.hidden = true; },
@@ -627,83 +629,53 @@ Object.assign(Speedrun, {
   };
 })();
 
-// ===== меню: пункт «Спидран» (клавиша 6) =====
-{
-  const mc = MenuScene.prototype.create;
-  MenuScene.prototype.create = function () { this.srP = null; this.srUi = null; mc.call(this); };
-}
+// ===== меню: экраны «Спидран» и категории забега (карта MENU, каркас — src/menu.js) =====
 Object.assign(MenuScene.prototype, {
-  srBuild() {
-    const D = '"Cormorant SC", Georgia, serif', F = '"Fira Sans", sans-serif', M = 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace', cx = VW / 2;
-    const c = this.add.container(0, 0).setVisible(false).setDepth(11), s = this.srUi = {};
-    const g = this.add.graphics(); g.fillStyle(0x030807, 0.985); g.fillRect(0, 0, VW, VH);
-    const t = (x, y, str, st, ox) => { const o = this.add.text(x, y, str, st).setOrigin(ox == null ? 0.5 : ox, 0); c.add(o); return o; };
-    c.add(g);
-    t(cx, 24, 'Спидран', { fontFamily: D, fontSize: '46px', color: '#e8e2cf', fontStyle: '700' }).setShadow(0, 0, '#9ff0c8', 14, false, true);
-    s.cat = 'trail';
-    s.tabs = ['trail', 'boss'].map((id, i) => {
-      const o = t(cx + (i ? 150 : -150), 86, SR_CATS[id].name, { fontFamily: D, fontSize: '28px', color: '#8fb8a8', fontStyle: '700' }).setInteractive({ useHandCursor: true });
-      o.on('pointerdown', () => this.srSetCat(id)); return o;
-    });
-    s.line = this.add.graphics(); c.add(s.line);
-    t(cx, 132, '← → выбрать категорию', { fontFamily: F, fontSize: '12px', color: '#6f9586' });
-    s.about = t(cx, 152, '', { fontFamily: F, fontSize: '14px', color: '#cfe8dc', align: 'center', lineSpacing: 5 });
-    s.rec = t(cx, 196, '', { fontFamily: M, fontSize: '13px', color: '#ffe3a3', align: 'center', lineSpacing: 4 });
-    t(cx, 248, 'RTA идёт с первого шага до последнего удара финального босса. Пауза останавливает только игровое время (IGT).\nОбычное сохранение и рекорды боссов не затрагиваются. Переназначение клавиш разрешено.', { fontFamily: F, fontSize: '12.5px', color: '#86a89a', align: 'center', lineSpacing: 4 });
-    s.rules = t(cx, 296, '', { fontFamily: F, fontSize: '14px', color: '#9ff0c8', align: 'center', lineSpacing: 5 });
-    s.fix = t(cx, 346, 'Отключить запрещённые настройки', { fontFamily: D, fontSize: '22px', color: '#ffb48a', fontStyle: '700', backgroundColor: 'rgba(60,24,16,0.85)', padding: { x: 12, y: 5 } }).setInteractive({ useHandCursor: true });
-    s.fix.on('pointerdown', () => { Speedrun.fixRules(); this.srRefresh(); });
-    const mk = (y, label, fn) => {
-      const o = t(cx, y, label, { fontFamily: D, fontSize: '28px', color: '#cfe8dc', fontStyle: '600' }).setInteractive({ useHandCursor: true });
-      o.on('pointerover', () => { if (!o._off) o.setColor('#ffd47a'); }); o.on('pointerout', () => o.setColor(o._off ? '#5f7a6f' : '#cfe8dc')); o.on('pointerdown', fn); return o;
-    };
-    s.b1 = mk(386, '1 · Забег в одиночку', () => this.srStart());
-    s.b2 = mk(424, '2 · Гонка 1×1 по сети', () => this.srRace());
-    mk(462, '3 · Таблица друзей', () => Speedrun.friendsOpen());
-    mk(496, '← Назад (Esc)', () => this.srClose()).setFontSize(22);
-    this.srP = c;
-    this.input.keyboard.on('keydown', (e) => {
-      if (!c.visible || Settings.open || !Lobby.el.hidden || this.leaving) return;
-      const k = e.key;
-      if (k === '1') this.srStart(); else if (k === '2') this.srRace(); else if (k === '3') Speedrun.friendsOpen();
-      else if (k === 'Escape') this.srClose();
-      else if (k === 'ArrowLeft' || k === 'ArrowRight' || k === 'a' || k === 'd' || k === 'A' || k === 'D' || k === 'ф' || k === 'в') this.srSetCat(s.cat === 'trail' ? 'boss' : 'trail');
-    });
-  },
-  openSpeedrun() {
-    if (this.leaving) return; Snd.init();
-    if (!this.srP) this.srBuild();
-    this.srSetCat(this.srUi.cat); this.srP.setVisible(true);
-  },
-  srClose() { if (this.srP) this.srP.setVisible(false); },
-  srSetCat(id) {
-    if (!this.srP) this.srBuild();
-    const s = this.srUi; s.cat = id;
-    s.tabs.forEach((o, i) => o.setColor(['trail', 'boss'][i] === id ? '#ffd47a' : '#8fb8a8'));
-    const o = s.tabs[id === 'trail' ? 0 : 1], g = s.line; g.clear(); g.fillStyle(0xffd47a, 1); g.fillRect(o.x - o.width / 2, 118, o.width, 2);
-    this.srRefresh();
-  },
-  srRefresh() {
-    const s = this.srUi, id = s.cat, rec = Speedrun.rec(id), pb = rec.pb, f = Speedrun.fmt.bind(Speedrun);
-    s.about.setText(SR_CATS[id].about);
-    const best = rec.seg.length === 4 && rec.seg.every(Boolean) ? rec.seg.reduce((a, b) => a + b, 0) : 0;
-    s.rec.setText(pb ? `Личный рекорд: ${f(pb.rta)}  (IGT ${f(pb.igt)}, обрывов ${pb.deaths}, v${pb.ver})\nСплиты: ${pb.splits.map((x) => f(x.rta)).join('  ')}${best ? `\nСумма лучших сегментов: ${f(best)}` : ''}` : 'Личного рекорда пока нет');
-    const v = Speedrun.violation();
-    s.rules.setText(`Лёгкий режим: ${Settings.s.easy ? 'ВКЛЮЧЁН — запрещено' : 'выключен'}\nЗамедление игры: ${(Settings.s.speed || 100) !== 100 ? Settings.s.speed + ' % — запрещено' : '100 %'}`);
-    s.rules.setColor(v.length ? '#ff9a8a' : '#9ff0c8');
-    s.fix.setVisible(v.length > 0);
-    for (const b of [s.b1, s.b2]) { b._off = v.length > 0; b.setColor(v.length ? '#5f7a6f' : '#cfe8dc'); }
-  },
+  srSetCat(id) { this.srCat = id; if (this.mStack) this.menuRender(); },
+  srRefresh() { if (this.mStack) this.menuRender(); },
+  srClose() { if (this.mStack && (this.mTop().id === 'srcat' || this.mTop().id === 'speedrun')) this.menuBack(); },
   srStart() {
     if (this.leaving || Speedrun.violation().length) { if (!this.leaving) Snd.play('hit'); return; }
     this.leaving = true; Snd.init(); Snd.play('bench');
-    const data = Speedrun.begin(this.srUi.cat);
+    const data = Speedrun.begin(this.srCat || 'trail');
     this.cameras.main.fadeOut(450, 3, 8, 7);
     this.time.delayedCall(460, () => this.scene.start('game', data));
   },
   srRace() {
     if (this.leaving || Speedrun.violation().length) { if (!this.leaving) Snd.play('hit'); return; }
-    Speedrun.lastCat = this.srUi.cat;
-    this.srClose(); this.openLobby('race');
+    Speedrun.lastCat = this.srCat || 'trail';
+    this.openLobby('race');
   },
 });
+{
+  const recLine = (id) => { const pb = Speedrun.rec(id).pb; return pb ? 'рекорд ' + Speedrun.fmt(pb.rta) : 'рекорда пока нет'; };
+  menuAdd({
+    id: 'speedrun', parent: 'main', title: 'Спидран', crumb: 'Спидран',
+    info: () => ['Забег на время: RTA идёт с первого шага до последнего удара финального босса, пауза останавливает только игровое время (IGT).', { t: 'Обычное сохранение и рекорды боссов не затрагиваются.', c: '#7fa596' }],
+    items: () => [
+      { key: '1', label: SR_CATS.trail.name, sub: () => recLine('trail'), act: (m) => { m.srCat = 'trail'; m.menuGo('srcat', { cat: 'trail' }); } },
+      { key: '2', label: SR_CATS.boss.name, sub: () => recLine('boss'), act: (m) => { m.srCat = 'boss'; m.menuGo('srcat', { cat: 'boss' }); } },
+      { key: '3', label: 'Мои рекорды и таблица друзей', sub: 'результаты друзей по коду', act: () => Speedrun.friendsOpen() },
+    ],
+  });
+  menuAdd({
+    id: 'srcat', parent: 'speedrun', title: (m, ctx) => SR_CATS[ctx.cat].name, crumb: (m, ctx) => SR_CATS[ctx.cat].name,
+    info: (m, ctx) => {
+      const id = ctx.cat, rec = Speedrun.rec(id), pb = rec.pb, f = Speedrun.fmt.bind(Speedrun), v = Speedrun.violation();
+      const best = rec.seg.length === 4 && rec.seg.every(Boolean) ? rec.seg.reduce((a, b) => a + b, 0) : 0;
+      const out = [SR_CATS[id].about];
+      out.push({ t: pb ? `Личный рекорд: ${f(pb.rta)} (IGT ${f(pb.igt)}, обрывов ${pb.deaths}, v${pb.ver})\nСплиты: ${pb.splits.map((x) => f(x.rta)).join('  ')}` + (best ? `\nСумма лучших сегментов: ${f(best)}` : '') : 'Личного рекорда пока нет', c: '#ffe3a3', fs: 15 });
+      out.push({ t: `Лёгкий режим: ${Settings.s.easy ? 'ВКЛЮЧЁН — запрещено' : 'выключен'}\nЗамедление игры: ${(Settings.s.speed || 100) !== 100 ? Settings.s.speed + ' % — запрещено' : '100 %'}`, c: v.length ? '#ff9a8a' : '#9ff0c8', fs: 15 });
+      return out;
+    },
+    items: (m, ctx) => {
+      const bad = Speedrun.violation().length > 0;
+      return [
+        { key: '1', label: 'Забег в одиночку', sub: bad ? 'сначала отключите запрещённые настройки' : 'с нуля, таймер ждёт первого шага', enabled: !bad, act: (m) => m.srStart() },
+        { key: '2', label: 'Гонка 1×1 с другом', sub: bad ? 'сначала отключите запрещённые настройки' : 'по сети: комната с кодом', enabled: !bad, act: (m) => m.srRace() },
+        { key: '3', label: 'Мои рекорды и таблица друзей', sub: 'результаты друзей по коду', act: () => Speedrun.friendsOpen() },
+        { key: '4', label: 'Отключить запрещённые настройки', sub: 'лёгкий режим и замедление', hidden: !bad, danger: true, act: (m) => { Speedrun.fixRules(); m.menuRender(); } },
+      ];
+    },
+  });
+}

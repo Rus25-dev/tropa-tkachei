@@ -177,7 +177,7 @@ Object.assign(GameScene.prototype, {
           if (late >= 1) opts.push('roller');
           if (late >= 2) opts.push('roller', 'roller');
           opts = opts.filter((o) => o !== m.last);
-          const pick = opts[Math.floor(Math.random() * opts.length)]; m.last = pick; m.vx = 0;
+          const pick = opts[Math.floor(this.rBoss() * opts.length)]; m.last = pick; m.vx = 0;
           if (pick === 'letters') this.mishaWord(phase2);
           if (pick === 'big') { m.state = 'bigWind'; m.t = 0.6; this.mishaSpeak('ДЕТДОМ!', 1.2); }
           if (pick === 'charge') { m.state = 'chargeWind'; m.t = phase2 ? 0.35 : 0.5; m.face = want; this.mishaSpeak('С ДОРОГИ!', 1.0); }
@@ -200,7 +200,7 @@ Object.assign(GameScene.prototype, {
         m.vx = 0;
         if (m.t <= 0) { this.mishaDictation(m.tdUsed.length >= 2 ? 3 : m.tdUsed.length >= 1 ? 2 : 1); m.state = 'recover'; m.t = 1.4; }
         break;
-      case 'word': m.vx = 0; if (m.t <= 0) { if (phase2 && Math.random() < 0.45) this.mishaWord(phase2); else { m.state = 'recover'; m.t = phase2 ? 0.45 : 0.7; } } break; // во второй половине боя иногда сразу второе слово
+      case 'word': m.vx = 0; if (m.t <= 0) { if (phase2 && this.rBoss() < 0.45) this.mishaWord(phase2); else { m.state = 'recover'; m.t = phase2 ? 0.45 : 0.7; } } break; // во второй половине боя иногда сразу второе слово
       case 'bigWind':
         m.vx = 0;
         if (m.t <= 0) {
@@ -209,7 +209,7 @@ Object.assign(GameScene.prototype, {
           for (let i = 0; i < n; i++) {
             const p = targets[i % targets.length], off = n === 1 ? 0 : (i - 1) * 110;
             const x = clamp(p.x + 7 + off, 2 * T, (this.L.W - 2) * T) - 28;
-            this.projs.push({ kind: 'bigletter', ch: MISHA_BIG[Math.floor(Math.random() * MISHA_BIG.length)], x, y: 7 * T, w: 56, h: 60, vx: 0, vy: 0, life: 3, delay: 0.75 + i * 0.15 });
+            this.projs.push({ kind: 'bigletter', ch: MISHA_BIG[Math.floor(this.rBoss() * MISHA_BIG.length)], x, y: 7 * T, w: 56, h: 60, vx: 0, vy: 0, life: 3, delay: 0.75 + i * 0.15 });
           }
           m.state = 'recover'; m.t = phase2 ? 0.8 : 1.1;
         }
@@ -231,7 +231,7 @@ Object.assign(GameScene.prototype, {
     }
   },
   mishaWord(phase2) {
-    const m = this.misha, word = MISHA_WORDS[Math.floor(Math.random() * MISHA_WORDS.length)];
+    const m = this.misha, word = MISHA_WORDS[Math.floor(this.rBoss() * MISHA_WORDS.length)];
     m.state = 'word'; m.t = 0.5 + word.length * 0.13 + 0.25;
     this.mishaSpeak(word + '!', m.t);
     const step = 26, half = ((word.length - 1) * step) / 2 + 14;
@@ -246,7 +246,7 @@ Object.assign(GameScene.prototype, {
     const x0 = 2 * T, x1 = (this.L.W - 2) * T, step = 36, cols = Math.floor((x1 - x0) / step);
     const word = 'ДИКТАНТПРОВЕРКАОШИБОКДВОЙКА';
     for (let w = 0; w < waves; w++) {
-      const gap = 2 + Math.floor(Math.random() * (cols - 5));
+      const gap = 2 + Math.floor(this.rBoss() * (cols - 5));
       for (let i = 0; i < cols; i++) {
         if (i >= gap && i <= gap + 2) continue;
         this.projs.push({ kind: 'rain', ch: word[(i + w * 5) % word.length], x: x0 + i * step, y: 4 * T + 6, w: 22, h: 26, vx: 0, vy: 330 + w * 40, life: 4, delay: 0.9 + w * 1.5 + i * 0.012 });
@@ -426,7 +426,7 @@ Object.assign(GameScene.prototype, {
   },
   tdPickLane() {
     const td = this.td, G = this.tdGeo();
-    let lane = Math.floor(Math.random() * 3); if (lane === td.lane && Math.random() < 0.6) lane = (lane + 1 + Math.floor(Math.random() * 2)) % 3;
+    let lane = Math.floor(this.rBoss() * 3); if (lane === td.lane && this.rBoss() < 0.6) lane = (lane + 1 + Math.floor(this.rBoss() * 2)) % 3;
     td.lane = lane; td.mx = G.start; td.state = 'tele'; td.t = 1.1; td.round++; td.fe = false;
     td.say = ['ПОСТОРОНИСЬ!', 'Я ПРОЙДУ!', 'С ДОРОГИ!'][td.round % 3]; td.sayT = 1.6;
   },
@@ -462,7 +462,7 @@ Object.assign(GameScene.prototype, {
         } else if (td.mx >= G.goal) { td.state = 'through'; td.t = 1.3; td.say = 'ПРОШЁЛ! ХА!'; td.sayT = 1.6; this.sfx('win'); }
         else if (td.feint && !td.fe && td.mx > G.x0 + (G.x1 - G.x0) * 0.42) {
           // второй «Пропустите!»: на полпути Миша передумывает и перескакивает в другой коридор
-          td.fe = true; td.lane = td.lane === 0 ? 1 : td.lane === 2 ? 1 : (Math.random() < 0.5 ? 0 : 2); td.state = 'feint'; td.t = 0.9; // всегда в соседний коридор: двери рядом
+          td.fe = true; td.lane = td.lane === 0 ? 1 : td.lane === 2 ? 1 : (this.rBoss() < 0.5 ? 0 : 2); td.state = 'feint'; td.t = 0.9; // всегда в соседний коридор: двери рядом
           td.say = 'А НЕТ, ТУДА!'; td.sayT = 1.2; this.sfx('roar');
         }
         break;

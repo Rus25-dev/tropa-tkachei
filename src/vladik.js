@@ -176,7 +176,7 @@ Object.assign(GameScene.prototype, {
     for (const c of this.curtains) {
       if (c.slime > 0) {
         c.slime -= dt; c.drip -= dt;
-        if (c.drip <= 0) { c.drip = 0.8 + Math.random() * 0.6; this.projs.push({ kind: 'drip', x: c.x + 8 + Math.random() * (c.w - 22), y: c.y + c.h - 8, w: 8, h: 10, vx: 0, vy: 40, life: 2 }); }
+        if (c.drip <= 0) { c.drip = 0.8 + this.rBoss() * 0.6; this.projs.push({ kind: 'drip', x: c.x + 8 + this.rBoss() * (c.w - 22), y: c.y + c.h - 8, w: 8, h: 10, vx: 0, vy: 40, life: 2 }); }
       }
     }
     if (v.state === 'dead') { v.t -= dt; v.vy = Math.min(v.vy + P.G * dt, P.MAXFALL); this.moveBody(v, dt); return; }
@@ -210,7 +210,7 @@ Object.assign(GameScene.prototype, {
         v.face = tx > vcx ? 1 : -1;
         v.vx = Math.abs(tx - vcx) > 160 ? v.face * 90 : 0;
         // крещендо: в третьей фазе ноты падают с потолка
-        if (phase3 && Math.random() < dt * 1.4) this.projs.push({ kind: 'note', x: (2 + Math.random() * (this.L.W - 4)) * T, y: 4 * T + 10, w: 14, h: 18, vx: 0, vy: 60, life: 3 });
+        if (phase3 && this.rBoss() < dt * 1.4) this.projs.push({ kind: 'note', x: (2 + this.rBoss() * (this.L.W - 4)) * T, y: 4 * T + 10, w: 14, h: 18, vx: 0, vy: 60, life: 3 });
         if (v.t <= 0) {
           const slimed = this.curtains.filter((c) => c.slime > 0).length;
           let opts = ['clef', 'leap', 'smear', 'lunge'];
@@ -218,7 +218,7 @@ Object.assign(GameScene.prototype, {
           if (phase3) opts.push('echo', 'echo');
           opts = opts.filter((o) => o !== v.last);
           if (slimed >= 3) opts = opts.filter((o) => o !== 'smear');
-          const pick = opts[Math.floor(Math.random() * opts.length)]; v.last = pick; v.vx = 0;
+          const pick = opts[Math.floor(this.rBoss() * opts.length)]; v.last = pick; v.vx = 0;
           if (pick === 'clef') { v.state = 'clefWind'; v.t = phase2 ? 0.35 : 0.5; }
           if (pick === 'leap') { v.state = 'leapWind'; v.t = 0.4; }
           if (pick === 'smear') this.vladikPickCurtain(phase2);
@@ -282,7 +282,7 @@ Object.assign(GameScene.prototype, {
   vladikStaff(phase3) {
     const fl = this.L.floorY * T, ys = [fl - 16, fl - 104, fl - 168, fl - 236, fl - 300];
     const patterns = phase3 ? [[0, 2, 4], [1, 3], [0, 3, 4], [1, 2, 4]] : [[0, 2], [1, 3], [0, 4], [1, 4]];
-    const act = patterns[Math.floor(Math.random() * patterns.length)];
+    const act = patterns[Math.floor(this.rBoss() * patterns.length)];
     act.forEach((i) => this.projs.push({ kind: 'staff', x: T, y: ys[i] - 5, w: (this.L.W - 2) * T, h: 10, vx: 0, vy: 0, life: 0.55, delay: 1.0 }));
     // бледные линии-подсказки на безопасных местах тоже рисуем — чтобы было видно весь стан
     ys.forEach((y, i) => { if (!act.includes(i)) this.projs.push({ kind: 'staffghost', x: T, y: y - 5, w: (this.L.W - 2) * T, h: 0, vx: 0, vy: 0, life: 1.4 }); });

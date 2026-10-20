@@ -1,9 +1,11 @@
 // ===== ИГРА: «Тропа Ткачей» — кооперативная метроидвания =====
 let VW = 960; const VH = 540;
 // версия игры; номер сборки подставляет build.py
-const GAME_VERSION = '1.6';
+const GAME_VERSION = '1.7';
 const GAME_BUILD = '__BUILD__';
 const CHANGELOG = [
+  'Новое меню: Продолжить, Кампания, Босс-тест, Спидран, Гонки Ткачей (скоро), Как играть, Настройки; хлебные крошки, подсказки под ваше устройство, цифры 1–7, Esc / B / «← Назад» на уровень выше',
+  'Настройки разбиты на разделы: Звук, Экран, Управление, Игра, Прогресс',
   'Снаряжение: 5 видов оружия, заряженный удар, 4 инструмента (клавиша E), 9 оберегов, яд и ожог; экран на скамье',
   'Хват за уступ и планер; Миша: иглой бьётся в первых двух фазах, в третьей — только бомбы',
   'Геймпады: DualSense, Xbox и Steam Deck — удобная раскладка, вибрация, сенсорные кнопки прячутся',
@@ -65,10 +67,11 @@ const inset = (r, d) => ({ x: r.x + d, y: r.y + d, w: r.w - 2 * d, h: r.h - 2 * 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 // ---------- МЕНЮ ----------
+// Каркас сцены: фон, заставка с двумя ткачами и запуск игры. Экраны, ввод и подсказки — в src/menu.js (карта MENU).
 class MenuScene extends Phaser.Scene {
   constructor() { super('menu'); }
   create() {
-    this.leaving = false;
+    this.leaving = false; this.busy = false;
     genBackgrounds(this);
     this.add.tileSprite(0, 0, VW, VH, 'bgFar').setOrigin(0);
     this.rays = this.add.tileSprite(0, 0, VW, VH, 'bgRays').setOrigin(0).setBlendMode(Phaser.BlendModes.ADD);
@@ -82,137 +85,51 @@ class MenuScene extends Phaser.Scene {
     }).setAlpha(0.7);
     this.add.image(0, 0, 'vignette').setOrigin(0).setDisplaySize(VW, VH);
 
-    const glow = this.add.graphics();
-    glow.fillStyle(0x9ff0c8, 0.06); for (let r = 140; r > 10; r -= 14) glow.fillCircle(VW / 2, 160, r);
+    this.mGlow = this.add.graphics();
     this.hero = this.add.graphics();
     this.heroTags = PAL.map((pal) => makeTag(this, pal, 1).setScale(1.6));
-
-    this.add.text(VW / 2, 92, 'ТРОПА ТКАЧЕЙ', { fontFamily: '"Cormorant SC", Georgia, serif', fontSize: '64px', color: '#e8e2cf', fontStyle: '700' }).setOrigin(0.5).setShadow(0, 0, '#9ff0c8', 18, false, true);
-    this.add.text(VW / 2, 136, Campaign.subtitle(), { fontFamily: '"Fira Sans", sans-serif', fontSize: '17px', color: '#8fb8a8' }).setOrigin(0.5);
-
-    const mkBtn = (y, label, sub, n) => {
-      const t = this.add.text(VW / 2, y, label, { fontFamily: '"Cormorant SC", Georgia, serif', fontSize: '29px', color: '#cfe8dc', fontStyle: '600' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-      const s = this.add.text(VW / 2, y + 21, sub, { fontFamily: '"Fira Sans", sans-serif', fontSize: '13px', color: '#6f9586' }).setOrigin(0.5);
-      t.on('pointerover', () => t.setColor('#ffd47a')); t.on('pointerout', () => t.setColor('#cfe8dc'));
-      t.on('pointerdown', () => (n === 3 ? this.openLobby() : n === 4 ? this.openPick() : n === 5 ? this.openSettings() : n === 6 ? this.openSpeedrun() : this.go(n)));
-      return [t, s];
-    };
-    const prog = Settings.progress(), cont = prog ? ` · продолжение: ${prog.name || 'скамья'}` : '';
-    mkBtn(230, '1 · Один ткач', 'клавиша 1 · геймпад A' + cont, 1);
-    mkBtn(270, '2 · Двое за одним компьютером', 'клавиша 2 · геймпад Y' + cont, 2);
-    mkBtn(310, '3 · Вдвоём по сети', 'клавиша 3 · комната с кодом, работает и с серым IP', 3);
-    mkBtn(350, '4 · Босс-тест', 'клавиша 4 · геймпад X · три босса на выбор, сразу в бой', 4);
-    mkBtn(390, '5 · Настройки', 'клавиша 5 · громкость, тряска, лёгкий режим, кнопки', 5);
-    mkBtn(430, '6 · Спидран', 'клавиша 6 · забег на время, сплиты, таблица друзей, гонка 1×1', 6);
-
-    const ctl = [
-      Access.line(false),
-      'Игрок 2:  стрелки   Num1 или / — прыжок   Num2 или . — удар   Num3 или , — рывок   Num0 или M — лечение   Num4 или N — дымовуха',
-      'В одиночку можно и так: стрелки + Z X C V B.   Геймпад: A прыжок, X удар, B/RB рывок, Y лечение, LB дымовуха.   Esc — пауза',
-    ];
-    if (Touch.enabled) ctl.splice(0, 3, 'Телефон: стик слева — идти (вверх: удар вверх, оживить напарника, скамья; вниз в прыжке: удар вниз).',
-      'Кнопки справа: прыжок, удар, рывок, лечение, а на арене Миши ещё и бомба.   Лучше держать телефон горизонтально.', 'Можно подключить геймпад по Bluetooth — он подхватится сам.');
+    this.mBase = [this.mGlow, this.hero, ...this.heroTags]; // видны только на главном экране
+    this.heroX = VW * 0.25; this.heroY = 300; this.mHero = true;
     document.documentElement.classList.add('in-menu');
     this.events.once('shutdown', () => document.documentElement.classList.remove('in-menu'));
-    this.ctlTxt = this.add.text(VW / 2, 496, ctl.join('\n'), { fontFamily: '"Fira Sans", sans-serif', fontSize: '12px', color: '#86a89a', align: 'center', lineSpacing: 7 }).setOrigin(0.5);
-
-    const k = this.input.keyboard;
-    // версия, сборка и что нового
-    const vF = '"Fira Sans", sans-serif';
-    this.add.text(14, 10, `Версия ${GAME_VERSION} · сборка ${GAME_BUILD}`, { fontFamily: vF, fontSize: '12px', fontStyle: '600', color: '#9fc4b4' });
-    this.chTxt = this.add.text(14, 28, 'Что нового:\n' + CHANGELOG.slice(0, 9).map((l) => '· ' + l).join('\n'), { fontFamily: vF, fontSize: '10.5px', color: '#7fa596', lineSpacing: 3, wordWrap: { width: Math.max(170, Math.min(230, VW / 2 - 300)) } });
-    // выбор для босс-теста
-    this.pick = this.add.container(0, 0).setVisible(false).setDepth(10);
-    const pg = this.add.graphics(); pg.fillStyle(0x030807, 0.9); pg.fillRect(0, 0, VW, VH);
-    const D = '"Cormorant SC", Georgia, serif', F = '"Fira Sans", sans-serif';
-    const pt = this.add.text(VW / 2, 84, 'Босс-тест', { fontFamily: D, fontSize: '44px', color: '#e8e2cf', fontStyle: '700' }).setOrigin(0.5);
-    this.pickIdx = 0;
-    this.bossBtns = BOSSES.map((b, i) => {
-      const t = this.add.text(VW / 2 + (i - 1) * 270, 150, b.name, { fontFamily: D, fontSize: '28px', color: '#8fb8a8', fontStyle: '700' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-      t.on('pointerdown', () => this.setPick(i));
-      return t;
-    });
-    this.pickLine = this.add.graphics();
-    const ph = this.add.text(VW / 2, 186, '← → выбрать босса', { fontFamily: F, fontSize: '12px', color: '#6f9586' }).setOrigin(0.5);
-    const ps = this.add.text(VW / 2, 222, '', { fontFamily: F, fontSize: '15px', color: '#cfe8dc' }).setOrigin(0.5);
-    this.pickAbout = ps;
-    const mkPick = (y, label, fn) => {
-      const t = this.add.text(VW / 2, y, label, { fontFamily: D, fontSize: '30px', color: '#cfe8dc', fontStyle: '600' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-      t.on('pointerover', () => t.setColor('#ffd47a')); t.on('pointerout', () => t.setColor('#cfe8dc')); t.on('pointerdown', fn);
-      return t;
-    };
-    const p1 = mkPick(290, '1 · В одиночку', () => this.go(1, 'bosstest'));
-    const p2 = mkPick(343, '2 · Вдвоём за одним компьютером', () => this.go(2, 'bosstest'));
-    const p3 = mkPick(396, '3 · Вдвоём по сети', () => this.openLobby('bosstest'));
-    const pb = mkPick(490, '← Назад (Esc)', () => this.closePick()); pb.setFontSize(22);
-    this.pick.add([pg, pt, ...this.bossBtns, this.pickLine, ph, ps, p1, p2, p3, pb]);
-    this.setPick(Settings.s.boss || 0);
-    k.on('keydown', (e) => {
-      Snd.init();
-      if (Settings.open || !Lobby.el.hidden) return;
-      if (this.srP && this.srP.visible) return;
-      if (this.pick.visible) {
-        if (e.key === '1') this.go(1, 'bosstest'); if (e.key === '2') this.go(2, 'bosstest'); if (e.key === '3') this.openLobby('bosstest');
-        if (e.key === 'Escape') this.closePick();
-        if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A' || e.key === 'ф' || e.key === 'Ф') this.setPick(this.pickIdx - 1);
-        if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D' || e.key === 'в' || e.key === 'В') this.setPick(this.pickIdx + 1);
-        return;
-      }
-      if (e.key === '1') this.go(1); if (e.key === '2') this.go(2); if (e.key === '3') this.openLobby(); if (e.key === '4') this.openPick(); if (e.key === '5') this.openSettings(); if (e.key === '6') this.openSpeedrun();
-    });
+    this.pickIdx = Settings.s.boss || 0;
+    this.input.keyboard.on('keydown', (e) => this.menuKey(e));
     if (Lobby.room) this.time.delayedCall(300, () => this.openLobby());
     Music.setDuck(1); Music.intensity = 1; Music.play('menu');
     this.input.on('pointerdown', () => Snd.init());
     this.t = 0;
+    this.menuInit();
   }
-  openSettings() { if (this.leaving || Settings.open) return; Snd.init(); Settings.show(() => this.scene.restart()); }
   setPick(i) {
     this.pickIdx = (i + BOSSES.length) % BOSSES.length;
     if (Settings.s.boss !== this.pickIdx) { Settings.s.boss = this.pickIdx; Settings.save(); }
-    this.bossBtns.forEach((t, k) => t.setColor(k === this.pickIdx ? '#ffd47a' : '#8fb8a8'));
-    const t = this.bossBtns[this.pickIdx], g = this.pickLine; g.clear();
-    g.fillStyle(0xffd47a, 1); g.fillRect(t.x - t.width / 2, 168, t.width, 2);
-    this.pickAbout.setText(BOSSES[this.pickIdx].about);
+    if (this.mStack) this.menuRender();
   }
-  openPick() { if (this.leaving) return; Snd.init(); this.pick.setVisible(true); this.pickT = 0.3; }
-  closePick() { this.pick.setVisible(false); }
-  openLobby(mode) {
+  // intent: 'host' — сразу создать комнату, 'join' — сразу к полю кода; camp — стартовые данные кампании для истории
+  openLobby(mode, intent, camp) {
     if (this.leaving) return; this.leaving = true; Snd.init();
-    Lobby.mode = mode || 'story'; Lobby.boss = BOSSES[this.pickIdx].id; Lobby.bossName = BOSSES[this.pickIdx].name; Lobby.show();
+    Lobby.mode = mode || 'story'; Lobby.boss = BOSSES[this.pickIdx].id; Lobby.bossName = BOSSES[this.pickIdx].name; Lobby.camp = camp || null;
+    Lobby.crumbs = this.menuCrumbs(); Lobby.show(intent);
   }
   goOnline(role, mode, boss, camp) {
     Snd.play('bench'); this.cameras.main.fadeOut(450, 3, 8, 7);
     this.time.delayedCall(460, () => this.scene.start('game', { players: 2, online: role, mode: mode || 'story', boss: boss || 'misha', camp: camp || null }));
   }
-  go(n, mode) {
+  go(n, mode, camp) {
     if (this.leaving) return; this.leaving = true; Snd.init(); Snd.play('bench');
+    if (!mode) { try { localStorage.setItem('tt_players', String(n)); } catch (_) { } }
     this.cameras.main.fadeOut(450, 3, 8, 7);
-    this.time.delayedCall(460, () => this.scene.start('game', { players: n, mode: mode || 'story', boss: BOSSES[this.pickIdx].id, camp: mode ? null : Campaign.resume() }));
+    this.time.delayedCall(460, () => this.scene.start('game', { players: n, mode: mode || 'story', boss: BOSSES[this.pickIdx].id, camp: mode ? null : (camp || Campaign.resume()) }));
   }
   update(time, delta) {
     this.t += delta / 1000;
     this.mid.tilePositionX += delta * 0.01; this.fog.tilePositionX += delta * 0.02; this.rays.setAlpha(0.75 + Math.sin(this.t * 0.6) * 0.25);
-    const pads = this.input.gamepad ? this.input.gamepad.gamepads.filter(Boolean) : [];
-    this.pickT = (this.pickT || 0) - delta / 1000;
-    if (Settings.open || (this.srP && this.srP.visible)) return;
-    for (const pad of pads) {
-      const b = (n) => !!(pad.buttons[n] && pad.buttons[n].pressed);
-      if (this.pick.visible) {
-        if (this.pickT > 0) continue;
-        if (b(0)) this.go(1, 'bosstest'); if (b(3)) this.go(2, 'bosstest'); if (b(1)) this.closePick();
-        const lr = (pad.left ? -1 : 0) + (pad.right ? 1 : 0);
-        if (lr && !this._lrHeld) this.setPick(this.pickIdx + lr);
-        this._lrHeld = !!lr;
-        continue;
-      }
-      if (b(0)) this.go(1);
-      if (b(3)) this.go(2);
-      if (b(2)) this.openPick();
-    }
-    // два ткача на заставке
+    this.menuUpdate(delta / 1000);
+    // два ткача на заставке (только на главном экране)
     const g = this.hero; g.clear();
+    if (!this.mHero) return;
     for (let i = 0; i < 2; i++) {
-      const x = VW / 2 + (i ? 26 : -26), y = 214 + Math.sin(this.t * 2 + i) * 3;
+      const x = this.heroX + (i ? 26 : -26), y = this.heroY + Math.sin(this.t * 2 + i) * 3;
       drawWeaver(g, x, y, i ? -1 : 1, PAL[i], { bob: 0, leg: 0, sway: Math.sin(this.t * 1.6 + i) * 1.5, lift: 0 }, 1.6);
       this.heroTags[i].setPosition(x + (i ? 1 : -1) * 0.5, y - 13 * 1.6);
     }
@@ -276,7 +193,16 @@ class BGScene extends Phaser.Scene {
 // ---------- ИГРОВАЯ СЦЕНА ----------
 class GameScene extends Phaser.Scene {
   constructor() { super('game'); }
-  init(data) { this.startData = data; this.mode = data.mode || 'story'; this.bossKind = data.boss || 'misha'; this.nPlayers = data.players || 1; this.online = data.online || null; this.localIdx = data.online === 'guest' ? 1 : 0; Campaign.init(this, data); }
+  init(data) { this.startData = data; this.mode = data.mode || 'story'; this.bossKind = data.boss || 'misha'; this.nPlayers = data.players || 1; this.online = data.online || null; this.localIdx = data.online === 'guest' ? 1 : 0;
+    // зерно: из данных запуска; в онлайн-коопе гость берёт зерно хоста (Net.seed из сообщения 'start'); иначе случайное
+    this.seed = (data.seed != null ? data.seed : data.online && Net.seed != null ? Net.seed : newSeed()) >>> 0;
+    Campaign.init(this, data); }
+  // независимые потоки ГСЧ: порядок вызовов в одной подсистеме не сдвигает остальные
+  initRng() {
+    this._rngs = {}; this.rng = mulberry32(this.seed);
+    this.rngFor = (name) => this._rngs[name] || (this._rngs[name] = mulberry32(rngSeedFor(this.seed, name)));
+    this.rBoss = this.rngFor('boss'); this.rLoot = this.rngFor('loot'); this.rEnemy = this.rngFor('enemy');
+  }
   auth() { return this.online !== 'guest'; }
   sendEv(o) { if (this.online) Net.send({ t: 'ev', ...o }); }
   sfx(n) { if (this.quiet) return; Snd.play(n); if (this.online === 'host') this.sendEv({ k: 'snd', n }); }
@@ -286,6 +212,7 @@ class GameScene extends Phaser.Scene {
   toastAll(m) { this.ui().toast(m); this.sendEv({ k: 'toast', m }); }
 
   create() {
+    this.initRng();
     genBackgrounds(this);
     this.scene.launch('bg'); this.scene.launch('ui');
     // состояние «вида сверху» Миши не должно переходить в новую игру (повтор боя, выход в меню)
@@ -324,7 +251,7 @@ class GameScene extends Phaser.Scene {
       g.fillStyle(0x3a2a1c, 1); g.fillRect(bx + 32, by - 44, 3, 44);
       g.fillStyle(0xffd47a, 0.12); g.fillCircle(bx + 34, by - 48, 22); g.fillStyle(0xffd47a, 0.25); g.fillCircle(bx + 34, by - 48, 10);
       g.fillStyle(0xffe3a3, 1); g.fillCircle(bx + 34, by - 48, 4);
-      const prompt = this.add.text(bx, by - 46, '↑ отдохнуть', { fontFamily: '"Fira Sans", sans-serif', fontSize: '13px', color: '#ffe3a3' }).setOrigin(0.5).setDepth(8).setAlpha(0);
+      const prompt = this.add.text(bx, by - 46, '↑ скамья', { fontFamily: '"Fira Sans", sans-serif', fontSize: '13px', color: '#ffe3a3' }).setOrigin(0.5).setDepth(8).setAlpha(0);
       return { x: bx, y: by, prompt };
     });
     // выход
@@ -535,7 +462,7 @@ class GameScene extends Phaser.Scene {
   spawnEnemies() {
     for (const e of this.enemies) e.g.destroy();
     this.enemies = this.L.enemies.flatMap((d) => {
-      const base = { type: d.type, vx: 0, vy: 0, face: -1, flash: 0, kbT: 0, kbx: 0, kby: 0, dead: false, t: Math.random() * 6, g: this.add.graphics().setDepth(4) };
+      const base = { type: d.type, vx: 0, vy: 0, face: -1, flash: 0, kbT: 0, kbx: 0, kby: 0, dead: false, t: this.rEnemy() * 6, g: this.add.graphics().setDepth(4) };
       const fx = d.x * T + 16, fy = (d.y + 1) * T;
       const n2 = this.spawnEnemy2(d, base); if (n2) return n2; // новые враги (enemies2.js)
       if (d.type === 'crawler') return { ...base, w: 26, h: 16, x: fx - 13, y: fy - 16, hp: 3, vx: -45, beads: 3 };
@@ -800,7 +727,7 @@ class GameScene extends Phaser.Scene {
     this.dropBeads(e.x + e.w / 2, e.y + e.h / 2, e.beads);
   }
   dropBeads(x, y, n) {
-    for (let i = 0; i < n; i++) this.beadsArr.push({ x: x - 4, y: y - 4, w: 8, h: 8, vx: (Math.random() - 0.5) * 260, vy: -200 - Math.random() * 260, t: 0 });
+    for (let i = 0; i < n; i++) this.beadsArr.push({ x: x - 4, y: y - 4, w: 8, h: 8, vx: (this.rLoot() - 0.5) * 260, vy: -200 - this.rLoot() * 260, t: 0 });
   }
   hurtPlayer(p, dmg, srcX, spike) {
     if (p.inv > 0 || p.downed) return;
@@ -852,6 +779,19 @@ class GameScene extends Phaser.Scene {
     this.wiping = false; this.cameras.main.fadeIn(600, 3, 8, 7);
   }
 
+  // скамья: ↑ открывает меню (ingame.js), «Отдохнуть» — benchRest
+  benchOpen(p, b) { this.benchRest(p, b); }
+  benchRest(p, b, quiet) {
+    p.sit = true; p.x = b.x - 7; p.hp = p.maxHp; this.respawn = { x: b.x, y: b.y }; Snd.play('bench');
+    for (const q of this.players) if (q.downed && !q.remote) { q.downed = false; q.hp = 2; q.inv = 1.5; q.x = b.x - 7 + 22; q.y = b.y - 26; }
+    this.sendEv({ k: 'bench', x: b.x, y: b.y });
+    if (!quiet) this.ui().toast(this.camp ? (Touch.enabled ? 'Скамья: здесь вы очнётесь. Прогресс сохранён. Стик вниз — лавка' : 'Скамья: здесь вы очнётесь. Прогресс сохранён. ↓ — лавка') : 'Скамья: здесь вы очнётесь. Прогресс сохранён');
+    if (this.mode === 'story' && this.online !== 'guest') {
+      const bi = this.benches.indexOf(b), area = this.L.areas.reduce((a, ar) => (b.x / T >= ar.x ? ar : a), this.L.areas[0]);
+      Campaign.save(this, { bench: bi, name: Campaign.saveName(this, area.name) });
+    }
+  }
+
   stepCoop(dt) {
     // скамьи
     for (const b of this.benches) {
@@ -860,16 +800,7 @@ class GameScene extends Phaser.Scene {
         if (p.downed || p.remote) continue;
         if (Math.abs(p.x + 7 - b.x) < 30 && Math.abs(p.y + 26 - b.y) < 12) {
           near = !p.sit;
-          if (p.inp.upP && p.onGround && !p.sit) {
-            p.sit = true; p.x = b.x - 7; p.hp = p.maxHp; this.respawn = { x: b.x, y: b.y }; Snd.play('bench');
-            for (const q of this.players) if (q.downed && !q.remote) { q.downed = false; q.hp = 2; q.inv = 1.5; q.x = b.x - 7 + 22; q.y = b.y - 26; }
-            this.sendEv({ k: 'bench', x: b.x, y: b.y });
-            this.ui().toast(this.camp ? (Touch.enabled ? 'Скамья: здесь вы очнётесь. Прогресс сохранён. Стик вниз — лавка' : 'Скамья: здесь вы очнётесь. Прогресс сохранён. ↓ — лавка') : 'Скамья: здесь вы очнётесь. Прогресс сохранён');
-            if (this.mode === 'story' && this.online !== 'guest') {
-              const bi = this.benches.indexOf(b), area = this.L.areas.reduce((a, ar) => (b.x / T >= ar.x ? ar : a), this.L.areas[0]);
-              Campaign.save(this, { bench: bi, name: Campaign.saveName(this, area.name) });
-            }
-          }
+          if (p.inp.upP && p.onGround && !p.sit && !this.benchMenuOpen) this.benchOpen(p, b);
         }
       }
       b.prompt.setAlpha(near ? 1 : 0);
@@ -989,7 +920,7 @@ class GameScene extends Phaser.Scene {
         if (b.t <= 0) {
           const pool = ['leap', 'spores', 'charge']; if (phase2) pool.push('roots', 'roots');
           const opts = pool.filter((o) => o !== b.last);
-          const pick = opts[Math.floor(Math.random() * opts.length)]; b.last = pick;
+          const pick = opts[Math.floor(this.rBoss() * opts.length)]; b.last = pick;
           if (pick === 'leap') { b.state = 'leapWind'; b.t = 0.38; b.jumps = phase3 ? 2 : 1; }
           if (pick === 'roots') { b.state = 'rootWind'; b.t = 0.6; this.sfx('slam'); this.shake(500, 0.004); }
           if (pick === 'spores') { b.state = 'sporeWind'; b.t = 0.45; }
@@ -1038,7 +969,7 @@ class GameScene extends Phaser.Scene {
       b.state = 'stun'; b.t = 1.0; this.shake(260, 0.014); this.sfx('slam');
       const ax0 = this.L.boss.arenaX0, ax1 = this.L.boss.arenaX1;
       const n = phase2 ? 5 : 3;
-      for (let i = 0; i < n; i++) this.projs.push({ kind: 'rock', x: (ax0 + 2 + Math.random() * (ax1 - ax0 - 4)) * T, y: 19 * T, w: 16, h: 16, vx: 0, vy: 0, life: 3, delay: i * 0.18 });
+      for (let i = 0; i < n; i++) this.projs.push({ kind: 'rock', x: (ax0 + 2 + this.rBoss() * (ax1 - ax0 - 4)) * T, y: 19 * T, w: 16, h: 16, vx: 0, vy: 0, life: 3, delay: i * 0.18 });
     }
   }
   damageBoss(p) {
@@ -1337,9 +1268,9 @@ class GameScene extends Phaser.Scene {
   // гость вернулся по тому же коду, пока хост доигрывает в одиночку: перезапускаем сцену в паре (прогресс главы берём из снимка)
   rejoinGuest() {
     if (this.online || this.rejoining) return; this.rejoining = true;
-    const d = { ...this.startData, players: 2, online: 'host' };
+    const d = { ...this.startData, players: 2, online: 'host', seed: this.seed };
     if (this.camp) d.camp = Campaign.snap(this);
-    Net.send({ t: 'start', mode: d.mode, boss: d.boss, camp: d.camp || null });
+    Net.send({ t: 'start', mode: d.mode, boss: d.boss, camp: d.camp || null, seed: this.seed });
     this.ui().toast('Напарник вернулся!');
     this.time.delayedCall(400, () => { this.rejoining = false; this.ui().ready = false; this.scene.stop('bg'); this.scene.start('game', d); });
   }
@@ -1631,13 +1562,8 @@ class UIScene extends Phaser.Scene {
     this.tdLayer = this.add.container(0, 0, [this.tdG, ...this.tdTags, this.tdSay, this.tdInfo, this.tdTitle]).setVisible(false);
     this.children.sendToBack(this.tdLayer); // под всем интерфейсом: здоровье, подсказки, пауза видны поверх
     this.t = 0;
-    // клавиши экрана победы: только когда он уже показан, не от удержания (Пробел — прыжок) и не раньше чем через 0,8 с;
-    // «ещё раз» — на N: R в боях с Мишей — дымовуха
+    // экран победы: пункты меню выбираются стрелками, Enter / Пробел / A или касанием (ingame.js); не от удержания (Пробел — прыжок) и не раньше чем через 0,8 с
     this.winAt = 0; this.campWinS = null;
-    const winKey = (e) => this.gs.won && this.winShown() && !(e && e.repeat) && performance.now() - this.winAt > 800;
-    this.input.keyboard.on('keydown-ENTER', (e) => { if (winKey(e)) this.winEnter(); });
-    this.input.keyboard.on('keydown-SPACE', (e) => { if (winKey(e)) this.winEnter(); });
-    this.input.keyboard.on('keydown-N', (e) => { if (winKey(e) && !this.gs.online) this.retry(); });
     this.ready = true;
   }
   winShown() { return !!this.win && this.win.visible; }
@@ -1730,18 +1656,10 @@ class UIScene extends Phaser.Scene {
       : s.hits != null ? `Время боя: ${m}:${sec}\nУдаров иглой: ${s.hits}\nОбрывов нити: ${s.deaths}\nТкачей: ${s.players}`
       : `Время: ${m}:${sec}\nБусин собрано: ${s.beads}\nОбрывов нити: ${s.deaths}\nТкачей: ${s.players}`;
     const t2 = this.add.text(VW / 2, 260, lines, { fontFamily: F, fontSize: '18px', color: '#b9d4c8', align: 'center', lineSpacing: 8 }).setOrigin(0.5, 0);
-    const t3 = this.add.text(VW / 2, 440, this.gs.online ? 'Enter — в главное меню' : 'Enter — в главное меню   ·   N — ещё раз', { fontFamily: F, fontSize: '15px', color: '#ffe3a3' }).setOrigin(0.5);
     Touch.show(false);
-    const btn = (x, label, fn) => {
-      const t = this.add.text(x, 392, label, { fontFamily: D, fontSize: '26px', color: '#cfe8dc', fontStyle: '700', backgroundColor: 'rgba(20,48,41,0.9)', padding: { x: 16, y: 7 } })
-        .setOrigin(0.5).setInteractive({ useHandCursor: true });
-      t.on('pointerover', () => t.setColor('#ffd47a')); t.on('pointerout', () => t.setColor('#cfe8dc')); t.on('pointerdown', fn);
-      return t;
-    };
-    const extra = this.gs.online ? [btn(VW / 2, 'В главное меню', () => this.restart())]
-      : [btn(VW / 2 - 130, 'В главное меню', () => this.restart()), btn(VW / 2 + 130, 'Ещё раз', () => this.retry())];
-    if (Touch.enabled) t3.setVisible(false);
-    this.win.add([bg, t1, t2, t3, ...extra]); this.win.setVisible(true).setAlpha(0); this.winAt = performance.now();
+    const entries = this.gs.online ? [['В главное меню', () => this.restart()]] : [['Заново', () => this.retry()], ['В главное меню', () => this.restart()]];
+    const items = [bg, t1, t2, ...this.winMenuBuild(entries, { title: t1, body: t2 })];
+    this.win.add(items); this.win.setVisible(true).setAlpha(0); this.winAt = performance.now();
     this.tweens.add({ targets: this.win, alpha: 1, duration: 900 });
   }
   update(time, delta) {

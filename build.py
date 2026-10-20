@@ -4,6 +4,7 @@ import os
 SRC = os.path.join(os.path.dirname(__file__), 'src')
 parts = [
     "level.js",
+    "rng.js",
     "art.js",
     "sound.js",
     "music.js",
@@ -30,8 +31,11 @@ parts = [
     "status.js",
     "movement2.js",
     "loadoutui.js",
+    "howto.js",
+    "menu.js",
     "speedrun.js",
     "uifix.js",
+    "ingame.js",
     # новые модули добавляй строкой выше (по одному на строку — меньше конфликтов слияния)
     "update.js",
 ]

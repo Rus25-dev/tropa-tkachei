@@ -56,33 +56,16 @@ function geometry(name, list, W, H, noPairs) {
 
   for (const [name, w, h, q] of SCREENS) {
     const tag = name.split(' ')[0] + (q ? ' touch' : '');
-    // ---------- 2. меню: «Что нового» ----------
+    // ---------- 2. меню (v1.7): главный экран, «Босс-тест» и «Спидран» без наложений; подробно — tools/menu-test.js ----------
     {
       const page = await open(w, h, q);
-      const r = await page.evaluate(() => {
-        const m = window.__game.scene.getScene('menu'), cs = window.__cs(m), ch = m.chTxt;
-        const all = window.__texts(m), mine = ch && ch.visible ? ch.getBounds() : null;
-        const others = all.filter((o) => !(mine && o.x === mine.x && o.y === mine.y));
-        return { all, cs, vis: !!(ch && ch.visible), fs: ch ? parseFloat(ch.style.fontSize) : 0, lines: ch ? ch.text.split('\n').length : 0 };
-      });
       const VWv = await page.evaluate(() => VW);
-      // «Что нового» целиком на экране и не задевает остальные тексты меню (у самих кнопок и подписей рамки глифов чуть касаются — их не сравниваем между собой)
-      const chb = await page.evaluate(() => { const c = window.__game.scene.getScene('menu').chTxt; if (!c.visible) return null; const b = c.getBounds(); return { t: 'Что нового', x: b.x, y: b.y, w: b.width, h: b.height }; });
-      if (chb) for (const o of r.all.filter((o) => !/^Версия|^Что нового/.test(o.t) || o.y > 30)) geometry(`меню (${name})`, [chb, o].filter((q, i, arr) => arr.length === 2), VWv, 540);
-      geometry(`меню (${name}) границы`, r.all, VWv, 540, true);
-      ok(r.vis || /iPhone/.test(name), `меню (${name}): список новинок скрыт без причины`);
-      if (r.vis) ok(r.fs * r.cs >= 9.5, `меню (${name}): шрифт новинок на экране ${(r.fs * r.cs).toFixed(1)} px < 9.5`);
-      if (/iPhone/.test(name)) ok(r.vis && r.lines <= 1 + 3 * 8, `меню (${name}): лишние строки`);
-      await shot(page, 'menu-' + tag.replace(' ', '_'));
-      // ---------- 6. «Босс-тест» и «Спидран»: главное меню не просвечивает ----------
-      for (const [what, open2, close2] of [['Босс-тест', 'openPick', 'closePick'], ['Спидран', 'openSpeedrun', 'srClose']]) {
-        const o = await page.evaluate(([a]) => { const m = window.__game.scene.getScene('menu'); m[a](); const panel = a === 'openPick' ? m.pick : m.srP;
-          return { under: window.__texts(m, (x) => x === panel).map((t) => t.t), panel: window.__texts(panel) }; }, [open2]);
-        ok(o.under.length === 0, `${what} (${name}): сквозь панель видно меню: ${o.under.slice(0, 3).join(' | ')}`);
-        geometry(`${what} (${name})`, o.panel, VWv, 540);
-        await shot(page, `${what === 'Босс-тест' ? 'pick' : 'sr'}-${tag.replace(' ', '_')}`);
-        const back = await page.evaluate(([c]) => { const m = window.__game.scene.getScene('menu'); m[c](); return window.__texts(m).length; }, [close2]);
-        ok(back > 5, `${what} (${name}): после закрытия главное меню не вернулось (${back})`);
+      for (const [what, scr] of [['Главное меню', 'main'], ['Босс-тест', 'bosstest'], ['Спидран', 'speedrun']]) {
+        const o = await page.evaluate(([id]) => { const m = window.__game.scene.getScene('menu'); m.menuOpen(id); const t = window.__texts(m); return { t, cs: window.__cs(m) }; }, [scr]);
+        geometry(`${what} (${name})`, o.t, VWv, 540);
+        ok(o.t.every((x) => x.fs * o.cs >= 10.9 - 0.5 || /^Di$|^Ta$/.test(x.t)), `${what} (${name}): шрифт меньше 11 px на экране`);
+        if (scr !== 'main') ok(!o.t.some((x) => /ТРОПА ТКАЧЕЙ/.test(x.t)), `${what} (${name}): сквозь экран видно главное меню`);
+        await shot(page, `${scr}-${tag.replace(' ', '_')}`);
       }
       await page.close();
     }
@@ -96,12 +79,12 @@ function geometry(name, list, W, H, noPairs) {
       await sleep(250);
       const r = await page.evaluate(() => {
         const u = window.__game.scene.getScene('ui'), cs = window.__cs(u);
-        return { list: window.__texts(u.pause).concat(u.trHud ? window.__texts([u.trHud]) : []), cs, vis: u.pause.visible, fs: parseFloat(u.pauseColA.style.fontSize), VW, mapH: u.mapHint.getBounds(), trB: u.trBtn ? u.trBtn.getBounds() : null };
+        return { list: window.__texts(u.pause).concat(u.trHud ? window.__texts([u.trHud]) : []), cs, vis: u.pause.visible, fs: Math.min(...window.__texts(u.pause).map((t) => t.fs)), VW };
       });
       ok(r.vis, `пауза (${name}, ${variant}): не открылась`);
       geometry(`пауза (${name}, ${variant})`, r.list, r.VW, 540);
-      ok(r.fs * r.cs >= (q ? 9.5 : 11), `пауза (${name}, ${variant}): шрифт справки на экране ${(r.fs * r.cs).toFixed(1)} px`);
-      if (train) { ok(r.trB && r.list.some((t) => /Сброс босса/.test(t.t)), `пауза (${name}): нет кнопки «Сброс босса»`); ok(r.list.some((t) => /M \(|Кнопка ▤/.test(t.t)), `пауза (${name}): нет подсказки про карту`); }
+      ok(r.fs * r.cs >= 10.9, `пауза (${name}, ${variant}): шрифт на экране ${(r.fs * r.cs).toFixed(1)} px`);
+      if (train) ok(r.list.some((t) => /Сброс босса/.test(t.t)), `пауза (${name}): нет пункта «Сброс босса»`);
       if (!train) { // «Настройки» из паузы и возврат: справка остаётся на месте
         await page.evaluate(() => { const u = window.__game.scene.getScene('ui'); u.openSettings(); Settings.hide(); });
         await sleep(150);

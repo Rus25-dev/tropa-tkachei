@@ -104,14 +104,15 @@ const phaserSrc = fs.readFileSync(require.resolve('phaser/dist/phaser.min.js'), 
     await until(() => performance.now() - ui.winAt > 1000);
     key('SPACE', true); key('ENTER', true); o.repeat = g.scene.getScene('menu').sys.isActive();
     key('R'); o.afterR = retried; key('N'); o.afterN = retried;
-    key('ENTER'); await sleep(300);
+    key('ENTER'); o.afterEnter = retried; // первый пункт экрана победы — «Заново»
+    key('RIGHT'); key('ENTER'); await sleep(300);
     o.menu = g.scene.getScene('menu').sys.isActive();
     return o;
   });
   ok(!r3b.early && r3b.dt < 700, '3: Enter/Пробел сразу после появления экрана победы игнорируются');
   ok(!r3b.repeat, '3: повтор от удержания клавиши игнорируется');
   ok(r3b.afterR === 0, '7: R на экране победы не перезапускает бой');
-  ok(r3b.afterN === 1, '7: N перезапускает бой');
+  ok(r3b.afterN === 0 && r3b.afterEnter === 1, '7: клавиши-горячие убраны, «Заново» — пункт меню (Enter)');
   ok(r3b.menu, '3: свежее нажатие Enter через паузу ведёт в меню');
 
   // 4. Нить за удар иглой по Мише: как у остальных боссов (1 за 2 удара), без двойного учёта

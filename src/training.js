@@ -114,34 +114,5 @@ Training.load();
     this.toast('Тренировка: здоровье бесконечное, Y — сбросить босса', 3);
   };
 
-  // ----- выбор босса: переключатель и фаза -----
-  const mcreate = MenuScene.prototype.create;
-  MenuScene.prototype.create = function () {
-    mcreate.call(this);
-    const F = '"Fira Sans", sans-serif', D = '"Cormorant SC", Georgia, serif';
-    const st = { fontFamily: D, fontSize: '22px', fontStyle: '600' };
-    const tg = this.add.text(VW / 2 - 175, 432, '', st).setOrigin(0.5).setInteractive({ useHandCursor: true });
-    const ph = this.add.text(VW / 2 + 175, 432, '', st).setOrigin(0.5).setInteractive({ useHandCursor: true });
-    const hint = this.add.text(VW / 2, 454, 'Бесконечное здоровье, счётчик урона и DPS, сброс босса клавишей Y. Рекорды не пишутся. Только за одним компьютером.', { fontFamily: F, fontSize: '11px', color: '#6f9586' }).setOrigin(0.5);
-    this.pick.add([tg, ph, hint]);
-    const p3 = this.pick.list.find((o) => o.text && o.text.startsWith('3 ·'));
-    const refresh = () => {
-      tg.setText(`Тренировка: ${Training.on ? 'вкл' : 'выкл'} (T)`).setColor(Training.on ? '#ffd47a' : '#8fb8a8');
-      ph.setText(`Старт с фазы ${Training.phase} (P)`).setColor(Training.on ? '#ffd47a' : '#5d7a6e');
-      if (p3) p3.setAlpha(Training.on ? 0.3 : 1);
-    };
-    const toggle = () => { Training.on = !Training.on; Training.save(); refresh(); };
-    const cycle = () => { if (!Training.on) { toggle(); return; } Training.phase = Training.phase % 3 + 1; Training.save(); refresh(); };
-    tg.on('pointerdown', toggle); ph.on('pointerdown', cycle);
-    this.input.keyboard.on('keydown', (e) => {
-      if (!this.pick.visible || Settings.open || !Lobby.el.hidden || e.repeat) return;
-      if (e.code === 'KeyT') toggle(); else if (e.code === 'KeyP') cycle();
-    });
-    refresh();
-  };
-  const openLobby = MenuScene.prototype.openLobby;
-  MenuScene.prototype.openLobby = function (mode) {
-    if (mode === 'bosstest' && Training.on) return; // тренировка — только локально
-    return openLobby.call(this, mode);
-  };
+  // (переключатель тренировки и фаза старта теперь на экране «Босс-тест» в menu.js)
 })();
