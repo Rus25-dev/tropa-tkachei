@@ -42,6 +42,36 @@
   #lb-status[data-kind="ok"] { color: var(--glow); }
   #lb-status[data-kind="err"] { color: #ff9a7a; }
   #lb-status[data-kind="wait"] { color: var(--ember); }
+  /* сенсорное управление */
+  html.touch, html.touch body { touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; overscroll-behavior: none; }
+  #touch { position: fixed; inset: 0; z-index: 3; pointer-events: none; }
+  #touch .t-zone { position: absolute; left: 0; top: 18%; bottom: 0; width: 46%; pointer-events: auto; touch-action: none; }
+  #touch .t-hint { position: absolute; left: max(28px, env(safe-area-inset-left, 0px)); bottom: max(26px, env(safe-area-inset-bottom, 0px)); font-size: 12px; color: rgba(232,226,207,0.45); }
+  #touch .t-base { position: absolute; width: 124px; height: 124px; margin: -62px 0 0 -62px; border-radius: 50%; border: 2px solid rgba(159,240,200,0.35); background: rgba(8,20,17,0.35); }
+  #touch .t-knob { position: absolute; left: 50%; top: 50%; width: 56px; height: 56px; margin: -28px 0 0 -28px; border-radius: 50%; background: rgba(159,240,200,0.42); border: 2px solid rgba(232,226,207,0.6); }
+  #touch .t-btns { position: absolute; right: max(14px, env(safe-area-inset-right, 0px)); bottom: max(12px, env(safe-area-inset-bottom, 0px)); width: 236px; height: 214px; pointer-events: none; }
+  #touch .t-btn { position: absolute; pointer-events: auto; touch-action: none; display: grid; place-items: center; align-content: center; gap: 1px; border-radius: 50%;
+    border: 2px solid rgba(232,226,207,0.4); background: rgba(10,24,21,0.38); color: var(--bone); font: 600 10px var(--body); padding: 0; -webkit-tap-highlight-color: transparent; }
+  #touch .t-btn b { font-size: 22px; line-height: 1; font-weight: 700; }
+  #touch .t-btn i { font-style: normal; opacity: 0.8; }
+  #touch .t-btn.on { background: rgba(159,240,200,0.4); border-color: var(--glow); transform: scale(0.94); }
+  #touch .t-jump { right: 0; bottom: 0; width: 88px; height: 88px; border-color: rgba(159,240,200,0.65); }
+  #touch .t-atk { right: 100px; bottom: 10px; width: 76px; height: 76px; border-color: rgba(255,212,122,0.6); }
+  #touch .t-dash { right: 6px; bottom: 100px; width: 66px; height: 66px; }
+  #touch .t-heal { right: 98px; bottom: 98px; width: 58px; height: 58px; }
+  #touch .t-bomb { right: 166px; bottom: 112px; width: 58px; height: 58px; }
+  #touch .t-pause { position: absolute; left: 50%; top: max(8px, env(safe-area-inset-top, 0px)); transform: translateX(-50%); pointer-events: auto; width: 46px; height: 34px;
+    border-radius: 8px; border: 1px solid rgba(232,226,207,0.35); background: rgba(10,24,21,0.55); color: var(--bone); font: 700 13px var(--body); letter-spacing: -2px; }
+  #fs-btn { position: fixed; z-index: 4; right: max(12px, env(safe-area-inset-right, 0px)); top: max(10px, env(safe-area-inset-top, 0px)); display: none;
+    font: 600 13px var(--body); color: var(--bone); background: rgba(10,24,21,0.7); border: 1px solid #3a6b5a; border-radius: 8px; padding: 8px 12px; }
+  html.touch.in-menu #fs-btn:not([hidden]) { display: block; }
+  #rotate { position: fixed; inset: 0; z-index: 20; display: none; place-items: center; text-align: center; background: var(--void); padding-inline: 24px; }
+  #rotate .ph { width: 46px; height: 76px; margin: 0 auto 18px; border: 3px solid var(--glow); border-radius: 9px; animation: tilt 2s ease-in-out infinite; }
+  #rotate h3 { font: 700 26px var(--display); margin: 0 0 6px; color: var(--bone); }
+  #rotate p { margin: 0; color: var(--muted); font-size: 14px; }
+  @keyframes tilt { 0%, 30% { transform: rotate(0deg); } 60%, 100% { transform: rotate(-90deg); } }
+  @media (orientation: portrait) { html.touch #rotate { display: grid; } }
+  @media (prefers-reduced-motion: reduce) { #rotate .ph { animation: none; transform: rotate(-90deg); } }
 </style>
 <div id="game"></div>
 <div id="lobby" hidden>
@@ -62,6 +92,8 @@
     <div class="row"><button id="lb-back" class="ghost" type="button">← Назад в меню</button></div>
   </div>
 </div>
+<button id="fs-btn" type="button" hidden>На весь экран</button>
+<div id="rotate"><div><div class="ph"></div><h3>Поверните телефон</h3><p>Тропа Ткачей играется горизонтально</p></div></div>
 <div id="boot"><div><h1>Тропа Ткачей</h1><p>Плетём пещеру…</p><div class="dot"></div></div></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.90.0/phaser.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
@@ -76,6 +108,7 @@
   ]) : Promise.resolve();
   Promise.race([fonts, timeout]).catch(() => {}).then(() => {
     if (typeof Phaser === 'undefined') { document.querySelector('#boot p').textContent = 'Не удалось загрузить движок. Проверьте соединение и обновите страницу.'; return; }
+    Touch.init();
     Lobby.init();
     startGame();
   });

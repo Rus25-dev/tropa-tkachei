@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="description" content="Тропа Ткачей — кооперативная метроидвания в браузере. Вдвоём за одним компьютером или по сети.">
 </head>
 <body>
@@ -50,6 +50,36 @@
   #lb-status[data-kind="ok"] { color: var(--glow); }
   #lb-status[data-kind="err"] { color: #ff9a7a; }
   #lb-status[data-kind="wait"] { color: var(--ember); }
+  /* сенсорное управление */
+  html.touch, html.touch body { touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; overscroll-behavior: none; }
+  #touch { position: fixed; inset: 0; z-index: 3; pointer-events: none; }
+  #touch .t-zone { position: absolute; left: 0; top: 18%; bottom: 0; width: 46%; pointer-events: auto; touch-action: none; }
+  #touch .t-hint { position: absolute; left: max(28px, env(safe-area-inset-left, 0px)); bottom: max(26px, env(safe-area-inset-bottom, 0px)); font-size: 12px; color: rgba(232,226,207,0.45); }
+  #touch .t-base { position: absolute; width: 124px; height: 124px; margin: -62px 0 0 -62px; border-radius: 50%; border: 2px solid rgba(159,240,200,0.35); background: rgba(8,20,17,0.35); }
+  #touch .t-knob { position: absolute; left: 50%; top: 50%; width: 56px; height: 56px; margin: -28px 0 0 -28px; border-radius: 50%; background: rgba(159,240,200,0.42); border: 2px solid rgba(232,226,207,0.6); }
+  #touch .t-btns { position: absolute; right: max(14px, env(safe-area-inset-right, 0px)); bottom: max(12px, env(safe-area-inset-bottom, 0px)); width: 236px; height: 214px; pointer-events: none; }
+  #touch .t-btn { position: absolute; pointer-events: auto; touch-action: none; display: grid; place-items: center; align-content: center; gap: 1px; border-radius: 50%;
+    border: 2px solid rgba(232,226,207,0.4); background: rgba(10,24,21,0.38); color: var(--bone); font: 600 10px var(--body); padding: 0; -webkit-tap-highlight-color: transparent; }
+  #touch .t-btn b { font-size: 22px; line-height: 1; font-weight: 700; }
+  #touch .t-btn i { font-style: normal; opacity: 0.8; }
+  #touch .t-btn.on { background: rgba(159,240,200,0.4); border-color: var(--glow); transform: scale(0.94); }
+  #touch .t-jump { right: 0; bottom: 0; width: 88px; height: 88px; border-color: rgba(159,240,200,0.65); }
+  #touch .t-atk { right: 100px; bottom: 10px; width: 76px; height: 76px; border-color: rgba(255,212,122,0.6); }
+  #touch .t-dash { right: 6px; bottom: 100px; width: 66px; height: 66px; }
+  #touch .t-heal { right: 98px; bottom: 98px; width: 58px; height: 58px; }
+  #touch .t-bomb { right: 166px; bottom: 112px; width: 58px; height: 58px; }
+  #touch .t-pause { position: absolute; left: 50%; top: max(8px, env(safe-area-inset-top, 0px)); transform: translateX(-50%); pointer-events: auto; width: 46px; height: 34px;
+    border-radius: 8px; border: 1px solid rgba(232,226,207,0.35); background: rgba(10,24,21,0.55); color: var(--bone); font: 700 13px var(--body); letter-spacing: -2px; }
+  #fs-btn { position: fixed; z-index: 4; right: max(12px, env(safe-area-inset-right, 0px)); top: max(10px, env(safe-area-inset-top, 0px)); display: none;
+    font: 600 13px var(--body); color: var(--bone); background: rgba(10,24,21,0.7); border: 1px solid #3a6b5a; border-radius: 8px; padding: 8px 12px; }
+  html.touch.in-menu #fs-btn:not([hidden]) { display: block; }
+  #rotate { position: fixed; inset: 0; z-index: 20; display: none; place-items: center; text-align: center; background: var(--void); padding-inline: 24px; }
+  #rotate .ph { width: 46px; height: 76px; margin: 0 auto 18px; border: 3px solid var(--glow); border-radius: 9px; animation: tilt 2s ease-in-out infinite; }
+  #rotate h3 { font: 700 26px var(--display); margin: 0 0 6px; color: var(--bone); }
+  #rotate p { margin: 0; color: var(--muted); font-size: 14px; }
+  @keyframes tilt { 0%, 30% { transform: rotate(0deg); } 60%, 100% { transform: rotate(-90deg); } }
+  @media (orientation: portrait) { html.touch #rotate { display: grid; } }
+  @media (prefers-reduced-motion: reduce) { #rotate .ph { animation: none; transform: rotate(-90deg); } }
 </style>
 <div id="game"></div>
 <div id="lobby" hidden>
@@ -70,6 +100,8 @@
     <div class="row"><button id="lb-back" class="ghost" type="button">← Назад в меню</button></div>
   </div>
 </div>
+<button id="fs-btn" type="button" hidden>На весь экран</button>
+<div id="rotate"><div><div class="ph"></div><h3>Поверните телефон</h3><p>Тропа Ткачей играется горизонтально</p></div></div>
 <div id="boot"><div><h1>Тропа Ткачей</h1><p>Плетём пещеру…</p><div class="dot"></div></div></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.90.0/phaser.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
@@ -123,14 +155,14 @@ function buildLevel() {
   carve(226, 30, 238, 33);
 
   const signs = [
-    { x: 6, y: 31, text: 'A / D — идти\nПробел — прыжок (держи — выше)' },
+    { x: 6, y: 31, text: 'A / D — идти\nПробел — прыжок (держи — выше)', touch: 'Стик слева — идти\nПрыжок (держи — выше)' },
     { x: 19, y: 31, text: 'Колючки ранят.\nУпал — вернёшься на край' },
-    { x: 27, y: 31, text: 'F — удар иглой\nКаждый удар копит нить' },
-    { x: 40, y: 31, text: 'Q — связать рану\n(полная катушка нити → +3)' },
+    { x: 27, y: 31, text: 'F — удар иглой\nКаждый удар копит нить', touch: 'Кнопка «Удар» — игла\nКаждый удар копит нить' },
+    { x: 40, y: 31, text: 'Q — связать рану\n(полная катушка нити → +3)', touch: '«Лечить» — связать рану\n(полная катушка нити → +3)' },
     { x: 47, y: 31, text: 'Прыгай от стен,\nчтобы подняться' },
-    { x: 64, y: 10, text: 'G — рывок, даже в воздухе' },
-    { x: 101, y: 31, text: 'Скамья: ↑ — отдохнуть.\nЗдесь ты очнёшься' },
-    { x: 155, y: 31, text: 'В прыжке S + F — удар вниз:\nотскок от колючек и врагов' },
+    { x: 64, y: 10, text: 'G — рывок, даже в воздухе', touch: '«Рывок» — даже в воздухе' },
+    { x: 101, y: 31, text: 'Скамья: ↑ — отдохнуть.\nЗдесь ты очнёшься', touch: 'Скамья: стик вверх — отдохнуть.\nЗдесь ты очнёшься' },
+    { x: 155, y: 31, text: 'В прыжке S + F — удар вниз:\nотскок от колючек и врагов', touch: 'В прыжке стик вниз + удар:\nотскок от колючек и врагов' },
   ];
   const benches = [{ x: 104, y: 33 }];
   const enemies = [
@@ -426,6 +458,86 @@ const Snd = {
   },
 };
 
+// ===== СЕНСОРНОЕ УПРАВЛЕНИЕ: стик слева, кнопки справа, пауза и полный экран =====
+const Touch = {
+  enabled: false, visible: false, bombs: false,
+  state: { left: false, right: false, up: false, down: false, jump: false, atk: false, dash: false, heal: false, bomb: false },
+  stick: null, root: null, onTap: null,
+  detect() {
+    const q = new URLSearchParams(location.search).get('touch');
+    if (q === '1') return true; if (q === '0') return false;
+    return (window.matchMedia && matchMedia('(pointer: coarse)').matches) || navigator.maxTouchPoints > 0 || 'ontouchstart' in window;
+  },
+  init() {
+    this.enabled = this.detect();
+    document.documentElement.classList.toggle('touch', this.enabled);
+    if (!this.enabled) return;
+    const root = document.createElement('div'); root.id = 'touch'; root.hidden = true; this.root = root;
+    root.innerHTML = `
+      <div class="t-zone" id="t-zone"><div class="t-base" id="t-base" hidden><div class="t-knob" id="t-knob"></div></div><span class="t-hint" id="t-hint">тяни, чтобы идти</span></div>
+      <div class="t-btns">
+        <button class="t-btn t-heal" data-act="heal" type="button" aria-label="Лечение"><b>✚</b><i>Лечить</i></button>
+        <button class="t-btn t-dash" data-act="dash" type="button" aria-label="Рывок"><b>»</b><i>Рывок</i></button>
+        <button class="t-btn t-bomb" data-act="bomb" type="button" aria-label="Дымовая бомба" hidden><b>●</b><i>Бомба</i></button>
+        <button class="t-btn t-atk" data-act="atk" type="button" aria-label="Удар"><b>⟋</b><i>Удар</i></button>
+        <button class="t-btn t-jump" data-act="jump" type="button" aria-label="Прыжок"><b>▲</b><i>Прыжок</i></button>
+      </div>
+      <button class="t-pause" id="t-pause" type="button" aria-label="Пауза">❚❚</button>`;
+    document.body.appendChild(root);
+    // кнопки: каждая следит за своим пальцем
+    root.querySelectorAll('.t-btn').forEach((b) => {
+      const act = b.dataset.act, ids = new Set();
+      const down = (e) => { e.preventDefault(); Snd.init(); ids.add(e.pointerId); try { b.setPointerCapture(e.pointerId); } catch (_) { }
+        if (!this.state[act]) { this.state[act] = true; if (this.onTap) this.onTap(act); } b.classList.add('on'); this.buzz(); };
+      const up = (e) => { ids.delete(e.pointerId); if (!ids.size) { this.state[act] = false; b.classList.remove('on'); } };
+      b.addEventListener('pointerdown', down); b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up); b.addEventListener('lostpointercapture', up);
+      b.addEventListener('contextmenu', (e) => e.preventDefault());
+    });
+    // плавающий стик
+    const zone = root.querySelector('#t-zone'), base = root.querySelector('#t-base'), knob = root.querySelector('#t-knob'), hint = root.querySelector('#t-hint');
+    let sid = null, ox = 0, oy = 0;
+    const R = 52;
+    const move = (e) => {
+      if (e.pointerId !== sid) return;
+      let dx = e.clientX - ox, dy = e.clientY - oy; const l = Math.hypot(dx, dy);
+      if (l > R) { dx = dx / l * R; dy = dy / l * R; }
+      knob.style.transform = `translate(${dx}px, ${dy}px)`;
+      const s = this.state, prevUp = s.up;
+      s.left = dx < -16; s.right = dx > 16; s.up = dy < -26; s.down = dy > 26;
+      if (s.up && !prevUp && this.onTap) this.onTap('up');
+    };
+    zone.addEventListener('pointerdown', (e) => {
+      if (sid !== null) return; e.preventDefault(); Snd.init();
+      sid = e.pointerId; ox = e.clientX; oy = e.clientY; try { zone.setPointerCapture(sid); } catch (_) { }
+      base.hidden = false; base.style.left = ox + 'px'; base.style.top = oy + 'px'; knob.style.transform = ''; hint.hidden = true;
+    });
+    zone.addEventListener('pointermove', move);
+    const end = (e) => { if (e.pointerId !== sid) return; sid = null; base.hidden = true; Object.assign(this.state, { left: false, right: false, up: false, down: false }); };
+    zone.addEventListener('pointerup', end); zone.addEventListener('pointercancel', end); zone.addEventListener('lostpointercapture', end);
+    root.querySelector('#t-pause').addEventListener('click', () => { const gs = this.game(); if (gs) gs.togglePause(); });
+    // полный экран и поворот
+    const fs = document.getElementById('fs-btn');
+    if (fs && (document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen)) {
+      fs.hidden = false;
+      fs.addEventListener('click', () => this.fullscreen());
+    }
+    document.addEventListener('fullscreenchange', () => { if (fs) fs.hidden = !!document.fullscreenElement; });
+  },
+  fullscreen() {
+    const el = document.documentElement, req = el.requestFullscreen || el.webkitRequestFullscreen;
+    if (!req) return;
+    Promise.resolve(req.call(el)).then(() => { try { screen.orientation.lock('landscape').catch(() => { }); } catch (_) { } }).catch(() => { });
+  },
+  buzz() { try { if (navigator.vibrate) navigator.vibrate(8); } catch (_) { } },
+  game() { const g = window.__game && window.__game.scene.getScene('game'); return g && g.sys.isActive() ? g : null; },
+  show(on, opts) {
+    if (!this.enabled || !this.root) return;
+    this.visible = on; this.root.hidden = !on;
+    if (opts && opts.bombs != null) this.root.querySelector('.t-bomb').hidden = !opts.bombs;
+    if (!on) for (const k in this.state) this.state[k] = false;
+  },
+};
+
 // ===== СЕТЬ: WebRTC через PeerJS (публичный сервер-«знакомитель» + TURN-ретрансляторы) =====
 const Net = {
   peer: null, conn: null, role: null, code: null, onMsg: null, onClose: null, cb: null,
@@ -610,6 +722,10 @@ class MenuScene extends Phaser.Scene {
       'Игрок 2:  стрелки   Num1 или / — прыжок   Num2 или . — удар   Num3 или , — рывок   Num0 или M — лечение   Num4 или N — дымовуха',
       'В одиночку можно и так: стрелки + Z X C V B.   Геймпад: A прыжок, X удар, B/RB рывок, Y лечение, LB дымовуха.   Esc — пауза',
     ];
+    if (Touch.enabled) ctl.splice(0, 3, 'Телефон: стик слева — идти (вверх: удар вверх, оживить напарника, скамья; вниз в прыжке: удар вниз).',
+      'Кнопки справа: прыжок, удар, рывок, лечение, а на арене Миши ещё и бомба.   Лучше держать телефон горизонтально.', 'Можно подключить геймпад по Bluetooth — он подхватится сам.');
+    document.documentElement.classList.add('in-menu');
+    this.events.once('shutdown', () => document.documentElement.classList.remove('in-menu'));
     this.add.text(VW / 2, 488, ctl.join('\n'), { fontFamily: '"Fira Sans", sans-serif', fontSize: '12px', color: '#86a89a', align: 'center', lineSpacing: 7 }).setOrigin(0.5);
 
     const k = this.input.keyboard;
@@ -787,7 +903,7 @@ class GameScene extends Phaser.Scene {
       g.fillStyle(0x2a3b33, 0.92); g.fillRoundedRect(sx - 14, sy - 50, 28, 20, 4);
       g.lineStyle(1, 0x67ad62, 0.8); g.strokeRoundedRect(sx - 14, sy - 50, 28, 20, 4);
       g.fillStyle(0x9ff0c8, 0.9); g.fillCircle(sx, sy - 40, 3);
-      const txt = this.add.text(sx, sy - 62, s.text, { fontFamily: '"Fira Sans", sans-serif', fontSize: '13px', color: '#d9ecdf', align: 'center', lineSpacing: 3, backgroundColor: 'rgba(8,18,15,0.72)', padding: { x: 8, y: 5 } }).setOrigin(0.5, 1).setDepth(8).setAlpha(0);
+      const txt = this.add.text(sx, sy - 62, Touch.enabled && s.touch ? s.touch : s.text, { fontFamily: '"Fira Sans", sans-serif', fontSize: '13px', color: '#d9ecdf', align: 'center', lineSpacing: 3, backgroundColor: 'rgba(8,18,15,0.72)', padding: { x: 8, y: 5 } }).setOrigin(0.5, 1).setDepth(8).setAlpha(0);
       s.txt = txt; s.px = sx; s.py = sy;
     }
     // скамьи
@@ -854,14 +970,19 @@ class GameScene extends Phaser.Scene {
     this.areaIdx = -1; this.events.emit('ready');
     this.input.keyboard.on('keydown-ESC', () => this.togglePause());
     this.input.keyboard.on('keydown', (e) => { Snd.init(); this.onKeyTap(e); });
+    Touch.onTap = (act) => this.onTouchTap(act);
+    Touch.show(true, { bombs: !!this.L.crates });
+    this.events.once('shutdown', () => { Touch.show(false); Touch.onTap = null; });
   }
   ui() { return this.scene.get('ui'); }
   testBoss() { return this.misha || this.vladik || this.tima; }
   speedMul() { return 1; }
   togglePause() {
     if (this.won) return;
-    if (this.online) { const u = this.ui(); u.showPause(!u.pause.visible); return; } // по сети мир не останавливаем
-    this.paused = !this.paused; this.ui().showPause(this.paused);
+    const u = this.ui();
+    if (this.online) u.showPause(!u.pause.visible); // по сети мир не останавливаем
+    else { this.paused = !this.paused; u.showPause(this.paused); }
+    Touch.show(!u.pause.visible);
   }
 
   // ----- ввод -----
@@ -876,6 +997,11 @@ class GameScene extends Phaser.Scene {
   keySets(i) {
     if (this.online && i !== this.localIdx) return [];
     return (this.nPlayers === 1 || this.online) ? [this.kb1, this.kbArrows] : (i === 0 ? [this.kb1] : [this.kb2]);
+  }
+  touchIdx() { return this.online ? this.localIdx : 0; }
+  onTouchTap(act) {
+    const p = this.players && this.players[this.touchIdx()]; if (!p || p.remote) return;
+    const pd = p.pend || (p.pend = {}); pd[act + 'P'] = true; p.tapHold = p.tapHold || {}; p.tapHold[act] = 2;
   }
   // нажатия ловим событиями: короткий тап не теряется даже при низком FPS
   onKeyTap(e) {
@@ -893,6 +1019,7 @@ class GameScene extends Phaser.Scene {
     if (this.online && i !== this.localIdx) return out;
     const sets = this.keySets(i);
     for (const s of sets) for (const n in out) if (s[n] && s[n].some((key) => key.isDown)) out[n] = true;
+    if (Touch.enabled && i === this.touchIdx()) for (const n in out) if (Touch.state[n]) out[n] = true;
     const pads = this.input.gamepad ? this.input.gamepad.gamepads.filter((p) => p && p.connected !== false) : [];
     let pad = null;
     if (solo) pad = pads[0];
@@ -1906,7 +2033,22 @@ class UIScene extends Phaser.Scene {
       'По сети каждый играет раскладкой игрока 1, а пауза не останавливает мир.',
       '', 'Esc — продолжить',
     ].join('\n'), { fontFamily: F, fontSize: '14px', color: '#b9d4c8', align: 'center', lineSpacing: 7 }).setOrigin(0.5);
-    this.pause.add([pb, pt, pc]);
+    if (Touch.enabled) pc.setText([
+      'Стик слева — идти. Вверх + удар — удар вверх, в прыжке вниз + удар — отскок.',
+      'Прыжок от стены: прижмись стиком к стене в падении и жми «Прыжок».',
+      'Лечение: когда катушка нити полна, восстанавливает 3 бутона.',
+      'Напарник в коконе: подойди и держи стик вверх одну секунду.  Скамья: стик вверх.',
+      'По сети пауза не останавливает мир.',
+    ].join('\n')).setY(270);
+    const mkB = (x, label, fn) => {
+      const t = this.add.text(x, 420, label, { fontFamily: D, fontSize: '28px', color: '#cfe8dc', fontStyle: '700', backgroundColor: 'rgba(20,48,41,0.9)', padding: { x: 18, y: 8 } })
+        .setOrigin(0.5).setInteractive({ useHandCursor: true });
+      t.on('pointerover', () => t.setColor('#ffd47a')); t.on('pointerout', () => t.setColor('#cfe8dc')); t.on('pointerdown', fn);
+      return t;
+    };
+    const bCont = mkB(VW / 2 - 150, 'Продолжить', () => this.gs.togglePause());
+    const bMenu = mkB(VW / 2 + 150, 'В главное меню', () => this.restart());
+    this.pause.add([pb, pt, pc, bCont, bMenu]);
     this.win = this.add.container(0, 0).setVisible(false);
     this.t = 0;
     this.input.keyboard.on('keydown-ENTER', () => { if (this.gs.won) this.restart(); });
@@ -1942,7 +2084,17 @@ class UIScene extends Phaser.Scene {
       : `Время: ${m}:${sec}\nБусин собрано: ${s.beads}\nОбрывов нити: ${s.deaths}\nТкачей: ${s.players}`;
     const t2 = this.add.text(VW / 2, 260, lines, { fontFamily: F, fontSize: '18px', color: '#b9d4c8', align: 'center', lineSpacing: 8 }).setOrigin(0.5, 0);
     const t3 = this.add.text(VW / 2, 440, this.gs.online ? 'Enter — в главное меню' : 'Enter — в главное меню   ·   R — ещё раз', { fontFamily: F, fontSize: '15px', color: '#ffe3a3' }).setOrigin(0.5);
-    this.win.add([bg, t1, t2, t3]); this.win.setVisible(true).setAlpha(0);
+    Touch.show(false);
+    const btn = (x, label, fn) => {
+      const t = this.add.text(x, 392, label, { fontFamily: D, fontSize: '26px', color: '#cfe8dc', fontStyle: '700', backgroundColor: 'rgba(20,48,41,0.9)', padding: { x: 16, y: 7 } })
+        .setOrigin(0.5).setInteractive({ useHandCursor: true });
+      t.on('pointerover', () => t.setColor('#ffd47a')); t.on('pointerout', () => t.setColor('#cfe8dc')); t.on('pointerdown', fn);
+      return t;
+    };
+    const extra = this.gs.online ? [btn(VW / 2, 'В главное меню', () => this.restart())]
+      : [btn(VW / 2 - 130, 'В главное меню', () => this.restart()), btn(VW / 2 + 130, 'Ещё раз', () => this.retry())];
+    if (Touch.enabled) t3.setVisible(false);
+    this.win.add([bg, t1, t2, t3, ...extra]); this.win.setVisible(true).setAlpha(0);
     this.tweens.add({ targets: this.win, alpha: 1, duration: 900 });
   }
   update(time, delta) {
@@ -2016,7 +2168,7 @@ function buildMishaArena() {
   return {
     W, H, grid: g, spawn: { x: 6, y: 17 }, benches: [], enemies: [], gates: [], exit: null,
     signs: [
-      { x: 9, y: 17, text: 'R — дымовая бомба (геймпад LB)\n↑ + R — навесом, ↓ + R — под ноги' },
+      { x: 9, y: 17, text: 'R — дымовая бомба (геймпад LB)\n↑ + R — навесом, ↓ + R — под ноги', touch: 'Кнопка «Бомба» — дымовуха\nстик вверх — навесом, вниз — под ноги' },
       { x: 14, y: 17, text: 'Иглой Мишу не пробить.\nЗакинь дымовуху ему в рюкзак!' },
     ],
     crates: [{ x: 3, y: 17 }, { x: 40, y: 17 }],
@@ -3033,6 +3185,7 @@ Object.assign(GameScene.prototype, {
   ]) : Promise.resolve();
   Promise.race([fonts, timeout]).catch(() => {}).then(() => {
     if (typeof Phaser === 'undefined') { document.querySelector('#boot p').textContent = 'Не удалось загрузить движок. Проверьте соединение и обновите страницу.'; return; }
+    Touch.init();
     Lobby.init();
     startGame();
   });
