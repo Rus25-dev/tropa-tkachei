@@ -82,6 +82,8 @@
   #touch .t-bomb { right: 166px; bottom: 112px; width: 58px; height: 58px; }
   #touch .t-pause { position: absolute; left: 50%; top: max(8px, env(safe-area-inset-top, 0px)); transform: translateX(-50%); pointer-events: auto; width: 46px; height: 34px;
     border-radius: 8px; border: 1px solid rgba(232,226,207,0.35); background: rgba(10,24,21,0.55); color: var(--bone); font: 700 13px var(--body); letter-spacing: -2px; }
+  #touch .t-fs { position: absolute; left: calc(50% + 34px); top: max(8px, env(safe-area-inset-top, 0px)); pointer-events: auto; width: 40px; height: 34px;
+    border-radius: 8px; border: 1px solid rgba(232,226,207,0.35); background: rgba(10,24,21,0.55); color: var(--bone); font: 700 16px var(--body); }
   #fs-btn { position: fixed; z-index: 4; right: max(12px, env(safe-area-inset-right, 0px)); top: max(10px, env(safe-area-inset-top, 0px)); display: none;
     font: 600 13px var(--body); color: var(--bone); background: rgba(10,24,21,0.7); border: 1px solid #3a6b5a; border-radius: 8px; padding: 8px 12px; }
   html.touch.in-menu #fs-btn:not([hidden]) { display: block; }
@@ -503,7 +505,8 @@ const Touch = {
         <button class="t-btn t-atk" data-act="atk" type="button" aria-label="Удар"><b>⟋</b><i>Удар</i></button>
         <button class="t-btn t-jump" data-act="jump" type="button" aria-label="Прыжок"><b>▲</b><i>Прыжок</i></button>
       </div>
-      <button class="t-pause" id="t-pause" type="button" aria-label="Пауза">❚❚</button>`;
+      <button class="t-pause" id="t-pause" type="button" aria-label="Пауза">❚❚</button>
+      <button class="t-fs" id="t-fs" type="button" aria-label="На весь экран" hidden>⛶</button>`;
     document.body.appendChild(root);
     // кнопки: каждая следит за своим пальцем
     root.querySelectorAll('.t-btn').forEach((b) => {
@@ -540,18 +543,32 @@ const Touch = {
     const fs = document.getElementById('fs-btn');
     const standalone = (window.matchMedia && matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches) || navigator.standalone;
     const ios = /iP(hone|od|ad)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    if (fs && !standalone && (document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen)) {
-      fs.hidden = false;
+    const canFs = !!(document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen);
+    const tfs = root.querySelector('#t-fs');
+    if (fs && !standalone && canFs) {
+      // Android и планшеты: настоящий полный экран. Первый же тап в меню включает его сам
+      fs.hidden = false; tfs.hidden = false;
       fs.addEventListener('click', () => this.fullscreen());
+      tfs.addEventListener('click', () => this.fullscreen());
+      const auto = (e) => {
+        if (e.target && e.target.closest && e.target.closest('#lobby, #ios-tip')) return;
+        document.removeEventListener('pointerup', auto, true);
+        if (!this.isFs()) this.fullscreen();
+      };
+      document.addEventListener('pointerup', auto, true);
     } else if (fs && !standalone && ios) {
-      // на iPhone полноэкранного режима нет — подсказываем установить на экран «Домой»
+      // iPhone: полноэкранного режима у сайтов нет — предлагаем поставить игру на экран «Домой»
       fs.hidden = false;
       const tip = document.getElementById('ios-tip');
       fs.addEventListener('click', () => { tip.hidden = false; });
-      document.getElementById('ios-tip-ok').addEventListener('click', () => { tip.hidden = true; });
+      document.getElementById('ios-tip-ok').addEventListener('click', () => { tip.hidden = true; try { localStorage.setItem('tt_ios_tip', '1'); } catch (_) { } });
+      let seen = false; try { seen = localStorage.getItem('tt_ios_tip') === '1'; } catch (_) { }
+      if (!seen) setTimeout(() => { tip.hidden = false; }, 1200);
     }
-    document.addEventListener('fullscreenchange', () => { if (fs) fs.hidden = !!document.fullscreenElement; });
+    const sync = () => { const on = this.isFs(); if (fs && canFs) fs.hidden = on; tfs.hidden = on || !canFs || standalone; };
+    document.addEventListener('fullscreenchange', sync); document.addEventListener('webkitfullscreenchange', sync);
   },
+  isFs() { return !!(document.fullscreenElement || document.webkitFullscreenElement); },
   fullscreen() {
     const el = document.documentElement, req = el.requestFullscreen || el.webkitRequestFullscreen;
     if (!req) return;

@@ -66,6 +66,8 @@
   #touch .t-bomb { right: 166px; bottom: 112px; width: 58px; height: 58px; }
   #touch .t-pause { position: absolute; left: 50%; top: max(8px, env(safe-area-inset-top, 0px)); transform: translateX(-50%); pointer-events: auto; width: 46px; height: 34px;
     border-radius: 8px; border: 1px solid rgba(232,226,207,0.35); background: rgba(10,24,21,0.55); color: var(--bone); font: 700 13px var(--body); letter-spacing: -2px; }
+  #touch .t-fs { position: absolute; left: calc(50% + 34px); top: max(8px, env(safe-area-inset-top, 0px)); pointer-events: auto; width: 40px; height: 34px;
+    border-radius: 8px; border: 1px solid rgba(232,226,207,0.35); background: rgba(10,24,21,0.55); color: var(--bone); font: 700 16px var(--body); }
   #fs-btn { position: fixed; z-index: 4; right: max(12px, env(safe-area-inset-right, 0px)); top: max(10px, env(safe-area-inset-top, 0px)); display: none;
     font: 600 13px var(--body); color: var(--bone); background: rgba(10,24,21,0.7); border: 1px solid #3a6b5a; border-radius: 8px; padding: 8px 12px; }
   html.touch.in-menu #fs-btn:not([hidden]) { display: block; }

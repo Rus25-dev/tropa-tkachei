@@ -22,7 +22,8 @@ const Touch = {
         <button class="t-btn t-atk" data-act="atk" type="button" aria-label="Удар"><b>⟋</b><i>Удар</i></button>
         <button class="t-btn t-jump" data-act="jump" type="button" aria-label="Прыжок"><b>▲</b><i>Прыжок</i></button>
       </div>
-      <button class="t-pause" id="t-pause" type="button" aria-label="Пауза">❚❚</button>`;
+      <button class="t-pause" id="t-pause" type="button" aria-label="Пауза">❚❚</button>
+      <button class="t-fs" id="t-fs" type="button" aria-label="На весь экран" hidden>⛶</button>`;
     document.body.appendChild(root);
     // кнопки: каждая следит за своим пальцем
     root.querySelectorAll('.t-btn').forEach((b) => {
@@ -59,18 +60,32 @@ const Touch = {
     const fs = document.getElementById('fs-btn');
     const standalone = (window.matchMedia && matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches) || navigator.standalone;
     const ios = /iP(hone|od|ad)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    if (fs && !standalone && (document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen)) {
-      fs.hidden = false;
+    const canFs = !!(document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen);
+    const tfs = root.querySelector('#t-fs');
+    if (fs && !standalone && canFs) {
+      // Android и планшеты: настоящий полный экран. Первый же тап в меню включает его сам
+      fs.hidden = false; tfs.hidden = false;
       fs.addEventListener('click', () => this.fullscreen());
+      tfs.addEventListener('click', () => this.fullscreen());
+      const auto = (e) => {
+        if (e.target && e.target.closest && e.target.closest('#lobby, #ios-tip')) return;
+        document.removeEventListener('pointerup', auto, true);
+        if (!this.isFs()) this.fullscreen();
+      };
+      document.addEventListener('pointerup', auto, true);
     } else if (fs && !standalone && ios) {
-      // на iPhone полноэкранного режима нет — подсказываем установить на экран «Домой»
+      // iPhone: полноэкранного режима у сайтов нет — предлагаем поставить игру на экран «Домой»
       fs.hidden = false;
       const tip = document.getElementById('ios-tip');
       fs.addEventListener('click', () => { tip.hidden = false; });
-      document.getElementById('ios-tip-ok').addEventListener('click', () => { tip.hidden = true; });
+      document.getElementById('ios-tip-ok').addEventListener('click', () => { tip.hidden = true; try { localStorage.setItem('tt_ios_tip', '1'); } catch (_) { } });
+      let seen = false; try { seen = localStorage.getItem('tt_ios_tip') === '1'; } catch (_) { }
+      if (!seen) setTimeout(() => { tip.hidden = false; }, 1200);
     }
-    document.addEventListener('fullscreenchange', () => { if (fs) fs.hidden = !!document.fullscreenElement; });
+    const sync = () => { const on = this.isFs(); if (fs && canFs) fs.hidden = on; tfs.hidden = on || !canFs || standalone; };
+    document.addEventListener('fullscreenchange', sync); document.addEventListener('webkitfullscreenchange', sync);
   },
+  isFs() { return !!(document.fullscreenElement || document.webkitFullscreenElement); },
   fullscreen() {
     const el = document.documentElement, req = el.requestFullscreen || el.webkitRequestFullscreen;
     if (!req) return;
