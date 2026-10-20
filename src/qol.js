@@ -21,7 +21,7 @@ const Records = {
   const step = proto.step;
   proto.step = function (dt) {
     step.call(this, dt);
-    if (this.online === 'guest') return;
+    if (this.online === 'guest' || this.train) return; // в тренировке (training.js) попытки и рекорды не считаем
     if (bossLive(this)) {
       if (!this.fightOn) {
         this.fightOn = true; this.fightT = 0;
@@ -39,7 +39,7 @@ const Records = {
   proto.respawnAll = function () { this.fightOn = false; respawnAll.call(this); };
   // запись победы
   const onWin = function (sc) {
-    if (!sc.fightOn || sc.fightWon) return; sc.fightWon = true;
+    if (!sc.fightOn || sc.fightWon || sc.train) return; sc.fightWon = true;
     const id = bossId(sc), r = Records.get(id), t = sc.fightT || 0;
     r.wins++; const rec = !r.best || t < r.best; if (rec) r.best = t; Records.put(id, r);
     sc.ui().toast(`Босс повержен за ${Records.fmt(t)}` + (rec ? ' — новый рекорд!' : ` (лучшее ${Records.fmt(r.best)})`), 4);
