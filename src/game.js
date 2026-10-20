@@ -1,5 +1,11 @@
 // ===== ИГРА: «Тропа Ткачей» — кооперативная метроидвания =====
-const VW = 960, VH = 540;
+let VW = 960; const VH = 540;
+// ширина поля подстраивается под пропорции экрана: на вытянутых телефонах без чёрных полос
+function computeVW() {
+  const w = window.innerWidth || 960, h = window.innerHeight || 540;
+  const a = Math.max(w, h) / Math.max(1, Math.min(w, h));
+  return Math.round(clamp(VH * a, 960, 1280) / 2) * 2;
+}
 const STEP = 1 / 60;
 const P = {
   G: 1500, RUN: 230, JUMP: 700, CUT: 0.45, MAXFALL: 720, COYOTE: 0.1, BUF: 0.13,
@@ -1492,10 +1498,18 @@ class UIScene extends Phaser.Scene {
 // ---------- ЗАПУСК ----------
 function startGame() {
   const el = document.getElementById('boot'); if (el) el.remove();
+  VW = computeVW();
   window.__game = new Phaser.Game({
     type: new URLSearchParams(location.search).get('canvas') ? Phaser.CANVAS : Phaser.AUTO, parent: 'game', width: VW, height: VH, backgroundColor: '#070d0c',
-    scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
+    scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.NO_CENTER },
     input: { gamepad: true }, render: { antialias: true },
     scene: [MenuScene, BGScene, GameScene, UIScene],
   });
+  // после поворота мобильные браузеры сообщают размер с опозданием — пересчитываем несколько раз
+  const refit = () => { try { window.scrollTo(0, 0); window.__game.scale.refresh(); } catch (_) { } };
+  const later = () => { refit(); setTimeout(refit, 120); setTimeout(refit, 400); setTimeout(refit, 900); };
+  window.addEventListener('resize', later);
+  window.addEventListener('orientationchange', later);
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', refit);
+  document.addEventListener('fullscreenchange', later);
 }

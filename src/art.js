@@ -185,7 +185,7 @@ function genBackgrounds(scene) {
       }
     }
   });
-  mk('vignette', 960, 540, (c, w, h) => {
+  mk('vignette', VW, 540, (c, w, h) => {
     const g = c.createRadialGradient(w / 2, h / 2, h * 0.35, w / 2, h / 2, w * 0.62);
     g.addColorStop(0, 'rgba(3,8,7,0)'); g.addColorStop(1, 'rgba(3,8,7,0.55)');
     c.fillStyle = g; c.fillRect(0, 0, w, h);

@@ -57,9 +57,17 @@ const Touch = {
     root.querySelector('#t-pause').addEventListener('click', () => { const gs = this.game(); if (gs) gs.togglePause(); });
     // полный экран и поворот
     const fs = document.getElementById('fs-btn');
-    if (fs && (document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen)) {
+    const standalone = (window.matchMedia && matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches) || navigator.standalone;
+    const ios = /iP(hone|od|ad)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (fs && !standalone && (document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen)) {
       fs.hidden = false;
       fs.addEventListener('click', () => this.fullscreen());
+    } else if (fs && !standalone && ios) {
+      // на iPhone полноэкранного режима нет — подсказываем установить на экран «Домой»
+      fs.hidden = false;
+      const tip = document.getElementById('ios-tip');
+      fs.addEventListener('click', () => { tip.hidden = false; });
+      document.getElementById('ios-tip-ok').addEventListener('click', () => { tip.hidden = true; });
     }
     document.addEventListener('fullscreenchange', () => { if (fs) fs.hidden = !!document.fullscreenElement; });
   },
