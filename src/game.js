@@ -1,9 +1,13 @@
 // ===== ИГРА: «Тропа Ткачей» — кооперативная метроидвания =====
 let VW = 960; const VH = 540;
 // версия игры; номер сборки подставляет build.py
-const GAME_VERSION = '1.1';
+const GAME_VERSION = '1.2';
 const GAME_BUILD = '__BUILD__';
 const CHANGELOG = [
+  'Казнь: оглушил босса — подойди и ударь вверх или вниз: добивающий удар, бонус нити',
+  'Шкала стойкости над боссом, разные звуки ударов по каждому боссу, замедление и вспышка на смерть босса',
+  'Новое в третьей фазе: эхо Владика, «лаги» Тимы, печатный валик Миши',
+  'Нитяной всполох больше не копит нить на своих же ударах; боссы стали выносливее и честнее',
   'Бой: третий удар подряд — тяжёлый финишер (шире, бьёт дважды)',
   'Рывок сквозь атаку — идеальный уворот: без урона, +2 нити',
   'Босса можно оглушить серией ударов: замирает и получает двойной урон',
@@ -28,18 +32,21 @@ const P = {
   G: 1500, RUN: 230, JUMP: 700, CUT: 0.45, MAXFALL: 720, COYOTE: 0.1, BUF: 0.13,
   DASH: 540, DASHT: 0.17, DASHCD: 0.45, WSLIDE: 110, WJX: 290, WJY: 600, WJLOCK: 0.16,
   POGO: 540, ATK_T: 0.12, ATK_CD: 0.26, INV: 1.0, HURT: 0.22, SILK: 9,
-  BURST: 4, PARRY_T: 0.2, PARRY_CD: 0.65, APEX_VY: 90, APEX_G: 0.55, ATKBUF: 0.14, DASHBUF: 0.12, CORNER: 7,
+  BURST: 4, HEAL: 2, HEAL_T: 1.1, PARRY_T: 0.2, PARRY_CD: 0.65, APEX_VY: 90, APEX_G: 0.55, ATKBUF: 0.14, DASHBUF: 0.12, CORNER: 7,
 };
 const PAL = [
   { name: 'Ива', tag: 'Di', cloak: 0x2f9a8a, dark: 0x1b5c53, accent: 0x9ff0dc, hex: '#8fe8d2' },
   { name: 'Ярь', tag: 'Ta', cloak: 0xd8862a, dark: 0x8a4f16, accent: 0xffd9a0, hex: '#ffc46e' },
 ];
 const MASK = 0xe8e2cf, INK = 0x10141a;
-const PERSIST_KINDS = new Set(['wave', 'rwave', 'pad', 'stamp', 'box', 'clef', 'rootspike', 'staff', 'collector', 'trophy']);
+const PERSIST_KINDS = new Set(['wave', 'rwave', 'pad', 'stamp', 'box', 'clef', 'rootspike', 'staff', 'collector', 'trophy', 'echo', 'roller']);
+// тяжёлые удары боссов отнимают 2 бутона: у них длинный телеграф, и их можно красиво избежать
+const HEAVY_KINDS = new Set(['rwave', 'wave', 'rootspike', 'stamp', 'trophy', 'bigletter', 'roller', 'echo', 'box']);
+const HEAVY_STATES = new Set(['charge', 'lunge', 'leap', 'lagFall']);
 const SLASH_KINDS = new Set(['spore', 'letter', 'note', 'bottle', 'rain', 'collector']);
 const STORY_KINDS = new Set(['spore', 'wave', 'rock']);
-const NET_KINDS = ['spore', 'wave', 'rock', 'letter', 'bigletter', 'bomb', 'clef', 'note', 'drip', 'bottle', 'pad', 'rwave', 'ringfx', 'box', 'stamp', 'rootspike', 'rain', 'staff', 'collector', 'trophy', 'staffghost'];
-const NET_SIZES = [[12, 12], [24, 18], [16, 16], [22, 26], [56, 60], [12, 12], [28, 40], [14, 18], [8, 10], [10, 22], [26, 18], [24, 18], [0, 0], [36, 22], [80, 44], [36, 70], [22, 26], [1344, 10], [22, 22], [30, 30], [1344, 0]];
+const NET_KINDS = ['spore', 'wave', 'rock', 'letter', 'bigletter', 'bomb', 'clef', 'note', 'drip', 'bottle', 'pad', 'rwave', 'ringfx', 'box', 'stamp', 'rootspike', 'rain', 'staff', 'collector', 'trophy', 'staffghost', 'echo', 'roller', 'mark'];
+const NET_SIZES = [[12, 12], [24, 18], [16, 16], [22, 26], [56, 60], [12, 12], [28, 40], [14, 18], [8, 10], [10, 22], [26, 18], [24, 18], [0, 0], [36, 22], [80, 44], [36, 70], [22, 26], [1344, 10], [22, 22], [30, 30], [1344, 0], [40, 84], [46, 52], [0, 0]];
 const BOSSES = [
   { id: 'misha', name: 'Миша Додик', about: 'Швыряется печатными буквами. Бей дымовыми бомбами в рюкзак.' },
   { id: 'vladik', name: 'Владик Скрипка', about: 'Кидает скрипичные ключи и мажет шторы слизью. Бей иглой.' },
@@ -264,8 +271,8 @@ class GameScene extends Phaser.Scene {
   init(data) { this.startData = data; this.mode = data.mode || 'story'; this.bossKind = data.boss || 'misha'; this.nPlayers = data.players || 1; this.online = data.online || null; this.localIdx = data.online === 'guest' ? 1 : 0; }
   auth() { return this.online !== 'guest'; }
   sendEv(o) { if (this.online) Net.send({ t: 'ev', ...o }); }
-  sfx(n) { Snd.play(n); if (this.online === 'host') this.sendEv({ k: 'snd', n }); }
-  burst(n, x, y, c) { this.parts.setParticleTint(c); this.parts.explode(n, x, y); if (this.online === 'host') this.sendEv({ k: 'burst', n, x: Math.round(x), y: Math.round(y), c }); }
+  sfx(n) { if (this.quiet) return; Snd.play(n); if (this.online === 'host') this.sendEv({ k: 'snd', n }); }
+  burst(n, x, y, c) { if (this.quiet) return; this.parts.setParticleTint(c); this.parts.explode(n, x, y); if (this.online === 'host') this.sendEv({ k: 'burst', n, x: Math.round(x), y: Math.round(y), c }); }
   dustAt(n, x, y) { this.dust.explode(n, x, y); if (this.online === 'host') this.sendEv({ k: 'dust', n, x: Math.round(x), y: Math.round(y) }); }
   shake(d, i) { this.cameras.main.shake(d, i); if (this.online === 'host') this.sendEv({ k: 'shake', d, i }); }
   toastAll(m) { this.ui().toast(m); this.sendEv({ k: 'toast', m }); }
@@ -532,7 +539,7 @@ class GameScene extends Phaser.Scene {
   makeBoss() {
     if (this.boss && this.boss.g) this.boss.g.destroy();
     if (!this.L.boss) { this.boss = { x: -9999, y: -9999, w: 1, h: 1, vx: 0, vy: 0, hp: 1, maxHp: 1, state: 'gone', t: 0, face: 1, flash: 0, g: this.add.graphics() }; return; }
-    const b = this.L.boss, hp = this.nPlayers === 2 ? 126 : 90;
+    const b = this.L.boss, hp = BAL.hp.boss[this.nPlayers === 2 ? 1 : 0];
     this.boss = { x: b.x * T - 36, y: (b.y + 1) * T - 58, w: 72, h: 58, vx: 0, vy: 0, hp, maxHp: hp, phase: 1, state: 'sleep', t: 0, face: -1, jumps: 0, flash: 0, last: '', air: 0, g: this.add.graphics().setDepth(4) };
     if (this.bossDead) { this.boss.state = 'gone'; }
   }
@@ -545,7 +552,10 @@ class GameScene extends Phaser.Scene {
 
   // ----- основной цикл -----
   update(time, delta) {
-    const dt = Math.min(delta, 100) / 1000;
+    const rdt = Math.min(delta, 100) / 1000;
+    let dt = rdt;
+    // замедление времени на смерть босса: сначала почти стоп, потом плавно разгоняемся
+    if (this.slowT > 0) { this.slowT -= rdt; const k = Math.max(0, this.slowT) / this.slowDur; dt = rdt * (k > 0.35 ? 0.22 : 0.22 + 0.78 * (1 - k / 0.35)); }
     this.animT += dt;
     // ввод с фронтами нажатий
     for (const p of this.players) {
@@ -602,11 +612,11 @@ class GameScene extends Phaser.Scene {
       const pr = inset(p, 2);
       for (const e of this.enemies) if (!e.dead && overlap(pr, inset(e, 2))) { this.hurtPlayer(p, 1, e.x + e.w / 2); break; }
       const b = this.boss;
-      if (p.inv <= 0 && (b.state !== 'sleep' && b.state !== 'dead' && b.state !== 'gone') && overlap(pr, inset(b, 8))) this.hurtPlayer(p, 1, b.x + b.w / 2);
+      if (p.inv <= 0 && (b.state !== 'sleep' && b.state !== 'dead' && b.state !== 'gone') && overlap(pr, inset(b, 8))) this.hurtPlayer(p, HEAVY_STATES.has(b.state) ? 2 : 1, b.x + b.w / 2);
       const m = this.misha;
-      if (m && p.inv <= 0 && !['dead', 'intro', 'cough'].includes(m.state) && overlap(pr, inset(m, 8))) this.hurtPlayer(p, 1, m.x + m.w / 2);
+      if (m && p.inv <= 0 && !['dead', 'intro', 'cough'].includes(m.state) && overlap(pr, inset(m, 8))) this.hurtPlayer(p, HEAVY_STATES.has(m.state) ? 2 : 1, m.x + m.w / 2);
       const vb = this.vladik || this.tima;
-      if (vb && p.inv <= 0 && !['dead', 'intro'].includes(vb.state) && overlap(pr, inset(vb, 8))) this.hurtPlayer(p, 1, vb.x + vb.w / 2);
+      if (vb && p.inv <= 0 && !['dead', 'intro'].includes(vb.state) && overlap(pr, inset(vb, 8))) this.hurtPlayer(p, HEAVY_STATES.has(vb.state) ? 2 : 1, vb.x + vb.w / 2);
       if (this.curtains && p.inv <= 0) for (const c of this.curtains) if (c.slime > 0 && overlap(pr, this.curtainHazard(c))) { this.hurtPlayer(p, 1, c.x + c.w / 2); break; }
     }
     // выход
@@ -615,12 +625,22 @@ class GameScene extends Phaser.Scene {
 
   stepPlayer(p, dt) {
     const inp = p.inp;
-    p.inv -= dt; p.hurtT -= dt; p.dashCd -= dt; p.bombCd -= dt; p.atkCd -= dt; p.atkT -= dt; p.wjLock -= dt; p.healT -= dt; p.coyote -= dt; p.jumpBuf -= dt; p.landT -= dt; p.atkBuf = (p.atkBuf || 0) - dt; p.comboT = (p.comboT || 0) - dt; p.parryT = (p.parryT || 0) - dt; p.parryCd = (p.parryCd || 0) - dt; p.dashBuf = (p.dashBuf || 0) - dt;
+    p.inv -= dt; p.hurtT -= dt; p.dashCd -= dt; p.bombCd -= dt; p.atkCd -= dt; p.atkT -= dt; p.wjLock -= dt; p.healT -= dt; p.coyote -= dt; p.jumpBuf -= dt; p.landT -= dt; p.atkBuf = (p.atkBuf || 0) - dt; p.comboT = (p.comboT || 0) - dt; p.parryT = (p.parryT || 0) - dt; p.parryCd = (p.parryCd || 0) - dt; p.dashBuf = (p.dashBuf || 0) - dt; p.execT = (p.execT || 0) - dt;
     if (p.downed) { p.vx *= 0.9; p.vy = Math.min(p.vy + P.G * dt, P.MAXFALL); this.moveBody(p, dt); return; }
     if (inp.jumpP) p.jumpBuf = P.BUF;
     if (inp.atkP) p.atkBuf = P.ATKBUF;
     if (inp.dashP) p.dashBuf = P.DASHBUF;
     const dir = (inp.right ? 1 : 0) - (inp.left ? 1 : 0);
+    // лечение занимает время: герой стоит на месте, любой урон прерывает его (нить потеряна)
+    if (p.healCh > 0) {
+      p.healCh -= dt; p.healT = p.healCh; p.vx = 0; p.vy = Math.min(p.vy + P.G * dt, P.MAXFALL); this.moveBody(p, dt);
+      if (Math.random() < 0.3) this.parts.explode(1, p.x + 7 + (Math.random() - 0.5) * 16, p.y + 24);
+      if (p.healCh <= 0) {
+        p.hp = Math.min(p.maxHp, p.hp + P.HEAL); p.healCh = 0; p.healT = 0.3; Snd.play('heal');
+        this.parts.setParticleTint(p.pal.accent); this.parts.explode(18, p.x + 7, p.y + 12);
+      }
+      return;
+    }
     if (p.sit) {
       if (dir || inp.jumpP || inp.down || inp.atkP || inp.dashP) p.sit = false;
       else { p.vx = 0; p.vy = Math.min(p.vy + P.G * dt, P.MAXFALL); this.moveBody(p, dt); return; }
@@ -665,7 +685,9 @@ class GameScene extends Phaser.Scene {
         p.dashT = P.DASHT; p.dashCd = P.DASHCD; if (!p.onGround) p.canDash = false; p.vy = 0; p.atkT = 0;
         Snd.play('dash');
       }
-      if (p.atkBuf > 0 && p.atkCd <= 0) {
+      if (p.atkBuf > 0 && p.atkCd <= 0 && (inp.up || inp.down) && this.tryExecute(p, inp.up ? 'u' : 'd')) {
+        p.atkBuf = 0; // казнь оглушённого босса: удар вверх/вниз рядом с ним
+      } else if (p.atkBuf > 0 && p.atkCd <= 0) {
         p.atkBuf = 0;
         p.atkDir = inp.up ? 'u' : (inp.down && !p.onGround ? 'd' : 'f');
         // комбо: третий удар подряд (в пределах 0.6 с) — тяжёлый финишер: шире, бьёт дважды, но дольше восстанавливается
@@ -678,8 +700,8 @@ class GameScene extends Phaser.Scene {
       if (inp.healP) {
         if (inp.up && p.silk >= P.BURST) this.silkBurst(p);
         else if (p.silk >= P.SILK && p.hp < p.maxHp) {
-          p.hp = Math.min(p.maxHp, p.hp + 3); p.silk = 0; p.healT = 0.6; Snd.play('heal');
-          this.parts.explode(18, p.x + 7, p.y + 12); this.parts.setParticleTint(p.pal.accent);
+          p.silk = 0; p.healCh = P.HEAL_T; p.healT = P.HEAL_T; p.atkT = 0; Snd.play('bench');
+          this.parts.setParticleTint(p.pal.accent); this.parts.explode(10, p.x + 7, p.y + 12);
         } else if (p.parryCd <= 0) { p.parryT = P.PARRY_T; p.parryCd = P.PARRY_CD; Snd.play('slash'); }
       }
     }
@@ -748,7 +770,8 @@ class GameScene extends Phaser.Scene {
     }
     if (local && p.atkDir === 'd' && !p.pogoed && this.rectHitsTile(box, SPIKE, 0.7)) { pogo(); this.parts.setParticleTint(0xffffff); this.parts.explode(5, box.x + 18, box.y + 30); }
   }
-  gainSilk(p) { if (p.remote) this.sendEv({ k: 'silk', i: p.i }); else p.silk = Math.min(P.SILK, p.silk + 1); }
+  // по боссу нить копится не с каждого удара (BAL.silkEvery): иначе лечения хватало бы на любой бой
+  gainSilk(p, boss) { if (p.noSilkGain) return; if (boss && ((p.bossHits = (p.bossHits || 0) + 1) % BAL.silkEvery)) return; if (p.remote) this.sendEv({ k: 'silk', i: p.i }); else p.silk = Math.min(P.SILK, p.silk + 1); }
   damageEnemy(e, p) {
     e.hp -= 1; e.flash = 0.1; this.gainSilk(p); if (!p.remote) this.hitstop = 0.045; this.sfx('hit');
     this.burst(8, e.x + e.w / 2, e.y + e.h / 2, 0xf4f1e6);
@@ -773,7 +796,7 @@ class GameScene extends Phaser.Scene {
       Snd.play('clink'); this.parts.setParticleTint(p.pal.accent); this.parts.explode(14, p.x + 7, p.y + 13);
       return;
     }
-    p.hp -= dmg; p.inv = P.INV; if (!p.remote) Touch.buzz(45); p.hurtT = P.HURT; p.dashT = 0; p.sit = false; p.atkT = 0;
+    p.hp -= dmg; p.inv = P.INV; if (!p.remote) Touch.buzz(45); p.hurtT = P.HURT; p.dashT = 0; p.sit = false; p.atkT = 0; p.healCh = 0; p.healT = 0;
     p.vy = spike ? 0 : -320; p.kbx = srcX == null ? 0 : ((p.x + 7 < srcX) ? -1 : 1) * 260;
     this.hitstop = 0.09; this.cameras.main.shake(160, 0.008); Snd.play('hurt');
     this.parts.setParticleTint(0xffffff); this.parts.explode(10, p.x + 7, p.y + 13);
@@ -808,7 +831,7 @@ class GameScene extends Phaser.Scene {
   respawnLocal() {
     this.players.forEach((p) => {
       if (p.remote) return;
-      Object.assign(p, { x: this.respawn.x - 7 + p.i * 24, y: this.respawn.y - 26, vx: 0, vy: 0, kbx: 0, hp: p.maxHp, downed: false, inv: 1, hurtT: 0, dashT: 0, atkT: 0, sit: false, reviveT: 0, bombs: this.L.crates ? 3 : 0 });
+      Object.assign(p, { x: this.respawn.x - 7 + p.i * 24, y: this.respawn.y - 26, vx: 0, vy: 0, kbx: 0, hp: p.maxHp, downed: false, inv: 1, hurtT: 0, dashT: 0, atkT: 0, sit: false, reviveT: 0, healCh: 0, healT: 0, bombs: this.L.crates ? 3 : 0 });
       p.safeX = p.x; p.safeY = p.y;
     });
     this.camX = this.respawn.x; this.camY = this.respawn.y - 80;
@@ -947,7 +970,7 @@ class GameScene extends Phaser.Scene {
         if (b.t <= 0) { this.rootLine(tx, phase3); b.state = 'recover'; b.t = phase3 ? 0.6 : 0.9; }
         break;
       case 'idle':
-        b.vx = 0; faceT();
+        b.vx = 0; faceT(); b.t -= dt * BAL.pace.boss;
         if (b.t <= 0) {
           const pool = ['leap', 'spores', 'charge']; if (phase2) pool.push('roots', 'roots');
           const opts = pool.filter((o) => o !== b.last);
@@ -991,7 +1014,7 @@ class GameScene extends Phaser.Scene {
         b.vx = b.face * (phase2 ? 460 : 400);
         break;
       case 'stun': b.vx = 0; if (b.t <= 0) { b.state = 'idle'; b.t = phase2 ? 0.35 : 0.6; } break;
-      case 'recover': b.vx = 0; if (b.t <= 0) { b.state = 'idle'; b.t = phase3 ? 0.25 : phase2 ? 0.35 : 0.6; } break;
+      case 'recover': b.vx = 0; b.t -= dt * BAL.pace.boss; if (b.t <= 0) { b.state = 'idle'; b.t = phase3 ? 0.25 : phase2 ? 0.35 : 0.6; } break;
     }
     b.vy = Math.min(b.vy + P.G * dt, P.MAXFALL);
     const was = b.state;
@@ -1006,7 +1029,7 @@ class GameScene extends Phaser.Scene {
   damageBoss(p) {
     const b = this.boss;
     if (b.state === 'rage') { Snd.play('clink'); return; }
-    b.hp -= 1; b.flash = 0.09; this.gainSilk(p); if (!p.remote) this.hitstop = 0.04; this.sfx('hit');
+    b.hp -= 1; b.flash = 0.09; this.gainSilk(p, true); if (!p.remote) this.hitstop = 0.04; this.sfx(this.bossHitSnd('boss', p));
     this.burst(10, clamp(p.x + 7 + p.face * 30, b.x, b.x + b.w), b.y + b.h / 2, 0xf4f1e6);
     this.ui().bossBar(true, 'Корнематка', b.hp / b.maxHp);
     if (b.hp <= 0) this.killBoss(); else this.checkPhase(b, 'Корнематка');
@@ -1024,7 +1047,7 @@ class GameScene extends Phaser.Scene {
   killBoss() {
     const b = this.boss; b.state = 'dead'; b.t = 1.4; this.bossDead = true;
     for (const pr of this.projs) pr.dead = true;
-    this.sfx('roar'); this.shake(1200, 0.01); this.hitstop = 0.25;
+    this.sfx('roar'); this.shake(1200, 0.01); this.hitstop = 0.25; this.bossDeathFx(b);
     for (let i = 0; i < 6; i++) this.time.delayedCall(i * 180, () => this.burst(24, b.x + Math.random() * b.w, b.y + Math.random() * b.h, i % 2 ? 0xffd47a : 0x9ff0c8));
     this.time.delayedCall(1300, () => {
       this.dropBeads(b.x + b.w / 2, b.y + b.h / 2, 30);
@@ -1057,11 +1080,11 @@ class GameScene extends Phaser.Scene {
       else if (pr.kind === 'note') this.stepNote(pr, dt);
       else if (pr.kind === 'drip') this.stepDrip(pr, dt);
       else if (pr.kind === 'ringfx') { this.stepTimaProj(pr, dt); continue; }
-      else if (pr.kind === 'staffghost') continue;
+      else if (pr.kind === 'staffghost' || pr.kind === 'mark') continue;
       else if (this.stepExtraProj(pr, dt)) { /* новые снаряды боссов 2.0 */ }
       else if (this.tima) this.stepTimaProj(pr, dt);
       if (pr.dead) continue;
-      for (const p of this.players) if (!p.remote && !p.downed && p.inv <= 0 && overlap(inset(p, 2), pr)) { this.hurtPlayer(p, 1, pr.x + pr.w / 2); if (!PERSIST_KINDS.has(pr.kind)) pr.dead = true; }
+      for (const p of this.players) if (!p.remote && !p.downed && p.inv <= 0 && overlap(inset(p, 2), pr)) { this.hurtPlayer(p, HEAVY_KINDS.has(pr.kind) ? 2 : 1, pr.x + pr.w / 2); if (!PERSIST_KINDS.has(pr.kind)) pr.dead = true; }
     }
     this.projs = this.projs.filter((pr) => !pr.dead);
   }
@@ -1108,10 +1131,10 @@ class GameScene extends Phaser.Scene {
     const mi = this.misha, vl = this.vladik, tm = this.tima, r10 = (x) => Math.round(x * 10) / 10;
     return { t: 's',
       e: this.enemies.map((e) => [r(e.x), r(e.y), e.face, e.dead ? 1 : 0, e.flash > 0 ? 1 : 0, st(e)]),
-      b: [r(b.x), r(b.y), b.face, b.hp, b.maxHp, b.state, b.flash > 0 ? 1 : 0, Math.round(b.t * 100) / 100],
+      b: [r(b.x), r(b.y), b.face, b.hp, b.maxHp, b.state, b.flash > 0 ? 1 : 0, Math.round(b.t * 100) / 100, this.packPoise(b)],
       pr: this.projs.map((q) => [NET_KINDS.indexOf(q.kind), r(q.x), r(q.y), r(q.vx), r(q.vy), q.delay > 0 ? 1 : 0, q.ch || (q.kind === 'ringfx' ? r(q.r) : '')]),
-      vl: vl ? [r(vl.x), r(vl.y), vl.face, vl.hp, vl.maxHp, vl.state, vl.flash > 0 ? 1 : 0, r10(vl.t), vl.sayT > 0 ? vl.say : '', this.curtains.map((c) => [r10(c.slime), Math.round(c.wet * 100) / 100])] : null,
-      tm: tm ? [r(tm.x), r(tm.y), tm.face, tm.hp, tm.maxHp, tm.state, tm.flash > 0 ? 1 : 0, r10(tm.t), tm.sayT > 0 ? tm.say : '', r10(tm.hyper), this.repo ? 1 : 0, this.puddles.map((q) => [r(q.x), q.w, r(q.y), r10(q.t)])] : null,
+      vl: vl ? [r(vl.x), r(vl.y), vl.face, vl.hp, vl.maxHp, vl.state, vl.flash > 0 ? 1 : 0, r10(vl.t), vl.sayT > 0 ? vl.say : '', this.curtains.map((c) => [r10(c.slime), Math.round(c.wet * 100) / 100]), this.packPoise(vl)] : null,
+      tm: tm ? [r(tm.x), r(tm.y), tm.face, tm.hp, tm.maxHp, tm.state, tm.flash > 0 ? 1 : 0, r10(tm.t), tm.sayT > 0 ? tm.say : '', r10(tm.hyper), this.repo ? 1 : 0, this.puddles.map((q) => [r(q.x), q.w, r(q.y), r10(q.t)]), this.packPoise(tm)] : null,
       td: this.td ? [this.td.state, this.td.lane, r(this.td.mx), this.td.blocks, this.td.need, this.td.sayT > 0 ? this.td.say : ''] : null,
       mi: mi ? [r(mi.x), r(mi.y), mi.face, mi.hp, mi.maxHp, mi.state, mi.flash > 0 ? 1 : 0, Math.round(mi.t * 100) / 100, mi.sayT > 0 ? mi.say : '', r10(mi.zipT || 0)] : null,
       bd: this.beadsArr.map((d) => [r(d.x), r(d.y)]), bc: this.beads,
@@ -1143,7 +1166,7 @@ class GameScene extends Phaser.Scene {
     });
     const b = this.boss, B = m.b;
     if (b.tx == null || Math.abs(b.x - B[0]) > 140) { b.x = B[0]; b.y = B[1]; }
-    b.tx = B[0]; b.ty = B[1]; b.face = B[2]; b.hp = B[3]; b.maxHp = B[4]; b.state = B[5]; if (B[6]) b.flash = 0.09; b.t = B[7];
+    b.tx = B[0]; b.ty = B[1]; b.face = B[2]; b.hp = B[3]; b.maxHp = B[4]; b.state = B[5]; if (B[6]) b.flash = 0.09; b.t = B[7]; this.unpackPoise(b, B[8]);
     const old = this.projs;
     this.projs = m.pr.map((a, i) => {
       const q = { kind: NET_KINDS[a[0]], x: a[1], y: a[2], vx: a[3], vy: a[4], delay: a[5] ? 1 : 0, ch: a[6], w: NET_SIZES[a[0]][0], h: NET_SIZES[a[0]][1], life: 1 };
@@ -1151,16 +1174,17 @@ class GameScene extends Phaser.Scene {
       q.rot = old[i] && old[i].kind === q.kind ? old[i].rot || 0 : 0;
       return q;
     });
-    const syncBoss = (bb, A, name, flagKey) => {
-      if (bb.tx == null || Math.abs(bb.x - A[0]) > 140) { bb.x = A[0]; bb.y = A[1]; }
+    const syncBoss = (bb, A, name, flagKey, pzIdx) => {
+      if (bb.tx == null || Math.abs(bb.x - A[0]) > 140 || Math.abs(bb.y - A[1]) > 220) { bb.x = A[0]; bb.y = A[1]; }
+      this.unpackPoise(bb, A[pzIdx]);
       bb.tx = A[0]; bb.ty = A[1]; bb.face = A[2]; bb.hp = A[3]; bb.maxHp = A[4]; bb.state = A[5]; if (A[6]) bb.flash = 0.09; bb.t = A[7];
       if (A[8]) { bb.say = A[8]; bb.sayT = 0.2; }
       const show = bb.state !== 'dead';
       if (show !== !!this[flagKey]) { this[flagKey] = show; this.ui().bossBar(show, name); }
       if (show) this.ui().bossBar(true, null, Math.max(0, bb.hp) / bb.maxHp);
     };
-    if (m.vl && this.vladik) { syncBoss(this.vladik, m.vl, 'Владик Скрипка', '_vb'); m.vl[9].forEach((c, i) => { if (this.curtains[i]) { this.curtains[i].slime = c[0]; this.curtains[i].wet = c[1]; } }); }
-    if (m.tm && this.tima) { syncBoss(this.tima, m.tm, 'Тима Пиво', '_tb'); this.tima.hyper = m.tm[9]; this.setRepo(!!m.tm[10]); this.puddles = m.tm[11].map((q) => ({ x: q[0], w: q[1], y: q[2], t: q[3] })); }
+    if (m.vl && this.vladik) { syncBoss(this.vladik, m.vl, 'Владик Скрипка', '_vb', 10); m.vl[9].forEach((c, i) => { if (this.curtains[i]) { this.curtains[i].slime = c[0]; this.curtains[i].wet = c[1]; } }); }
+    if (m.tm && this.tima) { syncBoss(this.tima, m.tm, 'Тима Пиво', '_tb', 12); this.tima.hyper = m.tm[9]; this.setRepo(!!m.tm[10]); this.puddles = m.tm[11].map((q) => ({ x: q[0], w: q[1], y: q[2], t: q[3] })); }
     if (m.td && !this.td) this.tdBegin(true);
     if (!m.td && this.td) this.tdEnd(false, true);
     if (m.td && this.td) { const d = m.td; Object.assign(this.td, { state: d[0], lane: d[1], mx: d[2], blocks: d[3], need: d[4] }); if (d[5]) { this.td.say = d[5]; this.td.sayT = 0.2; } }
@@ -1205,6 +1229,9 @@ class GameScene extends Phaser.Scene {
       case 'shake': this.cameras.main.shake(m.d, m.i); break;
       case 'toast': this.ui().toast(m.m); break;
       case 'flash': this.cameras.main.flash(260, 255, 240, 220); break;
+      case 'deathfx': this.deathFxLocal(); break;
+      case 'execfx': { const q = this.players[m.i]; if (q && q.remote) { q.execT = 0.4; q.execDir = m.d; } this.execFxLocal(m.x, m.y, m.d); break; }
+      case 'exec': if (this.auth()) { const q = this.players[m.i], kit = q && this.execKit(m.key); if (q && kit) this.execBoss(q, kit, m.d); } break;
       case 'kb': this.knockFrom(m.x); break;
       case 'silk': { const p = this.players[m.i]; if (p && !p.remote) p.silk = Math.min(P.SILK, p.silk + 1); break; }
       case 'bench':
@@ -1231,7 +1258,7 @@ class GameScene extends Phaser.Scene {
       const ex = Math.min(p.netT, 0.12), tx = p.tx + p.vx * ex, ty = p.ty + (p.onGround ? 0 : p.vy * ex);
       if (Math.abs(tx - p.x) > 160 || Math.abs(ty - p.y) > 160) { p.x = tx; p.y = ty; } else { p.x += (tx - p.x) * k; p.y += (ty - p.y) * k; }
       if (p.dashT > 0) { p.dashT -= dt; p.trail.push({ x: p.x + 7, y: p.y + 26, a: 1, f: p.face }); }
-      p.inv -= dt; p.healT -= dt; p.landT -= dt;
+      p.inv -= dt; p.healT -= dt; p.landT -= dt; p.execT = (p.execT || 0) - dt;
       for (const tr of p.trail) tr.a -= dt * 5;
       p.trail = p.trail.filter((tr) => tr.a > 0);
     }
@@ -1257,7 +1284,7 @@ class GameScene extends Phaser.Scene {
   guestProjHits() {
     for (const p of this.players) {
       if (p.remote || p.downed || p.inv > 0) continue;
-      for (const pr of this.projs) if (!pr.dead && !pr.delay && pr.kind !== 'bomb' && pr.kind !== 'ringfx' && pr.kind !== 'staffghost' && overlap(inset(p, 2), pr)) { this.hurtPlayer(p, 1, pr.x + pr.w / 2); if (!PERSIST_KINDS.has(pr.kind)) pr.dead = true; break; }
+      for (const pr of this.projs) if (!pr.dead && !pr.delay && pr.kind !== 'bomb' && pr.kind !== 'ringfx' && pr.kind !== 'staffghost' && pr.kind !== 'mark' && overlap(inset(p, 2), pr)) { this.hurtPlayer(p, HEAVY_KINDS.has(pr.kind) ? 2 : 1, pr.x + pr.w / 2); if (!PERSIST_KINDS.has(pr.kind)) pr.dead = true; break; }
     }
     this.projs = this.projs.filter((q) => !q.dead);
   }
@@ -1352,6 +1379,7 @@ class GameScene extends Phaser.Scene {
     if (this.vladik) this.drawVladikProjs(now);
     if (this.tima) { this.drawTimaProjs(now); this.drawStampLabels(); }
     this.drawExtraProjs(now);
+    this.drawPoiseBars(now);
     // бусины
     for (const bd of this.beadsArr) {
       fx.fillStyle(0xffd47a, 0.25); fx.fillCircle(bd.x + 4, bd.y + 4, 7);
@@ -1521,14 +1549,16 @@ class UIScene extends Phaser.Scene {
       'Игрок 2:  стрелки · Num1 или / — прыжок · Num2 или . — удар · Num3 или , — рывок · Num0 или M — лечение · Num4 или N — дымовуха',
       '', 'Удар вверх: держи ↑ + удар.  Удар вниз в прыжке: ↓ + удар — отскок от колючек и врагов.',
       'Прыжок от стены: прижмись к стене в падении и прыгни.  Спрыгнуть с платформы: ↓ + прыжок.',
-      'Лечение: когда катушка нити полна, восстанавливает 3 бутона.',
+      'Оглушённого босса (полоска над ним) можно казнить: подойди и ударь вверх или вниз.  Отбив: кнопка лечения (без ↑) в миг удара врага, если лечиться нельзя.',
+      'Лечение: когда катушка нити полна, 1.1 с стоишь на месте и восстанавливаешь 2 бутона; урон прерывает лечение.',
       'Напарник в коконе: подойди и держи ↑ одну секунду.  Скамья (↑) лечит и оживляет.',
       'По сети каждый играет раскладкой игрока 1, а пауза не останавливает мир.',
     ].join('\n'), { fontFamily: F, fontSize: '14px', color: '#b9d4c8', align: 'center', lineSpacing: 7 }).setOrigin(0.5).setY(285);
     if (Touch.enabled) pc.setText([
       'Стик слева — идти. Вверх + удар — удар вверх, в прыжке вниз + удар — отскок.',
       'Прыжок от стены: прижмись стиком к стене в падении и жми «Прыжок».  Спрыгнуть с платформы: стик вниз + «Прыжок».',
-      'Лечение: когда катушка нити полна, восстанавливает 3 бутона.',
+      'Оглушённого босса (полоска над ним) можно казнить: подойди и ударь вверх или вниз (стик).',
+      'Лечение: когда катушка нити полна, стоишь 1.1 с и восстанавливаешь 2 бутона; урон прерывает лечение.',
       'Напарник в коконе: подойди и держи стик вверх одну секунду.  Скамья: стик вверх.',
       'По сети пауза не останавливает мир.',
     ].join('\n')).setY(270);
@@ -1578,7 +1608,7 @@ class UIScene extends Phaser.Scene {
     g.fillStyle(0x2a2620, 1); g.fillRect(G.x0, G.lanes[0].y0, G.x1 - G.x0, G.lanes[2].y1 - G.lanes[0].y0);
     G.lanes.forEach((ln, i) => {
       for (let x = G.x0; x < G.x1; x += 32) { g.fillStyle((x / 32 + i) % 2 ? 0x312c25 : 0x2a2620, 1); g.fillRect(x, ln.y0, 32, ln.y1 - ln.y0); }
-      if (i === td.lane && (td.state === 'tele' || td.state === 'walk')) { g.fillStyle(0xff6a4a, td.state === 'tele' ? 0.18 + Math.sin(now * 14) * 0.08 : 0.07); g.fillRect(G.x0, ln.y0, G.x1 - G.x0, ln.y1 - ln.y0); }
+      if (i === td.lane && (td.state === 'tele' || td.state === 'walk' || td.state === 'feint')) { g.fillStyle(0xff6a4a, td.state === 'tele' ? 0.18 + Math.sin(now * 14) * 0.08 : td.state === 'feint' ? 0.3 + Math.sin(now * 26) * 0.12 : 0.07); g.fillRect(G.x0, ln.y0, G.x1 - G.x0, ln.y1 - ln.y0); }
     });
     for (const w of G.walls) { g.fillStyle(0x5a6a62, 1); g.fillRect(w.x, w.y, w.w, w.h); g.fillStyle(0x7f9087, 1); g.fillRect(w.x, w.y, w.w, 3); }
     // старт и выход

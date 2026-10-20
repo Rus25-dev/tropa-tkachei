@@ -64,6 +64,17 @@ const Snd = {
       case 'coin': [0, 90].forEach((d, i) => setTimeout(() => this.tone('square', i ? 1320 : 990, i ? 1320 : 990, 0.12, 0.05), d)); break;
       case 'sparkle': for (let i = 0; i < 5; i++) setTimeout(() => this.tone('sine', 1500 + Math.random() * 1500, 2500, 0.1, 0.04), i * 60); break;
       case 'buzz': this.tone('square', 120, 120, 0.35, 0.05); this.tone('square', 123, 123, 0.35, 0.05); break;
+      // удары по боссам: у каждого свой тембр, у оглушённого и у финишера — свои
+      case 'hitWood': this.tone('triangle', 190, 60, 0.14, 0.26); this.tone('square', 95, 50, 0.1, 0.1); this.hiss(0.07, 0.16, 700, 1.2); break;
+      case 'hitString': this.tone('sawtooth', 540, 330, 0.17, 0.11); this.tone('triangle', 810, 610, 0.13, 0.08); this.hiss(0.04, 0.1, 2600, 2); break;
+      case 'hitDull': this.tone('sine', 150, 55, 0.2, 0.32); this.hiss(0.06, 0.14, 340, 0.8); break;
+      case 'hitCrit': this.tone('triangle', 320, 90, 0.15, 0.26); this.tone('square', 1250, 700, 0.1, 0.08); this.hiss(0.06, 0.2, 1900, 1.5); break;
+      case 'hitHeavy': this.tone('triangle', 140, 45, 0.24, 0.32); this.tone('sawtooth', 230, 100, 0.15, 0.1); this.hiss(0.12, 0.26, 520, 0.8); break;
+      case 'stagger': this.hiss(0.28, 0.3, 300, 0.7); this.tone('sine', 85, 32, 0.5, 0.34); this.tone('square', 960, 380, 0.14, 0.08); this.tone('triangle', 1400, 1400, 0.3, 0.05); break;
+      case 'exec': this.hiss(0.35, 0.34, 1400, 0.7); this.tone('sawtooth', 700, 120, 0.3, 0.16); this.tone('sine', 70, 28, 0.6, 0.4); setTimeout(() => { this.tone('triangle', 1760, 1760, 0.4, 0.09); this.tone('triangle', 2349, 2349, 0.5, 0.06); }, 110); break;
+      case 'bossdie': this.tone('sawtooth', 220, 30, 1.6, 0.2); this.hiss(1.4, 0.2, 200, 0.5); this.tone('sine', 60, 25, 1.8, 0.4); [0, 300, 600].forEach((d, i) => setTimeout(() => this.tone('triangle', 880 - i * 200, 440 - i * 100, 0.6, 0.06), d + 500)); break;
+      case 'bag': this.tone('sine', 120, 60, 0.16, 0.28); this.hiss(0.12, 0.2, 420, 0.7); break;
+      case 'parry': this.tone('square', 1900, 1500, 0.07, 0.06); this.tone('triangle', 2800, 2300, 0.14, 0.06); this.tone('sine', 1400, 1400, 0.2, 0.05); break;
       case 'win': [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => this.tone('triangle', f, f, 0.5, 0.12), i * 140)); break;
     }
   },

@@ -160,7 +160,7 @@ Object.assign(GameScene.prototype, {
   },
   makeVladik() {
     if (this.vladik && this.vladik.g) this.vladik.g.destroy();
-    const d = this.L.vladik, hp = this.nPlayers === 2 ? 98 : 70;
+    const d = this.L.vladik, hp = BAL.hp.vladik[this.nPlayers === 2 ? 1 : 0];
     this.vladik = { x: d.x * T - 22, y: (d.y + 1) * T - 84, w: 44, h: 84, vx: 0, vy: 0, face: -1, hp, maxHp: hp, phase: 1, state: 'intro', t: 3.2,
       flash: 0, last: '', say: 'Я НЕ СКРИПКА!', sayT: 2.2, sayCd: 0, barShown: false, air: 0, target: null, g: this.add.graphics().setDepth(4) };
     if (this.curtains) for (const c of this.curtains) { c.slime = 0; c.wet = 0; }
@@ -187,6 +187,15 @@ Object.assign(GameScene.prototype, {
     switch (v.state) {
       case 'intro': v.vx = 0; if (v.t <= 0) { v.state = 'idle'; v.t = 0.7; } break;
       case 'rage': v.vx = 0; if (v.t <= 0) { v.state = 'idle'; v.t = 0.3; } break;
+      // эхо (третья фаза): призрак Владика мчится от стены за спиной героя, а сам Владик делает выпад
+      case 'echoWind':
+        v.vx = 0; v.face = tx > vcx ? 1 : -1;
+        if (v.t <= 0) {
+          const side = tx > vcx ? 1 : -1, wallX = side > 0 ? (this.L.W - 1) * T - 40 : T;
+          this.projs.push({ kind: 'echo', x: wallX, y: this.L.floorY * T - 84, w: 40, h: 84, vx: -side * 600, vy: 0, life: 4, delay: 0.6 });
+          this.sfx('violin'); v.state = 'lungeWind'; v.t = 0.4; v.face = side;
+        }
+        break;
       case 'staffWind':
         v.vx = 0;
         if (v.t <= 0) { this.vladikStaff(phase3); v.state = 'recover'; v.t = 1.5; }
@@ -197,6 +206,7 @@ Object.assign(GameScene.prototype, {
         if (v.t <= 0 || v.hitL || v.hitR) { v.state = 'recover'; v.t = 0.75; v.vx = 0; }
         break;
       case 'idle':
+        v.t -= dt * BAL.pace.vladik;
         v.face = tx > vcx ? 1 : -1;
         v.vx = Math.abs(tx - vcx) > 160 ? v.face * 90 : 0;
         // крещендо: в третьей фазе ноты падают с потолка
@@ -205,6 +215,7 @@ Object.assign(GameScene.prototype, {
           const slimed = this.curtains.filter((c) => c.slime > 0).length;
           let opts = ['clef', 'leap', 'smear', 'lunge'];
           if (phase2) opts.push('staff', 'staff');
+          if (phase3) opts.push('echo', 'echo');
           opts = opts.filter((o) => o !== v.last);
           if (slimed >= 3) opts = opts.filter((o) => o !== 'smear');
           const pick = opts[Math.floor(Math.random() * opts.length)]; v.last = pick; v.vx = 0;
@@ -212,6 +223,7 @@ Object.assign(GameScene.prototype, {
           if (pick === 'leap') { v.state = 'leapWind'; v.t = 0.4; }
           if (pick === 'smear') this.vladikPickCurtain(phase2);
           if (pick === 'staff') { v.state = 'staffWind'; v.t = 0.55; this.vladikSpeak('НОТНЫЙ СТАН! ПО ЛИНЕЕЧКАМ!', 1.6); this.sfx('violin'); }
+          if (pick === 'echo') { v.state = 'echoWind'; v.t = 0.7; this.vladikSpeak('ЭХО! ДУЭТОМ!', 1.5); this.sfx('violin'); }
           if (pick === 'lunge') { v.state = 'lungeWind'; v.t = phase3 ? 0.38 : 0.5; this.vladikSpeak('ВЫПАД!', 1.0); }
         }
         break;
@@ -261,7 +273,7 @@ Object.assign(GameScene.prototype, {
         }
         break;
       }
-      case 'recover': v.vx = 0; if (v.t <= 0) { v.state = 'idle'; v.t = phase3 ? 0.25 : phase2 ? 0.35 : 0.6; } break;
+      case 'recover': v.vx = 0; v.t -= dt * BAL.pace.vladik; if (v.t <= 0) { v.state = 'idle'; v.t = phase3 ? 0.25 : phase2 ? 0.35 : 0.6; } break;
     }
     v.vy = Math.min(v.vy + P.G * dt, P.MAXFALL);
     this.moveBody(v, dt);
@@ -288,7 +300,7 @@ Object.assign(GameScene.prototype, {
   damageVladik(p) {
     const v = this.vladik;
     if (v.state === 'rage') { Snd.play('clink'); return; }
-    v.hp -= 1; v.flash = 0.09; this.gainSilk(p); if (!p.remote) this.hitstop = 0.04; this.sfx('hit'); this.needleHits++;
+    v.hp -= 1; v.flash = 0.09; this.gainSilk(p, true); if (!p.remote) this.hitstop = 0.04; this.sfx(this.bossHitSnd('vladik', p)); this.needleHits++;
     this.burst(9, clamp(p.x + 7 + p.face * 26, v.x, v.x + v.w), v.y + v.h / 2, 0xf4f1e6);
     this.ui().bossBar(true, 'Владик Скрипка', Math.max(0, v.hp) / v.maxHp);
     if (v.sayCd <= 0 && Math.random() < 0.35) { this.vladikSpeak(VLADIK_SAY_HIT[Math.floor(Math.random() * VLADIK_SAY_HIT.length)], 1.2); v.sayCd = 2.5; }
@@ -296,12 +308,12 @@ Object.assign(GameScene.prototype, {
     if (v.hp <= 0) this.vladikDie();
   },
   vladikDie() {
-    const v = this.vladik; v.state = 'dead'; v.t = 2.6; v.vx = 0; this.bossDead = true;
+    const v = this.vladik; v.state = 'dead'; v.t = 2.6; v.vx = 0; this.bossDead = true; this.bossDeathFx();
     for (const pr of this.projs) pr.dead = true;
     for (const c of this.curtains) c.slime = Math.min(c.slime, 1);
     this.vladikSpeak('ЛАДНО… Я СКРИПКА…', 2.4); this.sfx('violin'); this.shake(700, 0.008);
     for (let i = 0; i < 6; i++) this.time.delayedCall(i * 170, () => this.burst(18, v.x + Math.random() * v.w, v.y + Math.random() * v.h, i % 2 ? 0xffd47a : 0xf4efe0));
-    this.time.delayedCall(2700, () => { this.ui().bossBar(false); this.win(); });
+    this.time.delayedCall(3300, () => { this.ui().bossBar(false); this.win(); });
   },
   stepClef(pr, dt) {
     if (pr.t0 > 0) { pr.t0 -= dt; return; }
@@ -354,7 +366,7 @@ Object.assign(GameScene.prototype, {
     const v = this.vladik, g = v.g; g.clear();
     const f = v.face, fl = v.flash > 0, dead = v.state === 'dead';
     g.setAlpha(dead ? clamp(v.t / 1.2, 0, 1) : 1);
-    const shake = ['clefWind', 'leapWind'].includes(v.state) ? Math.sin(now * 70) * 1.5 : 0;
+    const shake = ['clefWind', 'leapWind', 'echoWind'].includes(v.state) ? Math.sin(now * 70) * 1.5 : 0;
     const cx = v.x + v.w / 2 + shake, fy = v.y + v.h;
     const walk = Math.abs(v.vx) > 5, legA = walk ? Math.sin(now * 14) * 5 : 0;
     const squat = v.state === 'leapWind' ? 6 : 0;
@@ -398,7 +410,15 @@ Object.assign(GameScene.prototype, {
     const fx = this.fx;
     for (const pr of this.projs) {
       if (pr.kind === 'clef') { if (pr.t0 > 0) continue; drawClef(fx, pr.x + 14, pr.y + 20, 1.05, pr.rot, 0xf4efe0); }
-      else if (pr.kind === 'note') {
+      else if (pr.kind === 'echo') {
+        const warn = pr.delay > 0, a = warn ? 0.22 + Math.sin(now * 24) * 0.1 : 0.7, f = pr.vx > 0 ? 1 : -1, cx = pr.x + 20, fy = pr.y + 84;
+        if (!warn) for (let i = 1; i <= 4; i++) { fx.fillStyle(0xf4efe0, a * 0.2 / i); fx.fillEllipse(cx - f * i * 24, fy - 40, 30, 70); }
+        fx.fillStyle(0xe8d9b0, a); fx.fillEllipse(cx, fy - 22, 36, 30); fx.fillEllipse(cx, fy - 46, 28, 26);
+        fx.fillStyle(0xc0712f, a * 0.8); fx.fillEllipse(cx - 4, fy - 24, 12, 16);
+        fx.fillStyle(0xd9b98f, a); fx.fillCircle(cx + 3 * f, fy - 72, 12);
+        fx.lineStyle(2, 0xf4efe0, a); fx.lineBetween(cx + 10 * f, fy - 50, cx + 32 * f, fy - 34);
+        if (warn) { fx.fillStyle(0xff9a7a, 0.55 + Math.sin(now * 20) * 0.2); for (let k = 0; k < 4; k++) { const ax = cx + f * (46 + k * 30); fx.fillTriangle(ax, fy - 6, ax - f * 12, fy - 14, ax - f * 12, fy + 2); } }
+      } else if (pr.kind === 'note') {
         const x = pr.x + 7, y = pr.y + 14;
         fx.fillStyle(0x1a1410, 1); fx.fillEllipse(x, y, 13, 10); fx.fillStyle(0xffd47a, 1); fx.fillEllipse(x, y, 10, 7.5);
         fx.fillStyle(0xffd47a, 1); fx.fillRect(x + 3.5, y - 16, 2.2, 16); fx.fillTriangle(x + 5.5, y - 16, x + 12, y - 9, x + 5.5, y - 11);

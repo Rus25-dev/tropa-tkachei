@@ -5,7 +5,7 @@ Object.assign(GameScene.prototype, {
     p.inv = 0.5; p.parryT = 0; p.parryCd = 0.15;
     if (!p.remote) { p.silk = Math.min(P.SILK, p.silk + 1); this.hitstop = 0.1; }
     const cx = p.x + 7, cy = p.y + 13;
-    Snd.play('clink'); this.cameras.main.flash(90, 255, 255, 255);
+    Snd.play('parry'); this.cameras.main.flash(90, 255, 255, 255);
     this.parts.setParticleTint(0xffffff); this.parts.explode(18, cx + p.face * 10, cy);
     for (const pr of this.projs) if (!pr.dead && pr.kind !== 'bomb' && Math.hypot(pr.x - cx, pr.y - cy) < 110) { pr.dead = true; this.burst(5, pr.x, pr.y, 0xffffff); }
     for (const e of this.enemies) if (!e.dead && Math.hypot(e.x + e.w / 2 - cx, e.y + e.h / 2 - cy) < 100) { e.kbT = 0.2; e.kbx = Math.sign(e.x - cx) * 300; e.kby = -120; e.flash = 0.1; if (e.state === 'charge') { e.state = 'stun'; e.st = 0.8; } }
@@ -22,13 +22,14 @@ Object.assign(GameScene.prototype, {
     this.silkBurstHit(p, cx, cy);
   },
   silkBurstHit(p, cx, cy) {
-    const R = 120;
+    const R = 120; p.noSilkGain = true; // всполох нить не копит: иначе он оплачивал бы сам себя
     for (const pr of this.projs) if (!pr.dead && pr.kind !== 'bomb' && Math.hypot(pr.x - cx, pr.y - cy) < R) pr.dead = true;
     for (const e of this.enemies) if (!e.dead && Math.hypot(e.x + e.w / 2 - cx, e.y + e.h / 2 - cy) < R) { this.damageEnemy(e, p); if (!e.dead) this.damageEnemy(e, p); }
     for (const [b, fn] of [[this.boss, 'damageBoss'], [this.vladik, 'damageVladik'], [this.tima, 'damageTima']]) {
       if (!b || ['dead', 'gone', 'sleep', 'intro'].includes(b.state)) continue;
       if (Math.hypot(b.x + b.w / 2 - cx, b.y + b.h / 2 - cy) < R + b.w / 2) { for (let i = 0; i < 3 && !['dead', 'gone'].includes(b.state); i++) this[fn](p); }
     }
+    p.noSilkGain = false;
   },
   // ----- предметы-способности на карте -----
   initItems() {
@@ -58,6 +59,11 @@ Object.assign(GameScene.prototype, {
   },
   drawPlayerFx(p, g) {
     if (p.parryT > 0) { g.lineStyle(2.5, 0xffffff, 0.9); g.strokeCircle(0, -14, 20 + (P.PARRY_T - p.parryT) * 50); }
+    if (p.execT > 0) { // казнь: огромный росчерк вверх или вниз
+      const k = p.execT / 0.42, up = p.execDir === 'u', dy = up ? -1 : 1, f = p.face;
+      g.lineStyle(7, 0xfff6d8, k); g.beginPath(); g.arc(f * 8, -14 + dy * 6, 50 + (1 - k) * 22, up ? -Math.PI * 0.95 : Math.PI * 0.05, up ? -Math.PI * 0.05 : Math.PI * 0.95, false); g.strokePath();
+      g.lineStyle(3, p.pal.accent, k); g.beginPath(); g.arc(f * 8, -14 + dy * 6, 62 + (1 - k) * 22, up ? -Math.PI * 0.9 : Math.PI * 0.1, up ? -Math.PI * 0.1 : Math.PI * 0.9, false); g.strokePath();
+    }
     if (p.burstFx > 0) { const r = 120 * (1 - p.burstFx / 0.35); g.lineStyle(3, p.pal.accent, p.burstFx / 0.35); g.strokeCircle(0, -14, r); p.burstFx -= 0.016; }
   },
 });
