@@ -9,7 +9,7 @@ const { chromium } = require('playwright-core');
 const { Bridge, phaserSrc } = require('./lib-bridge.js');
 const argv = process.argv.slice(2), cmd = argv[0] || 'verify';
 const flag = (n, d) => { const a = argv.find((x) => x.startsWith('--' + n + '=')); return a ? a.split('=').slice(1).join('=') : d; };
-const dir = path.resolve(flag('out', flag('dir', path.join(__dirname, '../tests/golden'))));
+const dir = path.resolve(flag('out', flag('dir', path.join(__dirname, '../../tests/golden'))));
 const INDEX = path.resolve(flag('html', path.join(__dirname, '../index.html')));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const until = async (p, f, ms, arg) => { try { await p.waitForFunction(f, arg, { timeout: ms || 20000, polling: 100 }); return true; } catch (_) { return false; } };

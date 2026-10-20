@@ -1,25 +1,43 @@
 {
   "name": "tropa-tkachei",
-  "version": "1.8.2",
+  "version": "2.0.0-dev",
   "private": true,
-  "description": "Тропа Ткачей — кооперативная метроидвания в браузере. Инструменты сборки и автотестов.",
+  "type": "module",
+  "description": "Тропа Ткачей v2: Phaser 4 + TypeScript + Vite. Старая игра v1.8 лежит в legacy/.",
+  "engines": { "node": ">=22" },
   "scripts": {
-    "build": "python3 build.py",
-    "test": "npm run build && node tools/smoke.js story 2000 && node tools/smoke.js misha 2000 && node tools/smoke.js vladik 2000 && node tools/smoke.js tima 2000 && node tools/smoke.js enemies2 2000 && node tools/mishatest.js && node tools/padtest.js && node tools/race-net-test.js",
-    "test:full": "npm test && node tools/determinism-test.js && node tools/rotate-test.js && node tools/golden.js verify && node tools/golden-race.js verify && node tools/journal-test.js && node tools/race-test.js && node tools/bugs1-test.js && node tools/bugs2-test.js && node tools/bugs3-test.js && node tools/maptest.js && node tools/gear-test.js && node tools/menu-test.js && node tools/ingame-menu-test.js && node tools/snaptest.js && node tools/speedrun-test.js all",
-    "bot": "node tools/bot.js table 6",
-    "serve": "python3 -m http.server 8080",
-    "golden": "node tools/golden.js verify && node tools/golden-race.js verify",
-    "golden:record": "node tools/golden.js record && node tools/golden-race.js record",
-    "peer": "peerjs --port 9000 --path /",
-    "test:real": "node tools/race-real-test.js"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --port 4173 --strictPort",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "test:full": "npm run lint && npm run typecheck && npm test && npm run build && npm run test:e2e && npm run legacy:golden",
+    "legacy:install": "npm --prefix legacy install",
+    "legacy:test": "npm --prefix legacy run test:full",
+    "legacy:golden": "npm --prefix legacy run golden",
+    "bot": "node tools/todo.mjs bot",
+    "fuzz": "node tools/todo.mjs fuzz",
+    "replay": "node tools/todo.mjs replay",
+    "sim": "node tools/todo.mjs sim"
   },
   "dependencies": {
-    "phaser": "3.90.0",
-    "playwright-core": "^1.49.0"
+    "idb-keyval": "6.3.0",
+    "peerjs": "1.5.5",
+    "phaser": "4.2.1",
+    "preact": "11.0.1"
   },
   "devDependencies": {
-    "peer": "^1.0.2",
-    "peerjs": "^1.5.4"
+    "@eslint/js": "^10.0.0",
+    "@playwright/test": "1.64.1",
+    "@preact/preset-vite": "2.10.6",
+    "@types/node": "^24.0.0",
+    "eslint": "10.13.0",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.72.0",
+    "vite": "8.3.4",
+    "vite-plugin-singlefile": "2.3.4",
+    "vitest": "5.0.5"
   }
 }

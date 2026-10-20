@@ -9,7 +9,7 @@ const path = require('path'), fs = require('fs');
 const { chromium } = require('playwright-core');
 const argv = process.argv.slice(2), cmd = argv[0] || 'verify', names = argv.slice(1).filter((a) => !a.startsWith('--'));
 const flag = (n, d) => { const a = argv.find((x) => x.startsWith('--' + n + '=')); return a ? a.split('=').slice(1).join('=') : d; };
-const outDir = path.resolve(flag('out', flag('dir', path.join(__dirname, '../tests/golden'))));
+const outDir = path.resolve(flag('out', flag('dir', path.join(__dirname, '../../tests/golden'))));
 const html = path.resolve(flag('html', path.join(__dirname, '../index.html')));
 const phaserSrc = fs.readFileSync(require.resolve('phaser/dist/phaser.min.js'), 'utf8');
 const brainSrc = fs.readFileSync(path.join(__dirname, 'botbrain.js'), 'utf8'), runnerSrc = fs.readFileSync(path.join(__dirname, 'golden-runner.js'), 'utf8');
