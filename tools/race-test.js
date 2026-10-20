@@ -185,6 +185,8 @@ const org = (p) => p.evaluate(() => { const S = RaceOrg.S; return S && { phase: 
   ok(rest, 'новая вкладка сама восстановила забег по журналу (restored=1)');
   const after = await ev(P2b, () => { const sc = window.__game.scene.getScene('game'), r = Speedrun.run; return { ch: sc.camp.ch, st: sc.camp.st, splits: r.splits.length, igt: Math.round(r.igt), paused: sc.paused, hold: r.hold, rta: Math.round(Speedrun.rta()) }; });
   ok(after.ch === before.ch && after.splits === before.splits && after.igt >= before.igt - 3000 && !after.hold && !after.paused, 'глава, сплиты и IGT восстановлены, гонка идёт без паузы: ' + JSON.stringify(after));
+  const igtChk = await ev(P2b, () => { const J = Journal.J, r = Speedrun.run, rel = J.segs[0].acts.find((a) => a[1] === 'rel'), ticks = J.segs.reduce((a, g) => a + g.n, 0); const paused = (J.pauses || []).reduce((a, q) => a + ((q[1] || Date.now()) - q[0]), 0); /* ticks в технической паузе в IGT не идут */ return { igt: Math.round(r.igt), exp: Math.round((ticks - (rel ? rel[0] : 0)) * 1000 / 60 - paused) }; });
+  ok(Math.abs(igtChk.igt - igtChk.exp) < 400, 'IGT восстановленного игрока равен тиковому (без «лишнего» удержания): ' + igtChk.igt + ' vs ' + igtChk.exp + ' мс');
   const gotRest = await until(O, () => RaceOrg.S.events.some((e) => e.k === 'restored'), 8000);
   if (!gotRest) console.log('   DBG restored', JSON.stringify(await ev(P2b, () => ({ n: RacePlay.S.client.n, out: RacePlay.S.client.outbox.length, st: RacePlay.S.client.status }))), JSON.stringify(await ev(O, () => RaceOrg.S.events.slice(-4).map((e) => e.k))));
   ok(gotRest, 'организатор получил отметку «забег восстановлен»');

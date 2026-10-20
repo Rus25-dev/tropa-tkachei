@@ -116,7 +116,7 @@ const Speedrun = {
     const r = this.run; if (!r || !gs.sr || r.done || r.t0 == null) return;
     const i = Math.max(0, (gs.camp ? gs.camp.ch : 1) - 1);
     if (r.splits.length > i) return;
-    if (Journal.rp && Journal.J.splits[i]) { r.splits[i] = { ...Journal.J.splits[i] }; return; } // при воспроизведении берём записанное, а не часы воспроизведения
+    if (Journal.rp && Journal.J.splits[i]) { r.splits[i] = { ...Journal.J.splits[i] }; if (i >= 3 && Journal.J.mem) this.finish(gs); return; } // при воспроизведении берём записанное, а не часы воспроизведения
     r.splits[i] = { rta: this.rta(), igt: Math.round(r.igt) };
     if (Journal.J) { Journal.J.splits[i] = { ...r.splits[i] }; Journal.dirty = true; }
     if (r.rc && typeof RacePlay !== 'undefined') RacePlay.onSplit(i, r.splits[i], gs);
@@ -387,7 +387,8 @@ Object.assign(Speedrun, {
     step();
   },
   release(replay) {
-    const r = this.run; if (!r || !r.hold) return;
+    const r = this.run; if (!r) return;
+    if (!r.hold) { if (replay) r.igt = 0; return; } // воспроизведение авторитетно: «go» из журнала всегда обнуляет IGT
     r.hold = false; r.t0 = this.clock(); r.igt = 0; r.cd = 'ПОШЁЛ!'; Snd.play('revive');
     if (!replay && Journal.J && !Journal.rp) { Journal.J.wallT0 = Date.now(); Journal.dirty = true; const gs = window.__game && window.__game.scene.getScene('game'); if (gs && gs.jr) Journal.act(gs, 'rel'); }
     setTimeout(() => { if (r.cd === 'ПОШЁЛ!') r.cd = ''; }, 900);
