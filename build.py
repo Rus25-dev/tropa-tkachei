@@ -23,7 +23,15 @@ parts = [
     "training.js",
     "maptravel.js",
     "gamepad.js",
+    "loadout.js",
+    "weapons.js",
+    "tools.js",
+    "charms.js",
+    "status.js",
+    "movement2.js",
+    "loadoutui.js",
     "speedrun.js",
+    "uifix.js",
     # новые модули добавляй строкой выше (по одному на строку — меньше конфликтов слияния)
     "update.js",
 ]

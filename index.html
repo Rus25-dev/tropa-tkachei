@@ -109,6 +109,9 @@
   #update button.primary { background: var(--moss); border-color: var(--moss); color: #08130f; }
   /* сенсорное управление */
   html.touch, html.touch body { touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; overscroll-behavior: none; }
+  /* поля ввода (код комнаты, имя для таблицы друзей): на iOS при user-select: none в них нельзя печатать */
+  input, textarea, [contenteditable] { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; touch-action: manipulation; }
+  html.touch .sr-ov input, html.touch .sr-ov textarea { font-size: 16px; } /* меньше 16 px — iOS приближает страницу при фокусе */
   #touch { position: fixed; left: 0; top: var(--app-top, 0px); width: var(--app-w, 100vw); height: var(--app-h, 100vh); z-index: 3; pointer-events: none; }
   #touch.padmode .t-zone, #touch.padmode .t-btns, #touch.padmode .t-hint { display: none; }
   #touch .t-zone { position: absolute; left: 0; top: 18%; bottom: 0; width: 46%; pointer-events: auto; touch-action: none; }
@@ -128,11 +131,15 @@
   html.lefty #touch .t-btn { right: auto !important; }
   html.lefty #touch .t-jump { left: 0; } html.lefty #touch .t-atk { left: 100px; } html.lefty #touch .t-dash { left: 6px; }
   html.lefty #touch .t-heal { left: 98px; } html.lefty #touch .t-bomb { left: 166px; }
+  #touch .t-btn.dim:not(.on) { opacity: min(var(--bop, 1), 0.2); } /* кнопка перекрывает рюкзак Миши — становится почти прозрачной */
+  #touch .t-btn { transition: opacity 0.15s; }
   #touch .t-btn.on { background: rgba(159,240,200,0.4); border-color: var(--glow); transform: scale(0.94); }
   #touch .t-jump { right: 0; bottom: 0; width: 88px; height: 88px; border-color: rgba(159,240,200,0.65); }
   #touch .t-atk { right: 100px; bottom: 10px; width: 76px; height: 76px; border-color: rgba(255,212,122,0.6); }
   #touch .t-dash { right: 6px; bottom: 100px; width: 66px; height: 66px; }
   #touch .t-heal { right: 98px; bottom: 98px; width: 58px; height: 58px; }
+  #touch .t-tool { right: 166px; bottom: 36px; width: 58px; height: 58px; }
+  html.lefty #touch .t-tool { left: 166px; right: auto; }
   #touch .t-bomb { right: 166px; bottom: 112px; width: 58px; height: 58px; }
   #touch .t-pause { position: absolute; left: 50%; top: max(8px, var(--st)); transform: translateX(-50%); pointer-events: auto; width: 46px; height: 34px;
     border-radius: 8px; border: 1px solid rgba(232,226,207,0.35); background: rgba(10,24,21,0.55); color: var(--bone); font: 700 13px var(--body); letter-spacing: -2px; }
@@ -278,7 +285,7 @@ function buildLevel() {
     { x: 40, y: 31, text: 'Q — связать рану\n(полная катушка нити → +3)', touch: '«Лечить» — связать рану\n(полная катушка нити → +3)' },
     { x: 47, y: 31, text: 'Прыгай от стен,\nчтобы подняться' },
     { x: 64, y: 10, text: 'G — рывок, даже в воздухе', touch: '«Рывок» — даже в воздухе' },
-    { x: 101, y: 31, text: 'Скамья: ↑ — отдохнуть, здесь ты очнёшься.\nНа скамье ↓ — лавка (бусины → улучшения)', touch: 'Скамья: стик вверх — отдохнуть.\nНа скамье стик вниз — лавка улучшений' },
+    { x: 101, y: 31, text: 'Скамья: ↑ — отдохнуть, здесь ты очнёшься.\nНа скамье ↓ — лавка (бусины → улучшения)\nУступ: падая у края, жми к нему, ↑ — подтянуться.\nПарус (за Владика): держи прыжок в падении', touch: 'Скамья: стик вверх — отдохнуть.\nНа скамье стик вниз — лавка улучшений\nУступ: падая у края, жми к нему, вверх — подтянуться.\nПарус (за Владика): держи прыжок в падении' },
     { x: 109, y: 31, text: 'Q без полной нити — отбив:\nокно 0.2 с, сбивает снаряды, копит нить', touch: '«Нить» без полной катушки — отбив:\nокно 0.2 с, сбивает снаряды' },
     { x: 113, y: 31, text: 'Стик/↑ + Q (от 4 нити) — всполох:\nбьёт всех вокруг. Рывок сквозь удар — уворот', touch: 'Стик вверх + «Нить» (от 4 нити) — всполох.\nРывок сквозь удар — идеальный уворот' },
     { x: 155, y: 31, text: 'В прыжке S + F — удар вниз:\nотскок от колючек и врагов', touch: 'В прыжке стик вниз + удар:\nотскок от колючек и врагов' },
@@ -860,7 +867,7 @@ const Layout = {
 
 const Touch = {
   enabled: false, visible: false, bombs: false,
-  state: { left: false, right: false, up: false, down: false, jump: false, atk: false, dash: false, heal: false, bomb: false },
+  state: { left: false, right: false, up: false, down: false, jump: false, atk: false, dash: false, heal: false, bomb: false, tool: false },
   stick: null, root: null, onTap: null,
   detect() {
     const q = new URLSearchParams(location.search).get('touch');
@@ -877,6 +884,7 @@ const Touch = {
       <div class="t-btns">
         <button class="t-btn t-heal" data-act="heal" type="button" aria-label="Лечение"><b>✚</b><i>Нить</i></button>
         <button class="t-btn t-dash" data-act="dash" type="button" aria-label="Рывок"><b>»</b><i>Рывок</i></button>
+        <button class="t-btn t-tool" data-act="tool" type="button" aria-label="Инструмент" hidden><b>✦</b><i>Инстр.</i></button>
         <button class="t-btn t-bomb" data-act="bomb" type="button" aria-label="Дымовая бомба" hidden><b>●</b><i>Бомба</i></button>
         <button class="t-btn t-atk" data-act="atk" type="button" aria-label="Удар"><b>⟋</b><i>Удар</i></button>
         <button class="t-btn t-jump" data-act="jump" type="button" aria-label="Прыжок"><b>▲</b><i>Прыжок</i></button>
@@ -956,6 +964,7 @@ const Touch = {
     if (!this.enabled || !this.root) return;
     this.visible = on; this.root.hidden = !on;
     if (on) { const h = this.root.querySelector('#t-hint'); clearTimeout(this._ht); h.classList.remove('gone'); this._ht = setTimeout(() => h.classList.add('gone'), 6000); }
+    if (opts && opts.tool != null) { const tb = this.root.querySelector('.t-tool'); if (tb) tb.hidden = !opts.tool; }
     if (opts && opts.bombs != null) this.root.querySelector('.t-bomb').hidden = !opts.bombs;
     if (!on) for (const k in this.state) this.state[k] = false;
   },
@@ -990,13 +999,21 @@ const Net = {
     this.conn = c;
     c.on('open', () => this.cb && this.cb('connected'));
     this.lastRecv = performance.now();
-    c.on('data', (d) => { this.lastRecv = performance.now(); if (this.onMsg) this.onMsg(d); });
-    c.on('close', () => { if (this.conn === c) { this.conn = null; if (this.onClose) this.onClose(); } });
+    const gone = () => { if (this.conn === c) { this.conn = null; if (this.onClose) this.onClose(); } };
+    c.on('data', (d) => {
+      this.lastRecv = performance.now();
+      if (d && d.t === 'bye') { gone(); try { c.close(); } catch (_) { } return; } // напарник попрощался: не ждём таймаут в 10 с
+      if (this.onMsg) this.onMsg(d);
+    });
+    c.on('close', gone);
     c.on('error', () => { });
   },
   send(m) { if (this.conn && this.conn.open) { try { this.conn.send(m); } catch (_) { } } },
+  // прощание: напарник узнаёт об уходе сразу, а не по тишине через 10 с
+  bye() { if (this.conn && this.conn.open) { try { this.conn.send({ t: 'bye' }); } catch (_) { } } },
   close() {
-    const c = this.conn, p = this.peer; this.conn = null; this.peer = null; this.role = null;
+    this.bye();
+    const c = this.conn, p = this.peer; this.conn = null; this.peer = null; this.role = null; this.onClose = null; this.cb = null; this.code = null;
     try { c && c.close(); } catch (_) { } try { p && p.destroy(); } catch (_) { }
   },
   errText(e) {
@@ -1009,6 +1026,9 @@ const Net = {
   },
 };
 
+// закрытие вкладки: close() не успеет, поэтому прощаемся заранее
+for (const ev of ['pagehide', 'beforeunload']) window.addEventListener(ev, () => Net.bye());
+
 // ----- лобби (HTML поверх игры) -----
 const Lobby = {
   el: null,
@@ -1020,6 +1040,8 @@ const Lobby = {
     $('lb-code').addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') this.doJoin($('lb-code').value); });
     $('lb-code').addEventListener('keyup', (e) => e.stopPropagation());
     $('lb-back').onclick = () => this.hide(true);
+    // Esc закрывает лобби, как окно настроек (фокус может быть и вне окна — слушаем документ)
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !this.el.hidden) { e.preventDefault(); e.stopPropagation(); this.hide(true); } }, true);
     $('lb-copy').onclick = () => {
       const t = $('lb-link').textContent;
       const ok = () => { $('lb-copy').textContent = 'Скопировано'; setTimeout(() => ($('lb-copy').textContent = 'Копировать ссылку'), 1600); };
@@ -1050,6 +1072,8 @@ const Lobby = {
         this.status('Ждём напарника. Отправьте ему код или ссылку.', 'wait');
       } else if (ev === 'connected') {
         this.status('Напарник подключился!', 'ok');
+        const gs = window.__game && window.__game.scene.getScene('game');
+        if (this.mode !== 'race' && gs && gs.sys.isActive() && gs.players && !gs.online) { gs.rejoinGuest(); return; } // гость вернулся в идущую игру хоста
         if (this.mode === 'race') { Speedrun.raceOpen('host'); return; }
         const mode = this.mode || 'story', boss = this.boss || 'misha';
         const camp = mode === 'story' ? Campaign.resume() : null;
@@ -1081,9 +1105,11 @@ const Lobby = {
 // ===== ИГРА: «Тропа Ткачей» — кооперативная метроидвания =====
 let VW = 960; const VH = 540;
 // версия игры; номер сборки подставляет build.py
-const GAME_VERSION = '1.5';
-const GAME_BUILD = '261020.1407';
+const GAME_VERSION = '1.6';
+const GAME_BUILD = '261020.1604';
 const CHANGELOG = [
+  'Снаряжение: 5 видов оружия, заряженный удар, 4 инструмента (клавиша E), 9 оберегов, яд и ожог; экран на скамье',
+  'Хват за уступ и планер; Миша: иглой бьётся в первых двух фазах, в третьей — только бомбы',
   'Геймпады: DualSense, Xbox и Steam Deck — удобная раскладка, вибрация, сенсорные кнопки прячутся',
   'Спидран (клавиша 6): «Тропа целиком» и «Босс-раш», таймер RTA/IGT, сплиты с дельтой к рекорду, код результата и таблица друзей',
   'Гонка 1×1 по сети: оба проходят один забег в своей игре, видят прогресс и призрака соперника',
@@ -1192,13 +1218,13 @@ class MenuScene extends Phaser.Scene {
       'Кнопки справа: прыжок, удар, рывок, лечение, а на арене Миши ещё и бомба.   Лучше держать телефон горизонтально.', 'Можно подключить геймпад по Bluetooth — он подхватится сам.');
     document.documentElement.classList.add('in-menu');
     this.events.once('shutdown', () => document.documentElement.classList.remove('in-menu'));
-    this.add.text(VW / 2, 496, ctl.join('\n'), { fontFamily: '"Fira Sans", sans-serif', fontSize: '12px', color: '#86a89a', align: 'center', lineSpacing: 7 }).setOrigin(0.5);
+    this.ctlTxt = this.add.text(VW / 2, 496, ctl.join('\n'), { fontFamily: '"Fira Sans", sans-serif', fontSize: '12px', color: '#86a89a', align: 'center', lineSpacing: 7 }).setOrigin(0.5);
 
     const k = this.input.keyboard;
     // версия, сборка и что нового
     const vF = '"Fira Sans", sans-serif';
     this.add.text(14, 10, `Версия ${GAME_VERSION} · сборка ${GAME_BUILD}`, { fontFamily: vF, fontSize: '12px', fontStyle: '600', color: '#9fc4b4' });
-    this.add.text(14, 28, 'Что нового:\n' + CHANGELOG.slice(0, 9).map((l) => '· ' + l).join('\n'), { fontFamily: vF, fontSize: '10.5px', color: '#7fa596', lineSpacing: 3, wordWrap: { width: Math.max(170, Math.min(230, VW / 2 - 300)) } });
+    this.chTxt = this.add.text(14, 28, 'Что нового:\n' + CHANGELOG.slice(0, 9).map((l) => '· ' + l).join('\n'), { fontFamily: vF, fontSize: '10.5px', color: '#7fa596', lineSpacing: 3, wordWrap: { width: Math.max(170, Math.min(230, VW / 2 - 300)) } });
     // выбор для босс-теста
     this.pick = this.add.container(0, 0).setVisible(false).setDepth(10);
     const pg = this.add.graphics(); pg.fillStyle(0x030807, 0.9); pg.fillRect(0, 0, VW, VH);
@@ -1222,7 +1248,7 @@ class MenuScene extends Phaser.Scene {
     const p1 = mkPick(290, '1 · В одиночку', () => this.go(1, 'bosstest'));
     const p2 = mkPick(343, '2 · Вдвоём за одним компьютером', () => this.go(2, 'bosstest'));
     const p3 = mkPick(396, '3 · Вдвоём по сети', () => this.openLobby('bosstest'));
-    const pb = mkPick(470, '← Назад (Esc)', () => this.closePick()); pb.setFontSize(22);
+    const pb = mkPick(490, '← Назад (Esc)', () => this.closePick()); pb.setFontSize(22);
     this.pick.add([pg, pt, ...this.bossBtns, this.pickLine, ph, ps, p1, p2, p3, pb]);
     this.setPick(Settings.s.boss || 0);
     k.on('keydown', (e) => {
@@ -1239,7 +1265,7 @@ class MenuScene extends Phaser.Scene {
       if (e.key === '1') this.go(1); if (e.key === '2') this.go(2); if (e.key === '3') this.openLobby(); if (e.key === '4') this.openPick(); if (e.key === '5') this.openSettings(); if (e.key === '6') this.openSpeedrun();
     });
     if (Lobby.room) this.time.delayedCall(300, () => this.openLobby());
-    Music.setDuck(1); Music.play('menu');
+    Music.setDuck(1); Music.intensity = 1; Music.play('menu');
     this.input.on('pointerdown', () => Snd.init());
     this.t = 0;
   }
@@ -1366,6 +1392,9 @@ class GameScene extends Phaser.Scene {
   create() {
     genBackgrounds(this);
     this.scene.launch('bg'); this.scene.launch('ui');
+    // состояние «вида сверху» Миши не должно переходить в новую игру (повтор боя, выход в меню)
+    this.td = null; this.tdFlip = false; this.cameras.main.setRotation(0);
+    this.events.once('shutdown', () => { this.td = null; this.tdFlip = false; Music.intensity = 1; });
     this.enemies = []; this.boss = null;
     const arenas = { misha: buildMishaArena, vladik: buildVladikArena, tima: buildTimaArena };
     this.L = Campaign.level(this) || (this.mode === 'bosstest' ? (arenas[this.bossKind] || buildMishaArena)() : buildLevel());
@@ -1439,8 +1468,10 @@ class GameScene extends Phaser.Scene {
     }
     this.abil = this.mode === 'bosstest' ? { double: true } : { ...(prog && prog.abil || {}) };
     this.initItems();
+    this.applyLoadout();
     this.beads = prog ? prog.beads || 0 : 0; this.deaths = 0; this.timeSec = 0;
     Campaign.setup(this);
+    this.items = (this.items || []).filter((it) => !this.abil[it.ability]); // у гостя способности приходят из главы только теперь
 
     // ввод
     this.setupInput();
@@ -1463,7 +1494,7 @@ class GameScene extends Phaser.Scene {
     this._vis = () => { if (document.hidden && !this.online && !this.paused && !this.won && this.sys.isActive()) this.togglePause(); };
     document.addEventListener('visibilitychange', this._vis);
     this.events.once('shutdown', () => { document.removeEventListener('visibilitychange', this._vis); Music.setDuck(1); });
-    Touch.show(true, { bombs: !!this.L.crates });
+    Touch.show(true, { bombs: !!this.L.crates, tool: !!(this.players[this.touchIdx()] && this.players[this.touchIdx()].toolId) });
     this.events.once('shutdown', () => { Touch.show(false); Touch.onTap = null; });
   }
   ui() { return this.scene.get('ui'); }
@@ -1488,9 +1519,9 @@ class GameScene extends Phaser.Scene {
     const k = this.input.keyboard, K = KC();
     const add = (arr) => arr.map((c) => k.addKey(c));
     const set = (m) => { const o = {}; for (const n in m) o[n] = add(m[n]); return o; };
-    this.kb1 = set({ left: [K.A], right: [K.D], up: [K.W], down: [K.S], jump: [K.SPACE], atk: [K.F], dash: [K.G], heal: [K.Q], bomb: [K.R] });
-    this.kbArrows = set({ left: [K.LEFT], right: [K.RIGHT], up: [K.UP], down: [K.DOWN], jump: [K.Z], atk: [K.X], dash: [K.C], heal: [K.V], bomb: [K.B] });
-    this.kb2 = set({ left: [K.LEFT], right: [K.RIGHT], up: [K.UP], down: [K.DOWN], jump: [K.NUMPAD_ONE, K.FORWARD_SLASH], atk: [K.NUMPAD_TWO, K.PERIOD], dash: [K.NUMPAD_THREE, K.COMMA], heal: [K.NUMPAD_ZERO, K.M], bomb: [K.NUMPAD_FOUR, K.N] });
+    this.kb1 = set({ left: [K.A], right: [K.D], up: [K.W], down: [K.S], jump: [K.SPACE], atk: [K.F], dash: [K.G], heal: [K.Q], bomb: [K.R], tool: [K.E] });
+    this.kbArrows = set({ left: [K.LEFT], right: [K.RIGHT], up: [K.UP], down: [K.DOWN], jump: [K.Z], atk: [K.X], dash: [K.C], heal: [K.V], bomb: [K.B], tool: [K.E] });
+    this.kb2 = set({ left: [K.LEFT], right: [K.RIGHT], up: [K.UP], down: [K.DOWN], jump: [K.NUMPAD_ONE, K.FORWARD_SLASH], atk: [K.NUMPAD_TWO, K.PERIOD], dash: [K.NUMPAD_THREE, K.COMMA], heal: [K.NUMPAD_ZERO, K.M], bomb: [K.NUMPAD_FOUR, K.N], tool: [K.NUMPAD_FIVE, K.J] });
   }
   keySets(i) {
     if (this.online && i !== this.localIdx) return [];
@@ -1506,13 +1537,13 @@ class GameScene extends Phaser.Scene {
     if (e.repeat || !this.players) return;
     for (const p of this.players) {
       if (p.remote) continue;
-      for (const set of this.keySets(p.i)) for (const act of ['jump', 'atk', 'dash', 'heal', 'bomb', 'up']) {
+      for (const set of this.keySets(p.i)) for (const act of ['jump', 'atk', 'dash', 'heal', 'bomb', 'tool', 'up']) {
         if (set[act] && set[act].some((k) => k.keyCode === e.keyCode)) { const pd = p.pend || (p.pend = {}); pd[act + 'P'] = true; p.tapHold = p.tapHold || {}; p.tapHold[act] = 2; }
       }
     }
   }
   rawInput(i) {
-    const out = { left: false, right: false, up: false, down: false, jump: false, atk: false, dash: false, heal: false, bomb: false };
+    const out = { left: false, right: false, up: false, down: false, jump: false, atk: false, dash: false, heal: false, bomb: false, tool: false };
     const solo = this.nPlayers === 1 || !!this.online;
     if (this.online && i !== this.localIdx) return out;
     const sets = this.keySets(i);
@@ -1642,7 +1673,7 @@ class GameScene extends Phaser.Scene {
       if (p.remote) continue;
       const r = this.rawInput(p.i), pr = p.prev, pd = p.pend || (p.pend = {});
       if (p.tapHold) for (const a in p.tapHold) if (p.tapHold[a] > 0) { r[a] = true; p.tapHold[a]--; }
-      pd.jumpP ||= r.jump && !pr.jump; pd.atkP ||= r.atk && !pr.atk; pd.dashP ||= r.dash && !pr.dash; pd.healP ||= r.heal && !pr.heal; pd.upP ||= r.up && !pr.up; pd.bombP ||= r.bomb && !pr.bomb;
+      pd.jumpP ||= r.jump && !pr.jump; pd.atkP ||= r.atk && !pr.atk; pd.dashP ||= r.dash && !pr.dash; pd.healP ||= r.heal && !pr.heal; pd.upP ||= r.up && !pr.up; pd.bombP ||= r.bomb && !pr.bomb; pd.toolP ||= r.tool && !pr.tool;
       p.raw = r; p.prev = r;
     }
     if (!this.paused && !this.wiping && !this.won) {
@@ -1654,7 +1685,7 @@ class GameScene extends Phaser.Scene {
           for (const p of this.players) {
             if (p.remote) { p.inp = { up: p.netUp }; continue; }
             if (first) { p.inp = { ...p.raw, ...p.pend }; p.pend = {}; }
-            else p.inp = { ...p.raw, jumpP: false, atkP: false, dashP: false, healP: false, upP: false, bombP: false };
+            else p.inp = { ...p.raw, jumpP: false, atkP: false, dashP: false, healP: false, upP: false, bombP: false, toolP: false };
           }
           this.step(STEP); this.acc -= STEP; first = false;
           if (this.hitstop > 0 || this.wiping) { this.acc = 0; break; }
@@ -1692,11 +1723,11 @@ class GameScene extends Phaser.Scene {
       const pr = inset(p, 2);
       for (const e of this.enemies) if (!e.dead && overlap(pr, inset(e, 2))) { this.hurtPlayer(p, 1, e.x + e.w / 2); break; }
       const b = this.boss;
-      if (p.inv <= 0 && (b.state !== 'sleep' && b.state !== 'dead' && b.state !== 'gone') && overlap(pr, inset(b, 8))) this.hurtPlayer(p, HEAVY_STATES.has(b.state) ? 2 : 1, b.x + b.w / 2);
+      if (p.inv <= 0 && !(b.stagger > 0) && (b.state !== 'sleep' && b.state !== 'dead' && b.state !== 'gone') && overlap(pr, inset(b, 8))) this.hurtPlayer(p, HEAVY_STATES.has(b.state) ? 2 : 1, b.x + b.w / 2);
       const m = this.misha;
       if (m && p.inv <= 0 && !['dead', 'intro', 'cough'].includes(m.state) && overlap(pr, inset(m, 8))) this.hurtPlayer(p, HEAVY_STATES.has(m.state) ? 2 : 1, m.x + m.w / 2);
       const vb = this.vladik || this.tima;
-      if (vb && p.inv <= 0 && !['dead', 'intro'].includes(vb.state) && overlap(pr, inset(vb, 8))) this.hurtPlayer(p, HEAVY_STATES.has(vb.state) ? 2 : 1, vb.x + vb.w / 2);
+      if (vb && p.inv <= 0 && !(vb.stagger > 0) && !['dead', 'intro'].includes(vb.state) && overlap(pr, inset(vb, 8))) this.hurtPlayer(p, HEAVY_STATES.has(vb.state) ? 2 : 1, vb.x + vb.w / 2);
       if (this.curtains && p.inv <= 0) for (const c of this.curtains) if (c.slime > 0 && overlap(pr, this.curtainHazard(c))) { this.hurtPlayer(p, 1, c.x + c.w / 2); break; }
     }
     // выход
@@ -1773,12 +1804,15 @@ class GameScene extends Phaser.Scene {
         p.atkBuf = 0;
         p.atkDir = inp.up ? 'u' : (inp.down && !p.onGround ? 'd' : 'f');
         // комбо: третий удар подряд (в пределах 0.6 с) — тяжёлый финишер: шире, бьёт дважды, но дольше восстанавливается
-        p.combo = p.comboT > 0 ? p.combo + 1 : 1; if (p.combo > 3) p.combo = 1;
-        p.heavy = p.combo === 3 && p.atkDir === 'f'; p.comboT = 0.6;
-        p.atkT = p.heavy ? 0.16 : P.ATK_T; p.atkCd = p.heavy ? 0.42 : P.ATK_CD; p.atkHits = new Set(); p.pogoed = false; p.seq = (p.seq || 0) + 1;
+        const W = this.wdef(p);
+        p.combo = p.comboT > 0 ? p.combo + 1 : 1; if (p.combo > W.combo) p.combo = 1;
+        p.heavy = !!W.finisher && p.combo === W.combo && p.atkDir === 'f'; p.comboT = W.comboWin;
+        p.atkT = p.heavy ? W.finT : W.atkT; p.atkCd = (p.heavy ? W.finCd : W.cd) * (this.cdMul ? this.cdMul(p) : 1); p.atkHits = new Set(); p.pogoed = false; p.seq = (p.seq || 0) + 1;
         Snd.play(p.heavy ? 'slam' : 'slash');
+        if (W.onSwing) W.onSwing(this, p);
       }
       if (inp.bombP) this.throwBomb(p);
+      if (inp.toolP) this.useTool(p);
       if (inp.healP) {
         if (inp.up && p.silk >= P.BURST) this.silkBurst(p);
         else if (p.silk >= P.SILK && p.hp < p.maxHp) {
@@ -1811,9 +1845,10 @@ class GameScene extends Phaser.Scene {
 
   atkBox(p) {
     const cx = p.x + p.w / 2, cy = p.y + p.h / 2;
-    if (p.atkDir === 'f') { const w = p.heavy ? 68 : 48; return { x: p.face > 0 ? cx + 2 : cx - 2 - w, y: cy - 17, w, h: 32 }; }
-    if (p.atkDir === 'u') return { x: cx - 19, y: p.y - 40, w: 38, h: 46 };
-    return { x: cx - 18, y: p.y + p.h - 8, w: 36, h: 44 };
+    const W = this.wdef(p), rm = W.reach * (this.reachMul ? this.reachMul(p) : 1);
+    if (p.atkDir === 'f') { const w = Math.round((p.heavy ? 68 : 48) * rm); return { x: p.face > 0 ? cx + 2 : cx - 2 - w, y: cy - 17 * W.thick, w, h: 32 * W.thick }; }
+    if (p.atkDir === 'u') return { x: cx - 19, y: p.y - Math.round(40 * rm), w: 38, h: Math.round(46 * rm) };
+    return { x: cx - 18, y: p.y + p.h - 8, w: 36, h: Math.round(44 * rm) };
   }
   resolveAttack(p) {
     if (p.downed || p.atkT <= 0 || !p.atkHits) return;
@@ -1824,30 +1859,30 @@ class GameScene extends Phaser.Scene {
     for (const e of this.enemies) {
       if (e.dead || p.atkHits.has(e) || !overlap(box, e)) continue;
       p.atkHits.add(e);
-      if (auth) { this.damageEnemy(e, p); if (p.heavy && !e.dead) this.damageEnemy(e, p); } else if (!this.e2Blocked(e, p, true)) { e.flash = 0.1; this.hitstop = 0.045; Snd.play('hit'); }
+      if (auth) { this.damageEnemy(e, p); if (p.heavy && !e.dead) this.damageEnemy(e, p); } else if (!this.e2Blocked(e, p, true)) { e.flash = 0.1; if (!p.remote) { this.hitstop = 0.045; Snd.play('hit'); } } // удар напарника уже озвучил хост (snd), зависание кадра — только своему
       if (local) { if (p.atkDir === 'd') pogo(); else if (p.atkDir === 'f') p.kbx = -p.face * 150; }
     }
     const b = this.boss;
     if (!p.atkHits.has(b) && b.state !== 'sleep' && b.state !== 'dead' && b.state !== 'gone' && overlap(box, b)) {
       p.atkHits.add(b);
-      if (auth) { this.damageBoss(p); if (p.heavy && b.state !== 'dead' && b.state !== 'gone') this.damageBoss(p); } else { b.flash = 0.09; this.hitstop = 0.04; Snd.play('hit'); }
+      if (auth) { this.damageBoss(p); if (p.heavy && b.state !== 'dead' && b.state !== 'gone') this.damageBoss(p); } else { b.flash = 0.09; if (!p.remote) { this.hitstop = 0.04; Snd.play('hit'); } }
       if (local) { if (p.atkDir === 'd') pogo(); else if (p.atkDir === 'f') p.kbx = -p.face * 170; }
     }
     if (this.misha && this.mishaNeedle(p, box) && local) { if (p.atkDir === 'd') pogo(); else if (p.atkDir === 'f') p.kbx = -p.face * 190; }
     for (const [vb, fn] of [[this.vladik, 'damageVladik'], [this.tima, 'damageTima']]) {
       if (!vb || p.atkHits.has(vb) || ['dead', 'intro'].includes(vb.state) || !overlap(box, vb)) continue;
       p.atkHits.add(vb);
-      if (auth) { this[fn](p); if (p.heavy && vb.state !== 'dead') this[fn](p); } else { vb.flash = 0.09; this.hitstop = 0.04; Snd.play('hit'); }
+      if (auth) { this[fn](p); if (p.heavy && vb.state !== 'dead') this[fn](p); } else { vb.flash = 0.09; if (!p.remote) { this.hitstop = 0.04; Snd.play('hit'); } }
       if (local) { if (p.atkDir === 'd') pogo(); else if (p.atkDir === 'f') p.kbx = -p.face * 170; }
     }
     for (const pr of this.projs) if (SLASH_KINDS.has(pr.kind) && !pr.dead && overlap(box, pr)) {
-      if (pr.kind === 'collector') { if (auth) this.hitCollector(pr, p.face); else this.sendEv({ k: 'cut', kind: 'collector', x: Math.round(pr.x), y: Math.round(pr.y), d: p.face }); if (local && p.atkDir === 'd') pogo(); continue; }
+      if (pr.kind === 'collector') { if (auth) this.hitCollector(pr, p.face); else if (local) this.sendEv({ k: 'cut', kind: 'collector', x: Math.round(pr.x), y: Math.round(pr.y), d: p.face }); if (local && p.atkDir === 'd') pogo(); continue; }
       if (auth) {
         pr.dead = true;
         if (pr.kind === 'letter' || pr.kind === 'rain') { this.paperAt(6, pr.x + 11, pr.y + 13); this.sfx('clink'); }
         else if (pr.kind === 'spore') this.burst(6, pr.x + 6, pr.y + 6, 0xc7f08a);
         else { this.burst(6, pr.x + pr.w / 2, pr.y + pr.h / 2, 0xffd47a); this.sfx('clink'); }
-      } else if (pr.kind !== 'spore') { pr.dead = true; this.sendEv({ k: 'cut', kind: pr.kind, x: Math.round(pr.x), y: Math.round(pr.y) }); }
+      } else if (pr.kind !== 'spore') { pr.dead = true; if (local) this.sendEv({ k: 'cut', kind: pr.kind, x: Math.round(pr.x), y: Math.round(pr.y) }); } // чужой взмах срезает хост сам
       if (local && p.atkDir === 'd') pogo();
     }
     if (local && p.atkDir === 'd' && !p.pogoed && this.rectHitsTile(box, SPIKE, 0.7)) { pogo(); this.parts.setParticleTint(0xffffff); this.parts.explode(5, box.x + 18, box.y + 30); }
@@ -2209,7 +2244,7 @@ class GameScene extends Phaser.Scene {
     const r = (v) => Math.round(v * 10) / 10, f2 = (v) => Math.round(Math.max(0, v) * 100) / 100;
     return { t: 'p', i: p.i, x: r(p.x), y: r(p.y), vx: Math.round(p.vx), vy: Math.round(p.vy), f: p.face, g: p.onGround ? 1 : 0,
       d: f2(p.dashT), s: p.sit ? 1 : 0, h: f2(p.healT), l: f2(p.landT), hp: p.hp, mh: p.maxHp, sk: p.silk, dn: p.downed ? 1 : 0,
-      iv: f2(p.inv), u: p.raw && p.raw.up ? 1 : 0, rv: f2(p.reviveT), sq: p.seq || 0, ad: p.atkDir, bm: p.bombs, hv: p.heavy ? 1 : 0, tp: this.td ? [Math.round(p.tdx), Math.round(p.tdy)] : null };
+      iv: f2(p.inv), u: p.raw && p.raw.up ? 1 : 0, rv: f2(p.reviveT), sq: p.seq || 0, ad: p.atkDir, bm: p.bombs, hv: p.heavy ? 1 : 0, wp: p.weaponId || 'needle', tl: p.toolId || '', tp: this.td ? [Math.round(p.tdx), Math.round(p.tdy)] : null };
   }
   packSnap() {
     const r = Math.round, b = this.boss;
@@ -2231,7 +2266,7 @@ class GameScene extends Phaser.Scene {
     if (m.t === 'p') {
       const p = this.players[m.i]; if (!p || !p.remote) return;
       Object.assign(p, { tx: m.x, ty: m.y, vx: m.vx, vy: m.vy, face: m.f, onGround: !!m.g, dashT: m.d, sit: !!m.s, healT: m.h, landT: m.l,
-        hp: m.hp, maxHp: m.mh, silk: m.sk, downed: !!m.dn, inv: m.iv, netUp: !!m.u, reviveT: m.rv, netT: 0, bombs: m.bm || 0, heavy: !!m.hv });
+        hp: m.hp, maxHp: m.mh, silk: m.sk, downed: !!m.dn, inv: m.iv, netUp: !!m.u, reviveT: m.rv, netT: 0, bombs: m.bm || 0, heavy: !!m.hv, weaponId: m.wp || 'needle', toolId: m.tl || '', charms: m.cm ? m.cm.split(',') : [] });
       if (m.tp) { p.tdx = m.tp[0]; p.tdy = m.tp[1]; }
       p.inp = { up: p.netUp };
       if (m.sq !== p.lastSeq) { p.lastSeq = m.sq; p.atkT = P.ATK_T; p.atkHits = new Set(); p.atkDir = m.ad; p.pogoed = true; }
@@ -2257,6 +2292,7 @@ class GameScene extends Phaser.Scene {
     const old = this.projs;
     this.projs = m.pr.map((a, i) => {
       const q = { kind: NET_KINDS[a[0]], x: a[1], y: a[2], vx: a[3], vy: a[4], delay: a[5] ? 1 : 0, ch: a[6], w: NET_SIZES[a[0]][0], h: NET_SIZES[a[0]][1], life: 1 };
+      if (q.kind === 'rootspike') { const o = old.find((u) => u.kind === 'rootspike' && !u.delay && Math.abs(u.x - q.x) < 2); q.life = o && !q.delay ? o.life : 0.55; } // life гостю не приходит: рост шипа считаем сами
       if (q.kind === 'ringfx') q.r = a[6];
       q.rot = old[i] && old[i].kind === q.kind ? old[i].rot || 0 : 0;
       return q;
@@ -2319,6 +2355,8 @@ class GameScene extends Phaser.Scene {
       case 'deathfx': this.deathFxLocal(); break;
       case 'execfx': { const q = this.players[m.i]; if (q && q.remote) { q.execT = 0.4; q.execDir = m.d; } this.execFxLocal(m.x, m.y, m.d); break; }
       case 'exec': if (this.auth()) { const q = this.players[m.i], kit = q && this.execKit(m.key); if (q && kit) this.execBoss(q, kit, m.d); } break;
+      case 'abil': this.itemEv(m); break;
+      case 'parrypoise': if (this.auth()) this.parryPoise(m.x, m.y); break;
       case 'kb': this.knockFrom(m.x); break;
       case 'silk': { const p = this.players[m.i]; if (p && !p.remote) p.silk = Math.min(P.SILK, p.silk + 1); break; }
       case 'bench':
@@ -2361,7 +2399,8 @@ class GameScene extends Phaser.Scene {
         if (pr.kind === 'pad') continue;
         if (pr.kind === 'clef' || pr.kind === 'bottle') pr.rot = (pr.rot || 0) + dt * 10;
         if (pr.kind === 'spore') pr.vy += 700 * dt;
-        if (pr.kind === 'rootspike' || pr.kind === 'staff' || pr.kind === 'staffghost') continue;
+        if (pr.kind === 'rootspike') { pr.life -= dt; continue; }
+        if (pr.kind === 'staff' || pr.kind === 'staffghost') continue;
         if (pr.kind === 'collector') { pr.vx = 0; pr.vy = 0; continue; }
         else if (['rock', 'bigletter', 'bomb', 'note', 'drip', 'bottle', 'box', 'stamp', 'trophy'].includes(pr.kind)) pr.vy = Math.min(pr.vy + 1100 * dt, 800);
         pr.x += pr.vx * dt; pr.y += pr.vy * dt;
@@ -2385,16 +2424,28 @@ class GameScene extends Phaser.Scene {
     if (this.pingAcc >= 2) { this.pingAcc = 0; Net.send({ t: 'ping', ts: performance.now() }); }
   }
   onPeerLost() {
-    if (!this.sys.isActive()) return;
+    if (!this.sys.isActive() || !this.online) return; // повторный вызов (старый обработчик) ничего не делает
+    Net.onClose = null;
     if (this.online === 'host') {
       const rem = this.players.find((p) => p.remote);
       if (rem) { rem.g.destroy(); rem.tag.destroy(); this.players = this.players.filter((p) => !p.remote); this.ui().removePlayer(rem.i); }
       this.online = null; this.nPlayers = 1;
       this.ui().toast('Связь с напарником потеряна. Игра продолжается в одиночку');
+      if (this.players.length && this.players.every((p) => p.downed)) this.teamWipe(); // поднять в коконе некому: нить обрывается
     } else {
       this.ui().toast('Хост отключился. Возвращаемся в меню…');
       this.time.delayedCall(2800, () => this.ui().restart());
     }
+  }
+
+  // гость вернулся по тому же коду, пока хост доигрывает в одиночку: перезапускаем сцену в паре (прогресс главы берём из снимка)
+  rejoinGuest() {
+    if (this.online || this.rejoining) return; this.rejoining = true;
+    const d = { ...this.startData, players: 2, online: 'host' };
+    if (this.camp) d.camp = Campaign.snap(this);
+    Net.send({ t: 'start', mode: d.mode, boss: d.boss, camp: d.camp || null });
+    this.ui().toast('Напарник вернулся!');
+    this.time.delayedCall(400, () => { this.rejoining = false; this.ui().ready = false; this.scene.stop('bg'); this.scene.start('game', d); });
   }
 
   // ----- камера -----
@@ -2439,6 +2490,7 @@ class GameScene extends Phaser.Scene {
     // удары
     for (const p of this.players) {
       if (p.downed || p.atkT <= 0) continue;
+      if (this.drawSwing && this.drawSwing(p, fx)) continue; // weapons.js: дуга удара своего оружия
       const k = p.atkT / P.ATK_T, cx = p.x + p.w / 2, cy = p.y + p.h / 2 - 2;
       const th = p.atkDir === 'f' ? (p.face > 0 ? 0 : Math.PI) : p.atkDir === 'u' ? -Math.PI / 2 : Math.PI / 2;
       const ux = Math.cos(th), uy = Math.sin(th);
@@ -2534,7 +2586,8 @@ class GameScene extends Phaser.Scene {
     this.drawPlayerFx(p, g);
     drawWeaver(g, 0, 0, p.face, p.pal, a, 1);
     p.tag.setPosition(cx + p.face * 0.5, fy + (-12.5 - a.bob * 0.5) * sy).setScale(sx, sy).setAlpha(blink ? 0.35 : 1);
-    if (p.atkT <= 0 && !p.sit) {
+    if (this.drawWeaponBody && this.drawWeaponBody(p, g, a, now)) { /* weapons.js: клинок и свечение заряда */ }
+    else if (p.atkT <= 0 && !p.sit) {
       const f = p.face;
       g.lineStyle(1.8, 0xcfd6dc, 1); g.lineBetween(-6 * f, -10 - a.bob, -13 * f, -25 - a.bob);
       g.lineStyle(1, p.pal.accent, 0.9); g.strokeCircle(-13 * f, -26 - a.bob, 2);
@@ -2632,29 +2685,31 @@ class UIScene extends Phaser.Scene {
     // пауза
     this.pause = this.add.container(0, 0).setVisible(false);
     const pb = this.add.graphics(); pb.fillStyle(0x030807, 0.82); pb.fillRect(0, 0, VW, VH);
-    const pt = this.add.text(VW / 2, 150, 'Пауза', { fontFamily: D, fontSize: '52px', color: '#e8e2cf', fontStyle: '700' }).setOrigin(0.5);
+    const pt = this.pauseTitle = this.add.text(VW / 2, 150, 'Пауза', { fontFamily: D, fontSize: '52px', color: '#e8e2cf', fontStyle: '700' }).setOrigin(0.5);
     const pc = this.pauseL1 = this.add.text(VW / 2, 300, [
       'Игрок 1:  A D W S · Пробел — прыжок · F — удар · G — рывок · Q — лечение · R — дымовуха',
       'Игрок 2:  стрелки · Num1 или / — прыжок · Num2 или . — удар · Num3 или , — рывок · Num0 или M — лечение · Num4 или N — дымовуха',
       '', 'Удар вверх: держи ↑ + удар.  Удар вниз в прыжке: ↓ + удар — отскок от колючек и врагов.',
       'Прыжок от стены: прижмись к стене в падении и прыгни.  Спрыгнуть с платформы: ↓ + прыжок.',
+      'Уступ: падая у края, жми к нему — повисишь; ↑ или прыжок — подтянуться, ↓ — отпустить, прыжок от стены — спрыгнуть.  Парус (награда за Владика): держи прыжок в падении.',
       'Оглушённого босса (полоска над ним) можно казнить: подойди и ударь вверх или вниз.  Отбив: кнопка лечения (без ↑) в миг удара врага, если лечиться нельзя.',
       'Лечение: когда катушка нити полна, 1.1 с стоишь на месте и восстанавливаешь 2 бутона; урон прерывает лечение.',
       'Отбив: кнопка нити (Q), когда нить не полна, — окно 0.2 с, отбивает удар и снаряды.  Всполох: ↑ + нить (от 4 нити).',
       'Комбо: третий удар подряд — тяжёлый.  Рывок сквозь удар — идеальный уворот (+2 нити).  Серия ударов оглушает босса.',
       'Напарник в коконе: подойди и держи ↑ одну секунду.  Скамья (↑) лечит и оживляет.',
       'По сети каждый играет раскладкой игрока 1, а пауза не останавливает мир.',
-    ].join('\n'), { fontFamily: F, fontSize: '14px', color: '#b9d4c8', align: 'center', lineSpacing: 7 }).setOrigin(0.5).setY(285);
+    ].join('\n'), { fontFamily: F, fontSize: '14px', color: '#b9d4c8', align: 'center', lineSpacing: 7 }).setOrigin(0.5).setY(295);
     if (Touch.enabled) pc.setText([
       'Стик слева — идти. Вверх + удар — удар вверх, в прыжке вниз + удар — отскок.',
       'Прыжок от стены: прижмись стиком к стене в падении и жми «Прыжок».  Спрыгнуть с платформы: стик вниз + «Прыжок».',
+      'Уступ: падая у края, жми стик к нему; стик вверх или «Прыжок» — подтянуться, вниз — отпустить.  Парус (за Владика): держи «Прыжок» в падении.',
       'Оглушённого босса (полоска над ним) можно казнить: подойди и ударь вверх или вниз (стик).',
       'Лечение: когда катушка нити полна, стоишь 1.1 с и восстанавливаешь 2 бутона; урон прерывает лечение.',
       'Отбив: кнопка нити (Q), когда нить не полна, — окно 0.2 с, отбивает удар и снаряды.  Всполох: ↑ + нить (от 4 нити).',
       'Комбо: третий удар подряд — тяжёлый.  Рывок сквозь удар — идеальный уворот (+2 нити).  Серия ударов оглушает босса.',
       'Напарник в коконе: подойди и держи стик вверх одну секунду.  Скамья: стик вверх.',
       'По сети пауза не останавливает мир.',
-    ].join('\n')).setY(270);
+    ].join('\n')).setY(280);
     const mkB = (x, label, fn) => {
       const t = this.add.text(x, 420, label, { fontFamily: D, fontSize: '23px', color: '#cfe8dc', fontStyle: '700', backgroundColor: 'rgba(20,48,41,0.9)', padding: { x: 18, y: 8 } })
         .setOrigin(0.5).setInteractive({ useHandCursor: true });
@@ -2668,6 +2723,7 @@ class UIScene extends Phaser.Scene {
     const pbtns = labels.map(([l, fn]) => mkB(0, l, fn));
     const gap = 18, total = pbtns.reduce((s, b) => s + b.width, 0) + gap * (pbtns.length - 1);
     let px = VW / 2 - total / 2; for (const b of pbtns) { b.setX(px + b.width / 2); px += b.width + gap; }
+    this.pauseBtns = pbtns;
     this.pause.add([pb, pt, pc, ...pbtns]);
     this.win = this.add.container(0, 0).setVisible(false);
     // «вид сверху» для фазы Миши
@@ -2679,13 +2735,18 @@ class UIScene extends Phaser.Scene {
     this.tdLayer = this.add.container(0, 0, [this.tdG, ...this.tdTags, this.tdSay, this.tdInfo, this.tdTitle]).setVisible(false);
     this.children.sendToBack(this.tdLayer); // под всем интерфейсом: здоровье, подсказки, пауза видны поверх
     this.t = 0;
-    this.input.keyboard.on('keydown-ENTER', () => { if (this.gs.won) this.winEnter(); });
-    this.input.keyboard.on('keydown-SPACE', () => { if (this.gs.won) this.winEnter(); });
-    this.input.keyboard.on('keydown-R', () => { if (this.gs.won && !this.gs.online) this.retry(); });
+    // клавиши экрана победы: только когда он уже показан, не от удержания (Пробел — прыжок) и не раньше чем через 0,8 с;
+    // «ещё раз» — на N: R в боях с Мишей — дымовуха
+    this.winAt = 0; this.campWinS = null;
+    const winKey = (e) => this.gs.won && this.winShown() && !(e && e.repeat) && performance.now() - this.winAt > 800;
+    this.input.keyboard.on('keydown-ENTER', (e) => { if (winKey(e)) this.winEnter(); });
+    this.input.keyboard.on('keydown-SPACE', (e) => { if (winKey(e)) this.winEnter(); });
+    this.input.keyboard.on('keydown-N', (e) => { if (winKey(e) && !this.gs.online) this.retry(); });
     this.ready = true;
   }
+  winShown() { return !!this.win && this.win.visible; }
   winEnter() { this.restart(); }
-  restart() { this.ready = false; Net.onClose = null; Net.close(); this.scene.stop('bg'); this.scene.stop('game'); this.scene.start('menu'); }
+  restart() { this.ready = false; Net.close(); this.scene.stop('bg'); this.scene.stop('game'); this.scene.start('menu'); }
   openSettings() { this.pause.setVisible(false); Settings.show(() => { if (this.ready) this.pause.setVisible(true); }); }
   tdShow(on) {
     if (!this.ready) return;
@@ -2773,7 +2834,7 @@ class UIScene extends Phaser.Scene {
       : s.hits != null ? `Время боя: ${m}:${sec}\nУдаров иглой: ${s.hits}\nОбрывов нити: ${s.deaths}\nТкачей: ${s.players}`
       : `Время: ${m}:${sec}\nБусин собрано: ${s.beads}\nОбрывов нити: ${s.deaths}\nТкачей: ${s.players}`;
     const t2 = this.add.text(VW / 2, 260, lines, { fontFamily: F, fontSize: '18px', color: '#b9d4c8', align: 'center', lineSpacing: 8 }).setOrigin(0.5, 0);
-    const t3 = this.add.text(VW / 2, 440, this.gs.online ? 'Enter — в главное меню' : 'Enter — в главное меню   ·   R — ещё раз', { fontFamily: F, fontSize: '15px', color: '#ffe3a3' }).setOrigin(0.5);
+    const t3 = this.add.text(VW / 2, 440, this.gs.online ? 'Enter — в главное меню' : 'Enter — в главное меню   ·   N — ещё раз', { fontFamily: F, fontSize: '15px', color: '#ffe3a3' }).setOrigin(0.5);
     Touch.show(false);
     const btn = (x, label, fn) => {
       const t = this.add.text(x, 392, label, { fontFamily: D, fontSize: '26px', color: '#cfe8dc', fontStyle: '700', backgroundColor: 'rgba(20,48,41,0.9)', padding: { x: 16, y: 7 } })
@@ -2784,7 +2845,7 @@ class UIScene extends Phaser.Scene {
     const extra = this.gs.online ? [btn(VW / 2, 'В главное меню', () => this.restart())]
       : [btn(VW / 2 - 130, 'В главное меню', () => this.restart()), btn(VW / 2 + 130, 'Ещё раз', () => this.retry())];
     if (Touch.enabled) t3.setVisible(false);
-    this.win.add([bg, t1, t2, t3, ...extra]); this.win.setVisible(true).setAlpha(0);
+    this.win.add([bg, t1, t2, t3, ...extra]); this.win.setVisible(true).setAlpha(0); this.winAt = performance.now();
     this.tweens.add({ targets: this.win, alpha: 1, duration: 900 });
   }
   update(time, delta) {
@@ -2886,7 +2947,7 @@ function buildMishaArena() {
     W, H, grid: g, spawn: { x: 6, y: 17 }, benches: [], enemies: [], gates: [], exit: null,
     signs: [
       { x: 9, y: 17, text: 'R — дымовая бомба (геймпад LB)\n↑ + R — навесом, ↓ + R — под ноги', touch: 'Кнопка «Бомба» — дымовуха\nстик вверх — навесом, вниз — под ноги' },
-      { x: 14, y: 17, text: 'Иглой Мишу не пробить.\nЗакинь дымовуху ему в рюкзак!' },
+      { x: 14, y: 17, text: 'Бей Мишу иглой!\nДымовуха в рюкзак бьёт сильнее,\nа в конце боя нужны только дымовухи' },
     ],
     crates: [{ x: 3, y: 17 }, { x: 40, y: 17 }],
     misha: { x: 28, y: 17 }, ceilY: 4,
@@ -2932,7 +2993,7 @@ Object.assign(GameScene.prototype, {
     if (this.misha && this.misha.g) this.misha.g.destroy();
     const d = this.L.misha, hp = BAL.hp.misha[this.nPlayers === 2 ? 1 : 0];
     this.misha = { x: d.x * T - 28, y: (d.y + 1) * T - 74, w: 56, h: 74, vx: 0, vy: 0, face: -1, hp, maxHp: hp, state: 'intro', t: 3.2,
-      flash: 0, last: '', turnT: 0, hitCd: 0, tdMarks: [Math.ceil(hp * 2 / 3), Math.ceil(hp / 3)], tdUsed: [], tdQueue: false, say: 'ЭЙ! ЭТО МОЙ РЮКЗАК!', sayT: 3.0, zipT: 0, barShown: false, g: this.add.graphics().setDepth(4) };
+      flash: 0, last: '', turnT: 0, hitCd: 0, tdMarks: [Math.ceil(hp * 2 / 3), Math.ceil(hp / 3)], tdUsed: [], armorSaid: false, tdQueue: false, say: 'ЭЙ! ЭТО МОЙ РЮКЗАК!', sayT: 3.0, zipT: 0, barShown: false, g: this.add.graphics().setDepth(4) };
   },
   mishaBag(m) { const cx = m.x + m.w / 2; return { x: cx - 26 * m.face - 15, y: m.y + 12, w: 30, h: 40 }; },
   smokeAt(n, x, y) { this.smoke.explode(n, x, y); if (this.online === 'host') this.sendEv({ k: 'smoke', n, x: Math.round(x), y: Math.round(y) }); },
@@ -2997,10 +3058,31 @@ Object.assign(GameScene.prototype, {
   mishaNeedle(p, box) {
     const m = this.misha;
     if (!m || p.atkHits.has(m) || ['dead', 'intro'].includes(m.state) || !overlap(box, m)) return false;
-    p.atkHits.add(m); m.flash = 0.06;
-    this.gainSilk(p); Snd.play('clink'); this.parts.setParticleTint(0xffffff); this.parts.explode(5, clamp(p.x + 7 + p.face * 26, m.x, m.x + m.w), m.y + m.h / 2);
-    if (!this._needleTip) { this._needleTip = true; this.ui().toast('Иглой Мишу не пробить. Дымовуху ему в рюкзак!', 5.5); }
+    p.atkHits.add(m);
+    if (!this.mishaArmored(m)) { if (this.auth()) this.mishaNeedleHit(p, m); else { m.flash = 0.08; Snd.play('hit'); } return true; }
+    // третья фаза: рюкзак застёгнут на все замки — иглой не пробить
+    m.flash = 0.06;
+    this.gainSilk(p, true); Snd.play('clink'); this.parts.setParticleTint(0xffffff); this.parts.explode(5, clamp(p.x + 7 + p.face * 26, m.x, m.x + m.w), m.y + m.h / 2);
+    if (!this._needleTip) { this._needleTip = true; this.ui().toast('Последняя фаза: иглой Мишу не пробить. Дымовуху ему в рюкзак!', 5.5); }
     return true;
+  },
+  // третья фаза (последняя треть здоровья): только дымовые бомбы
+  mishaArmored(m) { return m.hp <= m.tdMarks[1]; },
+  // первые две фазы: Миша бьётся иглой как обычный босс, 4 удара = 1 «единица» здоровья (бомба в рюкзак снимает целую)
+  mishaNeedleHit(p, m) {
+    if (['dead', 'intro'].includes(m.state)) return;
+    const W = this.wdef ? this.wdef(p) : null, floor = m.tdMarks[1];
+    const d = 0.25 * (W && W.dmg ? W.dmg : 1) * (p.heavy ? 2 : 1);
+    m.hp = Math.max(floor, m.hp - d); m.flash = 0.1; this.gainSilk(p, true); if (!p.remote) this.hitstop = 0.04;
+    this.sfx('hit'); this.parts.setParticleTint(0xf4f1e6); this.parts.explode(8, clamp(p.x + 7 + p.face * 26, m.x, m.x + m.w), m.y + m.h / 2);
+    this.ui().bossBar(true, 'Миша Додик', Math.max(0, m.hp) / m.maxHp);
+    let queued = false;
+    for (const mark of m.tdMarks) if (m.hp <= mark && !m.tdUsed.includes(mark)) { m.tdUsed.push(mark); m.tdQueue = true; queued = true; }
+    if (queued) { m.state = 'cough'; m.t = 0.9; m.vx = 0; }
+    if (m.hp <= floor && !m.armorSaid) {
+      m.armorSaid = true; this.mishaSpeak('ЗАСТЁГИВАЮ НА ВСЕ ЗАМКИ!', 2.2); this.sfx('gate'); this.shake(300, 0.008);
+      this.toastAll('Последняя фаза: иглой Мишу больше не пробить — только дымовухи в рюкзак!');
+    } else if (Math.random() < 0.18 && m.sayT <= 0) this.mishaSpeak(MISHA_SAY_HIT[Math.floor(Math.random() * MISHA_SAY_HIT.length)], 1.1);
   },
 
   // ----- поведение (считает хост) -----
@@ -4386,6 +4468,7 @@ const RAW = {};              // исходные функции урона (бе
 (function () {
   const proto = GameScene.prototype;
   proto.poiseAdd = function (b, n) {
+    if (this.online === 'guest') return; // стойку считает только хост, гость получает её в снимке
     if (!b || b.poiseImmune > 0 || b.stagger > 0 || ['sleep', 'dead', 'gone', 'intro', 'rage'].includes(b.state)) return;
     b.poise = (b.poise || 0) + n; b.poiseT = 0;
     if (b.poise >= POISE_MAX[b.phase || 1]) {
@@ -4519,6 +4602,9 @@ Object.assign(GameScene.prototype, {
     this.parts.setParticleTint(0xffffff); this.parts.explode(18, cx + p.face * 10, cy);
     for (const pr of this.projs) if (!pr.dead && pr.kind !== 'bomb' && Math.hypot(pr.x - cx, pr.y - cy) < 110) { pr.dead = true; this.burst(5, pr.x, pr.y, 0xffffff); }
     for (const e of this.enemies) if (!e.dead && Math.hypot(e.x + e.w / 2 - cx, e.y + e.h / 2 - cy) < 100) { e.kbT = 0.2; e.kbx = Math.sign(e.x - cx) * 300; e.kby = -120; e.flash = 0.1; if (e.state === 'charge') { e.state = 'stun'; e.st = 0.8; } }
+    if (this.auth()) this.parryPoise(cx, cy); else this.sendEv({ k: 'parrypoise', x: Math.round(cx), y: Math.round(cy) });
+  },
+  parryPoise(cx, cy) {
     for (const b of [this.boss, this.vladik, this.tima]) if (b && Math.hypot(b.x + b.w / 2 - cx, b.y + b.h / 2 - cy) < 190) this.poiseAdd(b, 3);
   },
   // нитяной всполох (↑ + кнопка нити): тратит BURST нити, бьёт всё вокруг и сбивает снаряды
@@ -4553,13 +4639,23 @@ Object.assign(GameScene.prototype, {
         it.got = true; this.abil[it.ability] = true; Snd.play('revive');
         this.parts.setParticleTint(0xffe3a3); this.parts.explode(40, it.px, it.py); this.shake(300, 0.006);
         this.ui().toast(it.text, 5);
-        Settings.saveProgress({ ...(Settings.progress() || { bench: 0, beads: this.beads }), abil: this.abil });
+        if (this.online) this.sendEv({ k: 'abil', a: it.ability });
+        if (this.auth()) Settings.saveProgress({ ...(Settings.progress() || { bench: 0, beads: this.beads }), abil: this.abil }); // у гостя сохранение не его: запишет хост
       }
     }
     this.items = this.items.filter((it) => !it.got);
   },
+  // напарник подобрал способность (хост запоминает и сохраняет, гость убирает предмет с карты)
+  itemEv(m) {
+    if (!m.a) return;
+    this.abil[m.a] = true;
+    const it = (this.items || []).find((q) => q.ability === m.a);
+    if (it) { this.parts.setParticleTint(0xffe3a3); this.parts.explode(30, it.px, it.py); this.ui().toast(it.text, 5); }
+    this.items = (this.items || []).filter((q) => q.ability !== m.a);
+    if (this.auth()) Settings.saveProgress({ ...(Settings.progress() || { bench: 0, beads: this.beads }), abil: this.abil });
+  },
   drawItems(now) {
-    if (!this.itemG) this.itemG = this.add.graphics().setDepth(2.5);
+    if (!this.itemG || !this.itemG.scene) this.itemG = this.add.graphics().setDepth(2.5);
     const g = this.itemG; g.clear();
     for (const it of this.items || []) {
       const bob = Math.sin(now * 2.4) * 4;
@@ -5059,7 +5155,8 @@ const Campaign = {
     return c ? `Глава ${c.roman} · ${c.name}` : 'Глава I · Мшистая Глубь';
   },
   saveName(gs, area) { const c = CHAPTERS[gs.camp ? gs.camp.ch : 1]; return `Гл. ${c.roman} · ${area}`; },
-  canSave(gs) { return gs.mode === 'story' && gs.online !== 'guest'; },
+  // арена главы идёт в режиме 'bosstest', но это часть кампании: победа должна сохраняться (кроме спидрана)
+  canSave(gs) { return gs.online !== 'guest' && !gs.sr && (gs.mode === 'story' || (gs.mode === 'bosstest' && !!gs.camp && gs.camp.st === 'arena')); },
 
   // ----- хуки GameScene -----
   init(gs, data) {
@@ -5250,7 +5347,7 @@ Object.assign(UIScene.prototype, {
     else if (guest) items.push(this.add.text(VW / 2, 478, hint, { fontFamily: F, fontSize: '15px', color: '#ffe3a3' }).setOrigin(0.5));
     Touch.show(false);
     this.campWinS = k;
-    this.win.add(items); this.win.setVisible(true).setAlpha(0);
+    this.win.add(items); this.win.setVisible(true).setAlpha(0); this.winAt = performance.now();
     this.tweens.add({ targets: this.win, alpha: 1, duration: 900 });
   },
 
@@ -5259,14 +5356,14 @@ Object.assign(UIScene.prototype, {
     const D = '"Cormorant SC", Georgia, serif', F = '"Fira Sans", sans-serif', gs = this.gs, x0 = VW / 2 - 280;
     const c = this.add.container(0, 0).setVisible(false).setDepth(50);
     const bg = this.add.graphics(); bg.fillStyle(0x030807, 0.86); bg.fillRect(0, 0, VW, VH);
-    bg.fillStyle(0x0b1714, 0.97); bg.fillRoundedRect(x0 - 20, 70, 600, 400, 10); bg.lineStyle(2, 0x3c5a50, 1); bg.strokeRoundedRect(x0 - 20, 70, 600, 400, 10);
+    bg.fillStyle(0x0b1714, 0.97); bg.fillRoundedRect(x0 - 20, 70, 600, 424, 10); bg.lineStyle(2, 0x3c5a50, 1); bg.strokeRoundedRect(x0 - 20, 70, 600, 424, 10);
     const title = this.add.text(VW / 2, 104, 'Лавка у скамьи', { fontFamily: D, fontSize: '40px', color: '#e8e2cf', fontStyle: '700' }).setOrigin(0.5);
     this.shopBeads = this.add.text(x0 + 560, 88, '', { fontFamily: F, fontSize: '18px', color: '#ffe3a3' }).setOrigin(1, 0);
     this.shopSelG = this.add.graphics();
     this.shopRows = [];
-    const rows = [...SHOP, { id: 'close' }];
+    const rows = [...SHOP, { id: 'gear' }, { id: 'close' }];
     rows.forEach((it, i) => {
-      const y = 148 + i * 70;
+      const y = 146 + i * 62;
       const name = this.add.text(x0, y, '', { fontFamily: D, fontSize: '26px', color: '#cfe8dc', fontStyle: '700' });
       const desc = this.add.text(x0, y + 31, '', { fontFamily: F, fontSize: '13px', color: '#86a89a' });
       const price = this.add.text(x0 + 560, y + 2, '', { fontFamily: F, fontSize: '18px', fontStyle: '600', color: '#ffe3a3' }).setOrigin(1, 0);
@@ -5276,7 +5373,7 @@ Object.assign(UIScene.prototype, {
       this.shopRows.push({ it, name, desc, price, y });
       c.add([name, desc, price, hit]);
     });
-    this.shopHint = this.add.text(VW / 2, 446, '', { fontFamily: F, fontSize: '12px', color: '#6f9586' }).setOrigin(0.5);
+    this.shopHint = this.add.text(VW / 2, 468, '', { fontFamily: F, fontSize: '12px', color: '#6f9586' }).setOrigin(0.5);
     c.add([bg, title, this.shopBeads, this.shopSelG, this.shopHint]);
     c.sendToBack(this.shopSelG); c.sendToBack(bg);
     this.shopC = c; this.shopSel = 0;
@@ -5294,7 +5391,7 @@ Object.assign(UIScene.prototype, {
   shopMove(d) { const n = this.shopRows.length; this.shopSel = (this.shopSel + d + n) % n; this.shopRefresh(); },
   shopAct() {
     const r = this.shopRows[this.shopSel]; if (!r) return;
-    if (r.it.id === 'close') Campaign.closeShop(this.gs); else Campaign.buy(this.gs, r.it.id);
+    if (r.it.id === 'close') Campaign.closeShop(this.gs); else if (r.it.id === 'gear') { if (typeof Gear !== 'undefined') Gear.open(this.gs, 'shop'); } else Campaign.buy(this.gs, r.it.id);
   },
   shopRefresh() {
     const gs = this.gs, up = gs.up || Campaign.freshUp(), g = this.shopSelG; g.clear();
@@ -5307,6 +5404,7 @@ Object.assign(UIScene.prototype, {
     this.shopRows.forEach((r, i) => {
       const it = r.it, sel = i === this.shopSel;
       if (sel) { g.fillStyle(0x1d3a31, 0.9); g.fillRoundedRect(VW / 2 - 295, r.y - 6, 590, 62, 6); g.lineStyle(1.5, 0xffd47a, 0.8); g.strokeRoundedRect(VW / 2 - 295, r.y - 6, 590, 62, 6); }
+      if (it.id === 'gear') { r.name.setText('Снаряжение').setColor(sel ? '#ffd47a' : '#cfe8dc'); r.desc.setText('Оружие, инструмент и обереги'); r.price.setText('открыть').setColor('#9ff0c8'); return; }
       if (it.id === 'close') { r.name.setText('Закрыть').setColor(sel ? '#ffd47a' : '#cfe8dc'); r.desc.setText(Touch.enabled ? '' : 'Esc'); r.price.setText(''); return; }
       const lvl = up[it.id] | 0, maxed = lvl >= it.max, pr = maxed ? 0 : it.price[lvl], can = !maxed && gs.beads >= pr;
       r.name.setText(`${it.name}  ${'●'.repeat(lvl)}${'○'.repeat(it.max - lvl)}`).setColor(sel ? '#ffd47a' : '#cfe8dc');
@@ -5388,8 +5486,8 @@ const Records = {
 // ===== ДОСТУПНОСТЬ: переназначение клавиш, скорость игры, «без вспышек», «контуры опасного» =====
 const Access = {
   ACTS: [['left', 'Идти влево'], ['right', 'Идти вправо'], ['up', 'Вверх (удар вверх, скамья)'], ['down', 'Вниз (удар вниз, лавка)'],
-    ['jump', 'Прыжок'], ['atk', 'Удар'], ['dash', 'Рывок'], ['heal', 'Нить: лечение и отбив'], ['bomb', 'Дымовуха']],
-  DEF: { left: [65, 'A'], right: [68, 'D'], up: [87, 'W'], down: [83, 'S'], jump: [32, 'Пробел'], atk: [70, 'F'], dash: [71, 'G'], heal: [81, 'Q'], bomb: [82, 'R'] },
+    ['jump', 'Прыжок'], ['atk', 'Удар'], ['dash', 'Рывок'], ['heal', 'Нить: лечение и отбив'], ['bomb', 'Дымовуха'], ['tool', 'Инструмент']],
+  DEF: { left: [65, 'A'], right: [68, 'D'], up: [87, 'W'], down: [83, 'S'], jump: [32, 'Пробел'], atk: [70, 'F'], dash: [71, 'G'], heal: [81, 'Q'], bomb: [82, 'R'], tool: [69, 'E'] },
   // клавиши игрока 2, стрелок и запасной раскладки заняты и не отдаются
   RESERVED: new Set([27, 37, 38, 39, 40, 96, 97, 98, 99, 100, 188, 190, 191, 77, 78, 90, 88, 67, 86, 66]),
   keys: null, listening: null, scene: null,
@@ -5643,7 +5741,7 @@ Training.load();
     this.trHud = this.add.text(VW - 16, 96, '', { fontFamily: F, fontSize: '13px', color: '#ffd47a', align: 'right', lineSpacing: 3, backgroundColor: 'rgba(6,14,12,0.6)', padding: { x: 8, y: 5 } }).setOrigin(1, 0);
     this.trTele = this.add.text(VW / 2, 458, '', { fontFamily: F, fontSize: '15px', color: '#ffd47a' }).setOrigin(0.5);
     this.trKeys = this.add.text(VW / 2, 482, 'Тренировка: здоровье бесконечное, рекорды не пишутся.  Y — сбросить босса', { fontFamily: F, fontSize: '12px', color: '#8fb8a8' }).setOrigin(0.5);
-    const btn = this.add.text(VW / 2, 512, 'Сброс босса (Y)', { fontFamily: D, fontSize: '21px', color: '#cfe8dc', fontStyle: '700', backgroundColor: 'rgba(20,48,41,0.9)', padding: { x: 14, y: 5 } }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    const btn = this.trBtn = this.add.text(VW / 2, 512, 'Сброс босса (Y)', { fontFamily: D, fontSize: '21px', color: '#cfe8dc', fontStyle: '700', backgroundColor: 'rgba(20,48,41,0.9)', padding: { x: 14, y: 5 } }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     btn.on('pointerover', () => btn.setColor('#ffd47a')); btn.on('pointerout', () => btn.setColor('#cfe8dc')); btn.on('pointerdown', () => Training.reset(gs));
     this.pause.add([this.trTele, this.trKeys, btn]);
     const upd = () => {
@@ -5886,7 +5984,7 @@ const MapTravel = {
     createO.call(this);
     this.mapC = null;
     const hint = Touch.enabled ? 'Кнопка ▤ рядом с паузой — карта' : 'M (вдвоём за одним экраном — Tab) — карта и быстрые переходы между скамьями';
-    this.pause.add(this.add.text(VW / 2, VH - 26, hint, { fontFamily: '"Fira Sans", sans-serif', fontSize: '13px', color: '#6f9586' }).setOrigin(0.5));
+    this.pause.add(this.mapHint = this.add.text(VW / 2, VH - 26, hint, { fontFamily: '"Fira Sans", sans-serif', fontSize: '13px', color: '#6f9586' }).setOrigin(0.5));
   };
 }
 Object.assign(UIScene.prototype, {
@@ -6041,7 +6139,7 @@ const Pads = {
     const ax = p.axes[0] || 0, ay = p.axes[1] || 0, dz = 0.32;
     const s = {
       left: ax < -dz || B(14), right: ax > dz || B(15), up: ay < -0.5 || B(12), down: ay > 0.5 || B(13),
-      jump: B(0), atk: B(2), dash: B(1) || B(5) || T(7), heal: B(3) || T(6), bomb: B(4),
+      jump: B(0), atk: B(2), dash: B(1) || T(7), heal: B(3) || T(6), bomb: B(4), tool: B(5),
       pause: B(9), map: B(8) || B(17),
     };
     s.any = s.left || s.right || s.up || s.down || s.jump || s.atk || s.dash || s.heal || s.bomb || s.pause;
@@ -6071,7 +6169,7 @@ const Pads = {
     const ps = k === 'ps';
     const A = ps ? '✕' : 'A', X = ps ? '□' : 'X', B_ = ps ? '○' : 'B', Y = ps ? '△' : 'Y';
     const L1 = ps ? 'L1' : 'LB', R1 = ps ? 'R1' : 'RB', L2 = ps ? 'L2' : 'LT', R2 = ps ? 'R2' : 'RT';
-    return `${this.label(k)}: ${A} прыжок · ${X} удар · ${B_} / ${R1} / ${R2} рывок · ${Y} / ${L2} нить (лечение, отбив; ↑+нить — всполох) · ${L1} дымовуха · ${ps ? 'Options' : 'Start'} пауза · ${ps ? 'Create' : 'Back'} карта`;
+    return `${this.label(k)}: ${A} прыжок · ${X} удар · ${B_} / ${R2} рывок · ${Y} / ${L2} нить (лечение, отбив; ↑+нить — всполох) · ${L1} дымовуха · ${R1} инструмент · ${ps ? 'Options' : 'Start'} пауза · ${ps ? 'Create' : 'Back'} карта`;
   },
 };
 
@@ -6122,6 +6220,1807 @@ window.addEventListener('gamepadconnected', (e) => {
   try { const ui = window.__game && window.__game.scene.getScene('ui'); if (ui && ui.toast && ui.ready) ui.toast('Подключён геймпад: ' + Pads.label(k), 3); } catch (_) { }
 });
 document.addEventListener('pointerdown', (e) => { if (e.pointerType === 'touch' && Pads.active) Pads.setActive(false); }, true);
+
+// ===== СНАРЯЖЕНИЕ: оружие, инструмент, обереги =====
+// Реестры. Новые записи добавляют модули weapons.js, tools.js, charms.js (по одному файлу — меньше конфликтов).
+//   WEAPONS[id] = { id, name, desc, reach, thick, atkT, cd, combo, comboWin, finisher, finT, finCd, dmg, onSwing?(sc,p), unlock }
+//   TOOLS[id]   = { id, name, desc, cost (нить), cd (сек), use(sc, p) → true, если применён, unlock }
+//   CHARMS[id]  = { id, name, desc, unlock }  — эффекты обереги реализуют сами через sc.hasCharm(p, id)
+// unlock: 'start' | 'boss:korn|misha|vladik|tima' | 'shop:N' (цена в бусинах, покупается в лавке).
+const WEAPONS = {
+  needle: { id: 'needle', name: 'Игла', desc: 'Лёгкая и быстрая. Третий удар подряд — тяжёлый.', reach: 1, thick: 1, atkT: 0.12, cd: 0.26, combo: 3, comboWin: 0.6, finisher: true, finT: 0.16, finCd: 0.42, dmg: 1, unlock: 'start' },
+};
+const TOOLS = {};
+const CHARMS = {};
+const CHARM_SLOTS = 3;
+
+const Loadout = {
+  KEY: 'tt_loadout',
+  data() {
+    let d = null; try { d = JSON.parse(localStorage.getItem(this.KEY) || 'null'); } catch (_) { }
+    d = d && typeof d === 'object' ? d : {};
+    d.weapon = d.weapon || 'needle'; d.tool = d.tool || ''; d.charms = Array.isArray(d.charms) ? d.charms : [];
+    d.have = d.have || { weapons: ['needle'], tools: [], charms: [] };
+    for (const k of ['weapons', 'tools', 'charms']) if (!Array.isArray(d.have[k])) d.have[k] = [];
+    return d;
+  },
+  save(d) { try { localStorage.setItem(this.KEY, JSON.stringify(d)); } catch (_) { } },
+  reg(kind) { return { weapons: WEAPONS, tools: TOOLS, charms: CHARMS }[kind]; },
+  // всё доступно в босс-тесте (кроме забегов спидрана — там честное стартовое снаряжение)
+  openAll(sc) { return sc && sc.mode === 'bosstest' && !sc.camp && !(sc.sr); },
+  owned(kind, id, sc) {
+    const e = this.reg(kind)[id]; if (!e) return false;
+    return e.unlock === 'start' || this.openAll(sc) || this.data().have[kind].includes(id);
+  },
+  grant(kind, id) {
+    const d = this.data(); if (!this.reg(kind)[id] || d.have[kind].includes(id)) return false;
+    d.have[kind].push(id); this.save(d); return true;
+  },
+  // что надето у игрока
+  equipped(sc) {
+    if (sc && sc.sr) return { weapon: 'needle', tool: '', charms: [] };
+    const d = this.data();
+    const weapon = this.owned('weapons', d.weapon, sc) ? d.weapon : 'needle';
+    const tool = d.tool && this.owned('tools', d.tool, sc) ? d.tool : '';
+    const charms = d.charms.filter((c) => this.owned('charms', c, sc)).slice(0, CHARM_SLOTS);
+    return { weapon, tool, charms };
+  },
+  equip(kind, id) {
+    const d = this.data();
+    if (kind === 'weapon') d.weapon = id; else if (kind === 'tool') d.tool = id;
+    else if (kind === 'charm') { const i = d.charms.indexOf(id); if (i >= 0) d.charms.splice(i, 1); else if (d.charms.length < CHARM_SLOTS) d.charms.push(id); }
+    this.save(d);
+  },
+  // награды за боссов
+  onBoss(sc, bossId) {
+    const got = [];
+    for (const kind of ['weapons', 'tools', 'charms']) for (const id in this.reg(kind)) {
+      const e = this.reg(kind)[id];
+      if (e.unlock === 'boss:' + bossId && this.grant(kind, id)) got.push(e.name);
+    }
+    if (got.length && sc.ui) sc.ui().toast('Получено: ' + got.join(', ') + ' — выбрать на скамье', 5);
+  },
+};
+
+Object.assign(GameScene.prototype, {
+  wdef(p) { return WEAPONS[p.weaponId] || WEAPONS.needle; },
+  hasCharm(p, id) { return !!(p.charms && p.charms.includes(id)); },
+  // надеть сохранённое снаряжение на локальных героев (удалённых игроков настраивает сеть)
+  applyLoadout() {
+    const eq = Loadout.equipped(this);
+    for (const p of this.players) {
+      if (p.remote) continue;
+      p.weaponId = eq.weapon; p.toolId = eq.tool; p.charms = eq.charms.slice(); p.toolCd = 0;
+    }
+  },
+  useTool(p) {
+    const T_ = TOOLS[p.toolId]; if (!T_ || p.downed || p.toolCd > 0 || p.hurtT > 0 || p.sit) return false;
+    if (p.silk < (T_.cost || 0)) { if (!p.remote) Snd.play('clink'); return false; }
+    if (!T_.use(this, p)) return false;
+    p.silk -= T_.cost || 0; p.toolCd = T_.cd || 0.5; return true;
+  },
+});
+(function () {
+  const proto = GameScene.prototype;
+  // таймер перезарядки инструмента
+  const stepPlayer = proto.stepPlayer;
+  proto.stepPlayer = function (p, dt) { p.toolCd = (p.toolCd || 0) - dt; return stepPlayer.call(this, p, dt); };
+  // награды за боссов
+  for (const [fn, id] of [['killBoss', 'korn'], ['mishaDie', 'misha'], ['vladikDie', 'vladik'], ['timaDie', 'tima']]) {
+    const f = proto[fn]; if (!f) continue;
+    proto[fn] = function (...a) { if (!this.sr && this.online !== 'guest') Loadout.onBoss(this, id); return f.apply(this, a); };
+  }
+})();
+
+// ===== ОРУЖИЕ: пять клинков, заряженный удар, воздушные цепочки, отрисовка =====
+// Реестр WEAPONS живёт в loadout.js; здесь — записи оружия и вся механика, которой не было у иглы.
+// Запись оружия, кроме полей loadout.js: pm (множитель вклада в стойкость босса), kb (отбрасывание цели), recoil (отдача героя),
+// hs (хит-стоп), noPogo (не отскакивает при ударе вниз), cutAll (рубит и летящие снаряды), geo (размеры коробки удара),
+// col (цвет), sw (особые удары: a1/a2 — воздух, f — финишер, c — заряженный).
+// Урон W.dmg применяется к обычным врагам и боссам через обёртки damageEnemy/damageBoss/damageVladik/damageTima
+// (только пока идёт resolveAttack героя): всполох, казнь (RAW), бомбы и отбив W.dmg не затрагивают.
+// Баланс: общий урон/с по боссу у всех клинков подогнан к игле (≈4,3 урона/с при постоянных попаданиях), проверка — tools/weapons_dps.js.
+(function () {
+  const proto = GameScene.prototype;
+  const CH_T = 0.45;      // сколько держать удар до заряженного
+  const CH_SHOW = 0.16;   // с какого момента герой светится и замедляется
+  const CH_SLOW = 0.45;   // множитель скорости бега при заряде
+  const PI = Math.PI;
+
+  // ---------- геометрия ----------
+  const fr = (sw, cx, w, h, top, off) => { off = off == null ? 2 : off; return { x: sw.f0 > 0 ? cx + off : cx - off - w, y: top, w, h }; };
+  const ctr = (cx, w, h, top) => ({ x: cx - w / 2, y: top, w, h });
+  // длина волны до ближайшей стены
+  const clipLen = (sc, x0, y, f, max) => {
+    for (let d = 16; d <= max; d += 16) if (sc.isSolid(Math.floor((x0 + f * d) / T), Math.floor(y / T))) return Math.max(24, d - 16);
+    return max;
+  };
+  const waveBox = (sc, p, sw, el) => { const L = Math.max(10, sw.len * Math.min(1, el / (sw.dur * 0.7))); return { x: sw.f0 > 0 ? sw.x0 + 6 : sw.x0 - 6 - L, y: sw.y0 - 30, w: L, h: 60 }; };
+  const shockBox = (sc, p, sw, el) => { const half = 200 * Math.min(1, el / (sw.dur * 0.5)) + 10; return { x: sw.x0 - half, y: sw.fy - 40, w: half * 2, h: 46 }; };
+
+  // ---------- реестр ----------
+  Object.assign(WEAPONS.needle, {
+    col: 0xf6f3e8, desc: 'Лёгкая и быстрая. Третий удар подряд — тяжёлый. В прыжке — взмах и разворот, с зарядом — волна.',
+    sw: {
+      a1: { t: 0.14, cd: 0.3, dm: 1.1, hits: 1, box: (sc, p, sw, el, rm, cx, cy) => fr(sw, cx, Math.round(58 * rm), 46, cy - 36) },
+      a2: { t: 0.14, cd: 0.3, dm: 1.1, hits: 1, flip: true, box: (sc, p, sw, el, rm, cx, cy) => fr(sw, cx, Math.round(60 * rm), 44, cy - 26) },
+      c: { t: 0.5, cd: 0.5, tot: 4.6, hits: 2, noRecoil: true, snd: 'wave', start: (sc, p, sw) => { sw.len = clipLen(sc, sw.x0, sw.y0, sw.f0, 250); }, box: waveBox },
+    },
+  });
+  WEAPONS.needle.onSwing = (sc, p) => begin(sc, p, WEAPONS.needle);
+
+  WEAPONS.twin = {
+    id: 'twin', name: 'Парные иглы', col: 0xb8ecff,
+    desc: 'Очень быстрые, но короткие и слабо отбрасывают. Четвёртый удар — вихрь вокруг героя. С зарядом — шквал.',
+    reach: 0.8, thick: 0.9, atkT: 0.08, cd: 0.11, combo: 4, comboWin: 0.4, finisher: true, finT: 0.22, finCd: 0.45, dmg: 0.69,
+    pm: 0.65, kb: 0.4, recoil: 0.4, hs: 0.018, unlock: 'boss:misha',
+    geo: { f: [40, 28, -14], fh: [96, 58, -29, 'c'], u: [34, 44, 40], d: [34, 40] },
+    sw: {
+      f: { hits: 2, snd: 'whirl' },
+      a1: { t: 0.09, cd: 0.14, dm: 0.8, hits: 2, box: (sc, p, sw, el, rm, cx, cy) => fr(sw, cx, Math.round(46 * rm), 38, cy - 20) },
+      a2: { t: 0.12, cd: 0.2, dm: 1.15, hits: 1, flip: true, box: (sc, p, sw, el, rm, cx, cy) => ctr(cx, Math.round(80 * rm), 52, cy - 26) },
+      c: { t: 0.56, cd: 0.45, tot: 4.8, hits: 1, pulses: 4, pulse: 0.13, noRecoil: true, snd: 'whirl', box: (sc, p, sw, el, rm, cx, cy) => ctr(cx, Math.round(116 * rm), 66, cy - 33) },
+    },
+    onSwing: (sc, p) => begin(sc, p, WEAPONS.twin),
+  };
+  WEAPONS.sickle = {
+    id: 'sickle', name: 'Серп', col: 0xd9f2a8,
+    desc: 'Длинная широкая дуга вверх-вперёд, рубит и летящие снаряды. Медленный замах. Заряд — «жатва» вокруг героя.',
+    reach: 1.6, thick: 1.8, atkT: 0.2, cd: 0.52, combo: 2, comboWin: 0.9, finisher: true, finT: 0.24, finCd: 0.66, dmg: 1.62,
+    pm: 1.6, kb: 1.15, recoil: 1, hs: 0.05, cutAll: true, unlock: 'boss:vladik',
+    geo: { f: [80, 62, -46], fh: [102, 68, -50], u: [66, 70, 62], d: [40, 46] },
+    sw: {
+      f: { hits: 2, snd: 'reap' },
+      a1: { t: 0.2, cd: 0.4, dm: 1.1, hits: 1, box: (sc, p, sw, el, rm, cx, cy) => fr(sw, cx, Math.round(74 * rm), 66, cy - 12) },
+      a2: { t: 0.2, cd: 0.45, dm: 1.1, hits: 1, flip: true, box: (sc, p, sw, el, rm, cx, cy) => ctr(cx, Math.round(128 * rm), 80, cy - 46) },
+      c: { t: 0.34, cd: 0.5, tot: 4.8, hits: 2, noRecoil: true, cutAll: true, snd: 'reap', box: (sc, p, sw, el, rm, cx, cy) => ({ x: sw.f0 > 0 ? cx - 14 : cx + 14 - Math.round(168 * rm), y: cy - 104, w: Math.round(168 * rm), h: 132 }) },
+    },
+    onSwing: (sc, p) => begin(sc, p, WEAPONS.sickle),
+  };
+  WEAPONS.mace = {
+    id: 'mace', name: 'Колотушка', col: 0xffc58a,
+    desc: 'Очень медленная, зато каждый удар тяжёлый: огромный урон, втрое сильнее сбивает стойкость босса, ломает броню. Не отскакивает при ударе вниз. Заряд — удар оземь.',
+    reach: 1, thick: 1.4, atkT: 0.22, cd: 0.7, combo: 1, comboWin: 0.6, finisher: false, finT: 0.22, finCd: 0.7, dmg: 3,
+    pm: 3, kb: 1.8, recoil: 1.35, hs: 0.1, noPogo: true, unlock: 'shop:60',
+    geo: { f: [58, 46, -26], u: [46, 52, 46], d: [48, 50] },
+    sw: {
+      g: { hits: 1, br: true, snd: 'hammer' },
+      a1: { t: 0.24, cd: 0.6, dm: 1.0, hits: 1, br: true, box: (sc, p, sw, el, rm, cx, cy) => fr(sw, cx, Math.round(58 * rm), 62, cy - 8) },
+      a2: { t: 0.24, cd: 0.62, dm: 0.9, hits: 1, br: true, flip: true, box: (sc, p, sw, el, rm, cx, cy) => ctr(cx, Math.round(108 * rm), 58, cy - 30) },
+      c: { t: 0.5, cd: 0.5, tot: 5.2, hits: 2, noRecoil: true, snd: 'quake', box: shockBox },
+    },
+    onSwing: (sc, p) => begin(sc, p, WEAPONS.mace),
+  };
+  WEAPONS.lance = {
+    id: 'lance', name: 'Игла-копьё', col: 0xcfe6ff,
+    desc: 'Колющий удар на огромную дистанцию вперёд, узкий и пробивает всех на линии. Третий выпад — ещё длиннее. Заряд — рывок-прокол.',
+    reach: 2.8, thick: 0.4, atkT: 0.14, cd: 0.38, combo: 3, comboWin: 0.7, finisher: true, finT: 0.18, finCd: 0.62, dmg: 1.4,
+    pm: 1.05, kb: 0.85, recoil: 0.5, hs: 0.04, unlock: 'shop:40',
+    geo: { f: [138, 13, -8], fh: [188, 15, -9], u: [20, 76, 70], d: [22, 62] },
+    sw: {
+      f: { hits: 2, snd: 'lunge' },
+      a1: { t: 0.14, cd: 0.34, dm: 1.1, hits: 1, box: (sc, p, sw, el, rm, cx, cy) => fr(sw, cx, Math.round(104 * rm), 44, cy - 4) },
+      a2: { t: 0.14, cd: 0.34, dm: 1.0, hits: 1, flip: true, box: (sc, p, sw, el, rm, cx, cy) => fr(sw, cx, Math.round(126 * rm), 14, cy - 8) },
+      c: { t: 0.26, cd: 0.5, tot: 4.8, hits: 2, noRecoil: true, snd: 'lunge', start: (sc, p, sw) => { p.kbx = sw.f0 * 1500; p.inv = Math.max(p.inv, 0.2); }, box: (sc, p, sw, el, rm, cx, cy) => fr(sw, cx, Math.round(216 * rm), 17, cy - 9, 0) },
+    },
+    onSwing: (sc, p) => begin(sc, p, WEAPONS.lance),
+  };
+
+  // ---------- начало удара ----------
+  const mkSw = (W, k, p, dur) => {
+    const e = W.sw && W.sw[k] || null;
+    const hits = e && e.hits != null ? e.hits : (p.heavy ? 2 : 1);
+    let dm = e && e.dm != null ? e.dm : 1;
+    if (e && e.tot != null) dm = e.tot / (hits * (e.pulses || 1) * W.dmg);
+    return { wid: W.id, k, e, hits, dm, f0: p.face, x0: p.x + p.w / 2, y0: p.y + p.h / 2, fy: p.y + p.h, dur, pulse: e && e.pulse || 0, pn: 0, cn: new Map(),
+      pm: e && e.pm, cutAll: !!(e && e.cutAll), noRecoil: !!(e && e.noRecoil), len: 0 };
+  };
+  // вызывается из game.js сразу после того, как посчитаны atkT/atkCd/heavy; выбирает вид удара (земля / воздух / финишер)
+  function begin(sc, p, W) {
+    const d = p.atkDir;
+    let k = 'g';
+    if (!p.onGround && d === 'f') { p.airN = (p.airN || 0) + 1; k = p.airN === 1 ? 'a1' : p.airN === 2 ? 'a2' : 'g'; }
+    if (k === 'g' && p.heavy) k = 'f';
+    if ((k === 'a1' || k === 'a2') && !(W.sw && W.sw[k])) k = p.heavy ? 'f' : 'g';
+    const e = W.sw && W.sw[k] || null;
+    let back = 0;
+    if (e) {
+      if (e.flip) { back = -p.face; const inp = p.inp || {}; if (!inp.left && !inp.right) p.face = back; } // разворот: бьёт назад, без нажатия — герой разворачивается
+      if (e.t != null) p.atkT = e.t;
+      if (e.cd != null) p.atkCd = e.cd * (sc.cdMul ? sc.cdMul(p) : 1);
+      if (e.hits != null) p.heavy = e.hits > 1 || !!e.br; else if (e.br) p.heavy = true;
+      if (e.snd) Snd.play(e.snd);
+    }
+    if (W.noPogo && d === 'd') p.pogoed = true;
+    p.sw = mkSw(W, k, p, p.atkT); p.swk = k;
+    if (back) p.sw.f0 = back;
+  }
+
+  // ---------- заряженный удар ----------
+  function fireCharge(sc, p, W) {
+    const e = W.sw && W.sw.c; if (!e) return;
+    p.atkDir = 'f'; p.combo = 0; p.comboT = 0; p.atkBuf = 0; p.swk = 'c';
+    p.atkT = e.t; p.atkCd = e.cd * (sc.cdMul ? sc.cdMul(p) : 1); p.atkHits = new Set(); p.pogoed = true; p.seq = (p.seq || 0) + 1;
+    p.sw = mkSw(W, 'c', p, e.t); p.heavy = true; p.chgWait = p.atkCd; // следующий заряд копится только после восстановления
+    if (e.start) e.start(sc, p, p.sw);
+    Snd.play(e.snd || 'slam'); sc.shake(220, 0.007 + (W.id === 'mace' ? 0.012 : 0));
+    sc.parts.setParticleTint(W.col || 0xffffff); sc.parts.explode(16, p.x + 7 + p.face * 14, p.y + 16);
+    if (W.id === 'mace') { sc.hitstop = Math.max(sc.hitstop || 0, 0.06); sc.dust.explode(12, p.x + 7, p.y + 26); }
+  }
+  function stopChargeSnd(p) { if (p.chgSnd) { try { p.chgSnd.stop(); } catch (_) { } p.chgSnd = null; } }
+  function chargeTick(sc, p, dt) {
+    if (p.remote) return;
+    const inp = p.inp || {}, held = !!inp.atk, W = sc.wdef(p);
+    p.chgWait = Math.max(0, (p.chgWait || 0) - dt);
+    const ok = !p.downed && p.hurtT <= 0 && p.dashT <= 0 && !(p.healCh > 0) && !p.sit && !(p.execT > 0) && p.onGround && !sc.td;
+    if (!held) {
+      if ((p.chg || 0) >= CH_T && !p.chgLock && ok) fireCharge(sc, p, W);
+      stopChargeSnd(p); p.chg = 0; p.chgLock = false; return;
+    }
+    if (p.chgLock || p.chgWait > 0) { p.chg = 0; return; }
+    if (!ok || inp.dashP) { // рывок, урон, прыжок или лечение отменяют заряд до отпускания кнопки
+      if ((p.chg || 0) > CH_SHOW) Snd.play('clink');
+      stopChargeSnd(p); p.chg = 0; p.chgLock = true; return;
+    }
+    const was = p.chg || 0; p.chg = was + dt;
+    if (was < CH_SHOW && p.chg >= CH_SHOW && Snd.chargeStart) p.chgSnd = Snd.chargeStart(CH_T - CH_SHOW, W.id);
+    if (was < CH_T && p.chg >= CH_T) { Snd.play('chargeFull'); sc.parts.setParticleTint(0xffffff); sc.parts.explode(10, p.x + 7, p.y + 14); }
+  }
+  const stepPlayer = proto.stepPlayer;
+  proto.stepPlayer = function (p, dt) {
+    chargeTick(this, p, dt);
+    if (p.onGround || p.wallDir) p.airN = 0;
+    return stepPlayer.call(this, p, dt);
+  };
+  const speedMul = proto.speedMul;
+  proto.speedMul = function (p) { const m = speedMul.call(this, p); return p && !p.remote && p.chg > CH_SHOW ? m * CH_SLOW : m; };
+
+  // ---------- коробка удара ----------
+  const atkBox0 = proto.atkBox;
+  proto.atkBox = function (p) {
+    const W = this.wdef(p), sw = p.sw, e = sw && sw.wid === W.id && sw.e;
+    const rm = this.reachMul ? this.reachMul(p) : 1, cx = p.x + p.w / 2, cy = p.y + p.h / 2;
+    if (e && e.box && p.atkDir === 'f') return e.box(this, p, sw, sw.dur - p.atkT, rm, cx, cy);
+    const g = W.geo; if (!g) return atkBox0.call(this, p);
+    if (p.atkDir === 'f') {
+      const q = p.heavy && g.fh ? g.fh : g.f, w = Math.round(q[0] * rm);
+      return q[3] === 'c' ? ctr(cx, w, q[1], cy + q[2]) : { x: p.face > 0 ? cx + 2 : cx - 2 - w, y: cy + q[2], w, h: q[1] };
+    }
+    if (p.atkDir === 'u') return { x: cx - g.u[0] / 2, y: p.y - Math.round(g.u[2] * rm), w: g.u[0], h: Math.round(g.u[1] * rm) };
+    return { x: cx - g.d[0] / 2, y: p.y + p.h - 8, w: g.d[0], h: Math.round(g.d[1] * rm) };
+  };
+
+  // ---------- разрешение удара и урон ----------
+  const EXTRA_CUT = new Set(['clef', 'drip', 'rock', 'trophy']);
+  const resolveAttack = proto.resolveAttack;
+  proto.resolveAttack = function (p) {
+    if (p.downed || p.atkT <= 0 || !p.atkHits) return resolveAttack.call(this, p);
+    const W = this.wdef(p);
+    if (!p.sw || p.sw.wid !== W.id) p.sw = mkSw(W, 'g', p, p.atkT);
+    const sw = p.sw;
+    if (sw.pulse) { const n = Math.floor((sw.dur - p.atkT) / sw.pulse); if (n !== sw.pn) { sw.pn = n; p.atkHits = new Set(); sw.cn.clear(); } }
+    const kb0 = p.kbx; this._inAtk = p;
+    try { resolveAttack.call(this, p); } finally { this._inAtk = null; this._hd = 1; }
+    if (p.kbx !== kb0) { const r = sw.noRecoil ? 0 : (W.recoil == null ? 1 : W.recoil); p.kbx = kb0 + (p.kbx - kb0) * r; }
+    if (sw.cutAll || W.cutAll) {
+      const box = this.atkBox(p), auth = this.auth();
+      for (const pr of this.projs) if (!pr.dead && EXTRA_CUT.has(pr.kind) && !(pr.delay > 0) && overlap(box, pr)) {
+        pr.dead = true; this.burst(6, pr.x + pr.w / 2, pr.y + pr.h / 2, 0xffd47a);
+        if (auth) this.sfx('clink'); else if (!p.remote) this.sendEv({ k: 'cut', kind: pr.kind, x: Math.round(pr.x), y: Math.round(pr.y) });
+      }
+    }
+  };
+  // особый ли это удар (иначе — исходная игла без изменений) и сколько урона несёт один вызов damageX
+  const special = (sc, p) => {
+    if (sc._inAtk !== p || !p.sw) return null;
+    const W = sc.wdef(p), sw = p.sw, d = W.dmg * sw.dm;
+    if (d === 1 && W.hs == null && W.kb == null && sw.hits === (p.heavy ? 2 : 1)) return null;
+    return { W, sw, d };
+  };
+  // второй вызов «тяжёлого» удара пропускаем, если у удара одно попадание
+  const dup = (p, sw, tgt) => { if (sw.hits !== 1 || !p.heavy) return false; const c = sw.cn.get(tgt) || 0; sw.cn.set(tgt, c + 1); return c >= 1; };
+
+  const damageEnemy = proto.damageEnemy;
+  proto.damageEnemy = function (e, p) {
+    const s = special(this, p); if (!s) return damageEnemy.call(this, e, p);
+    const { W, sw, d } = s;
+    if (dup(p, sw, e)) return;
+    const h0 = e.hp, est = 1 + Campaign.needleBonus(this); let bump = 0;
+    if (d < 1) { bump = est * (1 - d); e.hp += bump; }
+    this._hd = d;
+    try { damageEnemy.call(this, e, p); } finally { this._hd = 1; }
+    if (e.hp === h0 + bump) { e.hp = h0; return; } // не прошёл (броня, под землёй)
+    if (d > 1 && !e.dead) { e.hp -= (h0 - e.hp) * (d - 1); if (e.hp <= 0) this.killEnemy(e); }
+    if (!e.dead && e.kbT > 0) { const k = W.kb == null ? 1 : W.kb; e.kbx *= k; e.kby *= k; }
+    if (!p.remote && W.hs != null) this.hitstop = W.hs;
+  };
+  for (const [fn, key] of [['damageBoss', 'boss'], ['damageVladik', 'vladik'], ['damageTima', 'tima']]) {
+    const orig = proto[fn];
+    proto[fn] = function (p) {
+      const s = special(this, p), b = key === 'boss' ? this.boss : this[key];
+      if (!s || !b) return orig.call(this, p);
+      const { W, sw, d } = s;
+      if (dup(p, sw, b)) return;
+      // урон оружия добавляем до исходного вызова: фазы, смерть и двойной урон по оглушённому считает он сам
+      if (!['rage', 'dead', 'gone', 'sleep', 'intro'].includes(b.state)) b.hp -= (b.stagger > 0 ? 2 : 1) * (d - 1);
+      this._hd = d;
+      try { orig.call(this, p); } finally { this._hd = 1; }
+      if (!p.remote && W.hs != null && this.hitstop > 0) this.hitstop = W.hs;
+    };
+  }
+  // стойкость босса: свой множитель у каждого клинка (отбив и всполох идут вне удара и не затронуты)
+  const poiseAdd = proto.poiseAdd;
+  proto.poiseAdd = function (b, n) {
+    const p = this._inAtk;
+    if (p && p.sw) { const W = this.wdef(p); n *= (W.pm == null ? 1 : W.pm) * (p.sw.pm == null ? 1 : p.sw.pm); }
+    return poiseAdd.call(this, b, n);
+  };
+  // нить копится за нанесённый урон, а не за число ударов (иначе быстрые клинки лечили бы слишком быстро)
+  const gainSilk = proto.gainSilk;
+  proto.gainSilk = function (p, boss) {
+    if (this._inAtk === p && this._hd != null && this._hd !== 1) {
+      p.silkAcc = (p.silkAcc || 0) + this._hd / (boss ? BAL.silkEvery : 1);
+      while (p.silkAcc >= 1) { p.silkAcc -= 1; gainSilk.call(this, p, false); }
+      return;
+    }
+    return gainSilk.call(this, p, boss);
+  };
+
+  // ---------- сеть ----------
+  const packPlayer = proto.packPlayer;
+  proto.packPlayer = function (p) {
+    const r = packPlayer.call(this, p);
+    r.wk = p.swk || 'g'; if (p.chg > CH_SHOW) r.cg = Math.round(p.chg * 100) / 100;
+    return r;
+  };
+  const onNet = proto.onNet;
+  proto.onNet = function (m) {
+    const p = m && m.t === 'p' && this.players ? this.players[m.i] : null, l0 = p && p.lastSeq;
+    onNet.call(this, m);
+    if (!p || !p.remote) return;
+    p.chg = m.cg || 0;
+    if (p.lastSeq !== l0) { // новый удар удалённого героя: восстанавливаем его по оружию и коду удара
+      const W = this.wdef(p), k = m.wk || 'g', e = W.sw && W.sw[k];
+      p.swk = k; p.heavy = !!m.hv;
+      const dur = e && e.t != null ? e.t : (p.heavy ? W.finT : W.atkT);
+      p.atkT = dur; p.sw = mkSw(W, k, p, dur);
+    }
+  };
+
+  // ---------- звук ----------
+  const sndPlay = Snd.play;
+  const SND = {
+    chargeFull() { this.tone('sine', 880, 1760, 0.18, 0.12); this.tone('triangle', 1320, 1320, 0.3, 0.07); this.hiss(0.1, 0.1, 3600, 2); },
+    wave() { this.hiss(0.32, 0.22, 1300, 0.8); this.tone('sawtooth', 520, 170, 0.3, 0.1); },
+    whirl() { this.hiss(0.34, 0.2, 1900, 1.1); this.tone('triangle', 760, 300, 0.28, 0.1); },
+    reap() { this.hiss(0.26, 0.26, 950, 0.8); this.tone('sine', 210, 60, 0.3, 0.2); },
+    hammer() { this.hiss(0.14, 0.2, 600, 0.7); this.tone('triangle', 170, 70, 0.18, 0.14); },
+    quake() { this.hiss(0.45, 0.32, 130, 0.6); this.tone('sine', 75, 28, 0.6, 0.4); this.tone('square', 220, 60, 0.15, 0.06); },
+    lunge() { this.hiss(0.18, 0.24, 2600, 1.5); this.tone('square', 950, 220, 0.16, 0.06); },
+  };
+  Snd.play = function (n) { const f = SND[n]; if (f) { if (this.ctx) f.call(this); return; } return sndPlay.call(this, n); };
+  // нарастающий гул заряда: частота и громкость растут за dur секунд; возвращает объект с stop()
+  Snd.chargeStart = function (dur, id) {
+    const c = this.ctx; if (!c || !this.master) return null;
+    try {
+      const t = c.currentTime, f0 = { needle: 200, twin: 320, sickle: 170, mace: 110, lance: 260 }[id] || 200;
+      const o = c.createOscillator(), o2 = c.createOscillator(), g = c.createGain();
+      o.type = 'sawtooth'; o2.type = 'sine';
+      o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f0 * 3.4, t + dur);
+      o2.frequency.setValueAtTime(f0 * 2, t); o2.frequency.exponentialRampToValueAtTime(f0 * 6.8, t + dur);
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.085, t + dur);
+      o.connect(g); o2.connect(g); g.connect(this.master); o.start(t); o2.start(t);
+      return {
+        stop() {
+          const n = c.currentTime;
+          try { g.gain.cancelScheduledValues(n); g.gain.setValueAtTime(Math.max(0.0002, g.gain.value), n); g.gain.exponentialRampToValueAtTime(0.0001, n + 0.07); o.stop(n + 0.1); o2.stop(n + 0.1); } catch (_) { }
+        },
+      };
+    } catch (_) { return null; }
+  };
+
+  // ---------- отрисовка удара ----------
+  // полоса дуги: углы r0..r1 отсчитываются от направления удара th (с отражением по лицу f)
+  const band = (fx, ox, oy, th, f, r0, r1, R, w, col, al) => {
+    let a0 = th + f * r0, a1 = th + f * r1; if (a0 > a1) { const t = a0; a0 = a1; a1 = t; }
+    fx.fillStyle(col, al); fx.beginPath(); fx.arc(ox, oy, R, a0, a1, false); fx.arc(ox, oy, R - w, a1, a0, true); fx.closePath(); fx.fillPath();
+  };
+  const edge = (fx, ox, oy, th, f, r0, r1, R, lw, col, al) => {
+    let a0 = th + f * r0, a1 = th + f * r1; if (a0 > a1) { const t = a0; a0 = a1; a1 = t; }
+    fx.lineStyle(lw, col, al); fx.beginPath(); fx.arc(ox, oy, R, a0, a1, false); fx.strokePath();
+  };
+  const ease = (x) => 1 - (1 - x) * (1 - x);
+  proto.drawSwing = function (p, fx) {
+    const W = this.wdef(p), sw = p.sw; if (!sw || !sw.dur || sw.wid !== W.id) return false;
+    if (W.id === 'needle' && (sw.k === 'g' || sw.k === 'f')) return false; // обычные удары иглы рисует исходный код
+    const k = Math.max(0, Math.min(1, p.atkT / sw.dur)), el = 1 - k;
+    const cx = p.x + p.w / 2, cy = p.y + p.h / 2 - 2, dir = p.atkDir, f = dir === 'f' ? (sw.k === 'g' || sw.k === 'f' ? p.face : sw.f0) : 1;
+    const th = dir === 'f' ? (f > 0 ? 0 : PI) : dir === 'u' ? -PI / 2 : PI / 2, col = W.col, acc = p.pal.accent;
+    const box = this.atkBox(p), id = W.id, th0 = sw.f0 > 0 ? 0 : PI;
+    if (sw.k === 'c') {
+      if (id === 'needle') { // волна: полумесяц летит вперёд и тает
+        const L = Math.max(10, sw.len * Math.min(1, el / 0.7)), fxX = sw.x0 + sw.f0 * L;
+        for (let i = 0; i < 4; i++) band(fx, fxX - sw.f0 * (16 + i * 18), sw.y0, th0, sw.f0, -1.05, 1.05, 34 - i * 2, 9 + (3 - i) * 2, i ? acc : 0xffffff, (0.85 - i * 0.2) * k);
+        edge(fx, fxX - sw.f0 * 16, sw.y0, th0, sw.f0, -1.05, 1.05, 36, 2, 0xffffff, k);
+      } else if (id === 'twin') { // шквал: три вращающихся кольца
+        const t0 = el * 26;
+        for (let i = 0; i < 3; i++) band(fx, cx, cy, 0, 1, t0 + i * 2.09, t0 + i * 2.09 + 1.5, 50 + i * 2, 7, i === 1 ? acc : col, 0.8 * (0.4 + 0.6 * k));
+        fx.lineStyle(2, 0xffffff, 0.6 * k); fx.strokeCircle(cx, cy, 36 + 22 * Math.sin(el * PI));
+      } else if (id === 'sickle') { // жатва: гигантский взмах от затылка через верх вперёд
+        const cur = -2.5 + 3.4 * ease(Math.min(1, el * 1.5)), r0 = Math.max(-2.5, cur - 1.9), cxx = cx - sw.f0 * 8, cyy = cy + 10;
+        band(fx, cxx, cyy, th0, sw.f0, r0, cur, 88, 34, col, 0.9 * k + 0.1); band(fx, cxx, cyy, th0, sw.f0, r0 + 0.5, cur, 70, 10, 0xffffff, 0.7 * k);
+        edge(fx, cxx, cyy, th0, sw.f0, r0, cur, 90, 3, acc, k);
+      } else if (id === 'mace') { // удар оземь: ударная волна по земле в обе стороны
+        const half = 200 * Math.min(1, el / 0.5) + 10, fy = sw.fy;
+        for (const s of [-1, 1]) {
+          const x = sw.x0 + s * half;
+          fx.fillStyle(col, 0.85 * k); fx.fillTriangle(x, fy, x - s * 30, fy - 8, x - s * 18, fy - 34 * (0.4 + 0.6 * k));
+          fx.fillStyle(0xffffff, 0.6 * k); fx.fillTriangle(x - s * 34, fy, x - s * 56, fy - 6, x - s * 46, fy - 22 * k);
+        }
+        fx.lineStyle(3, 0xffffff, 0.8 * k); fx.lineBetween(sw.x0 - half, fy - 1, sw.x0 + half, fy - 1);
+        fx.fillStyle(col, 0.3 * k); fx.fillEllipse(sw.x0, fy - 4, half * 2, 26);
+      } else { // копьё: рывок-прокол — длинный росчерк
+        const xa = sw.f0 > 0 ? box.x : box.x + box.w, xb = sw.f0 > 0 ? box.x + box.w : box.x, yy = box.y + box.h / 2;
+        fx.fillStyle(col, 0.5 * k); fx.fillTriangle(xa, yy - 9, xa, yy + 9, xb, yy);
+        fx.fillStyle(0xffffff, 0.9 * k); fx.fillTriangle(xa, yy - 3, xa, yy + 3, xb, yy);
+        fx.lineStyle(2, acc, 0.8 * k); for (let i = -1; i <= 1; i += 2) fx.lineBetween(xa + sw.f0 * 10, yy + i * 14, xa + sw.f0 * 90, yy + i * 4);
+      }
+      return true;
+    }
+    const ox = cx + (dir === 'f' ? 0 : Math.cos(th) * 4), oy = cy + (dir === 'f' ? 0 : Math.sin(th) * 4);
+    if (id === 'twin') {
+      if (sw.k === 'f') { // вихрь
+        const t0 = el * 18;
+        for (let i = 0; i < 3; i++) band(fx, cx, cy, 0, 1, t0 + i * 2.09, t0 + i * 2.09 + 1.45, 46, 8, i === 1 ? acc : col, 0.85 * k);
+        fx.lineStyle(2, 0xffffff, 0.7 * k); fx.strokeCircle(cx, cy, 30 + 20 * el);
+      } else if (sw.k === 'a2') {
+        band(fx, cx, cy, 0, 1, el * 12, el * 12 + 3.6, 40, 9, col, 0.85 * k); fx.lineStyle(2, acc, 0.8 * k); fx.strokeCircle(cx, cy, 30 + 10 * el);
+      } else {
+        const j = (sw.k === 'a1' ? 0.7 : 0.25) * ((p.combo || 0) % 2 ? 1 : -1);
+        band(fx, ox, oy, th, f, -0.85 + j * 0.3, 0.85 + j * 0.3, 32, 9, col, 0.9 * k); band(fx, ox, oy + (dir === 'f' ? 7 : 0), th, f, -0.7, 0.7 - j * 0.3, 25, 6, acc, 0.75 * k);
+        if (sw.k === 'a1') { fx.lineStyle(2, 0xffffff, 0.8 * k); fx.lineBetween(ox + f * 6, oy - 10, ox + f * 40, oy + 10); fx.lineBetween(ox + f * 6, oy + 10, ox + f * 40, oy - 10); }
+      }
+    } else if (id === 'sickle') {
+      if (sw.k === 'a2') { const cur = -PI / 2 + el * PI * 2; band(fx, cx, cy - 6, 0, 1, cur - 2.6, cur, 62, 20, col, 0.9 * k); edge(fx, cx, cy - 6, 0, 1, cur - 2.6, cur, 63, 2.5, 0xffffff, k); }
+      else if (dir === 'f') {
+        const a = sw.k === 'a1' ? [-1.2, 1.3] : [-2.2, 0.55], cur = a[0] + (a[1] - a[0]) * ease(Math.min(1, el * 1.4)), r0 = Math.max(a[0], cur - 1.5);
+        const cxx = cx - f * 6, cyy = cy + (sw.k === 'a1' ? -4 : 10), R = sw.k === 'f' ? 76 : 68;
+        band(fx, cxx, cyy, th, f, r0, cur, R, 24, col, 0.92 * k + 0.08); band(fx, cxx, cyy, th, f, r0 + 0.3, cur, R - 6, 6, 0xffffff, 0.75 * k);
+        edge(fx, cxx, cyy, th, f, r0, cur, R + 1, 2.4, acc, k);
+      } else {
+        const cur = -1.4 + 2.8 * ease(Math.min(1, el * 1.4)); band(fx, ox, oy, th, 1, -1.4, cur, 60, 20, col, 0.9 * k + 0.1); edge(fx, ox, oy, th, 1, -1.4, cur, 61, 2.4, acc, k);
+      }
+    } else if (id === 'mace') {
+      if (sw.k === 'a2') { band(fx, cx, cy, 0, 1, el * 9, el * 9 + 3.9, 46, 24, col, 0.88 * k); fx.lineStyle(3, 0xffffff, 0.7 * k); fx.strokeCircle(cx, cy, 46 + 8 * el); }
+      else {
+        const cur = -1.1 + 2.2 * ease(Math.min(1, el * 2)), R = 44 + (dir === 'f' ? 0 : 6);
+        band(fx, ox, oy, th, f, -1.1, cur, R, 28, col, 0.92 * k + 0.08); edge(fx, ox, oy, th, f, -1.1, cur, R + 1, 3, 0xffffff, 0.9 * k);
+        if (el > 0.25) { // вспышка в точке удара
+          const hx = box.x + (dir === 'f' ? (f > 0 ? box.w : 0) : box.w / 2), hy = box.y + (dir === 'u' ? 6 : dir === 'd' ? box.h - 6 : box.h / 2);
+          fx.lineStyle(3, 0xffffff, 0.8 * k); for (let i = 0; i < 6; i++) { const an = i * 1.05 + el * 2; fx.lineBetween(hx + Math.cos(an) * 6, hy + Math.sin(an) * 6, hx + Math.cos(an) * 18, hy + Math.sin(an) * 18); }
+        }
+      }
+    } else if (id === 'lance') {
+      if (dir === 'f') {
+        const xa = cx + f * 8, xb = box.x + (f > 0 ? box.w : 0), yy = box.y + box.h / 2, tx = xa + (xb - xa) * Math.min(1, el * 3.4 + 0.25), hh = (sw.k === 'f' ? 8 : 6) * (0.5 + 0.5 * k);
+        fx.fillStyle(col, 0.7 * k + 0.1); fx.fillTriangle(xa, yy - hh, xa, yy + hh, tx, yy);
+        fx.fillStyle(0xffffff, 0.95 * k); fx.fillTriangle(xa, yy - hh * 0.35, xa, yy + hh * 0.35, tx, yy);
+        fx.fillStyle(acc, 0.8 * k); fx.fillCircle(tx, yy, 4 + 3 * k);
+        if (sw.k === 'a1' || sw.k === 'a2') { fx.lineStyle(2, acc, 0.7 * k); fx.lineBetween(xa + f * 20, yy - 14, xa + f * 70, yy - 6); fx.lineBetween(xa + f * 20, yy + 14, xa + f * 70, yy + 6); }
+      } else {
+        const xm = box.x + box.w / 2, y0 = dir === 'u' ? box.y + box.h : box.y, y1 = dir === 'u' ? box.y : box.y + box.h, ty = y0 + (y1 - y0) * Math.min(1, el * 3.4 + 0.25);
+        fx.fillStyle(col, 0.7 * k + 0.1); fx.fillTriangle(xm - 6, y0, xm + 6, y0, xm, ty); fx.fillStyle(0xffffff, 0.95 * k); fx.fillTriangle(xm - 2, y0, xm + 2, y0, xm, ty);
+      }
+    } else if (id === 'needle') { // воздушные взмахи иглы
+      if (sw.k === 'a2') { band(fx, cx, cy, 0, 1, el * 9, el * 9 + 3.2, 40, 12, 0xf6f3e8, 0.85 * k); edge(fx, cx, cy, 0, 1, el * 9, el * 9 + 3.2, 41, 2, acc, 0.8 * k); }
+      else { const cur = -1.9 + 2.4 * ease(Math.min(1, el * 1.6)), r0 = Math.max(-1.9, cur - 1.5); band(fx, cx - f * 4, cy + 2, th, f, r0, cur, 50, 15, 0xf6f3e8, 0.9 * k); edge(fx, cx - f * 4, cy + 2, th, f, r0, cur, 51, 2, acc, 0.8 * k); }
+    }
+    return true;
+  };
+
+  // ---------- клинок за спиной, поза заряда и свечение ----------
+  proto.drawWeaponBody = function (p, g, a, now) {
+    const W = this.wdef(p), f = p.face, ch = p.chg || 0, col = W.col || 0xcfd6dc, bob = a ? a.bob : 0;
+    if (ch > CH_SHOW * 0.8) { // свечение и сходящееся кольцо
+      const k = Math.min(1, ch / CH_T), full = ch >= CH_T, pulse = 0.6 + Math.sin(now * (full ? 40 : 18)) * 0.4;
+      g.fillStyle(col, (0.1 + 0.22 * k) * (full ? pulse + 0.4 : 1)); g.fillCircle(0, -14, 14 + 16 * k);
+      g.fillStyle(0xffffff, 0.12 * k); g.fillCircle(0, -14, 8 + 8 * k);
+      g.lineStyle(2, full ? 0xffffff : col, 0.35 + 0.5 * k); g.strokeCircle(0, -14, full ? 34 + Math.sin(now * 40) * 3 : 44 - 26 * k);
+      if (full) { g.lineStyle(1.5, p.pal.accent, 0.8); for (let i = 0; i < 6; i++) { const an = now * 6 + i * PI / 3; g.lineBetween(Math.cos(an) * 26, -14 + Math.sin(an) * 26, Math.cos(an) * 38, -14 + Math.sin(an) * 38); } }
+    }
+    const pull = ch > CH_SHOW;
+    if (W.id === 'needle' && !pull) return false;
+    if (!pull && (p.atkT > 0 || p.sit)) return true;
+    const y0 = -10 - bob;
+    if (pull) { // оружие занесено назад горизонтально
+      const jx = (Math.random() - 0.5) * Math.min(1, ch / CH_T) * 1.6;
+      g.lineStyle(2.2, 0xcfd6dc, 1); g.lineBetween(-4 * f, -15, -24 * f + jx, -15 + jx);
+      g.lineStyle(1.4, col, 1);
+      if (W.id === 'twin') g.lineBetween(-4 * f, -11, -20 * f + jx, -11);
+      else if (W.id === 'sickle') { g.lineBetween(-24 * f, -15, -30 * f, -23); g.lineBetween(-30 * f, -23, -24 * f, -29); }
+      else if (W.id === 'mace') { g.fillStyle(0xd0b080, 1); g.fillCircle(-26 * f + jx, -15, 6); g.lineStyle(1.2, 0x6b4f2a, 1); g.strokeCircle(-26 * f + jx, -15, 6); }
+      else if (W.id === 'lance') { g.lineBetween(-4 * f, -15, 8 * f, -15); g.fillStyle(0xffffff, 1); g.fillTriangle(-26 * f, -17, -26 * f, -13, -34 * f, -15); }
+      else g.strokeCircle(-26 * f, -15, 2);
+      return true;
+    }
+    if (W.id === 'twin') {
+      g.lineStyle(1.7, 0xcfd6dc, 1); g.lineBetween(-6 * f, y0, -14 * f, -25 - bob); g.lineBetween(-6 * f, y0 - 3, -16 * f, -19 - bob);
+      g.lineStyle(1, col, 0.95); g.strokeCircle(-14 * f, -26 - bob, 1.8); g.strokeCircle(-17 * f, -19 - bob, 1.8);
+    } else if (W.id === 'sickle') {
+      g.lineStyle(2, 0xcfd6dc, 1); g.lineBetween(-6 * f, y0 + 2, -13 * f, -27 - bob);
+      g.lineStyle(2.6, col, 1); g.beginPath(); g.moveTo(-13 * f, -27 - bob); g.lineTo(-10 * f, -33 - bob); g.lineTo(-3 * f, -35 - bob); g.lineTo(0, -31 - bob); g.strokePath();
+    } else if (W.id === 'mace') {
+      g.lineStyle(2.6, 0x8a6a46, 1); g.lineBetween(-6 * f, y0 + 1, -14 * f, -24 - bob);
+      g.fillStyle(0xd0b080, 1); g.fillCircle(-15 * f, -27 - bob, 4.6); g.lineStyle(1.2, 0x6b4f2a, 1); g.strokeCircle(-15 * f, -27 - bob, 4.6);
+      g.fillStyle(0x6b4f2a, 1); g.fillCircle(-17 * f, -28 - bob, 1); g.fillCircle(-13 * f, -26 - bob, 1);
+    } else if (W.id === 'lance') {
+      g.lineStyle(1.8, 0xcfd6dc, 1); g.lineBetween(-7 * f, -4 - bob, -20 * f, -37 - bob);
+      g.fillStyle(0xffffff, 1); g.fillTriangle(-20 * f, -37 - bob, -17 * f, -45 - bob, -23 * f, -42 - bob);
+      g.lineStyle(1, col, 0.9); g.strokeCircle(-9 * f, -8 - bob, 2);
+    } else return false;
+    return true;
+  };
+})();
+
+// ===== ИНСТРУМЕНТЫ: метательная игла, капкан, нитяная бомба, нитяной крюк =====
+// Кнопка «Инструмент» (E / RB / ✦) → useTool (loadout.js): списывает нить (cost), ставит перезарядку (cd) и зовёт TOOLS[id].use(sc, p).
+// Сеть: инструменты-снаряды считает хост и хранит в this.tl (не в projs: иначе их сбивали бы отбив/всполох и они ранили бы героев);
+// в снимок они уходят строками снаряда (NET_KINDS / NET_SIZES), у гостя лежат в this.projs. Удалённый игрок шлёт событие {k:'tool'}.
+// Крюк — движение героя, оно у каждого клиента своё: тянет и считает попадание владелец, хосту уходит событие {k:'thook'}.
+const TOOL_KIND = { tneedle: [12, 12], ttrap: [26, 10], tbomb: [12, 12] };
+for (const k in TOOL_KIND) { if (!NET_KINDS.includes(k)) NET_KINDS.push(k); NET_SIZES[NET_KINDS.indexOf(k)] = TOOL_KIND[k]; }
+const TOOL = {
+  NEEDLE_SPD: 760, NEEDLE_DMG: 2, NEEDLE_STICK: 3, TRAP_LIFE: 8, TRAP_FREEZE: 2, TRAP_MAX: 2, TRAP_POISE: 3,
+  BOMB_R: 90, BOMB_DMG: 3, BOMB_FUSE: 0.9, HOOK_R: 260, HOOK_SPD: 900, HOOK_STUN: 0.6,
+};
+const BOSS_FNS = [['boss', 'damageBoss'], ['vladik', 'damageVladik'], ['tima', 'damageTima']];
+const FLY_TYPES = new Set(['gnat', 'bat', 'lurker']);
+const isToolKind = (k) => k === 'tneedle' || k === 'ttrap' || k === 'tbomb';
+
+TOOLS.throwneedle = { id: 'throwneedle', name: 'Метательная игла', desc: 'Летит по прямой (↑ или ↑+→ — вверх и по диагонали), пробивает слабых врагов, втыкается в стену и в босса на 3 с. Урон 2. Подбери — вернёт нить.', cost: 1, cd: 0.5, unlock: 'boss:korn', use: (sc, p) => sc.toolCast('throwneedle', p) };
+TOOLS.trap = { id: 'trap', name: 'Капкан', desc: 'Ставится у ног на 8 с. Враг, наступивший на него, замирает на 2 с; босс копит стойку (+3), но не замирает. Не больше двух.', cost: 2, cd: 1.5, unlock: 'shop:50', use: (sc, p) => sc.toolCast('trap', p) };
+TOOLS.threadbomb = { id: 'threadbomb', name: 'Нитяная бомба', desc: 'Бросок дугой. Взрыв радиусом 90: урон 3 врагам и боссу, отброс, сбивает снаряды.', cost: 3, cd: 2, unlock: 'shop:70', use: (sc, p) => sc.toolCast('threadbomb', p) };
+TOOLS.hook = { id: 'hook', name: 'Нитяной крюк', desc: 'Нить на 260 px в сторону ввода (↑, вперёд, диагональ). В стену или платформу — притянет героя, во врага — подтянет и оглушит мелкого, в оглушённого босса — удар.', cost: 1, cd: 0.9, unlock: 'boss:tima', use: (sc, p) => sc.toolCast('hook', p) };
+
+Object.assign(GameScene.prototype, {
+  // направление броска / нити по вводу: ↑ — вверх, ↑ + сторона — диагональ, иначе вперёд
+  toolAim(p) {
+    const i = p.inp || {}, dir = (i.right ? 1 : 0) - (i.left ? 1 : 0), f = dir || p.face || 1;
+    if (i.up) return dir ? { dx: f * 0.7071, dy: -0.7071, f } : { dx: 0, dy: -1, f };
+    return { dx: f, dy: 0, f };
+  },
+  toolCast(id, p) {
+    const a = this.toolAim(p);
+    if (id === 'hook') { this.hookCast(p, a); return true; }
+    const msg = { k: 'tool', id, i: p.i, x: Math.round(p.x + 7), y: Math.round(id === 'trap' ? p.y + 26 : p.y + 13), dx: Math.round(a.dx * 1000) / 1000, dy: Math.round(a.dy * 1000) / 1000, f: a.f };
+    Snd.play(id === 'trap' ? 'pickup' : 'throw');
+    if (this.auth()) this.toolSpawn(msg); else this.sendEv(msg);
+    return true;
+  },
+  // хост: создать сущность инструмента
+  toolSpawn(m) {
+    const tl = this.tl || (this.tl = []);
+    if (m.id === 'throwneedle') {
+      tl.push({ kind: 'tneedle', x: m.x + m.dx * 14 - 6, y: m.y + m.dy * 14 - 6, w: 12, h: 12, vx: m.dx * TOOL.NEEDLE_SPD, vy: m.dy * TOOL.NEEDLE_SPD, st: 0, ft: 0.65, life: 25, owner: m.i, hit: new Set(), ang: Math.atan2(m.dy, m.dx) });
+    } else if (m.id === 'trap') {
+      const mine = tl.filter((q) => q.kind === 'ttrap' && q.owner === m.i);
+      if (mine.length >= TOOL.TRAP_MAX) mine[0].life = 0; // третий капкан заменяет самый старый
+      tl.push({ kind: 'ttrap', x: m.x - 13, y: m.y - 10, w: 26, h: 10, vx: 0, vy: 0, life: TOOL.TRAP_LIFE, arm: 0.3, tick: 0, owner: m.i });
+      this.burst(6, m.x, m.y - 3, 0xe8d9a8);
+    } else if (m.id === 'threadbomb') {
+      const up = m.dy < 0, diag = up && m.dx !== 0;
+      const vx = up ? (diag ? m.f * 240 : 0) : m.f * 340, vy = up ? (diag ? -520 : -680) : -330;
+      tl.push({ kind: 'tbomb', x: m.x + m.f * 8 - 6, y: m.y - 8, w: 12, h: 12, vx, vy, fuse: TOOL.BOMB_FUSE, life: 5, owner: m.i });
+    }
+  },
+  toolOwner(i) { return this.players[i] || this.players[0]; },
+  // урон врагу от инструмента (мимо игольного пути: ни нити, ни бонуса острой иглы); false — не засчитан (броня, засадник под землёй)
+  toolHurtEnemy(e, n, kdir, pierceArmor) {
+    const dummy = { x: e.x + e.w / 2 - kdir * 40, heavy: false, atkDir: 'f', remote: true, face: kdir };
+    if (pierceArmor) this._e2burst = true;
+    let blocked = false;
+    try { blocked = !!(e.e2 && this.e2Blocked(e, dummy)); } finally { if (pierceArmor) this._e2burst = false; }
+    if (blocked) return false;
+    e.hp -= n; e.flash = 0.1; this.sfx('hit');
+    this.burst(8, e.x + e.w / 2, e.y + e.h / 2, 0xf4f1e6);
+    e.kbT = 0.2; e.kbx = kdir * (e.type === 'beetle' ? 140 : 280); e.kby = -150;
+    if (e.type === 'beetle' && e.state === 'charge') { e.state = 'stun'; e.st = 0.6; }
+    if (e.hp <= 0) this.killEnemy(e);
+    return true;
+  },
+  liveBoss(b) { return !!b && !['dead', 'gone', 'sleep', 'intro'].includes(b.state); },
+  // урон боссу от инструмента — через те же damageBoss/Vladik/Tima, что и у всполоха (фазы, стойка, оглушение работают)
+  toolHurtBoss(b, fn, p, n) {
+    p.noSilkGain = true;
+    try { for (let i = 0; i < n && this.liveBoss(b); i++) this[fn](p); } finally { p.noSilkGain = false; }
+  },
+  freezeEnemy(e, t) {
+    if (!e || e.dead) return;
+    e.frozenT = Math.max(e.frozenT || 0, t); e.kbT = 0; e.flash = 0.12;
+    this.burst(8, e.x + e.w / 2, e.y + e.h / 2, 0xffe3a3);
+  },
+  tfxAdd(f, send) { (this.tfx || (this.tfx = [])).push(f); if (send) this.sendEv({ k: 'tfx', ...f, t: f.t }); },
+
+  // ----- хост: шаг сущностей -----
+  stepTools(dt) {
+    const tl = this.tl; if (!tl || !tl.length) return;
+    const bosses = BOSS_FNS.map(([key, fn]) => [this[key], fn]).filter(([b]) => b);
+    for (const q of tl) {
+      if (q.dead) continue;
+      q.life -= dt; if (q.life <= 0) { q.dead = true; continue; }
+      if (q.kind === 'tneedle') this.stepToolNeedle(q, dt, bosses);
+      else if (q.kind === 'ttrap') this.stepToolTrap(q, dt, bosses);
+      else if (q.kind === 'tbomb') this.stepToolBomb(q, dt, bosses);
+    }
+    this.tl = tl.filter((q) => !q.dead);
+  },
+  stepToolNeedle(q, dt, bosses) {
+    const owner = this.toolOwner(q.owner);
+    if (q.st === 0) { // полёт: два подшага, чтобы не пролетать сквозь тонкие стены
+      q.ft -= dt; if (q.ft <= 0) { q.st = 3; q.vx *= 0.2; q.vy = 0; }
+      for (let s = 0; s < 2 && q.st === 0; s++) {
+        const px = q.x, py = q.y;
+        q.x += q.vx * dt / 2; q.y += q.vy * dt / 2;
+        const cx = q.x + 6, cy = q.y + 6;
+        if (this.isSolid(Math.floor(cx / T), Math.floor(cy / T))) {
+          q.x = px; q.y = py; q.st = 1; q.vx = q.vy = 0; q.life = 25;
+          this.sfx('clink'); this.burst(5, cx, cy, 0xffe3a3); break;
+        }
+        for (const e of this.enemies) {
+          if (e.dead || q.hit.has(e) || !overlap(q, e)) continue;
+          q.hit.add(e);
+          const ok = this.toolHurtEnemy(e, TOOL.NEEDLE_DMG, Math.sign(q.vx) || 1, false);
+          if (!ok) { q.st = 3; q.vx = -q.vx * 0.15; q.vy = -120; this.sfx('clink'); break; }
+          if (!e.dead) { q.st = 3; q.vx = -Math.sign(q.vx) * 40; q.vy = -140; break; } // не пробила — упала; слабых (убитых) пробивает насквозь
+        }
+        if (q.st !== 0) break;
+        for (const [b, fn] of bosses) {
+          if (!this.liveBoss(b) || !overlap(q, inset(b, 4))) continue;
+          if (b.state === 'rage') { this.sfx('clink'); q.st = 3; q.vx = -q.vx * 0.15; q.vy = -120; break; }
+          this.toolHurtBoss(b, fn, owner, TOOL.NEEDLE_DMG);
+          q.st = 2; q.boss = b; q.ox = q.x - b.x; q.oy = q.y - b.y; q.stuckT = TOOL.NEEDLE_STICK; q.vx = q.vy = 0;
+          this.sfx('clink'); break;
+        }
+        const m = this.misha;
+        if (q.st === 0 && m && !['dead', 'intro'].includes(m.state) && overlap(q, inset(m, 6))) { q.st = 3; q.vx = -q.vx * 0.15; q.vy = -120; this.sfx('clink'); this.burst(5, q.x + 6, q.y + 6, 0xffffff); }
+      }
+    } else if (q.st === 2) { // воткнута в босса
+      const b = q.boss; q.stuckT -= dt;
+      if (b && this.liveBoss(b)) { q.x = b.x + q.ox; q.y = b.y + q.oy; }
+      if (q.stuckT <= 0 || !b || !this.liveBoss(b)) { q.st = 3; q.vx = 0; q.vy = -80; q.boss = null; }
+    } else if (q.st === 3) { // падает
+      q.vy = Math.min(q.vy + 1100 * dt, 800); this.moveBody(q, dt);
+      if (q.onGround) { q.st = 4; q.vx = q.vy = 0; }
+    }
+    // подобрать обратно (владелец): нить возвращается
+    if ((q.st === 1 || q.st === 4) && owner && !owner.downed) {
+      const r = { x: q.x - 22, y: q.y - 22, w: 56, h: 56 };
+      if (overlap(owner, r)) {
+        q.dead = true; Snd.play('pickup');
+        if (owner.remote) this.sendEv({ k: 'silk', i: owner.i }); else owner.silk = Math.min(P.SILK, owner.silk + 1);
+        this.burst(6, q.x + 6, q.y + 6, owner.pal.accent);
+      }
+    }
+  },
+  stepToolTrap(q, dt, bosses) {
+    q.vy = Math.min(q.vy + 1100 * dt, 800); q.vx = 0; this.moveBody(q, dt);
+    if (q.arm > 0) { q.arm -= dt; return; }
+    q.tick -= dt;
+    const cx = q.x + q.w / 2, cy = q.y + q.h / 2;
+    let near = false;
+    for (const e of this.enemies) {
+      if (e.dead || e.type === 'lurker') continue;
+      if (Math.abs(e.x + e.w / 2 - cx) < 200 && Math.abs(e.y + e.h / 2 - cy) < 100) near = true;
+      if (overlap(q, { x: e.x + 2, y: e.y + 2, w: e.w - 4, h: e.h - 2 }) && !(e.frozenT > 0)) {
+        this.freezeEnemy(e, TOOL.TRAP_FREEZE); return this.trapSnap(q);
+      }
+    }
+    for (const [b] of bosses) {
+      if (!this.liveBoss(b)) continue;
+      if (overlap(q, { x: b.x + 4, y: b.y + 4, w: b.w - 8, h: b.h - 4 })) { this.poiseAdd(b, TOOL.TRAP_POISE); return this.trapSnap(q, true); }
+    }
+    if (near && q.tick <= 0) { q.tick = 0.8; this.sfx('clink'); } // предупреждающий щелчок, когда враг рядом
+  },
+  trapSnap(q, boss) {
+    q.dead = true; this.sfx('slam'); this.shake(80, 0.004);
+    this.burst(14, q.x + q.w / 2, q.y, 0xffe3a3); this.tfxAdd({ f: 'snap', x: q.x + q.w / 2, y: q.y + q.h, t: 0.35, T: 0.35 }, true);
+    if (boss) this.toastAll('Капкан! Стойка босса растёт');
+  },
+  stepToolBomb(q, dt, bosses) {
+    q.vy = Math.min(q.vy + 1100 * dt, 800); q.fuse -= dt;
+    this.moveBody(q, dt);
+    if (q.onGround) { q.vx *= 0.75; if (Math.abs(q.vy) < 1) q.vy = 0; }
+    if (q.hitL || q.hitR) q.vx = 0;
+    let boom = q.fuse <= 0;
+    if (!boom) for (const e of this.enemies) if (!e.dead && overlap(q, e)) { boom = true; break; }
+    if (!boom) for (const [b] of bosses) if (this.liveBoss(b) && overlap(q, inset(b, 4))) { boom = true; break; }
+    if (!boom) return;
+    q.dead = true;
+    this.toolExplode(q.x + 6, q.y + 6, this.toolOwner(q.owner));
+  },
+  toolExplode(cx, cy, p) {
+    const R = TOOL.BOMB_R;
+    this.sfx('slam'); this.shake(220, 0.01); this.hitstop = Math.max(this.hitstop || 0, 0.05);
+    this.burst(30, cx, cy, p && p.pal ? p.pal.accent : 0xffe3a3); this.burst(14, cx, cy, 0xffffff);
+    this.tfxAdd({ f: 'boom', x: cx, y: cy, t: 0.45, T: 0.45 }, true);
+    for (const pr of this.projs) if (!pr.dead && pr.kind !== 'bomb' && !isToolKind(pr.kind) && Math.hypot(pr.x - cx, pr.y - cy) < R) pr.dead = true;
+    for (const e of this.enemies) {
+      if (e.dead || Math.hypot(e.x + e.w / 2 - cx, e.y + e.h / 2 - cy) > R) continue;
+      this.toolHurtEnemy(e, TOOL.BOMB_DMG, Math.sign(e.x + e.w / 2 - cx) || 1, true);
+    }
+    for (const [key, fn] of BOSS_FNS) {
+      const b = this[key]; if (!this.liveBoss(b)) continue;
+      if (Math.hypot(b.x + b.w / 2 - cx, b.y + b.h / 2 - cy) < R + b.w / 2) this.toolHurtBoss(b, fn, p, TOOL.BOMB_DMG);
+    }
+  },
+
+  // ----- нитяной крюк (считает владелец) -----
+  hookCast(p, a) {
+    const cx = p.x + 7, cy = p.y + 13;
+    let hit = null, ex = cx + a.dx * TOOL.HOOK_R, ey = cy + a.dy * TOOL.HOOK_R;
+    const bosses = BOSS_FNS.map(([key, fn]) => [this[key], fn, key]).filter(([b]) => this.liveBoss(b));
+    for (let d = 12; d <= TOOL.HOOK_R && !hit; d += 4) {
+      const x = cx + a.dx * d, y = cy + a.dy * d, tx = Math.floor(x / T), ty = Math.floor(y / T), t = this.tileAt(tx, ty);
+      if (t === SOLID || t === PLAT) { hit = { k: 'tile', x, y, tx, ty, plat: t === PLAT }; break; }
+      for (const e of this.enemies) if (!e.dead && x >= e.x && x <= e.x + e.w && y >= e.y && y <= e.y + e.h) { hit = { k: 'enemy', x, y, e }; break; }
+      if (hit) break;
+      for (const [b, fn, key] of bosses) if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) { hit = { k: 'boss', x, y, b, fn, key }; break; }
+    }
+    if (hit) { ex = hit.x; ey = hit.y; }
+    Snd.play('throw');
+    let pull = null;
+    if (hit && hit.k === 'tile') {
+      Snd.play('clink');
+      pull = hit.plat ? { x: hit.x, y: hit.ty * T - 14 } : { x: hit.x - a.dx * 16, y: hit.y - a.dy * 16 };
+    } else if (hit && hit.k === 'enemy') {
+      const e = hit.e, small = e.hp <= 3 && e.type !== 'shell' && e.type !== 'beetle';
+      Snd.play('clink');
+      if (this.auth()) this.freezeEnemy(e, small ? TOOL.HOOK_STUN : 0.2); else this.sendEv({ k: 'thook', i: p.i, t: 'e', idx: this.enemies.indexOf(e), s: small ? 1 : 0 });
+      if (small) { const ecx = e.x + e.w / 2, ecy = e.y + e.h / 2, k = e.w / 2 + 14; pull = { x: ecx - a.dx * k, y: ecy - a.dy * k }; }
+    } else if (hit && hit.k === 'boss') {
+      const b = hit.b;
+      if (b.stagger > 0 && !b.executed) {
+        Snd.play('hitCrit');
+        if (this.auth()) this.toolHurtBoss(b, hit.fn, p, 1); else this.sendEv({ k: 'thook', i: p.i, t: 'b', key: hit.key });
+        const k = b.w / 2 + 14; pull = { x: b.x + b.w / 2 - a.dx * k, y: b.y + b.h / 2 - a.dy * k };
+      } else Snd.play('clink');
+    }
+    this.tfxAdd({ f: 'hook', x: cx, y: cy, x1: ex, y1: ey, t: 0.28, T: 0.28, i: p.i }, true);
+    if (pull) p.hk = { tx: pull.x, ty: pull.y, ax: ex, ay: ey, t: 0.5, stuck: 0 };
+  },
+  hookEnd(p) {
+    p.hk = null; p.vx = 0; p.vy = Math.min(p.vy, 0) * 0.3;
+  },
+});
+
+(function () {
+  const proto = GameScene.prototype;
+  // ----- жизненный цикл -----
+  const create = proto.create;
+  proto.create = function (...a) { this.tl = []; this.tfx = []; return create.apply(this, a); };
+  const respawnAll = proto.respawnAll;
+  proto.respawnAll = function (...a) { this.tl = []; for (const p of this.players) p.hk = null; return respawnAll.apply(this, a); };
+  const step = proto.step;
+  proto.step = function (dt) {
+    step.call(this, dt);
+    if (this.tfx && this.tfx.length) this.tfx = this.tfx.filter((f) => (f.t -= dt) > 0);
+    if (this.auth() && this.tl && this.tl.length && !this.td) this.stepTools(dt);
+  };
+  // ----- замёрзшие враги -----
+  const stepEnemy = proto.stepEnemy;
+  proto.stepEnemy = function (e, dt) {
+    if (!(e.frozenT > 0)) return stepEnemy.call(this, e, dt);
+    e.frozenT -= dt; e.flash -= dt; e.kbT = 0; e.vx = 0;
+    if (FLY_TYPES.has(e.type)) e.vy = 0; else { e.vy = Math.min(e.vy + P.G * dt, P.MAXFALL); this.moveBody(e, dt); }
+  };
+  // ----- тяга крюка -----
+  const stepPlayer = proto.stepPlayer;
+  proto.stepPlayer = function (p, dt) {
+    const hk = p.hk;
+    if (!hk) return stepPlayer.call(this, p, dt);
+    const inp = p.inp || {};
+    if (p.downed || p.hurtT > 0 || p.healCh > 0 || inp.jumpP || inp.dashP) { p.hk = null; return stepPlayer.call(this, p, dt); }
+    const x0 = p.x, y0 = p.y;
+    stepPlayer.call(this, p, dt);
+    if (p.downed || p.hurtT > 0) { p.hk = null; return; }
+    p.x = x0; p.y = y0; // движение этого кадра заменяет тяга; рывок, его перезарядка и стамина не трогаются
+    const cx = p.x + 7, cy = p.y + 13, dx = hk.tx - cx, dy = hk.ty - cy, d = Math.hypot(dx, dy);
+    hk.t -= dt;
+    if (d < 9 || hk.t <= 0) { this.hookEnd(p); return; }
+    const sp = Math.min(TOOL.HOOK_SPD, d / dt);
+    p.vx = dx / d * sp; p.vy = dy / d * sp; p.face = Math.abs(dx) > 4 ? Math.sign(dx) : p.face;
+    this.moveBody(p, dt);
+    if (Math.hypot(p.x - x0, p.y - y0) < sp * dt * 0.35) { if (++hk.stuck >= 2) this.hookEnd(p); } else hk.stuck = 0;
+    if (p.onGround) p.coyote = P.COYOTE;
+  };
+  // ----- кнопка и события по сети -----
+  const onEv = proto.onEv;
+  proto.onEv = function (m) {
+    switch (m.k) {
+      case 'tool': if (this.auth()) this.toolSpawn(m); return;
+      case 'tfx': (this.tfx || (this.tfx = [])).push({ ...m }); return;
+      case 'thook': {
+        if (!this.auth()) return;
+        const p = this.players[m.i];
+        if (m.t === 'e') this.freezeEnemy(this.enemies[m.idx], m.s ? TOOL.HOOK_STUN : 0.2);
+        else if (p) { const kv = BOSS_FNS.find(([k]) => k === m.key), b = kv && this[kv[0]]; if (b && this.liveBoss(b) && b.stagger > 0) this.toolHurtBoss(b, kv[1], p, 1); }
+        return;
+      }
+    }
+    return onEv.call(this, m);
+  };
+  // отбив и всполох не трогают капканы и иглы: прячем их на время вызова
+  // (они лежат в this.tl, а не в projs — отдельно от снарядов боссов; гостю они приходят в projs, поэтому его проверку попаданий оборачиваем)
+  const guestHits = proto.guestProjHits;
+  proto.guestProjHits = function () {
+    const keep = this.projs.filter((q) => isToolKind(q.kind));
+    this.projs = this.projs.filter((q) => !isToolKind(q.kind));
+    try { return guestHits.call(this); } finally { this.projs = this.projs.concat(keep); }
+  };
+  // ----- снимок -----
+  const packSnap = proto.packSnap;
+  proto.packSnap = function () {
+    const s = packSnap.call(this), r = Math.round;
+    for (const q of this.tl || []) {
+      const ch = q.kind === 'tneedle' ? [q.st, Math.round(q.ang * 100) / 100, q.st === 2 ? Math.round(q.stuckT * 10) / 10 : 0] : q.kind === 'ttrap' ? [Math.round(q.life * 10) / 10, q.arm > 0 ? 1 : 0] : [Math.round(q.fuse * 100) / 100];
+      s.pr.push([NET_KINDS.indexOf(q.kind), r(q.x), r(q.y), r(q.vx), r(q.vy), 0, ch]);
+    }
+    const fz = []; this.enemies.forEach((e, i) => { if (!e.dead && e.frozenT > 0) fz.push(i); });
+    if (fz.length) s.tf = fz;
+    return s;
+  };
+  const applySnap = proto.applySnap;
+  proto.applySnap = function (m) {
+    applySnap.call(this, m);
+    const fz = new Set(m.tf || []);
+    this.enemies.forEach((e, i) => { e.frozenT = fz.has(i) ? 0.3 : 0; });
+  };
+
+  // ----- рисование -----
+  const drawExtra = proto.drawExtraProjs;
+  proto.drawExtraProjs = function (now) {
+    drawExtra.call(this, now);
+    const fx = this.fx, guest = this.online === 'guest';
+    const list = guest ? this.projs.filter((q) => isToolKind(q.kind)) : (this.tl || []);
+    for (const q of list) {
+      const x = q.x + q.w / 2, y = q.y + q.h / 2, ch = q.ch;
+      if (q.kind === 'tneedle') {
+        const st = guest ? (ch && ch[0]) || 0 : q.st, ang = guest ? (ch && ch[1]) || 0 : q.ang;
+        const ux = Math.cos(ang), uy = Math.sin(ang), L = 13, vib = st === 2 ? Math.sin(now * 60) * 1.2 : 0;
+        if (st === 1 || st === 4) { fx.fillStyle(0xffe3a3, 0.12 + Math.sin(now * 5) * 0.06); fx.fillCircle(x, y, 15); }
+        if (st === 0) { fx.lineStyle(1.5, 0xffe3a3, 0.45); fx.lineBetween(x - ux * L, y - uy * L, x - ux * (L + 14), y - uy * (L + 14)); }
+        fx.lineStyle(2.5, 0xf6f3e8, 1); fx.lineBetween(x - ux * L + vib, y - uy * L, x + ux * L + vib, y + uy * L);
+        fx.fillStyle(0xffffff, 1); fx.fillCircle(x + ux * L + vib, y + uy * L, 2);
+        fx.fillStyle(0xffd47a, 1); fx.fillCircle(x - ux * L, y - uy * L, 2);
+      } else if (q.kind === 'ttrap') {
+        const life = guest ? (ch && ch[0]) || 0 : q.life, arming = guest ? (ch && ch[1]) : q.arm > 0;
+        if (life < 2 && Math.floor(now * 10) % 2) continue;
+        const bx = q.x, by = q.y + q.h;
+        fx.fillStyle(0x000000, 0.3); fx.fillEllipse(x, by, q.w + 6, 6);
+        fx.fillStyle(0x59483a, 1); fx.fillRect(bx, by - 4, q.w, 4);
+        fx.fillStyle(0xd9d4c3, 1);
+        for (let i = 0; i < 5; i++) { const tx = bx + 2 + i * 5; fx.fillTriangle(tx, by - 4, tx + 5, by - 4, tx + 2.5, by - 12); }
+        const blink = arming ? 0.3 : 0.5 + Math.sin(now * 8) * 0.5;
+        fx.fillStyle(0xff6a4a, 0.25 + blink * 0.6); fx.fillCircle(x, by - 2, 2.2);
+        fx.lineStyle(1, 0xffe3a3, 0.35); fx.strokeCircle(x, by - 4, 18 + Math.sin(now * 4) * 2);
+      } else if (q.kind === 'tbomb') {
+        const fuse = guest ? (ch && ch[0]) || 0 : q.fuse, pul = 1 + Math.sin(now * (14 + (TOOL.BOMB_FUSE - fuse) * 30)) * 0.12;
+        fx.fillStyle(0xffd47a, 0.2); fx.fillCircle(x, y, 11 * pul);
+        fx.fillStyle(0xe9e2cf, 1); fx.fillCircle(x, y, 6.5 * pul);
+        fx.lineStyle(1.5, 0x8a7a55, 1); fx.beginPath(); fx.arc(x, y, 5, 0.3, 2.6, false); fx.strokePath(); fx.beginPath(); fx.arc(x, y, 5, 3.4, 5.7, false); fx.strokePath();
+        fx.fillStyle(0xff9a3c, 1); fx.fillCircle(x + 3, y - 8, 2 + Math.sin(now * 30) * 0.6);
+      }
+    }
+    // замёрзшие враги: нитяная сеть
+    for (const e of this.enemies) if (!e.dead && e.frozenT > 0) {
+      const ex = e.x + e.w / 2, ey = e.y + e.h / 2, rx = e.w / 2 + 4, ry = e.h / 2 + 4;
+      fx.lineStyle(1.5, 0xe8f6ff, 0.8); fx.strokeEllipse(ex, ey, rx * 2, ry * 2);
+      fx.lineBetween(ex - rx, ey - ry * 0.5, ex + rx, ey + ry * 0.5); fx.lineBetween(ex - rx, ey + ry * 0.5, ex + rx, ey - ry * 0.5); fx.lineBetween(ex, ey - ry, ex, ey + ry);
+    }
+    // тяга крюка: нить от героя до точки зацепа
+    for (const p of this.players) if (p.hk) {
+      fx.lineStyle(2, p.pal.accent, 0.9); fx.lineBetween(p.x + 7, p.y + 13, p.hk.ax, p.hk.ay);
+      fx.fillStyle(0xffffff, 1); fx.fillCircle(p.hk.ax, p.hk.ay, 3);
+    }
+    for (const f of this.tfx || []) {
+      const k = Math.max(0, f.t / (f.T || 0.3));
+      if (f.f === 'hook') {
+        const pl = this.players[f.i], col = pl && pl.pal ? pl.pal.accent : 0xffe3a3;
+        fx.lineStyle(2.5, col, k); fx.lineBetween(f.x, f.y, f.x1, f.y1);
+        fx.lineStyle(1.2, 0xffffff, k); fx.lineBetween(f.x, f.y, f.x1, f.y1);
+        const ang = Math.atan2(f.y1 - f.y, f.x1 - f.x);
+        fx.lineStyle(2.5, 0xffffff, k);
+        for (const s of [-0.7, 0.7]) fx.lineBetween(f.x1, f.y1, f.x1 - Math.cos(ang + s) * 9, f.y1 - Math.sin(ang + s) * 9);
+      } else if (f.f === 'boom') {
+        const r = TOOL.BOMB_R * (1 - k * k);
+        fx.fillStyle(0xffe3a3, 0.22 * k); fx.fillCircle(f.x, f.y, r);
+        fx.lineStyle(4, 0xffffff, k); fx.strokeCircle(f.x, f.y, r);
+        fx.lineStyle(2, 0xffd47a, k); fx.strokeCircle(f.x, f.y, r * 0.7);
+      } else if (f.f === 'snap') {
+        fx.lineStyle(3, 0xffffff, k);
+        for (let s = -2; s <= 2; s++) fx.lineBetween(f.x + s * 6, f.y, f.x + s * 9, f.y - 26 * (1 - k * 0.3));
+      }
+    }
+  };
+
+  // ----- HUD: значок инструмента под катушкой нити -----
+  const uiUpdate = UIScene.prototype.update;
+  UIScene.prototype.update = function (time, delta) {
+    uiUpdate.call(this, time, delta);
+    const gs = this.gs; if (!gs || !gs.players || !this.ready) return;
+    const g = this.hud;
+    gs.players.forEach((p, i) => {
+      const D_ = TOOLS[p.toolId]; if (!D_) return;
+      const sx = i === 0 ? 40 : VW - 40, cy = 94, R = 13, cost = D_.cost || 0;
+      const can = p.silk >= cost, cd = Math.max(0, p.toolCd || 0), frac = D_.cd ? Math.min(1, cd / D_.cd) : 0;
+      g.fillStyle(0x0b1714, 0.85); g.fillCircle(sx, cy, R + 2);
+      const col = frac > 0 ? 0x6f8f83 : can ? 0xf4efe0 : 0x8a4a42;
+      // значок
+      g.lineStyle(2, col, 1); g.fillStyle(col, 1);
+      if (D_.id === 'throwneedle') { g.lineBetween(sx - 7, cy + 7, sx + 7, cy - 7); g.fillTriangle(sx + 8, cy - 8, sx + 3, cy - 6, sx + 6, cy - 3); g.lineStyle(1, col, 0.6); g.lineBetween(sx - 7, cy + 7, sx - 11, cy + 11); }
+      else if (D_.id === 'trap') { g.fillRect(sx - 8, cy + 3, 16, 3); for (let k = 0; k < 4; k++) g.fillTriangle(sx - 8 + k * 4, cy + 3, sx - 4 + k * 4, cy + 3, sx - 6 + k * 4, cy - 5); }
+      else if (D_.id === 'threadbomb') { g.strokeCircle(sx, cy + 2, 6); g.lineBetween(sx + 3, cy - 3, sx + 6, cy - 8); g.fillCircle(sx + 7, cy - 9, 1.6); }
+      else if (D_.id === 'hook') { g.beginPath(); g.moveTo(sx - 8, cy + 8); g.lineTo(sx - 1, cy - 4); g.strokePath(); g.beginPath(); g.arc(sx + 3, cy - 5, 5, Math.PI * 0.9, Math.PI * 2.2, false); g.strokePath(); }
+      else g.fillCircle(sx, cy, 4);
+      // перезарядка: тёмный сектор убывает по часовой, снаружи — дуга готовности
+      if (frac > 0) {
+        g.fillStyle(0x000000, 0.62); g.beginPath(); g.moveTo(sx, cy); g.arc(sx, cy, R, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac, false); g.closePath(); g.fillPath();
+        g.lineStyle(2, p.pal.accent, 0.9); g.beginPath(); g.arc(sx, cy, R + 2, -Math.PI / 2 + Math.PI * 2 * frac, Math.PI * 1.5, false); g.strokePath();
+      } else { g.lineStyle(2, can ? p.pal.accent : 0x8a4a42, can ? 0.9 : 0.7); g.strokeCircle(sx, cy, R + 2); }
+      // стоимость: точки нити
+      for (let k = 0; k < cost; k++) { const dx = sx + (k - (cost - 1) / 2) * 8, filled = p.silk > k; g.fillStyle(filled ? p.pal.cloak : 0x2b3b35, 1); g.fillCircle(dx, cy + R + 8, 2.8); }
+    });
+  };
+})();
+
+// ===== ОБЕРЕГИ: 3 слота, предмет занимает 1–2 слота (поле slots) =====
+// Эффекты — обёртки вокруг методов GameScene (баланс по умолчанию не меняется: без оберега всё как раньше).
+Object.assign(CHARMS, {
+  sting: { id: 'sting', name: 'Жало', desc: 'Удары иглы отравляют: 1 урона раз в 1.2 с, 4 раза. Боссов яд берёт вдвое слабее.', unlock: 'boss:misha', slots: 1, col: 0x86e05a },
+  ember: { id: 'ember', name: 'Угольная нить', desc: 'Тяжёлый удар (третий в комбо) поджигает врага: 3 тика ожога, огонь перекидывается на соседей.', unlock: 'shop:45', slots: 1, col: 0xff8a3c },
+  heart: { id: 'heart', name: 'Паучье сердце', desc: '+1 бутон здоровья. Тяжёлый оберег: занимает два слота.', unlock: 'shop:60', slots: 2, col: 0xff6a7a },
+  swift: { id: 'swift', name: 'Быстрая нить', desc: 'Нить копится на 50 % быстрее: каждый второй набор даёт лишнюю единицу.', unlock: 'boss:korn', slots: 1, col: 0x9ff0c8 },
+  stride: { id: 'stride', name: 'Тихий шаг', desc: 'Рывок перезаряжается на 25 % быстрее.', unlock: 'shop:40', slots: 1, col: 0xb9d4c8 },
+  window: { id: 'window', name: 'Широкое окно', desc: 'Окно отбива шире на 50 % (0.2 → 0.3 с).', unlock: 'boss:vladik', slots: 1, col: 0xffffff },
+  thorns: { id: 'thorns', name: 'Колючий плащ', desc: 'Когда враг ранит вас касанием, он получает 1 урона в ответ.', unlock: 'shop:55', slots: 1, col: 0xd9a35a },
+  call: { id: 'call', name: 'Зов нити', desc: 'Бусины тянутся к вам издалека (в ~2.5 раза дальше).', unlock: 'shop:30', slots: 1, col: 0xffd47a },
+  hunter: { id: 'hunter', name: 'Охотник', desc: '+15 % урона по оглушённым врагам и боссам; казнь даёт вдвое больше нити.', unlock: 'boss:tima', slots: 1, col: 0xe8e2cf },
+});
+
+// слоты: список надетых id → сколько слотов занято
+Loadout.slotsOf = function (id) { const c = CHARMS[id]; return c ? (c.slots | 0) || 1 : 1; };
+Loadout.slotsUsed = function (list) { return list.reduce((s, id) => s + this.slotsOf(id), 0); };
+Loadout.canFit = function (list, id) { return this.slotsUsed(list) + this.slotsOf(id) <= CHARM_SLOTS; };
+(function () {
+  const equip = Loadout.equip, equipped = Loadout.equipped;
+  // надеть оберег можно, только если хватает слотов; возвращает false, если не влезло
+  Loadout.equip = function (kind, id) {
+    if (kind === 'charm') {
+      const d = this.data();
+      if (!d.charms.includes(id) && !this.canFit(d.charms, id)) return false;
+    }
+    equip.call(this, kind, id); return true;
+  };
+  // при чтении тоже укладываемся в слоты (нужно, если реестр поменялся)
+  Loadout.equipped = function (sc) {
+    const r = equipped.call(this, sc), keep = [];
+    for (const c of r.charms) if (this.canFit(keep, c)) keep.push(c);
+    r.charms = keep; return r;
+  };
+})();
+
+(function () {
+  const proto = GameScene.prototype, has = (sc, p, id) => !!(p && sc.hasCharm(p, id));
+
+  // ----- Паучье сердце: +1 бутон (поверх масок из лавки) -----
+  const applyUp = Campaign.applyUp;
+  Campaign.applyUp = function (gs) {
+    const prev = (gs.players || []).map((p) => [p.maxHp, p.hp]);
+    applyUp.call(this, gs);
+    (gs.players || []).forEach((p, i) => {
+      if (p.remote || !prev[i]) return;
+      const [pm, ph] = prev[i], target = p.maxHp + (gs.hasCharm(p, 'heart') ? 1 : 0);
+      p.maxHp = target; p.hp = Math.min(target, ph + Math.max(0, target - pm));
+      p.silk = Math.min(p.silk, P.SILK);
+    });
+  };
+  const applyLoadout = proto.applyLoadout;
+  proto.applyLoadout = function () {
+    const r = applyLoadout.call(this);
+    if (this.up) Campaign.applyUp(this); // пересчитать здоровье под обереги
+    return r;
+  };
+
+  // ----- Быстрая нить: каждый второй набор нити даёт ещё одну единицу -----
+  const gainSilk = proto.gainSilk;
+  proto.gainSilk = function (p, boss) {
+    gainSilk.call(this, p, boss);
+    if (p.noSilkGain || !has(this, p, 'swift')) return;
+    const gained = !boss || (p.bossHits | 0) % BAL.silkEvery === 0;
+    if (!gained) return;
+    p._sf = (p._sf || 0) + 0.5;
+    if (p._sf >= 1) { p._sf -= 1; if (p.remote) this.sendEv({ k: 'silk', i: p.i }); else p.silk = Math.min(P.SILK, p.silk + 1); }
+  };
+
+  // ----- Тихий шаг (рывок) и Широкое окно (отбив) -----
+  const stepPlayer = proto.stepPlayer;
+  proto.stepPlayer = function (p, dt) {
+    if (p.dashCd > 0 && has(this, p, 'stride')) p.dashCd -= dt * 0.25;
+    const before = p.parryT || 0;
+    const r = stepPlayer.call(this, p, dt);
+    if (p.parryT > before && p.parryT >= P.PARRY_T - 1e-6 && has(this, p, 'window')) p.parryT = P.PARRY_T * 1.5;
+    return r;
+  };
+
+  // ----- Колючий плащ -----
+  const hurtPlayer = proto.hurtPlayer;
+  proto.hurtPlayer = function (p, dmg, srcX, spike) {
+    const hp0 = p.hp, r = hurtPlayer.call(this, p, dmg, srcX, spike);
+    if (!spike && srcX != null && p.hp < hp0 && this.auth() && has(this, p, 'thorns')) {
+      const px = p.x + 7, py = p.y + 13, near = (o) => Math.abs(o.x + o.w / 2 - srcX) < 1.5 && Math.abs(o.y + o.h / 2 - py) < 60 + o.h / 2 && Math.abs(o.x + o.w / 2 - px) < 60 + o.w / 2;
+      const e = this.enemies.find((o) => !o.dead && near(o));
+      if (e) {
+        e.hp -= 1; e.flash = 0.1; this.burst(8, e.x + e.w / 2, e.y + e.h / 2, 0xd9a35a); this.sfx('clink');
+        e.kbT = 0.14; e.kbx = Math.sign(e.x + e.w / 2 - px) * 200; e.kby = -80;
+        if (e.hp <= 0) this.killEnemy(e);
+      } else {
+        const key = Status.BOSS_KEYS.find((k) => { const b = k === 'boss' ? this.boss : this[k]; return b && Status.bossLive(b) && near(b); });
+        if (key) { Status.bossDamage(this, key, p, 1); this.burst(8, srcX, py, 0xd9a35a); }
+      }
+    }
+    return r;
+  };
+
+  // ----- Зов нити: бусины притягиваются издалека -----
+  const stepBeads = proto.stepBeads;
+  proto.stepBeads = function (dt) {
+    const callers = this.players.filter((p) => !p.remote && !p.downed && has(this, p, 'call'));
+    if (callers.length) for (const bd of this.beadsArr) {
+      if (bd.dead || bd.t <= 0.35) continue;
+      let best = null, bd2 = 220;
+      for (const p of callers) { const d = Math.hypot(p.x + 7 - bd.x - 4, p.y + 13 - bd.y - 4); if (d < bd2 && d >= 80) { bd2 = d; best = p; } }
+      if (best) { // подтянуть в зону обычного притяжения
+        const dx = best.x + 7 - bd.x - 4, dy = best.y + 13 - bd.y - 4, l = Math.hypot(dx, dy) || 1;
+        bd.x += (dx / l) * 300 * dt; bd.y += (dy / l) * 300 * dt; bd.vy = Math.min(bd.vy, 0);
+      }
+    }
+    return stepBeads.call(this, dt);
+  };
+
+  // ----- Жало, Угольная нить, Охотник: удары по врагам -----
+  const meleeHit = (sc, p) => !p.noSilkGain && p.atkT > 0 && !!p.atkHits;
+  const damageEnemy = proto.damageEnemy;
+  proto.damageEnemy = function (e, p) {
+    const hp0 = e.hp, stunned = e.state === 'stun';
+    const r = damageEnemy.call(this, e, p);
+    if (e.hp < hp0 && !e.dead && this.auth()) {
+      if (meleeHit(this, p)) {
+        if (has(this, p, 'sting')) Status.apply(this, e, 'poison', null, p);
+        if (has(this, p, 'ember') && p.heavy && p.atkDir === 'f') Status.apply(this, e, 'burn', null, p);
+      }
+      if (stunned && has(this, p, 'hunter')) {
+        p._hf = (p._hf || 0) + 0.15;
+        if (p._hf >= 1) { p._hf -= 1; e.hp -= 1; if (e.hp <= 0) this.killEnemy(e); }
+      }
+    }
+    return r;
+  };
+  for (const [fn, key] of [['damageBoss', 'boss'], ['damageVladik', 'vladik'], ['damageTima', 'tima']]) {
+    const f = proto[fn]; if (!f) continue;
+    proto[fn] = function (p) {
+      const b = key === 'boss' ? this.boss : this[key], hp0 = b && b.hp, stag = b && b.stagger > 0;
+      const r = f.call(this, p);
+      if (b && b.hp < hp0 && b.hp > 0 && this.auth()) {
+        if (meleeHit(this, p)) {
+          if (has(this, p, 'sting')) Status.apply(this, b, 'poison', null, p);
+          if (has(this, p, 'ember') && p.heavy && p.atkDir === 'f') Status.apply(this, b, 'burn', null, p);
+        }
+        if (stag && has(this, p, 'hunter') && !p.noSilkGain) {
+          p._hf = (p._hf || 0) + 0.15;
+          if (p._hf >= 1) { p._hf -= 1; Status.bossDamage(this, key, p, 1); }
+        }
+      }
+      return r;
+    };
+  }
+  // Охотник: казнь даёт вдвое больше нити (+3 вместо +3 → +6)
+  const execBoss = proto.execBoss;
+  proto.execBoss = function (p, kit, dir) {
+    const b = kit.key === 'boss' ? this.boss : this[kit.key], was = b && b.executed;
+    execBoss.call(this, p, kit, dir);
+    if (b && b.executed && !was && has(this, p, 'hunter')) {
+      if (p.remote) { for (let i = 0; i < 3; i++) this.sendEv({ k: 'silk', i: p.i }); } else p.silk = Math.min(P.SILK, p.silk + 3);
+    }
+  };
+})();
+
+// ----- сеть: на хосте нужно знать обереги гостя (его удары считает хост) -----
+(function () {
+  const proto = GameScene.prototype, packPlayer = proto.packPlayer;
+  proto.packPlayer = function (p) { const m = packPlayer.call(this, p); if (p.charms && p.charms.length) m.cm = p.charms.join(','); return m; };
+})();
+
+// ===== СТАТУСЫ: яд, ожог, замедление =====
+// API: Status.apply(sc, target, kind, dur?, src?) → true, если статус наложен. kind: 'poison' | 'burn' | 'slow'.
+//   target — враг из sc.enemies или босс (sc.boss / sc.vladik / sc.tima). Мишу нельзя ранить иглой — на нём статусы не держатся.
+//   dur — для яда/ожога длительность в секундах (по умолчанию 4 тика × 1.2 с и 3 тика × 0.8 с), для замедления — секунды (3).
+//   src — герой, чьим уроном считаются тики (для нити/хитстопа не важен; по умолчанию первый локальный).
+// Яд: 1 урона раз в 1.2 с, 4 тика. Ожог: 1 урона раз в 0.8 с, 3 тика, на каждом тике поджигает рядом стоящих (цепочка не длиннее 2 звеньев).
+// Замедление/оцепенение: −40 % скорости 3 с (время врага течёт в 0.6×).
+// Боссы: статусы вдвое слабее (тик бьёт через раз, замедление −20 %), не складываются (одновременно один урон-статус; повтор лишь обновляет таймер).
+// Урон боссу идёт через исходную функцию урона (RAW из bosses2.js) без нити, звука и стойкости — фазы и оглушение не ломаются.
+// Сеть: считает только хост/одиночка; в снимок идёт маска статусов (e[7], sf) — гость лишь рисует.
+const Status = {
+  KINDS: {
+    poison: { name: 'Яд', iv: 1.2, n: 4, col: 0x86e05a, bit: 1 },
+    burn: { name: 'Ожог', iv: 0.8, n: 3, col: 0xff8a3c, bit: 2 },
+    slow: { name: 'Оцепенение', t: 3, col: 0x6ab8ff, bit: 4 },
+  },
+  BOSS_KEYS: ['boss', 'vladik', 'tima'],
+  bossKey(sc, t) { for (const k of this.BOSS_KEYS) if (sc[k] === t) return k; return null; },
+  isBoss(sc, t) { return !!t && (this.bossKey(sc, t) || sc.misha === t) ? true : false; },
+  bossLive(b) { return !!b && !['sleep', 'dead', 'gone', 'intro', 'rage'].includes(b.state); },
+  alive(sc, t) {
+    if (!t) return false;
+    if (this.isBoss(sc, t)) return t.hp > 0 && !['dead', 'gone'].includes(t.state);
+    return !t.dead && t.hp > 0;
+  },
+  has(t, kind) { return !!(t && t.status && t.status[kind]); },
+  src(sc, p) { return p || sc.players.find((q) => !q.remote) || sc.players[0]; },
+
+  apply(sc, t, kind, dur, src) {
+    const K = this.KINDS[kind]; if (!K || !t || !sc.auth() || !this.alive(sc, t)) return false;
+    if (sc.misha === t) return false;
+    const boss = this.isBoss(sc, t), s = t.status || (t.status = {});
+    if (kind === 'slow') {
+      const left = dur != null ? dur : K.t;
+      if (s.slow) s.slow.t = Math.max(s.slow.t, left); else s.slow = { t: left };
+      return true;
+    }
+    if (boss) { // не складываются: один урон-статус за раз
+      const other = kind === 'poison' ? 'burn' : 'poison';
+      if (s[other]) return false;
+    }
+    const n = dur != null ? Math.max(1, Math.round(dur / K.iv)) : K.n;
+    if (s[kind]) { s[kind].left = Math.max(s[kind].left, n); s[kind].src = src || s[kind].src; return true; }
+    s[kind] = { left: n, cd: K.iv, src: src || null, gen: 0 };
+    return true;
+  },
+  clear(t) { if (t) t.status = null; },
+  // маска для снимка и отрисовки
+  mask(sc, t) {
+    if (!t) return 0;
+    if (!sc.auth()) return t.stv | 0;
+    const s = t.status; if (!s) return 0;
+    let m = 0; for (const k in s) if (s[k]) m |= this.KINDS[k].bit; return m;
+  },
+
+  // урон боссу тиком: исходная функция без нити/звука/стойкости
+  bossDamage(sc, key, p, n) {
+    const b = key === 'boss' ? sc.boss : sc[key], raw = typeof RAW !== 'undefined' ? RAW[key] : null;
+    if (!raw || !this.bossLive(b)) return;
+    const hs = sc.hitstop, hp0 = b.hp, nsg = p.noSilkGain, q = sc.quiet;
+    sc.quiet = true; p.noSilkGain = true;
+    for (let i = 0; i < n && b.hp > 0 && this.bossLive(b); i++) raw.call(sc, p);
+    sc.quiet = q; p.noSilkGain = nsg; sc.hitstop = hs;
+    if (b.hp < hp0) b.flash = Math.max(b.flash || 0, 0.06);
+  },
+  // тик урона
+  tick(sc, t, kind, st) {
+    const K = this.KINDS[kind], p = this.src(sc, st.src), boss = this.isBoss(sc, t);
+    const cx = t.x + t.w / 2, cy = t.y + t.h / 2;
+    if (boss) {
+      const key = this.bossKey(sc, t);
+      t.stAcc = (t.stAcc || 0) + 0.5;
+      if (t.stAcc >= 1) { t.stAcc -= 1; this.bossDamage(sc, key, p, 1); }
+    } else {
+      if (t.e2 && t.type === 'lurker' && typeof E2_UNDER !== 'undefined' && E2_UNDER.includes(t.state)) return;
+      t.hp -= 1; t.flash = 0.08;
+      sc.burst(kind === 'poison' ? 5 : 6, cx, cy, K.col);
+      if (t.hp <= 0) { sc.killEnemy(t); t.status = null; return; }
+    }
+    if (kind === 'burn' && st.gen < 2) { // поджигает рядом стоящих
+      for (const o of sc.enemies) {
+        if (o === t || o.dead || (o.status && o.status.burn)) continue;
+        if (Math.hypot(o.x + o.w / 2 - cx, o.y + o.h / 2 - cy) > 72) continue;
+        if (this.apply(sc, o, 'burn', null, st.src)) o.status.burn.gen = st.gen + 1;
+      }
+    }
+  },
+  step(sc, dt) {
+    if (!sc.auth() || sc.td) return;
+    const list = [...sc.enemies, sc.boss, sc.vladik, sc.tima];
+    for (const t of list) {
+      const s = t && t.status; if (!s) continue;
+      if (!this.alive(sc, t)) { t.status = null; continue; }
+      if (s.slow) { s.slow.t -= dt; if (s.slow.t <= 0) delete s.slow; }
+      for (const kind of ['poison', 'burn']) {
+        const st = s[kind]; if (!st) continue;
+        if (this.isBoss(sc, t) && !this.bossLive(t)) continue; // в рёве/неуязвимости таймер замирает
+        st.cd -= dt;
+        if (st.cd <= 0) {
+          st.cd += this.KINDS[kind].iv; st.left--;
+          this.tick(sc, t, kind, st);
+          if (!t.status) break;
+          if (st.left <= 0) delete s[kind];
+        }
+      }
+      if (t.status && !t.status.poison && !t.status.burn && !t.status.slow) t.status = null;
+    }
+  },
+  // отрисовка: цветная вуаль на цели, значки над головой, пузырьки/искры/снежинки
+  draw(sc, now) {
+    if (!sc.stG || !sc.stG.scene) sc.stG = sc.add.graphics().setDepth(5.6);
+    const g = sc.stG; g.clear();
+    const targets = [...sc.enemies, sc.boss, sc.vladik, sc.tima];
+    for (const t of targets) {
+      if (!t || t.dead || t.w < 2) continue;
+      const m = this.mask(sc, t); if (!m) continue;
+      const cx = t.x + t.w / 2, cy = t.y + t.h / 2, pul = 0.5 + Math.sin(now * 8 + cx) * 0.5;
+      const kinds = Object.keys(this.KINDS).filter((k) => m & this.KINDS[k].bit);
+      for (const k of kinds) {
+        const K = this.KINDS[k];
+        g.fillStyle(K.col, 0.16 + pul * 0.1); g.fillEllipse(cx, cy, t.w * 0.95, t.h * 0.95);
+        if (Math.random() < 0.06) {
+          const d = sc.dust; d.setParticleTint(K.col); d.explode(1, cx + (Math.random() - 0.5) * t.w * 0.7, t.y + t.h * (0.3 + Math.random() * 0.5)); d.setParticleTint(0x8fae9c);
+        }
+      }
+      // значки
+      const iy = t.y - 10, x0 = cx - (kinds.length - 1) * 8;
+      kinds.forEach((k, i) => {
+        const K = this.KINDS[k], x = x0 + i * 16;
+        g.fillStyle(0x0b0f0e, 0.75); g.fillCircle(x, iy, 7);
+        g.fillStyle(K.col, 1);
+        if (k === 'poison') { g.fillCircle(x, iy + 1.5, 3); g.fillTriangle(x - 2.6, iy + 0.5, x + 2.6, iy + 0.5, x, iy - 4); }
+        else if (k === 'burn') { g.fillTriangle(x - 3.2, iy + 4, x + 3.2, iy + 4, x, iy - 5); g.fillStyle(0xffe3a3, 1); g.fillTriangle(x - 1.4, iy + 4, x + 1.4, iy + 4, x, iy - 1); }
+        else { g.lineStyle(1.5, K.col, 1); g.lineBetween(x - 4, iy, x + 4, iy); g.lineBetween(x, iy - 4, x, iy + 4); g.lineBetween(x - 3, iy - 3, x + 3, iy + 3); g.lineBetween(x - 3, iy + 3, x + 3, iy - 3); }
+      });
+    }
+  },
+};
+
+(function () {
+  const proto = GameScene.prototype;
+  // замедление: время врага течёт медленнее (боссы — вдвое слабее)
+  const slowStep = (name, boss) => {
+    const f = proto[name]; if (!f) return;
+    proto[name] = function (...a) {
+      const dt = a[a.length - 1];
+      if (typeof dt === 'number' && this.auth() && !this.td) {
+        const e = boss ? (name === 'stepBoss' ? this.boss : name === 'stepVladik' ? this.vladik : this.tima) : a[0];
+        if (e && e.status && e.status.slow && (!boss || Status.bossLive(e))) a[a.length - 1] = dt * (boss ? 0.8 : 0.6);
+      }
+      return f.apply(this, a);
+    };
+  };
+  slowStep('stepEnemy', false); slowStep('stepBoss', true); slowStep('stepVladik', true); slowStep('stepTima', true);
+  const step = proto.step;
+  proto.step = function (dt) { const r = step.call(this, dt); Status.step(this, dt); return r; };
+  const render = proto.render;
+  proto.render = function (dt) { const r = render.call(this, dt); Status.draw(this, this.time.now / 1000); return r; };
+  // сеть: маски статусов в снимке (только если хоть что-то горит)
+  const packSnap = proto.packSnap;
+  proto.packSnap = function () {
+    const m = packSnap.call(this); let any = false;
+    m.e.forEach((a, i) => { const k = Status.mask(this, this.enemies[i]); if (k) { a[7] = k; any = true; } });
+    const sf = [this.boss, this.vladik, this.tima].map((b) => Status.mask(this, b));
+    if (sf.some(Boolean)) { m.sf = sf; any = true; }
+    return m;
+  };
+  const applySnap = proto.applySnap;
+  proto.applySnap = function (m) {
+    applySnap.call(this, m);
+    m.e.forEach((a, i) => { const e = this.enemies[i]; if (e) e.stv = a[7] | 0; });
+    [this.boss, this.vladik, this.tima].forEach((b, i) => { if (b) b.stv = m.sf ? m.sf[i] | 0 : 0; });
+  };
+})();
+
+// ===== ДВИЖЕНИЕ 2: хват за уступ, планер «Паутинный парус», стенное скольжение =====
+// Хват врождённый (abil.ledge !== false). Планер: abil.glide (награда за Владика; в босс-тесте и босс-раше доступен сразу).
+// Явное abil.ledge = false / abil.glide = false выключает механику (так бот держит свою модель физики).
+const MV2 = {
+  GLIDE_V: 120,       // скорость падения на планере, px/с
+  GLIDE_DEC: 3000,    // как быстро гасим разгон при раскрытии паруса
+  GLIDE_HOLD: 0.1,    // сколько держать прыжок в падении, чтобы раскрыть парус
+  CLIMB_T: 0.2,       // подтягивание на уступ
+  hasLedge(sc) { return !!sc.abil && sc.abil.ledge !== false; },
+  hasGlide(sc) {
+    const a = sc.abil || {}; if (a.glide === false) return false;
+    return !!a.glide || sc.mode === 'bosstest' || !!(sc.sr && sc.sr.cat === 'boss');
+  },
+  tileFree(sc, tx, ty) { return sc.tileAt(tx, ty) === EMPTY; },
+  // уступ сбоку (side = ±1): верхняя кромка тайла между головой и грудью героя, над ней свободно
+  findLedge(sc, p, side) {
+    const edge = side > 0 ? p.x + p.w : p.x;
+    const tx = side > 0 ? Math.floor((edge + 3) / T) : Math.floor((edge - 3) / T);
+    const dist = side > 0 ? tx * T - edge : edge - (tx + 1) * T; // зазор до тайла
+    if (dist > 3 || dist < -6) return null;
+    const ty = Math.ceil((p.y - 4) / T), top = ty * T;
+    if (top > p.y + 14) return null;
+    const t = sc.tileAt(tx, ty);
+    if (t !== SOLID && t !== PLAT) return null;
+    if (!this.tileFree(sc, tx, ty - 1)) return null; // над кромкой шип, камень или платформа
+    if (side > 0 ? sc.tileAt(tx - 1, ty) === SOLID : sc.tileAt(tx + 1, ty) === SOLID) { /* кромка внутри массива — не уступ */ return null; }
+    const hx = side > 0 ? tx * T - p.w : (tx + 1) * T, hy = top + 6;
+    const r = { x: hx, y: hy, w: p.w, h: p.h };
+    if (sc.solidRect(r) || sc.rectHitsTile(r, SPIKE, 1)) return null;
+    const sx = side > 0 ? tx * T + 2 : (tx + 1) * T - p.w - 2, sy = top - p.h;
+    if (sc.solidRect({ x: sx, y: sy, w: p.w, h: p.h })) return null; // наверху нет места
+    return { side, tx, ty, top, hx, hy, sx, sy, climb: 0, away: 0 };
+  },
+  grab(sc, p, L) {
+    p.ledge = L; p.ledgeDir = L.side; p.x = L.hx; p.y = L.hy; p.vx = p.vy = 0; p.kbx = 0; p.face = L.side;
+    p.dashT = 0; p.canDash = true; p.usedDouble = false; p.gliding = false; p.jumpBuf = 0; p.onGround = false;
+    p.ledgeUp = !!(p.inp && p.inp.up);
+    Snd.hiss(0.07, 0.07, 700, 1); sc.dust.explode(3, L.side > 0 ? L.tx * T : (L.tx + 1) * T, L.top);
+  },
+  release(p, cd) { p.ledge = null; p.ledgeDir = 0; p.ledgeCd = cd == null ? 0.25 : cd; },
+  rawStep: null,
+};
+
+(function () {
+  const proto = GameScene.prototype;
+  const stepO = proto.stepPlayer, packO = proto.packPlayer, netO = proto.onNet, fxO = proto.drawPlayerFx, vdieO = proto.vladikDie;
+  const NOIN = { up: false, down: false, left: false, right: false, jump: false, atk: false, dash: false, heal: false, bomb: false, tool: false, jumpP: false, atkP: false, dashP: false, healP: false, upP: false, bombP: false, toolP: false };
+
+  proto.stepPlayer = function (p, dt) {
+    if (p.remote) return stepO.call(this, p, dt);
+    const inp = p.inp || {}, dir = (inp.right ? 1 : 0) - (inp.left ? 1 : 0);
+    p.ledgeCd = (p.ledgeCd || 0) - dt; p.wgr = (p.wgr || 0) - dt; p.wsT = (p.wsT || 0) - dt; p.wsSnd = (p.wsSnd || 0) - dt; p.glT = (p.glT || 0) - dt;
+    let L = p.ledge;
+    // сбросить хват, если герой ранен, упал, лечится или его унесло (возрождение, телепорт)
+    if (L && (p.downed || p.hurtT > 0 || p.healCh > 0 || p.sit || (!L.climb && (Math.abs(p.x - L.hx) > 3 || Math.abs(p.y - L.hy) > 3)))) { MV2.release(p, 0.2); L = null; }
+    if (L) {
+      let leave = false;
+      if (L.climb > 0) {
+        // подтягивание: сначала вверх, потом на кромку
+        L.climb += dt;
+        const k = Math.min(1, L.climb / MV2.CLIMB_T), ky = 1 - (1 - Math.min(1, k / 0.65)) ** 2, kx = Math.max(0, Math.min(1, (k - 0.45) / 0.55));
+        p.inv = Math.max(p.inv, 0.25);
+        const sv = p.inp; p.inp = NOIN; stepO.call(this, p, dt); p.inp = sv;
+        p.x = L.hx + (L.sx - L.hx) * kx; p.y = L.hy + (L.sy - L.hy) * ky; p.vx = p.vy = 0; p.onGround = false;
+        if (k >= 1) { p.x = L.sx; p.y = L.sy; p.coyote = P.COYOTE; MV2.release(p, 0.2); p.landT = 0.05; this.dust.explode(4, p.x + 7, p.y + 26); Snd.play('land'); }
+        p.ledgeUp = !!inp.up; return;
+      }
+      const upEdge = inp.up && !p.ledgeUp; p.ledgeUp = !!inp.up;
+      if (inp.jumpP && dir === -L.side) { // спрыгнуть от стены
+        MV2.release(p, 0.3); p.vy = -P.WJY * 0.95; p.vx = -L.side * P.WJX; p.face = -L.side; p.wjLock = P.WJLOCK; p.jumpCut = false; p.jumpBuf = 0;
+        Snd.play('jump'); leave = true;
+      } else if (inp.jumpP || upEdge) {
+        L.climb = 0.0001; Snd.play('jump'); this.parts.setParticleTint(p.pal.accent); this.parts.explode(5, p.x + 7, p.y + 4);
+      } else if (inp.down) { MV2.release(p, 0.3); p.vy = 40; leave = true; }
+      else if (inp.dashP || p.dashBuf > 0) { MV2.release(p, 0.3); p.face = -L.side; if (inp.dashP) p.dashBuf = P.DASHBUF; leave = true; }
+      else {
+        L.away = dir === -L.side ? L.away + dt : 0;
+        if (L.away > 0.3) { MV2.release(p, 0.3); p.vy = 40; leave = true; }
+      }
+      if (!leave) {
+        // висим: ввод заморожен (кроме удара вперёд), позиция фиксирована
+        const sv = p.inp; p.inp = { ...NOIN, atk: !!inp.atk, atkP: !!inp.atkP };
+        stepO.call(this, p, dt); p.inp = sv;
+        p.x = L.hx; p.y = L.hy; p.vx = p.vy = 0; p.onGround = false; p.face = L.side;
+        if (Math.random() < dt * 4) this.dust.explode(1, L.side > 0 ? p.x + 14 : p.x, p.y);
+        return;
+      }
+      p.ledge = null;
+    }
+    // ----- до основного шага -----
+    // рывок от стены, если стик не нажат
+    if (!p.onGround && !dir && p.dashCd <= 0 && p.canDash && (inp.dashP || p.dashBuf > 0)) {
+      const sd = this.touchWall(p, 1) ? 1 : this.touchWall(p, -1) ? -1 : 0;
+      if (sd) p.face = -sd;
+    }
+    // планер: гасим разгон падения
+    const glideOn = !!p.gliding;
+    if (glideOn && p.vy > MV2.GLIDE_V) p.vy = Math.max(MV2.GLIDE_V, p.vy - MV2.GLIDE_DEC * dt);
+    stepO.call(this, p, dt);
+    // ----- после -----
+    const hasG = MV2.hasGlide(this), air = !p.onGround;
+    // стенное скольжение: задержка после отпускания стика, дрейф от стены, «ладони» и звук
+    if (p.wallDir !== 0 && air) { p.wgr = 0.14; p.wgSide = p.wallDir; }
+    let sliding = p.wallDir !== 0 && air && p.vy > 30;
+    if (!sliding && p.wgr > 0 && air && p.vy > P.WSLIDE && p.hurtT <= 0 && p.dashT <= 0 && p.wjLock <= 0 && p.vy > 0 &&
+      (dir === -p.wgSide || (!dir && this.touchWall(p, p.wgSide)))) { p.vy = P.WSLIDE; sliding = !dir; }
+    if (sliding) {
+      const hx = (p.wallDir || p.wgSide) > 0 ? p.x + p.w : p.x;
+      if (p.wsT <= 0) { p.wsT = 0.07; this.dust.explode(1, hx, p.y + 6 + Math.random() * 4); }
+      if (p.wsSnd <= 0) { p.wsSnd = 0.2; Snd.hiss(0.1, 0.035, 1500 + Math.random() * 400, 1.2); }
+    }
+    // хват за уступ
+    if (!p.ledge && MV2.hasLedge(this) && air && p.vy > 0 && p.ledgeCd <= 0 && (dir === 1 || dir === -1) &&
+      p.hurtT <= 0 && p.dashT <= 0 && p.atkT <= 0 && !(p.healCh > 0) && !p.sit && !p.downed && p.wjLock <= 0 && !(p.execT > 0)) {
+      const L2 = MV2.findLedge(this, p, dir);
+      if (L2) { MV2.grab(this, p, L2); p.gliding = false; return; }
+    }
+    // планер
+    if (!hasG || p.onGround || !inp.jump) { p.glideOff = false; p.glideHold = 0; p.gliding = false; }
+    else {
+      const ok = p.vy >= 0 && !p.glideOff && p.hurtT <= 0 && p.dashT <= 0 && !p.wallDir && !(p.healCh > 0) && !p.downed &&
+        (p.usedDouble || !this.abil.double);
+      if (p.atkT > 0 || p.hurtT > 0 || p.dashT > 0) p.glideOff = true; // удар, урон, рывок обрывают планирование до следующего нажатия
+      if (!ok || p.glideOff) { p.gliding = false; p.glideHold = 0; }
+      else if (p.gliding) { if (p.vy > MV2.GLIDE_V) p.vy = MV2.GLIDE_V; }
+      else {
+        p.glideHold = (p.glideHold || 0) + dt;
+        if (p.glideHold >= MV2.GLIDE_HOLD && p.vy >= 20) {
+          p.gliding = true; p.glT = 0; Snd.hiss(0.18, 0.06, 900, 0.7);
+          this.parts.setParticleTint(p.pal.accent); this.parts.explode(8, p.x + 7, p.y - 6);
+        }
+      }
+    }
+    if (p.gliding && p.glT <= 0) { p.glT = 0.12; this.dust.explode(1, p.x + 7 + (Math.random() - 0.5) * 20, p.y - 10); }
+    if (p.hurtT > 0 || p.downed) p.gliding = false;
+  };
+
+  // ----- сеть: поза удалённого героя -----
+  proto.packPlayer = function (p) {
+    const o = packO.call(this, p);
+    o.lg = p.ledge ? p.ledge.side : 0; o.gl = p.gliding ? 1 : 0;
+    return o;
+  };
+  proto.onNet = function (m) {
+    netO.call(this, m);
+    if (m && m.t === 'p' && this.players) { const p = this.players[m.i]; if (p && p.remote) { p.ledgeDir = m.lg | 0; p.gliding = !!m.gl; } }
+  };
+
+  // ----- отрисовка поз: висение на уступе (руки вверх) и парус планера -----
+  proto.drawPlayerFx = function (p, g) {
+    fxO.call(this, p, g);
+    if (p.downed) return;
+    const ld = p.remote ? (p.ledgeDir | 0) : (p.ledge ? p.ledge.side : 0);
+    if (ld) {
+      const climb = p.ledge && p.ledge.climb > 0;
+      g.lineStyle(2.4, 0x1a1414, 1); g.lineBetween(0, -17, ld * 8, climb ? -24 : -22);
+      g.lineBetween(ld * 2, -17, ld * 9, climb ? -26 : -23);
+      g.fillStyle(MASK, 1); g.fillCircle(ld * 8.5, climb ? -24 : -22, 2.2);
+      g.fillStyle(p.pal.accent, 0.55); g.fillCircle(ld * 9, -21, 4);
+    }
+    if (p.gliding) {
+      const fl = Math.sin((this.animT || 0) * 9) * 1.5;
+      g.fillStyle(p.pal.accent, 0.28);
+      g.fillPoints([{ x: -19, y: -44 }, { x: -11, y: -57 + fl }, { x: 0, y: -61 }, { x: 11, y: -57 - fl }, { x: 19, y: -44 }, { x: 9, y: -47 }, { x: 0, y: -45 }, { x: -9, y: -47 }], true);
+      g.lineStyle(1.4, 0xf4f1e6, 0.85);
+      g.lineBetween(-19, -44, -2, -22); g.lineBetween(19, -44, 2, -22); g.lineBetween(0, -45, 0, -26);
+      g.beginPath(); g.moveTo(-19, -44); g.lineTo(-11, -57 + fl); g.lineTo(0, -61); g.lineTo(11, -57 - fl); g.lineTo(19, -44); g.strokePath();
+    }
+  };
+
+  // ----- награда: «Паутинный парус» за Владика -----
+  proto.vladikDie = function (...a) {
+    const first = !this.abil.glide && this.abil.glide !== false;
+    if (first) {
+      this.abil.glide = true;
+      if (!this.sr && this.online !== 'guest' && this.mode !== 'bosstest') {
+        try { Settings.saveProgress({ ...(Settings.progress() || { bench: 0, beads: this.beads }), abil: this.abil }); } catch (_) { }
+      }
+      if (this.mode !== 'bosstest' || this.camp) this.ui().toast('Паутинный парус: держи прыжок в падении — планируй', 5);
+    }
+    return vdieO.apply(this, a);
+  };
+})();
+
+// ===== ЭКРАН «СНАРЯЖЕНИЕ»: оружие, инструмент, обереги =====
+// Открывается пунктом «Снаряжение» в лавке на скамье и кнопкой в паузе (клавиша I, на геймпаде Y). В босс-тесте всё доступно (Loadout.openAll).
+// Управление: ↑↓ — выбор, ←→ (или Q/E, LB/RB) — раздел, Enter / Пробел / F / A — надеть или купить, Esc / B — назад; мышь и касание — по кнопкам.
+// Читает реестры WEAPONS / TOOLS / CHARMS, поэтому подхватывает всё, что добавят другие модули; пустой реестр показывает заглушку.
+const Gear = {
+  KINDS: ['weapons', 'tools', 'charms'],
+  NAMES: { weapons: 'Оружие', tools: 'Инструмент', charms: 'Обереги' },
+  SINGLE: { weapons: 'weapon', tools: 'tool', charms: 'charm' },
+  BOSS: { korn: 'Корнематка', misha: 'Миша Додик', vladik: 'Владик Скрипка', tima: 'Тима Пиво' },
+  ROWS: 8, ROWH: 34,
+
+  canOpen(gs) {
+    const u = gs && gs.ui && gs.ui();
+    return !!(gs && u && u.ready && !gs.gearOpen && !gs.sr && !gs.won && !gs.wiping && !Settings.open && !(typeof MapTravel !== 'undefined' && MapTravel.open));
+  },
+  open(gs, from) {
+    if (!this.canOpen(gs)) return false;
+    gs.gearOpen = true; gs.gearFrom = from; gs._gearPad = null;
+    Touch.show(false); Snd.play('bead'); gs.ui().gearShow(from);
+    return true;
+  },
+  close(gs) {
+    if (!gs.gearOpen) return;
+    setTimeout(() => { gs.gearOpen = false; }, 0); // Esc не должен тут же включить паузу
+    gs.ui().gearHide(gs.gearFrom);
+  },
+  // что лежит в разделе
+  items(gs, kind) {
+    const out = [], reg = Loadout.reg(kind);
+    if (kind === 'tools') out.push({ id: '', none: true, e: { id: '', name: 'Без инструмента', desc: 'Кнопка инструмента (E / RB) ничего не делает.' } });
+    for (const id in reg) out.push({ id, e: reg[id] });
+    for (const it of out) it.owned = it.none ? true : Loadout.owned(kind, it.id, gs);
+    return out;
+  },
+  equippedIds(gs, kind) {
+    const d = Loadout.equipped(gs);
+    return kind === 'weapons' ? [d.weapon] : kind === 'tools' ? [d.tool] : d.charms;
+  },
+  price(e) { const m = /^shop:(\d+)$/.exec(e.unlock || ''); return m ? +m[1] : 0; },
+  lockText(e) {
+    const u = e.unlock || '';
+    if (u.startsWith('boss:')) return `Получите: босс ${this.BOSS[u.slice(5)] || u.slice(5)}`;
+    if (u.startsWith('shop:')) return `Цена: ${u.slice(5)} бусин`;
+    return 'Пока недоступно';
+  },
+  stats(kind, e) {
+    const L = [];
+    if (kind === 'weapons') {
+      if (e.dmg != null) L.push(`Урон: ${e.dmg}`);
+      if (e.reach != null) L.push(`Дальность: ×${e.reach}`);
+      if (e.cd) L.push(`Пауза между ударами: ${e.cd} с`);
+      if (e.combo) L.push(`Комбо: ${e.combo} уд.${e.finisher ? ', последний — тяжёлый' : ''}`);
+    } else if (kind === 'tools') {
+      if (e.cost != null) L.push(`Стоит нити: ${e.cost}`);
+      if (e.cd) L.push(`Перезарядка: ${e.cd} с`);
+    } else L.push(`Занимает слотов: ${Loadout.slotsOf ? Loadout.slotsOf(e.id) : 1} из ${CHARM_SLOTS}`);
+    return L.join('\n');
+  },
+  // что сейчас можно сделать с предметом
+  state(gs, kind, it) {
+    const e = it.e;
+    if (!it.owned) {
+      const pr = this.price(e);
+      if (pr) return { act: 'buy', price: pr, ok: gs.beads >= pr && gs.auth(), label: gs.auth() ? `Купить за ${pr} бусин` : 'Покупает хост' };
+      return { act: 'none', ok: false, label: this.lockText(e) };
+    }
+    const eq = this.equippedIds(gs, kind).includes(it.id);
+    if (kind === 'charms') {
+      if (eq) return { act: 'equip', ok: true, eq, label: 'Снять' };
+      const fit = Loadout.canFit(Loadout.data().charms, it.id);
+      return { act: 'equip', ok: fit, eq, label: fit ? 'Надеть' : 'Нет места: снимите другой оберег' };
+    }
+    if (eq) return { act: 'none', ok: false, eq, label: 'Надето' };
+    return { act: 'equip', ok: true, eq, label: 'Надеть' };
+  },
+  doAct(gs, kind, it) {
+    const ui = gs.ui(), st = this.state(gs, kind, it), e = it.e;
+    if (st.act === 'none') { ui.gearSay(st.eq ? 'Уже надето' : st.label); return; }
+    if (st.act === 'buy') {
+      if (!gs.auth()) { ui.gearSay('Покупать в лавке может только хост'); return; }
+      if (gs.beads < st.price) { ui.gearSay(`Не хватает бусин: нужно ${st.price}`); Snd.play('hit'); return; }
+      if (!Loadout.grant(kind, it.id)) { ui.gearSay('Уже куплено'); return; }
+      gs.beads -= st.price; Snd.play('revive');
+      for (const p of gs.players) if (!p.remote) { gs.parts.setParticleTint(0xffd47a); gs.parts.explode(14, p.x + 7, p.y + 10); }
+      const pg = Settings.progress();
+      if (gs.camp) Campaign.save(gs, { bench: pg ? pg.bench | 0 : 0 }); // бусины сохраняются, остальные поля прогресса остаются
+      ui.gearSay(`Куплено: ${e.name}. Нажмите ещё раз, чтобы надеть`);
+      return;
+    }
+    if (!st.ok) { ui.gearSay(st.label); Snd.play('hit'); return; }
+    const done = Loadout.equip(this.SINGLE[kind], it.id);
+    if (done === false) { ui.gearSay('Не хватает слотов'); return; }
+    gs.applyLoadout(); Snd.play('bench');
+    ui.gearSay(kind === 'charms' ? (st.eq ? `Снято: ${e.name}` : `Надето: ${e.name}`) : `Надето: ${e.name}`);
+  },
+
+  // каждый кадр: геймпад и защита от «зависшего» экрана
+  tick(gs) {
+    const u = gs.ui();
+    if (gs.won || gs.wiping || (gs.gearFrom === 'shop' && (!gs.shopP || !gs.shopP.sit || gs.shopP.downed))) { this.close(gs); return; }
+    if (!u.gearC || !u.gearC.visible) return;
+    let up = false, down = false, left = false, right = false, ok = false, back = false, lb = false, rb = false;
+    for (const pad of Pads.list()) {
+      const b = (n) => !!(pad.buttons[n] && pad.buttons[n].pressed), ax = pad.axes[0] || 0, ay = pad.axes[1] || 0;
+      up = up || b(12) || ay < -0.6; down = down || b(13) || ay > 0.6; left = left || b(14) || ax < -0.6; right = right || b(15) || ax > 0.6;
+      ok = ok || b(0); back = back || b(1); lb = lb || b(4); rb = rb || b(5);
+    }
+    const prev = gs._gearPad || { up: 1, down: 1, left: 1, right: 1, ok: 1, back: 1, lb: 1, rb: 1 }; // первый кадр: ничего не «нажато заново»
+    gs._gearPad = { up, down, left, right, ok, back, lb, rb };
+    if (up && !prev.up) u.gearMove(-1);
+    if (down && !prev.down) u.gearMove(1);
+    if ((left && !prev.left) || (lb && !prev.lb)) u.gearTab(-1);
+    if ((right && !prev.right) || (rb && !prev.rb)) u.gearTab(1);
+    if (ok && !prev.ok) u.gearAct();
+    if (back && !prev.back) this.close(gs);
+  },
+};
+
+// ввод игры замирает, пока открыт экран; пауза по Esc не включается
+{
+  const G = GameScene.prototype, rawO = G.rawInput, tapO = G.onKeyTap, touchO = G.onTouchTap, pauseO = G.togglePause;
+  G.rawInput = function (i) {
+    if (this.gearOpen) return { left: false, right: false, up: false, down: false, jump: false, atk: false, dash: false, heal: false, bomb: false, tool: false };
+    return rawO.call(this, i);
+  };
+  G.onKeyTap = function (e) { if (!this.gearOpen) tapO.call(this, e); };
+  G.onTouchTap = function (act) { if (!this.gearOpen) touchO.call(this, act); };
+  G.togglePause = function () { if (this.gearOpen) return; return pauseO.call(this); };
+  // геймпад в лавке не должен двигать лавку под экраном снаряжения
+  const tickO = Campaign.tick;
+  Campaign.tick = function (gs) { if (gs.gearOpen) return Gear.tick(gs); return tickO.call(this, gs); };
+  // в паузе: Y на геймпаде открывает экран (в других местах кнопка Y — нить)
+  const updO = G.update;
+  G.update = function (t, d) {
+    if (!this.gearOpen && !this.sr) {
+      const u = this.ui();
+      if (u && u.ready && u.pause && u.pause.visible) {
+        let y = false; for (const pad of Pads.list()) y = y || !!(pad.buttons[3] && pad.buttons[3].pressed);
+        if (y && !this._gearY) Gear.open(this, 'pause');
+        this._gearY = y;
+      } else this._gearY = true; // чтобы нажатая вне паузы Y не открыла экран при входе в паузу
+    }
+    return updO.call(this, t, d);
+  };
+}
+
+const showPauseO = UIScene.prototype.showPause;
+Object.assign(UIScene.prototype, {
+  showPause(on) {
+    showPauseO.call(this, on);
+    if (!on || !this.ready || this.gs.sr) return;
+    if (!this.gearBtn || !this.gearBtn.scene) {
+      const F = '"Cormorant SC", Georgia, serif';
+      const t = this.add.text(VW / 2, 478, Touch.enabled ? 'Снаряжение' : 'Снаряжение (I)', { fontFamily: F, fontSize: '23px', color: '#cfe8dc', fontStyle: '700', backgroundColor: 'rgba(20,48,41,0.9)', padding: { x: 18, y: 8 } })
+        .setOrigin(0.5).setInteractive({ useHandCursor: true });
+      t.on('pointerover', () => t.setColor('#ffd47a')); t.on('pointerout', () => t.setColor('#cfe8dc')); t.on('pointerdown', () => Gear.open(this.gs, 'pause'));
+      this.pause.add(t); this.gearBtn = t;
+      if (!this._gearI) { this._gearI = () => { if (this.pause.visible && !this.gs.gearOpen) Gear.open(this.gs, 'pause'); }; this.input.keyboard.on('keydown-I', this._gearI); }
+    }
+  },
+
+  gearBuild() {
+    if (this.gearC && this.gearC.scene) this.gearC.destroy();
+    const D = '"Cormorant SC", Georgia, serif', F = '"Fira Sans", sans-serif';
+    const x0 = VW / 2 - 340, c = this.add.container(0, 0).setVisible(false).setDepth(60);
+    this.gearX0 = x0;
+    const bg = this.add.graphics(); bg.fillStyle(0x030807, 0.96); bg.fillRect(0, 0, VW, VH);
+    bg.fillStyle(0x0b1714, 1); bg.fillRoundedRect(x0, 30, 680, 480, 10); bg.lineStyle(2, 0x3c5a50, 1); bg.strokeRoundedRect(x0, 30, 680, 480, 10);
+    bg.lineStyle(1, 0x24403a, 1); bg.lineBetween(x0 + 340, 134, x0 + 340, 424);
+    const title = this.add.text(VW / 2, 62, 'Снаряжение', { fontFamily: D, fontSize: '38px', color: '#e8e2cf', fontStyle: '700' }).setOrigin(0.5);
+    this.gearBeads = this.add.text(x0 + 24, 50, '', { fontFamily: F, fontSize: '16px', color: '#ffe3a3' });
+    const close = this.add.text(x0 + 656, 50, Touch.enabled ? 'Закрыть' : 'Закрыть (Esc)', { fontFamily: F, fontSize: '14px', color: '#cfe8dc', backgroundColor: 'rgba(20,48,41,0.9)', padding: { x: 10, y: 5 } }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
+    close.on('pointerover', () => close.setColor('#ffd47a')); close.on('pointerout', () => close.setColor('#cfe8dc')); close.on('pointerdown', () => Gear.close(this.gs));
+    this.gearTabs = Gear.KINDS.map((k, i) => {
+      const t = this.add.text(x0 + 24, 100, Gear.NAMES[k], { fontFamily: D, fontSize: '22px', fontStyle: '700', color: '#86a89a', padding: { x: 10, y: 4 } }).setInteractive({ useHandCursor: true });
+      t.on('pointerdown', () => { this.gearKind = i; this.gearSel = 0; this.gearOff = 0; this.gearRefresh(); });
+      return t;
+    });
+    { let tx = x0 + 18; for (const t of this.gearTabs) { t.setX(tx); tx += t.width + 14; } }
+    this.gearSelG = this.add.graphics();
+    this.gearRows = [];
+    for (let i = 0; i < Gear.ROWS; i++) {
+      const y = 140 + i * Gear.ROWH;
+      const name = this.add.text(x0 + 30, y + 5, '', { fontFamily: D, fontSize: '21px', color: '#cfe8dc', fontStyle: '700' });
+      const stt = this.add.text(x0 + 322, y + 9, '', { fontFamily: F, fontSize: '13px', fontStyle: '600', color: '#86a89a' }).setOrigin(1, 0);
+      const hit = this.add.rectangle(x0 + 175, y + Gear.ROWH / 2 - 1, 306, Gear.ROWH - 2, 0xffffff, 0.001).setInteractive({ useHandCursor: true });
+      hit.on('pointerover', () => { if (!Touch.enabled && this.gearItemsN > i + this.gearOff) { this.gearSel = i + this.gearOff; this.gearRefresh(); } });
+      hit.on('pointerdown', () => {
+        const idx = i + this.gearOff; if (idx >= this.gearItemsN) return;
+        if (this.gearSel === idx) this.gearAct(); else { this.gearSel = idx; this.gearRefresh(); }
+      });
+      this.gearRows.push({ name, stt, hit, y });
+      c.add([name, stt, hit]);
+    }
+    this.gearUp = this.add.text(x0 + 322, 128, '▲', { fontFamily: F, fontSize: '13px', color: '#ffd47a' }).setOrigin(1, 0.5).setInteractive({ useHandCursor: true });
+    this.gearDn = this.add.text(x0 + 322, 428, '▼', { fontFamily: F, fontSize: '13px', color: '#ffd47a' }).setOrigin(1, 0.5).setInteractive({ useHandCursor: true });
+    this.gearUp.on('pointerdown', () => this.gearMove(-1)); this.gearDn.on('pointerdown', () => this.gearMove(1));
+    this.gearEmpty = this.add.text(x0 + 30, 160, 'Пока ничего нет', { fontFamily: F, fontSize: '14px', color: '#6f9586' });
+    // правая панель
+    const rx = x0 + 362;
+    this.gearName = this.add.text(rx, 140, '', { fontFamily: D, fontSize: '30px', color: '#e8e2cf', fontStyle: '700', wordWrap: { width: 300 } });
+    this.gearSub = this.add.text(rx, 178, '', { fontFamily: F, fontSize: '12px', color: '#86a89a' });
+    this.gearDesc = this.add.text(rx, 202, '', { fontFamily: F, fontSize: '14px', color: '#b9d4c8', lineSpacing: 4, wordWrap: { width: 300 } });
+    this.gearStat = this.add.text(rx, 300, '', { fontFamily: F, fontSize: '13px', color: '#9ff0c8', lineSpacing: 4 });
+    this.gearBtn2 = this.add.text(rx, 372, '', { fontFamily: D, fontSize: '22px', fontStyle: '700', color: '#cfe8dc', backgroundColor: 'rgba(20,48,41,0.9)', padding: { x: 14, y: 6 } }).setInteractive({ useHandCursor: true });
+    this.gearBtn2.on('pointerdown', () => this.gearAct());
+    this.gearSayT = this.add.text(rx, 410, '', { fontFamily: F, fontSize: '12px', color: '#ffe3a3', wordWrap: { width: 300 } });
+    // слоты оберегов
+    this.gearSlotG = this.add.graphics();
+    const sl = this.add.text(x0 + 24, 436, 'Слоты оберегов:', { fontFamily: F, fontSize: '13px', color: '#86a89a' });
+    this.gearSlotT = [0, 1, 2].map(() => this.add.text(0, 0, '', { fontFamily: F, fontSize: '11px', color: '#e8e2cf', align: 'center', wordWrap: { width: 96 } }).setOrigin(0.5));
+    this.gearHint = this.add.text(VW / 2, 496, '', { fontFamily: F, fontSize: '12px', color: '#6f9586' }).setOrigin(0.5);
+    c.add([bg, title, this.gearBeads, close, ...this.gearTabs, this.gearSelG, this.gearUp, this.gearDn, this.gearEmpty, this.gearName, this.gearSub, this.gearDesc, this.gearStat, this.gearBtn2, this.gearSayT, this.gearSlotG, sl, ...this.gearSlotT, this.gearHint]);
+    c.sendToBack(this.gearSelG); c.sendToBack(bg);
+    this.gearC = c; this.gearKind = 0; this.gearSel = 0; this.gearOff = 0;
+    if (this._gearKey) this.input.keyboard.off('keydown', this._gearKey);
+    this._gearKey = (e) => {
+      if (!this.gearC || !this.gearC.visible) return;
+      const k = e.code;
+      if (k === 'ArrowUp' || k === 'KeyW') this.gearMove(-1);
+      else if (k === 'ArrowDown' || k === 'KeyS') this.gearMove(1);
+      else if (k === 'ArrowLeft' || k === 'KeyA' || k === 'KeyQ') this.gearTab(-1);
+      else if (k === 'ArrowRight' || k === 'KeyD' || k === 'KeyE') this.gearTab(1);
+      else if (k === 'Enter' || k === 'NumpadEnter' || k === 'Space' || k === 'KeyF' || k === 'KeyZ' || k === 'KeyX') this.gearAct();
+      else if (k === 'Escape' || k === 'Backspace') Gear.close(this.gs);
+    };
+    this.input.keyboard.on('keydown', this._gearKey);
+    if (this._gearWheel) this.input.off('wheel', this._gearWheel);
+    this._gearWheel = (p, o, dx, dy) => { if (this.gearC && this.gearC.visible) this.gearMove(dy > 0 ? 1 : -1); };
+    this.input.on('wheel', this._gearWheel);
+  },
+  gearShow(from) {
+    if (!this.ready) return;
+    this.gearBuild();
+    if (from === 'shop' && this.shopC) this.shopC.setVisible(false);
+    this.gearC.setVisible(true); this.gearSayT.setText('');
+    this.gearRefresh();
+  },
+  gearHide(from) {
+    if (this.gearC) this.gearC.setVisible(false);
+    if (from === 'shop' && this.gs.shopOpen && this.shopC && this.shopC.scene) { this.shopC.setVisible(true); this.shopRefresh(); }
+  },
+  gearList() { return Gear.items(this.gs, Gear.KINDS[this.gearKind]); },
+  gearMove(d) {
+    const n = this.gearItemsN || 0; if (!n) return;
+    this.gearSel = clamp(this.gearSel + d, 0, n - 1); this.gearRefresh();
+  },
+  gearTab(d) { const n = Gear.KINDS.length; this.gearKind = (this.gearKind + d + n) % n; this.gearSel = 0; this.gearOff = 0; this.gearRefresh(); },
+  gearAct() {
+    const list = this.gearList(), it = list[this.gearSel]; if (!it) return;
+    Gear.doAct(this.gs, Gear.KINDS[this.gearKind], it); this.gearRefresh();
+  },
+  gearSay(m) {
+    if (!this.gearSayT) return;
+    this.gearSayT.setText(m); this.tweens.killTweensOf(this.gearSayT); this.gearSayT.setAlpha(1);
+    this.tweens.add({ targets: this.gearSayT, alpha: 0, delay: 2600, duration: 500 });
+  },
+  gearRefresh() {
+    const gs = this.gs, kind = Gear.KINDS[this.gearKind], list = this.gearList(), g = this.gearSelG, x0 = this.gearX0;
+    g.clear();
+    this.gearItemsN = list.length;
+    this.gearSel = clamp(this.gearSel, 0, Math.max(0, list.length - 1));
+    if (this.gearSel < this.gearOff) this.gearOff = this.gearSel;
+    if (this.gearSel >= this.gearOff + Gear.ROWS) this.gearOff = this.gearSel - Gear.ROWS + 1;
+    this.gearOff = clamp(this.gearOff, 0, Math.max(0, list.length - Gear.ROWS));
+    this.gearBeads.setText(`Бусин: ${gs.beads}`);
+    this.gearTabs.forEach((t, i) => {
+      const on = i === this.gearKind; t.setColor(on ? '#ffd47a' : '#86a89a');
+      if (on) { g.lineStyle(2, 0xffd47a, 0.9); g.lineBetween(t.x + 8, 128, t.x + t.width - 8, 128); }
+    });
+    this.gearEmpty.setVisible(!list.length);
+    const eqIds = Gear.equippedIds(gs, kind);
+    this.gearRows.forEach((r, i) => {
+      const idx = i + this.gearOff, it = list[idx];
+      r.hit.setVisible(!!it); r.name.setVisible(!!it); r.stt.setVisible(!!it);
+      if (!it) return;
+      const sel = idx === this.gearSel, eq = eqIds.includes(it.id);
+      if (sel) { g.fillStyle(0x1d3a31, 0.9); g.fillRoundedRect(x0 + 24, r.y, 316, Gear.ROWH - 2, 5); g.lineStyle(1.5, 0xffd47a, 0.8); g.strokeRoundedRect(x0 + 24, r.y, 316, Gear.ROWH - 2, 5); }
+      if (kind === 'charms' && it.owned) { g.fillStyle(it.e.col || 0xcfe8dc, 1); g.fillCircle(x0 + 36, r.y + Gear.ROWH / 2 - 1, 3.5); }
+      r.name.setText(it.e.name).setColor(!it.owned ? '#5d7a6e' : sel ? '#ffd47a' : '#cfe8dc').setX(x0 + (kind === 'charms' && it.owned ? 46 : 32));
+      const pr = Gear.price(it.e);
+      if (!it.owned) r.stt.setText(pr ? `${pr} бусин` : 'закрыто').setColor(pr && gs.beads >= pr ? '#ffe3a3' : '#7a6a58');
+      else r.stt.setText(eq ? 'надето' : '').setColor('#9ff0c8');
+    });
+    this.gearUp.setVisible(this.gearOff > 0); this.gearDn.setVisible(this.gearOff + Gear.ROWS < list.length);
+    // правая панель
+    const it = list[this.gearSel];
+    if (!it) {
+      this.gearName.setText(Gear.NAMES[kind]); this.gearSub.setText(''); this.gearDesc.setText('Здесь пока пусто: предметы появятся по ходу игры.'); this.gearStat.setText(''); this.gearBtn2.setVisible(false);
+    } else {
+      const st = Gear.state(gs, kind, it), e = it.e;
+      this.gearName.setText(e.name);
+      this.gearSub.setText(!it.owned ? Gear.lockText(e) : st.eq ? 'Надето' : it.none ? '' : 'Есть у вас');
+      this.gearDesc.setText(e.desc || '');
+      this.gearStat.setText(it.none ? '' : Gear.stats(kind, e));
+      const col = st.act === 'none' ? (st.eq ? '#9ff0c8' : '#7a6a58') : st.ok ? '#ffe3a3' : '#7a6a58';
+      this.gearBtn2.setVisible(true).setText(st.label).setColor(col);
+    }
+    this.drawGearSlots(gs);
+    this.gearHint.setText(Touch.enabled ? 'Нажмите на предмет, затем на кнопку действия' : '↑↓ выбор · ←→ раздел · Enter надеть/купить · Esc назад · геймпад: A, B, LB/RB');
+  },
+  drawGearSlots(gs) {
+    const g = this.gearSlotG, x0 = this.gearX0, W = 100, H = 30, y = 454; g.clear();
+    const list = Loadout.equipped(gs).charms, used = [];
+    let s = 0; const place = [];
+    for (const id of list) { const n = Loadout.slotsOf(id); place.push({ id, s, n }); s += n; }
+    for (let i = 0; i < CHARM_SLOTS; i++) used.push(false);
+    this.gearSlotT.forEach((t) => t.setText(''));
+    for (let i = 0; i < CHARM_SLOTS; i++) {
+      const x = x0 + 24 + i * (W + 8), p = place.find((q) => i >= q.s && i < q.s + q.n);
+      g.fillStyle(p ? 0x1d3a31 : 0x0e1c18, 1); g.fillRoundedRect(x, y, W, H, 5);
+      g.lineStyle(1.5, p ? (CHARMS[p.id] && CHARMS[p.id].col) || 0xffd47a : 0x2c4a41, 1); g.strokeRoundedRect(x, y, W, H, 5);
+    }
+    place.forEach((q, k) => {
+      const e = CHARMS[q.id], cx = x0 + 24 + q.s * (W + 8) + (q.n * W + (q.n - 1) * 8) / 2;
+      if (this.gearSlotT[k]) this.gearSlotT[k].setPosition(cx, y + H / 2).setText(e ? e.name : q.id);
+      if (q.n > 1) { // двойной оберег закрашивает щель между слотами
+        const gx = x0 + 24 + q.s * (W + 8) + W; g.fillStyle(0x1d3a31, 1); g.fillRect(gx - 1, y + 1, 10, H - 2);
+      }
+    });
+  },
+});
 
 // ===== СПИДРАН: забеги на время, сплиты, код результата, таблица друзей, гонка 1×1 по сети =====
 // Забег живёт в Speedrun.run и переживает смену сцен (главы). Пока забег идёт, обычное сохранение не читается и не пишется,
@@ -6737,9 +8636,9 @@ Object.assign(Speedrun, {
       const cp = btn(cx - 190, by, 'Скопировать результат', () => Speedrun.copy(line, (ok) => { cp.setText(ok ? 'Скопировано!' : 'Выделите и скопируйте строку выше'); setTimeout(() => cp.setText('Скопировать результат'), 2200); }));
     }
     btn(cx + (line ? 190 : -120), by, 'Таблица друзей', () => Speedrun.friendsOpen(res));
-    if (!Speedrun.race) btn(cx - 130, by + 52, 'Ещё раз (R)', () => this.retry());
+    if (!Speedrun.race) btn(cx - 130, by + 52, 'Ещё раз (N)', () => this.retry());
     btn(cx + (Speedrun.race ? 0 : 130), by + 52, 'В главное меню', () => this.restart());
-    this.win.add(items); this.win.setVisible(true).setAlpha(0);
+    this.win.add(items); this.win.setVisible(true).setAlpha(0); this.winAt = performance.now();
     this.tweens.add({ targets: this.win, alpha: 1, duration: 700 });
     this.srBanner = null; Speedrun.resUpdate(this);
   };
@@ -6830,6 +8729,172 @@ Object.assign(MenuScene.prototype, {
     if (this.leaving || Speedrun.violation().length) { if (!this.leaving) Snd.play('hit'); return; }
     Speedrun.lastCat = this.srUi.cat;
     this.srClose(); this.openLobby('race');
+  },
+});
+
+// ===== ИНТЕРФЕЙС: вёрстка паузы и меню, автопауза в портрете, реплики боссов и сенсорные кнопки на телефоне =====
+// Подключается последним среди модулей интерфейса: оборачивает методы UIScene, MenuScene и GameScene.
+const UIFix = {
+  F: '"Fira Sans", sans-serif', D: '"Cormorant SC", Georgia, serif',
+  // во сколько раз холст на экране отличается от игровых координат (на телефоне < 1)
+  cs(scene) { const d = scene.scale && scene.scale.displaySize; return d && d.height ? d.height / VH : 1; },
+  inter(a, b, m) { return a.x < b.x + b.width - (m || 0) && a.x + a.width > b.x + (m || 0) && a.y < b.y + b.height - (m || 0) && a.y + a.height > b.y + (m || 0); },
+  portrait() { return !!(Touch.enabled && window.matchMedia && matchMedia('(orientation: portrait)').matches); },
+};
+
+// ----- пауза: справка в две колонки, нижние кнопки и подсказки в одну стопку -----
+Object.assign(UIScene.prototype, {
+  pauseLayout() {
+    if (!this.ready || !this.pause || !this.pauseL1 || !this.pauseL1.scene) return;
+    const F = UIFix.F, W = VW, H = VH, pc = this.pauseL1, ok = (o) => o && o.scene;
+    // источник текста — pauseL1 (его правит Access.refreshPause); сам он скрыт, а читают две колонки
+    pc.setVisible(false); this._pauseDirty = false;
+    if (!this.pauseColA) {
+      const st = { fontFamily: F, color: '#b9d4c8', align: 'left' };
+      this.pauseColA = this.add.text(0, 0, '', st); this.pauseColB = this.add.text(0, 0, '', st);
+      this.pause.add([this.pauseColA, this.pauseColB]);
+    }
+    // 1. нижняя стопка (снизу вверх)
+    let y = H - 8;
+    const hint = (o) => { if (!ok(o) || !o.visible) return; o.setOrigin(0.5, 1).setFontSize(12).setWordWrapWidth(W - 60); o.setPosition(W / 2, y); y -= o.height + 3; };
+    hint(this.mapHint); hint(this.padHint); hint(this.trKeys); hint(this.trTele);
+    const row = (items) => {
+      items = items.filter((o) => ok(o) && o.visible); if (!items.length) return;
+      items.forEach((o) => o.setScale(1).setOrigin(0.5));
+      const gap = 14, sum = items.reduce((s, o) => s + o.width, 0) + gap * (items.length - 1), k = Math.min(1, (W - 24) / sum);
+      items.forEach((o) => o.setScale(k));
+      const h = Math.max(...items.map((o) => o.displayHeight)); let x = W / 2 - (sum * k) / 2;
+      for (const o of items) { o.setPosition(x + o.displayWidth / 2, y - h / 2); x += o.displayWidth + gap * k; }
+      y -= h + 6;
+    };
+    row([this.gearBtn, this.trBtn]);
+    row(this.pauseBtns || []);
+    // 2. заголовок сверху
+    const t = this.pauseTitle; t.setFontSize(40).setOrigin(0.5, 0).setPosition(W / 2, 12);
+    const top = t.y + t.height + 4, avail = y - top - 2;
+    // 3. справка: самый крупный шрифт, при котором две колонки помещаются
+    const paras = pc.text.split('\n').filter((s) => s.trim()).map((s) => '· ' + s);
+    const colW = Math.floor((Math.min(W - 40, 1040) - 24) / 2), A = this.pauseColA, B = this.pauseColB;
+    const x0 = Math.round(W / 2 - colW - 12);
+    A.setPosition(x0, top); B.setPosition(x0 + colW + 24, top);
+    let best = null;
+    for (const fs of Touch.enabled ? [18, 17, 16, 15, 14, 13, 12, 11, 10] : [15, 14, 13, 12, 11, 10]) {
+      for (const c of [A, B]) c.setFontSize(fs).setLineSpacing(Math.round(fs / 4)).setWordWrapWidth(colW);
+      // подбор разреза абзацев на две колонки с наименьшей высотой
+      let bk = 1, bh = 1e9;
+      for (let k = 1; k < paras.length; k++) {
+        A.setText(paras.slice(0, k).join('\n')); B.setText(paras.slice(k).join('\n'));
+        const h = Math.max(A.height, B.height); if (h < bh) { bh = h; bk = k; }
+      }
+      A.setText(paras.slice(0, bk).join('\n')); B.setText(paras.slice(bk).join('\n'));
+      best = Math.max(A.height, B.height);
+      if (best <= avail) break;
+    }
+    // если места лишнего много — опускаем справку к середине свободной области
+    const off = Math.max(0, Math.min(24, (avail - best) / 2)); A.y = top + off; B.y = top + off;
+  },
+});
+{
+  const sp = UIScene.prototype.showPause;
+  UIScene.prototype.showPause = function (on) { sp.call(this, on); if (this.trHud) this.trHud.setVisible(!on); /* счётчик тренировки лежит поверх справки */ if (on) this.pauseLayout(); };
+  const uc = UIScene.prototype.create;
+  UIScene.prototype.create = function () {
+    uc.call(this);
+    const pc = this.pauseL1, set = pc.setText.bind(pc);
+    pc.setText = (s) => { set(s); if (this.pause.visible) this.pauseLayout(); else this._pauseDirty = true; return pc; }; // Access.refreshPause меняет первую строку
+    const psv = this.pause.setVisible.bind(this.pause); // после «Настроек» пауза показывается напрямую — подтянуть справку
+    this.pause.setVisible = (v) => { psv(v); if (v && this._pauseDirty) this.pauseLayout(); return this.pause; };
+    if (Touch.enabled && this.tdSay) this.tdSay.setFontSize(Phaser.Math.Clamp(Math.round(16 / UIFix.cs(this)), 17, 26)).setPadding(12, 6); // реплика Миши в «виде сверху»
+  };
+}
+
+// ----- меню: «Что нового» не залезает на кнопки и подсказки; оверлеи закрывают главное меню -----
+Object.assign(MenuScene.prototype, {
+  fitChangelog() {
+    const ch = this.chTxt; if (!ch || !ch.scene) return;
+    const cs = UIFix.cs(this), fs = Phaser.Math.Clamp(Math.ceil(10 / cs), 11, 14), max = Touch.enabled ? 3 : 7;
+    const obst = this.children.list.filter((o) => o !== ch && o.type === 'Text' && o.visible && !(o.y < 22 && o.x < 40));
+    ch.setFontSize(fs).setLineSpacing(Math.round(fs / 3.5));
+    for (let n = max; n >= 0; n--) {
+      if (!n) { ch.setVisible(false); return; }
+      ch.setText('Что нового:\n' + CHANGELOG.slice(0, n).map((l) => '· ' + l).join('\n'));
+      const b = ch.getBounds();
+      if (b.bottom <= VH - 6 && !obst.some((o) => UIFix.inter(b, o.getBounds(), 3))) { ch.setVisible(true); return; }
+    }
+  },
+  menuCover(on) {
+    if (on) {
+      if (this._cov) return;
+      this._cov = this.children.list.filter((o) => o.visible && o !== this.pick && o !== this.srP && (o.type === 'Text' || o.type === 'Graphics' || o.type === 'Container'));
+      for (const o of this._cov) o.setVisible(false);
+    } else if (this._cov && !(this.pick && this.pick.visible) && !(this.srP && this.srP.visible)) {
+      for (const o of this._cov) if (o.scene) o.setVisible(true);
+      this._cov = null; this.fitChangelog();
+    }
+  },
+});
+{
+  const mc = MenuScene.prototype.create;
+  MenuScene.prototype.create = function () { this._cov = null; mc.call(this); this.fitChangelog(); };
+  const wrap = (name, on) => { const f = MenuScene.prototype[name]; MenuScene.prototype[name] = function (...a) { const r = f.apply(this, a); this.menuCover(on); return r; }; };
+  const op = MenuScene.prototype.openPick;
+  MenuScene.prototype.openPick = function () { const was = this.pick.visible; op.call(this); if (this.pick.visible && !was) this.menuCover(true); };
+  wrap('closePick', false);
+  const os = MenuScene.prototype.openSpeedrun;
+  MenuScene.prototype.openSpeedrun = function () { os.call(this); if (this.srP && this.srP.visible) this.menuCover(true); };
+  wrap('srClose', false);
+}
+
+// ----- портретная ориентация на телефоне: бой не идёт под заглушкой «Поверните телефон» -----
+{
+  const upd = GameScene.prototype.update;
+  GameScene.prototype.update = function (t, d) {
+    const r = upd.call(this, t, d);
+    UIFix.rotateCheck(this);
+    UIFix.bubbles(this);
+    UIFix.touchAvoid(this);
+    return r;
+  };
+}
+Object.assign(UIFix, {
+  rotateCheck(gs) {
+    if (!Touch.enabled) return;
+    if (UIFix.portrait()) {
+      if (!gs.paused && !gs.online && !gs.won && !gs.wiping && !gs.shopOpen && !gs.gearOpen && !Settings.open) { gs.togglePause(); if (gs.paused) gs._rotPause = true; }
+    } else if (gs._rotPause) {
+      gs._rotPause = false;
+      if (gs.paused && !gs.won) gs.togglePause();
+    }
+  },
+  // реплики боссов: на телефоне крупнее (чтобы на экране было не меньше ~15 px), с переносом, в пределах видимой области
+  bubbles(gs) {
+    if (!Touch.enabled) return;
+    const cam = gs.cameras.main, wv = cam.worldView, k = UIFix.cs(gs) * cam.zoom;
+    const fs = Phaser.Math.Clamp(Math.round(16 / Math.max(0.3, k)), 17, 30);
+    for (const o of [gs.mishaSay, gs.vSay, gs.tSay]) {
+      if (!o || !o.scene || !o.visible) continue;
+      if (o.style.fontSize !== fs + 'px') o.setFontSize(fs).setPadding(Math.round(fs * 0.55), Math.round(fs * 0.3));
+      const ww = Math.round(wv.width * 0.5);
+      if (o.style.wordWrapWidth !== ww) o.setWordWrapWidth(ww);
+      const hw = o.displayWidth / 2, m = 6 / Math.max(0.3, k);
+      o.x = Phaser.Math.Clamp(o.x, wv.x + hw + m, wv.right - hw - m);
+      o.y = Math.max(o.y, wv.y + o.displayHeight + m);
+    }
+  },
+  // кнопки справа не должны закрывать рюкзак Миши (цель бомбы): перекрытые кнопки становятся прозрачными
+  touchAvoid(gs) {
+    if (!Touch.enabled || !Touch.root || ((gs.game.loop.frame || 0) & 3)) return;
+    const btns = Touch.root.querySelectorAll('.t-btn'), m = gs.misha;
+    let bag = null;
+    if (Touch.visible && m && m.state !== 'dead' && m.state !== 'gone' && gs.mishaBag) {
+      const b = gs.mishaBag(m), cam = gs.cameras.main, wv = cam.worldView, r = gs.game.canvas.getBoundingClientRect(), s = r.width / VW;
+      bag = { l: r.left + (b.x - wv.x) * cam.zoom * s, t: r.top + (b.y - wv.y) * cam.zoom * s, w: b.w * cam.zoom * s, h: b.h * cam.zoom * s };
+    }
+    btns.forEach((el) => {
+      let hit = false;
+      if (bag && !el.hidden) { const q = el.getBoundingClientRect(), pad = 14; hit = bag.l < q.right + pad && bag.l + bag.w > q.left - pad && bag.t < q.bottom + pad && bag.t + bag.h > q.top - pad; }
+      el.classList.toggle('dim', hit);
+    });
   },
 });
 

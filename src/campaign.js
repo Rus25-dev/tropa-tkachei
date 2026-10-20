@@ -59,7 +59,8 @@ const Campaign = {
     return c ? `Глава ${c.roman} · ${c.name}` : 'Глава I · Мшистая Глубь';
   },
   saveName(gs, area) { const c = CHAPTERS[gs.camp ? gs.camp.ch : 1]; return `Гл. ${c.roman} · ${area}`; },
-  canSave(gs) { return gs.mode === 'story' && gs.online !== 'guest'; },
+  // арена главы идёт в режиме 'bosstest', но это часть кампании: победа должна сохраняться (кроме спидрана)
+  canSave(gs) { return gs.online !== 'guest' && !gs.sr && (gs.mode === 'story' || (gs.mode === 'bosstest' && !!gs.camp && gs.camp.st === 'arena')); },
 
   // ----- хуки GameScene -----
   init(gs, data) {
@@ -250,7 +251,7 @@ Object.assign(UIScene.prototype, {
     else if (guest) items.push(this.add.text(VW / 2, 478, hint, { fontFamily: F, fontSize: '15px', color: '#ffe3a3' }).setOrigin(0.5));
     Touch.show(false);
     this.campWinS = k;
-    this.win.add(items); this.win.setVisible(true).setAlpha(0);
+    this.win.add(items); this.win.setVisible(true).setAlpha(0); this.winAt = performance.now();
     this.tweens.add({ targets: this.win, alpha: 1, duration: 900 });
   },
 
@@ -259,14 +260,14 @@ Object.assign(UIScene.prototype, {
     const D = '"Cormorant SC", Georgia, serif', F = '"Fira Sans", sans-serif', gs = this.gs, x0 = VW / 2 - 280;
     const c = this.add.container(0, 0).setVisible(false).setDepth(50);
     const bg = this.add.graphics(); bg.fillStyle(0x030807, 0.86); bg.fillRect(0, 0, VW, VH);
-    bg.fillStyle(0x0b1714, 0.97); bg.fillRoundedRect(x0 - 20, 70, 600, 400, 10); bg.lineStyle(2, 0x3c5a50, 1); bg.strokeRoundedRect(x0 - 20, 70, 600, 400, 10);
+    bg.fillStyle(0x0b1714, 0.97); bg.fillRoundedRect(x0 - 20, 70, 600, 424, 10); bg.lineStyle(2, 0x3c5a50, 1); bg.strokeRoundedRect(x0 - 20, 70, 600, 424, 10);
     const title = this.add.text(VW / 2, 104, 'Лавка у скамьи', { fontFamily: D, fontSize: '40px', color: '#e8e2cf', fontStyle: '700' }).setOrigin(0.5);
     this.shopBeads = this.add.text(x0 + 560, 88, '', { fontFamily: F, fontSize: '18px', color: '#ffe3a3' }).setOrigin(1, 0);
     this.shopSelG = this.add.graphics();
     this.shopRows = [];
-    const rows = [...SHOP, { id: 'close' }];
+    const rows = [...SHOP, { id: 'gear' }, { id: 'close' }];
     rows.forEach((it, i) => {
-      const y = 148 + i * 70;
+      const y = 146 + i * 62;
       const name = this.add.text(x0, y, '', { fontFamily: D, fontSize: '26px', color: '#cfe8dc', fontStyle: '700' });
       const desc = this.add.text(x0, y + 31, '', { fontFamily: F, fontSize: '13px', color: '#86a89a' });
       const price = this.add.text(x0 + 560, y + 2, '', { fontFamily: F, fontSize: '18px', fontStyle: '600', color: '#ffe3a3' }).setOrigin(1, 0);
@@ -276,7 +277,7 @@ Object.assign(UIScene.prototype, {
       this.shopRows.push({ it, name, desc, price, y });
       c.add([name, desc, price, hit]);
     });
-    this.shopHint = this.add.text(VW / 2, 446, '', { fontFamily: F, fontSize: '12px', color: '#6f9586' }).setOrigin(0.5);
+    this.shopHint = this.add.text(VW / 2, 468, '', { fontFamily: F, fontSize: '12px', color: '#6f9586' }).setOrigin(0.5);
     c.add([bg, title, this.shopBeads, this.shopSelG, this.shopHint]);
     c.sendToBack(this.shopSelG); c.sendToBack(bg);
     this.shopC = c; this.shopSel = 0;
@@ -294,7 +295,7 @@ Object.assign(UIScene.prototype, {
   shopMove(d) { const n = this.shopRows.length; this.shopSel = (this.shopSel + d + n) % n; this.shopRefresh(); },
   shopAct() {
     const r = this.shopRows[this.shopSel]; if (!r) return;
-    if (r.it.id === 'close') Campaign.closeShop(this.gs); else Campaign.buy(this.gs, r.it.id);
+    if (r.it.id === 'close') Campaign.closeShop(this.gs); else if (r.it.id === 'gear') { if (typeof Gear !== 'undefined') Gear.open(this.gs, 'shop'); } else Campaign.buy(this.gs, r.it.id);
   },
   shopRefresh() {
     const gs = this.gs, up = gs.up || Campaign.freshUp(), g = this.shopSelG; g.clear();
@@ -307,6 +308,7 @@ Object.assign(UIScene.prototype, {
     this.shopRows.forEach((r, i) => {
       const it = r.it, sel = i === this.shopSel;
       if (sel) { g.fillStyle(0x1d3a31, 0.9); g.fillRoundedRect(VW / 2 - 295, r.y - 6, 590, 62, 6); g.lineStyle(1.5, 0xffd47a, 0.8); g.strokeRoundedRect(VW / 2 - 295, r.y - 6, 590, 62, 6); }
+      if (it.id === 'gear') { r.name.setText('Снаряжение').setColor(sel ? '#ffd47a' : '#cfe8dc'); r.desc.setText('Оружие, инструмент и обереги'); r.price.setText('открыть').setColor('#9ff0c8'); return; }
       if (it.id === 'close') { r.name.setText('Закрыть').setColor(sel ? '#ffd47a' : '#cfe8dc'); r.desc.setText(Touch.enabled ? '' : 'Esc'); r.price.setText(''); return; }
       const lvl = up[it.id] | 0, maxed = lvl >= it.max, pr = maxed ? 0 : it.price[lvl], can = !maxed && gs.beads >= pr;
       r.name.setText(`${it.name}  ${'●'.repeat(lvl)}${'○'.repeat(it.max - lvl)}`).setColor(sel ? '#ffd47a' : '#cfe8dc');

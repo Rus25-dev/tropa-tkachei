@@ -27,13 +27,21 @@ const Net = {
     this.conn = c;
     c.on('open', () => this.cb && this.cb('connected'));
     this.lastRecv = performance.now();
-    c.on('data', (d) => { this.lastRecv = performance.now(); if (this.onMsg) this.onMsg(d); });
-    c.on('close', () => { if (this.conn === c) { this.conn = null; if (this.onClose) this.onClose(); } });
+    const gone = () => { if (this.conn === c) { this.conn = null; if (this.onClose) this.onClose(); } };
+    c.on('data', (d) => {
+      this.lastRecv = performance.now();
+      if (d && d.t === 'bye') { gone(); try { c.close(); } catch (_) { } return; } // напарник попрощался: не ждём таймаут в 10 с
+      if (this.onMsg) this.onMsg(d);
+    });
+    c.on('close', gone);
     c.on('error', () => { });
   },
   send(m) { if (this.conn && this.conn.open) { try { this.conn.send(m); } catch (_) { } } },
+  // прощание: напарник узнаёт об уходе сразу, а не по тишине через 10 с
+  bye() { if (this.conn && this.conn.open) { try { this.conn.send({ t: 'bye' }); } catch (_) { } } },
   close() {
-    const c = this.conn, p = this.peer; this.conn = null; this.peer = null; this.role = null;
+    this.bye();
+    const c = this.conn, p = this.peer; this.conn = null; this.peer = null; this.role = null; this.onClose = null; this.cb = null; this.code = null;
     try { c && c.close(); } catch (_) { } try { p && p.destroy(); } catch (_) { }
   },
   errText(e) {
@@ -46,6 +54,9 @@ const Net = {
   },
 };
 
+// закрытие вкладки: close() не успеет, поэтому прощаемся заранее
+for (const ev of ['pagehide', 'beforeunload']) window.addEventListener(ev, () => Net.bye());
+
 // ----- лобби (HTML поверх игры) -----
 const Lobby = {
   el: null,
@@ -57,6 +68,8 @@ const Lobby = {
     $('lb-code').addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') this.doJoin($('lb-code').value); });
     $('lb-code').addEventListener('keyup', (e) => e.stopPropagation());
     $('lb-back').onclick = () => this.hide(true);
+    // Esc закрывает лобби, как окно настроек (фокус может быть и вне окна — слушаем документ)
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !this.el.hidden) { e.preventDefault(); e.stopPropagation(); this.hide(true); } }, true);
     $('lb-copy').onclick = () => {
       const t = $('lb-link').textContent;
       const ok = () => { $('lb-copy').textContent = 'Скопировано'; setTimeout(() => ($('lb-copy').textContent = 'Копировать ссылку'), 1600); };
@@ -87,6 +100,8 @@ const Lobby = {
         this.status('Ждём напарника. Отправьте ему код или ссылку.', 'wait');
       } else if (ev === 'connected') {
         this.status('Напарник подключился!', 'ok');
+        const gs = window.__game && window.__game.scene.getScene('game');
+        if (this.mode !== 'race' && gs && gs.sys.isActive() && gs.players && !gs.online) { gs.rejoinGuest(); return; } // гость вернулся в идущую игру хоста
         if (this.mode === 'race') { Speedrun.raceOpen('host'); return; }
         const mode = this.mode || 'story', boss = this.boss || 'misha';
         const camp = mode === 'story' ? Campaign.resume() : null;

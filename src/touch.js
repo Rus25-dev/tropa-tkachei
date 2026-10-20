@@ -27,7 +27,7 @@ const Layout = {
 
 const Touch = {
   enabled: false, visible: false, bombs: false,
-  state: { left: false, right: false, up: false, down: false, jump: false, atk: false, dash: false, heal: false, bomb: false },
+  state: { left: false, right: false, up: false, down: false, jump: false, atk: false, dash: false, heal: false, bomb: false, tool: false },
   stick: null, root: null, onTap: null,
   detect() {
     const q = new URLSearchParams(location.search).get('touch');
@@ -44,6 +44,7 @@ const Touch = {
       <div class="t-btns">
         <button class="t-btn t-heal" data-act="heal" type="button" aria-label="Лечение"><b>✚</b><i>Нить</i></button>
         <button class="t-btn t-dash" data-act="dash" type="button" aria-label="Рывок"><b>»</b><i>Рывок</i></button>
+        <button class="t-btn t-tool" data-act="tool" type="button" aria-label="Инструмент" hidden><b>✦</b><i>Инстр.</i></button>
         <button class="t-btn t-bomb" data-act="bomb" type="button" aria-label="Дымовая бомба" hidden><b>●</b><i>Бомба</i></button>
         <button class="t-btn t-atk" data-act="atk" type="button" aria-label="Удар"><b>⟋</b><i>Удар</i></button>
         <button class="t-btn t-jump" data-act="jump" type="button" aria-label="Прыжок"><b>▲</b><i>Прыжок</i></button>
@@ -123,6 +124,7 @@ const Touch = {
     if (!this.enabled || !this.root) return;
     this.visible = on; this.root.hidden = !on;
     if (on) { const h = this.root.querySelector('#t-hint'); clearTimeout(this._ht); h.classList.remove('gone'); this._ht = setTimeout(() => h.classList.add('gone'), 6000); }
+    if (opts && opts.tool != null) { const tb = this.root.querySelector('.t-tool'); if (tb) tb.hidden = !opts.tool; }
     if (opts && opts.bombs != null) this.root.querySelector('.t-bomb').hidden = !opts.bombs;
     if (!on) for (const k in this.state) this.state[k] = false;
   },

@@ -1,9 +1,11 @@
 // ===== ИГРА: «Тропа Ткачей» — кооперативная метроидвания =====
 let VW = 960; const VH = 540;
 // версия игры; номер сборки подставляет build.py
-const GAME_VERSION = '1.5';
+const GAME_VERSION = '1.6';
 const GAME_BUILD = '__BUILD__';
 const CHANGELOG = [
+  'Снаряжение: 5 видов оружия, заряженный удар, 4 инструмента (клавиша E), 9 оберегов, яд и ожог; экран на скамье',
+  'Хват за уступ и планер; Миша: иглой бьётся в первых двух фазах, в третьей — только бомбы',
   'Геймпады: DualSense, Xbox и Steam Deck — удобная раскладка, вибрация, сенсорные кнопки прячутся',
   'Спидран (клавиша 6): «Тропа целиком» и «Босс-раш», таймер RTA/IGT, сплиты с дельтой к рекорду, код результата и таблица друзей',
   'Гонка 1×1 по сети: оба проходят один забег в своей игре, видят прогресс и призрака соперника',
@@ -112,13 +114,13 @@ class MenuScene extends Phaser.Scene {
       'Кнопки справа: прыжок, удар, рывок, лечение, а на арене Миши ещё и бомба.   Лучше держать телефон горизонтально.', 'Можно подключить геймпад по Bluetooth — он подхватится сам.');
     document.documentElement.classList.add('in-menu');
     this.events.once('shutdown', () => document.documentElement.classList.remove('in-menu'));
-    this.add.text(VW / 2, 496, ctl.join('\n'), { fontFamily: '"Fira Sans", sans-serif', fontSize: '12px', color: '#86a89a', align: 'center', lineSpacing: 7 }).setOrigin(0.5);
+    this.ctlTxt = this.add.text(VW / 2, 496, ctl.join('\n'), { fontFamily: '"Fira Sans", sans-serif', fontSize: '12px', color: '#86a89a', align: 'center', lineSpacing: 7 }).setOrigin(0.5);
 
     const k = this.input.keyboard;
     // версия, сборка и что нового
     const vF = '"Fira Sans", sans-serif';
     this.add.text(14, 10, `Версия ${GAME_VERSION} · сборка ${GAME_BUILD}`, { fontFamily: vF, fontSize: '12px', fontStyle: '600', color: '#9fc4b4' });
-    this.add.text(14, 28, 'Что нового:\n' + CHANGELOG.slice(0, 9).map((l) => '· ' + l).join('\n'), { fontFamily: vF, fontSize: '10.5px', color: '#7fa596', lineSpacing: 3, wordWrap: { width: Math.max(170, Math.min(230, VW / 2 - 300)) } });
+    this.chTxt = this.add.text(14, 28, 'Что нового:\n' + CHANGELOG.slice(0, 9).map((l) => '· ' + l).join('\n'), { fontFamily: vF, fontSize: '10.5px', color: '#7fa596', lineSpacing: 3, wordWrap: { width: Math.max(170, Math.min(230, VW / 2 - 300)) } });
     // выбор для босс-теста
     this.pick = this.add.container(0, 0).setVisible(false).setDepth(10);
     const pg = this.add.graphics(); pg.fillStyle(0x030807, 0.9); pg.fillRect(0, 0, VW, VH);
@@ -142,7 +144,7 @@ class MenuScene extends Phaser.Scene {
     const p1 = mkPick(290, '1 · В одиночку', () => this.go(1, 'bosstest'));
     const p2 = mkPick(343, '2 · Вдвоём за одним компьютером', () => this.go(2, 'bosstest'));
     const p3 = mkPick(396, '3 · Вдвоём по сети', () => this.openLobby('bosstest'));
-    const pb = mkPick(470, '← Назад (Esc)', () => this.closePick()); pb.setFontSize(22);
+    const pb = mkPick(490, '← Назад (Esc)', () => this.closePick()); pb.setFontSize(22);
     this.pick.add([pg, pt, ...this.bossBtns, this.pickLine, ph, ps, p1, p2, p3, pb]);
     this.setPick(Settings.s.boss || 0);
     k.on('keydown', (e) => {
@@ -159,7 +161,7 @@ class MenuScene extends Phaser.Scene {
       if (e.key === '1') this.go(1); if (e.key === '2') this.go(2); if (e.key === '3') this.openLobby(); if (e.key === '4') this.openPick(); if (e.key === '5') this.openSettings(); if (e.key === '6') this.openSpeedrun();
     });
     if (Lobby.room) this.time.delayedCall(300, () => this.openLobby());
-    Music.setDuck(1); Music.play('menu');
+    Music.setDuck(1); Music.intensity = 1; Music.play('menu');
     this.input.on('pointerdown', () => Snd.init());
     this.t = 0;
   }
@@ -286,6 +288,9 @@ class GameScene extends Phaser.Scene {
   create() {
     genBackgrounds(this);
     this.scene.launch('bg'); this.scene.launch('ui');
+    // состояние «вида сверху» Миши не должно переходить в новую игру (повтор боя, выход в меню)
+    this.td = null; this.tdFlip = false; this.cameras.main.setRotation(0);
+    this.events.once('shutdown', () => { this.td = null; this.tdFlip = false; Music.intensity = 1; });
     this.enemies = []; this.boss = null;
     const arenas = { misha: buildMishaArena, vladik: buildVladikArena, tima: buildTimaArena };
     this.L = Campaign.level(this) || (this.mode === 'bosstest' ? (arenas[this.bossKind] || buildMishaArena)() : buildLevel());
@@ -359,8 +364,10 @@ class GameScene extends Phaser.Scene {
     }
     this.abil = this.mode === 'bosstest' ? { double: true } : { ...(prog && prog.abil || {}) };
     this.initItems();
+    this.applyLoadout();
     this.beads = prog ? prog.beads || 0 : 0; this.deaths = 0; this.timeSec = 0;
     Campaign.setup(this);
+    this.items = (this.items || []).filter((it) => !this.abil[it.ability]); // у гостя способности приходят из главы только теперь
 
     // ввод
     this.setupInput();
@@ -383,7 +390,7 @@ class GameScene extends Phaser.Scene {
     this._vis = () => { if (document.hidden && !this.online && !this.paused && !this.won && this.sys.isActive()) this.togglePause(); };
     document.addEventListener('visibilitychange', this._vis);
     this.events.once('shutdown', () => { document.removeEventListener('visibilitychange', this._vis); Music.setDuck(1); });
-    Touch.show(true, { bombs: !!this.L.crates });
+    Touch.show(true, { bombs: !!this.L.crates, tool: !!(this.players[this.touchIdx()] && this.players[this.touchIdx()].toolId) });
     this.events.once('shutdown', () => { Touch.show(false); Touch.onTap = null; });
   }
   ui() { return this.scene.get('ui'); }
@@ -408,9 +415,9 @@ class GameScene extends Phaser.Scene {
     const k = this.input.keyboard, K = KC();
     const add = (arr) => arr.map((c) => k.addKey(c));
     const set = (m) => { const o = {}; for (const n in m) o[n] = add(m[n]); return o; };
-    this.kb1 = set({ left: [K.A], right: [K.D], up: [K.W], down: [K.S], jump: [K.SPACE], atk: [K.F], dash: [K.G], heal: [K.Q], bomb: [K.R] });
-    this.kbArrows = set({ left: [K.LEFT], right: [K.RIGHT], up: [K.UP], down: [K.DOWN], jump: [K.Z], atk: [K.X], dash: [K.C], heal: [K.V], bomb: [K.B] });
-    this.kb2 = set({ left: [K.LEFT], right: [K.RIGHT], up: [K.UP], down: [K.DOWN], jump: [K.NUMPAD_ONE, K.FORWARD_SLASH], atk: [K.NUMPAD_TWO, K.PERIOD], dash: [K.NUMPAD_THREE, K.COMMA], heal: [K.NUMPAD_ZERO, K.M], bomb: [K.NUMPAD_FOUR, K.N] });
+    this.kb1 = set({ left: [K.A], right: [K.D], up: [K.W], down: [K.S], jump: [K.SPACE], atk: [K.F], dash: [K.G], heal: [K.Q], bomb: [K.R], tool: [K.E] });
+    this.kbArrows = set({ left: [K.LEFT], right: [K.RIGHT], up: [K.UP], down: [K.DOWN], jump: [K.Z], atk: [K.X], dash: [K.C], heal: [K.V], bomb: [K.B], tool: [K.E] });
+    this.kb2 = set({ left: [K.LEFT], right: [K.RIGHT], up: [K.UP], down: [K.DOWN], jump: [K.NUMPAD_ONE, K.FORWARD_SLASH], atk: [K.NUMPAD_TWO, K.PERIOD], dash: [K.NUMPAD_THREE, K.COMMA], heal: [K.NUMPAD_ZERO, K.M], bomb: [K.NUMPAD_FOUR, K.N], tool: [K.NUMPAD_FIVE, K.J] });
   }
   keySets(i) {
     if (this.online && i !== this.localIdx) return [];
@@ -426,13 +433,13 @@ class GameScene extends Phaser.Scene {
     if (e.repeat || !this.players) return;
     for (const p of this.players) {
       if (p.remote) continue;
-      for (const set of this.keySets(p.i)) for (const act of ['jump', 'atk', 'dash', 'heal', 'bomb', 'up']) {
+      for (const set of this.keySets(p.i)) for (const act of ['jump', 'atk', 'dash', 'heal', 'bomb', 'tool', 'up']) {
         if (set[act] && set[act].some((k) => k.keyCode === e.keyCode)) { const pd = p.pend || (p.pend = {}); pd[act + 'P'] = true; p.tapHold = p.tapHold || {}; p.tapHold[act] = 2; }
       }
     }
   }
   rawInput(i) {
-    const out = { left: false, right: false, up: false, down: false, jump: false, atk: false, dash: false, heal: false, bomb: false };
+    const out = { left: false, right: false, up: false, down: false, jump: false, atk: false, dash: false, heal: false, bomb: false, tool: false };
     const solo = this.nPlayers === 1 || !!this.online;
     if (this.online && i !== this.localIdx) return out;
     const sets = this.keySets(i);
@@ -562,7 +569,7 @@ class GameScene extends Phaser.Scene {
       if (p.remote) continue;
       const r = this.rawInput(p.i), pr = p.prev, pd = p.pend || (p.pend = {});
       if (p.tapHold) for (const a in p.tapHold) if (p.tapHold[a] > 0) { r[a] = true; p.tapHold[a]--; }
-      pd.jumpP ||= r.jump && !pr.jump; pd.atkP ||= r.atk && !pr.atk; pd.dashP ||= r.dash && !pr.dash; pd.healP ||= r.heal && !pr.heal; pd.upP ||= r.up && !pr.up; pd.bombP ||= r.bomb && !pr.bomb;
+      pd.jumpP ||= r.jump && !pr.jump; pd.atkP ||= r.atk && !pr.atk; pd.dashP ||= r.dash && !pr.dash; pd.healP ||= r.heal && !pr.heal; pd.upP ||= r.up && !pr.up; pd.bombP ||= r.bomb && !pr.bomb; pd.toolP ||= r.tool && !pr.tool;
       p.raw = r; p.prev = r;
     }
     if (!this.paused && !this.wiping && !this.won) {
@@ -574,7 +581,7 @@ class GameScene extends Phaser.Scene {
           for (const p of this.players) {
             if (p.remote) { p.inp = { up: p.netUp }; continue; }
             if (first) { p.inp = { ...p.raw, ...p.pend }; p.pend = {}; }
-            else p.inp = { ...p.raw, jumpP: false, atkP: false, dashP: false, healP: false, upP: false, bombP: false };
+            else p.inp = { ...p.raw, jumpP: false, atkP: false, dashP: false, healP: false, upP: false, bombP: false, toolP: false };
           }
           this.step(STEP); this.acc -= STEP; first = false;
           if (this.hitstop > 0 || this.wiping) { this.acc = 0; break; }
@@ -612,11 +619,11 @@ class GameScene extends Phaser.Scene {
       const pr = inset(p, 2);
       for (const e of this.enemies) if (!e.dead && overlap(pr, inset(e, 2))) { this.hurtPlayer(p, 1, e.x + e.w / 2); break; }
       const b = this.boss;
-      if (p.inv <= 0 && (b.state !== 'sleep' && b.state !== 'dead' && b.state !== 'gone') && overlap(pr, inset(b, 8))) this.hurtPlayer(p, HEAVY_STATES.has(b.state) ? 2 : 1, b.x + b.w / 2);
+      if (p.inv <= 0 && !(b.stagger > 0) && (b.state !== 'sleep' && b.state !== 'dead' && b.state !== 'gone') && overlap(pr, inset(b, 8))) this.hurtPlayer(p, HEAVY_STATES.has(b.state) ? 2 : 1, b.x + b.w / 2);
       const m = this.misha;
       if (m && p.inv <= 0 && !['dead', 'intro', 'cough'].includes(m.state) && overlap(pr, inset(m, 8))) this.hurtPlayer(p, HEAVY_STATES.has(m.state) ? 2 : 1, m.x + m.w / 2);
       const vb = this.vladik || this.tima;
-      if (vb && p.inv <= 0 && !['dead', 'intro'].includes(vb.state) && overlap(pr, inset(vb, 8))) this.hurtPlayer(p, HEAVY_STATES.has(vb.state) ? 2 : 1, vb.x + vb.w / 2);
+      if (vb && p.inv <= 0 && !(vb.stagger > 0) && !['dead', 'intro'].includes(vb.state) && overlap(pr, inset(vb, 8))) this.hurtPlayer(p, HEAVY_STATES.has(vb.state) ? 2 : 1, vb.x + vb.w / 2);
       if (this.curtains && p.inv <= 0) for (const c of this.curtains) if (c.slime > 0 && overlap(pr, this.curtainHazard(c))) { this.hurtPlayer(p, 1, c.x + c.w / 2); break; }
     }
     // выход
@@ -693,12 +700,15 @@ class GameScene extends Phaser.Scene {
         p.atkBuf = 0;
         p.atkDir = inp.up ? 'u' : (inp.down && !p.onGround ? 'd' : 'f');
         // комбо: третий удар подряд (в пределах 0.6 с) — тяжёлый финишер: шире, бьёт дважды, но дольше восстанавливается
-        p.combo = p.comboT > 0 ? p.combo + 1 : 1; if (p.combo > 3) p.combo = 1;
-        p.heavy = p.combo === 3 && p.atkDir === 'f'; p.comboT = 0.6;
-        p.atkT = p.heavy ? 0.16 : P.ATK_T; p.atkCd = p.heavy ? 0.42 : P.ATK_CD; p.atkHits = new Set(); p.pogoed = false; p.seq = (p.seq || 0) + 1;
+        const W = this.wdef(p);
+        p.combo = p.comboT > 0 ? p.combo + 1 : 1; if (p.combo > W.combo) p.combo = 1;
+        p.heavy = !!W.finisher && p.combo === W.combo && p.atkDir === 'f'; p.comboT = W.comboWin;
+        p.atkT = p.heavy ? W.finT : W.atkT; p.atkCd = (p.heavy ? W.finCd : W.cd) * (this.cdMul ? this.cdMul(p) : 1); p.atkHits = new Set(); p.pogoed = false; p.seq = (p.seq || 0) + 1;
         Snd.play(p.heavy ? 'slam' : 'slash');
+        if (W.onSwing) W.onSwing(this, p);
       }
       if (inp.bombP) this.throwBomb(p);
+      if (inp.toolP) this.useTool(p);
       if (inp.healP) {
         if (inp.up && p.silk >= P.BURST) this.silkBurst(p);
         else if (p.silk >= P.SILK && p.hp < p.maxHp) {
@@ -731,9 +741,10 @@ class GameScene extends Phaser.Scene {
 
   atkBox(p) {
     const cx = p.x + p.w / 2, cy = p.y + p.h / 2;
-    if (p.atkDir === 'f') { const w = p.heavy ? 68 : 48; return { x: p.face > 0 ? cx + 2 : cx - 2 - w, y: cy - 17, w, h: 32 }; }
-    if (p.atkDir === 'u') return { x: cx - 19, y: p.y - 40, w: 38, h: 46 };
-    return { x: cx - 18, y: p.y + p.h - 8, w: 36, h: 44 };
+    const W = this.wdef(p), rm = W.reach * (this.reachMul ? this.reachMul(p) : 1);
+    if (p.atkDir === 'f') { const w = Math.round((p.heavy ? 68 : 48) * rm); return { x: p.face > 0 ? cx + 2 : cx - 2 - w, y: cy - 17 * W.thick, w, h: 32 * W.thick }; }
+    if (p.atkDir === 'u') return { x: cx - 19, y: p.y - Math.round(40 * rm), w: 38, h: Math.round(46 * rm) };
+    return { x: cx - 18, y: p.y + p.h - 8, w: 36, h: Math.round(44 * rm) };
   }
   resolveAttack(p) {
     if (p.downed || p.atkT <= 0 || !p.atkHits) return;
@@ -744,30 +755,30 @@ class GameScene extends Phaser.Scene {
     for (const e of this.enemies) {
       if (e.dead || p.atkHits.has(e) || !overlap(box, e)) continue;
       p.atkHits.add(e);
-      if (auth) { this.damageEnemy(e, p); if (p.heavy && !e.dead) this.damageEnemy(e, p); } else if (!this.e2Blocked(e, p, true)) { e.flash = 0.1; this.hitstop = 0.045; Snd.play('hit'); }
+      if (auth) { this.damageEnemy(e, p); if (p.heavy && !e.dead) this.damageEnemy(e, p); } else if (!this.e2Blocked(e, p, true)) { e.flash = 0.1; if (!p.remote) { this.hitstop = 0.045; Snd.play('hit'); } } // удар напарника уже озвучил хост (snd), зависание кадра — только своему
       if (local) { if (p.atkDir === 'd') pogo(); else if (p.atkDir === 'f') p.kbx = -p.face * 150; }
     }
     const b = this.boss;
     if (!p.atkHits.has(b) && b.state !== 'sleep' && b.state !== 'dead' && b.state !== 'gone' && overlap(box, b)) {
       p.atkHits.add(b);
-      if (auth) { this.damageBoss(p); if (p.heavy && b.state !== 'dead' && b.state !== 'gone') this.damageBoss(p); } else { b.flash = 0.09; this.hitstop = 0.04; Snd.play('hit'); }
+      if (auth) { this.damageBoss(p); if (p.heavy && b.state !== 'dead' && b.state !== 'gone') this.damageBoss(p); } else { b.flash = 0.09; if (!p.remote) { this.hitstop = 0.04; Snd.play('hit'); } }
       if (local) { if (p.atkDir === 'd') pogo(); else if (p.atkDir === 'f') p.kbx = -p.face * 170; }
     }
     if (this.misha && this.mishaNeedle(p, box) && local) { if (p.atkDir === 'd') pogo(); else if (p.atkDir === 'f') p.kbx = -p.face * 190; }
     for (const [vb, fn] of [[this.vladik, 'damageVladik'], [this.tima, 'damageTima']]) {
       if (!vb || p.atkHits.has(vb) || ['dead', 'intro'].includes(vb.state) || !overlap(box, vb)) continue;
       p.atkHits.add(vb);
-      if (auth) { this[fn](p); if (p.heavy && vb.state !== 'dead') this[fn](p); } else { vb.flash = 0.09; this.hitstop = 0.04; Snd.play('hit'); }
+      if (auth) { this[fn](p); if (p.heavy && vb.state !== 'dead') this[fn](p); } else { vb.flash = 0.09; if (!p.remote) { this.hitstop = 0.04; Snd.play('hit'); } }
       if (local) { if (p.atkDir === 'd') pogo(); else if (p.atkDir === 'f') p.kbx = -p.face * 170; }
     }
     for (const pr of this.projs) if (SLASH_KINDS.has(pr.kind) && !pr.dead && overlap(box, pr)) {
-      if (pr.kind === 'collector') { if (auth) this.hitCollector(pr, p.face); else this.sendEv({ k: 'cut', kind: 'collector', x: Math.round(pr.x), y: Math.round(pr.y), d: p.face }); if (local && p.atkDir === 'd') pogo(); continue; }
+      if (pr.kind === 'collector') { if (auth) this.hitCollector(pr, p.face); else if (local) this.sendEv({ k: 'cut', kind: 'collector', x: Math.round(pr.x), y: Math.round(pr.y), d: p.face }); if (local && p.atkDir === 'd') pogo(); continue; }
       if (auth) {
         pr.dead = true;
         if (pr.kind === 'letter' || pr.kind === 'rain') { this.paperAt(6, pr.x + 11, pr.y + 13); this.sfx('clink'); }
         else if (pr.kind === 'spore') this.burst(6, pr.x + 6, pr.y + 6, 0xc7f08a);
         else { this.burst(6, pr.x + pr.w / 2, pr.y + pr.h / 2, 0xffd47a); this.sfx('clink'); }
-      } else if (pr.kind !== 'spore') { pr.dead = true; this.sendEv({ k: 'cut', kind: pr.kind, x: Math.round(pr.x), y: Math.round(pr.y) }); }
+      } else if (pr.kind !== 'spore') { pr.dead = true; if (local) this.sendEv({ k: 'cut', kind: pr.kind, x: Math.round(pr.x), y: Math.round(pr.y) }); } // чужой взмах срезает хост сам
       if (local && p.atkDir === 'd') pogo();
     }
     if (local && p.atkDir === 'd' && !p.pogoed && this.rectHitsTile(box, SPIKE, 0.7)) { pogo(); this.parts.setParticleTint(0xffffff); this.parts.explode(5, box.x + 18, box.y + 30); }
@@ -1129,7 +1140,7 @@ class GameScene extends Phaser.Scene {
     const r = (v) => Math.round(v * 10) / 10, f2 = (v) => Math.round(Math.max(0, v) * 100) / 100;
     return { t: 'p', i: p.i, x: r(p.x), y: r(p.y), vx: Math.round(p.vx), vy: Math.round(p.vy), f: p.face, g: p.onGround ? 1 : 0,
       d: f2(p.dashT), s: p.sit ? 1 : 0, h: f2(p.healT), l: f2(p.landT), hp: p.hp, mh: p.maxHp, sk: p.silk, dn: p.downed ? 1 : 0,
-      iv: f2(p.inv), u: p.raw && p.raw.up ? 1 : 0, rv: f2(p.reviveT), sq: p.seq || 0, ad: p.atkDir, bm: p.bombs, hv: p.heavy ? 1 : 0, tp: this.td ? [Math.round(p.tdx), Math.round(p.tdy)] : null };
+      iv: f2(p.inv), u: p.raw && p.raw.up ? 1 : 0, rv: f2(p.reviveT), sq: p.seq || 0, ad: p.atkDir, bm: p.bombs, hv: p.heavy ? 1 : 0, wp: p.weaponId || 'needle', tl: p.toolId || '', tp: this.td ? [Math.round(p.tdx), Math.round(p.tdy)] : null };
   }
   packSnap() {
     const r = Math.round, b = this.boss;
@@ -1151,7 +1162,7 @@ class GameScene extends Phaser.Scene {
     if (m.t === 'p') {
       const p = this.players[m.i]; if (!p || !p.remote) return;
       Object.assign(p, { tx: m.x, ty: m.y, vx: m.vx, vy: m.vy, face: m.f, onGround: !!m.g, dashT: m.d, sit: !!m.s, healT: m.h, landT: m.l,
-        hp: m.hp, maxHp: m.mh, silk: m.sk, downed: !!m.dn, inv: m.iv, netUp: !!m.u, reviveT: m.rv, netT: 0, bombs: m.bm || 0, heavy: !!m.hv });
+        hp: m.hp, maxHp: m.mh, silk: m.sk, downed: !!m.dn, inv: m.iv, netUp: !!m.u, reviveT: m.rv, netT: 0, bombs: m.bm || 0, heavy: !!m.hv, weaponId: m.wp || 'needle', toolId: m.tl || '', charms: m.cm ? m.cm.split(',') : [] });
       if (m.tp) { p.tdx = m.tp[0]; p.tdy = m.tp[1]; }
       p.inp = { up: p.netUp };
       if (m.sq !== p.lastSeq) { p.lastSeq = m.sq; p.atkT = P.ATK_T; p.atkHits = new Set(); p.atkDir = m.ad; p.pogoed = true; }
@@ -1177,6 +1188,7 @@ class GameScene extends Phaser.Scene {
     const old = this.projs;
     this.projs = m.pr.map((a, i) => {
       const q = { kind: NET_KINDS[a[0]], x: a[1], y: a[2], vx: a[3], vy: a[4], delay: a[5] ? 1 : 0, ch: a[6], w: NET_SIZES[a[0]][0], h: NET_SIZES[a[0]][1], life: 1 };
+      if (q.kind === 'rootspike') { const o = old.find((u) => u.kind === 'rootspike' && !u.delay && Math.abs(u.x - q.x) < 2); q.life = o && !q.delay ? o.life : 0.55; } // life гостю не приходит: рост шипа считаем сами
       if (q.kind === 'ringfx') q.r = a[6];
       q.rot = old[i] && old[i].kind === q.kind ? old[i].rot || 0 : 0;
       return q;
@@ -1239,6 +1251,8 @@ class GameScene extends Phaser.Scene {
       case 'deathfx': this.deathFxLocal(); break;
       case 'execfx': { const q = this.players[m.i]; if (q && q.remote) { q.execT = 0.4; q.execDir = m.d; } this.execFxLocal(m.x, m.y, m.d); break; }
       case 'exec': if (this.auth()) { const q = this.players[m.i], kit = q && this.execKit(m.key); if (q && kit) this.execBoss(q, kit, m.d); } break;
+      case 'abil': this.itemEv(m); break;
+      case 'parrypoise': if (this.auth()) this.parryPoise(m.x, m.y); break;
       case 'kb': this.knockFrom(m.x); break;
       case 'silk': { const p = this.players[m.i]; if (p && !p.remote) p.silk = Math.min(P.SILK, p.silk + 1); break; }
       case 'bench':
@@ -1281,7 +1295,8 @@ class GameScene extends Phaser.Scene {
         if (pr.kind === 'pad') continue;
         if (pr.kind === 'clef' || pr.kind === 'bottle') pr.rot = (pr.rot || 0) + dt * 10;
         if (pr.kind === 'spore') pr.vy += 700 * dt;
-        if (pr.kind === 'rootspike' || pr.kind === 'staff' || pr.kind === 'staffghost') continue;
+        if (pr.kind === 'rootspike') { pr.life -= dt; continue; }
+        if (pr.kind === 'staff' || pr.kind === 'staffghost') continue;
         if (pr.kind === 'collector') { pr.vx = 0; pr.vy = 0; continue; }
         else if (['rock', 'bigletter', 'bomb', 'note', 'drip', 'bottle', 'box', 'stamp', 'trophy'].includes(pr.kind)) pr.vy = Math.min(pr.vy + 1100 * dt, 800);
         pr.x += pr.vx * dt; pr.y += pr.vy * dt;
@@ -1305,16 +1320,28 @@ class GameScene extends Phaser.Scene {
     if (this.pingAcc >= 2) { this.pingAcc = 0; Net.send({ t: 'ping', ts: performance.now() }); }
   }
   onPeerLost() {
-    if (!this.sys.isActive()) return;
+    if (!this.sys.isActive() || !this.online) return; // повторный вызов (старый обработчик) ничего не делает
+    Net.onClose = null;
     if (this.online === 'host') {
       const rem = this.players.find((p) => p.remote);
       if (rem) { rem.g.destroy(); rem.tag.destroy(); this.players = this.players.filter((p) => !p.remote); this.ui().removePlayer(rem.i); }
       this.online = null; this.nPlayers = 1;
       this.ui().toast('Связь с напарником потеряна. Игра продолжается в одиночку');
+      if (this.players.length && this.players.every((p) => p.downed)) this.teamWipe(); // поднять в коконе некому: нить обрывается
     } else {
       this.ui().toast('Хост отключился. Возвращаемся в меню…');
       this.time.delayedCall(2800, () => this.ui().restart());
     }
+  }
+
+  // гость вернулся по тому же коду, пока хост доигрывает в одиночку: перезапускаем сцену в паре (прогресс главы берём из снимка)
+  rejoinGuest() {
+    if (this.online || this.rejoining) return; this.rejoining = true;
+    const d = { ...this.startData, players: 2, online: 'host' };
+    if (this.camp) d.camp = Campaign.snap(this);
+    Net.send({ t: 'start', mode: d.mode, boss: d.boss, camp: d.camp || null });
+    this.ui().toast('Напарник вернулся!');
+    this.time.delayedCall(400, () => { this.rejoining = false; this.ui().ready = false; this.scene.stop('bg'); this.scene.start('game', d); });
   }
 
   // ----- камера -----
@@ -1359,6 +1386,7 @@ class GameScene extends Phaser.Scene {
     // удары
     for (const p of this.players) {
       if (p.downed || p.atkT <= 0) continue;
+      if (this.drawSwing && this.drawSwing(p, fx)) continue; // weapons.js: дуга удара своего оружия
       const k = p.atkT / P.ATK_T, cx = p.x + p.w / 2, cy = p.y + p.h / 2 - 2;
       const th = p.atkDir === 'f' ? (p.face > 0 ? 0 : Math.PI) : p.atkDir === 'u' ? -Math.PI / 2 : Math.PI / 2;
       const ux = Math.cos(th), uy = Math.sin(th);
@@ -1454,7 +1482,8 @@ class GameScene extends Phaser.Scene {
     this.drawPlayerFx(p, g);
     drawWeaver(g, 0, 0, p.face, p.pal, a, 1);
     p.tag.setPosition(cx + p.face * 0.5, fy + (-12.5 - a.bob * 0.5) * sy).setScale(sx, sy).setAlpha(blink ? 0.35 : 1);
-    if (p.atkT <= 0 && !p.sit) {
+    if (this.drawWeaponBody && this.drawWeaponBody(p, g, a, now)) { /* weapons.js: клинок и свечение заряда */ }
+    else if (p.atkT <= 0 && !p.sit) {
       const f = p.face;
       g.lineStyle(1.8, 0xcfd6dc, 1); g.lineBetween(-6 * f, -10 - a.bob, -13 * f, -25 - a.bob);
       g.lineStyle(1, p.pal.accent, 0.9); g.strokeCircle(-13 * f, -26 - a.bob, 2);
@@ -1552,29 +1581,31 @@ class UIScene extends Phaser.Scene {
     // пауза
     this.pause = this.add.container(0, 0).setVisible(false);
     const pb = this.add.graphics(); pb.fillStyle(0x030807, 0.82); pb.fillRect(0, 0, VW, VH);
-    const pt = this.add.text(VW / 2, 150, 'Пауза', { fontFamily: D, fontSize: '52px', color: '#e8e2cf', fontStyle: '700' }).setOrigin(0.5);
+    const pt = this.pauseTitle = this.add.text(VW / 2, 150, 'Пауза', { fontFamily: D, fontSize: '52px', color: '#e8e2cf', fontStyle: '700' }).setOrigin(0.5);
     const pc = this.pauseL1 = this.add.text(VW / 2, 300, [
       'Игрок 1:  A D W S · Пробел — прыжок · F — удар · G — рывок · Q — лечение · R — дымовуха',
       'Игрок 2:  стрелки · Num1 или / — прыжок · Num2 или . — удар · Num3 или , — рывок · Num0 или M — лечение · Num4 или N — дымовуха',
       '', 'Удар вверх: держи ↑ + удар.  Удар вниз в прыжке: ↓ + удар — отскок от колючек и врагов.',
       'Прыжок от стены: прижмись к стене в падении и прыгни.  Спрыгнуть с платформы: ↓ + прыжок.',
+      'Уступ: падая у края, жми к нему — повисишь; ↑ или прыжок — подтянуться, ↓ — отпустить, прыжок от стены — спрыгнуть.  Парус (награда за Владика): держи прыжок в падении.',
       'Оглушённого босса (полоска над ним) можно казнить: подойди и ударь вверх или вниз.  Отбив: кнопка лечения (без ↑) в миг удара врага, если лечиться нельзя.',
       'Лечение: когда катушка нити полна, 1.1 с стоишь на месте и восстанавливаешь 2 бутона; урон прерывает лечение.',
       'Отбив: кнопка нити (Q), когда нить не полна, — окно 0.2 с, отбивает удар и снаряды.  Всполох: ↑ + нить (от 4 нити).',
       'Комбо: третий удар подряд — тяжёлый.  Рывок сквозь удар — идеальный уворот (+2 нити).  Серия ударов оглушает босса.',
       'Напарник в коконе: подойди и держи ↑ одну секунду.  Скамья (↑) лечит и оживляет.',
       'По сети каждый играет раскладкой игрока 1, а пауза не останавливает мир.',
-    ].join('\n'), { fontFamily: F, fontSize: '14px', color: '#b9d4c8', align: 'center', lineSpacing: 7 }).setOrigin(0.5).setY(285);
+    ].join('\n'), { fontFamily: F, fontSize: '14px', color: '#b9d4c8', align: 'center', lineSpacing: 7 }).setOrigin(0.5).setY(295);
     if (Touch.enabled) pc.setText([
       'Стик слева — идти. Вверх + удар — удар вверх, в прыжке вниз + удар — отскок.',
       'Прыжок от стены: прижмись стиком к стене в падении и жми «Прыжок».  Спрыгнуть с платформы: стик вниз + «Прыжок».',
+      'Уступ: падая у края, жми стик к нему; стик вверх или «Прыжок» — подтянуться, вниз — отпустить.  Парус (за Владика): держи «Прыжок» в падении.',
       'Оглушённого босса (полоска над ним) можно казнить: подойди и ударь вверх или вниз (стик).',
       'Лечение: когда катушка нити полна, стоишь 1.1 с и восстанавливаешь 2 бутона; урон прерывает лечение.',
       'Отбив: кнопка нити (Q), когда нить не полна, — окно 0.2 с, отбивает удар и снаряды.  Всполох: ↑ + нить (от 4 нити).',
       'Комбо: третий удар подряд — тяжёлый.  Рывок сквозь удар — идеальный уворот (+2 нити).  Серия ударов оглушает босса.',
       'Напарник в коконе: подойди и держи стик вверх одну секунду.  Скамья: стик вверх.',
       'По сети пауза не останавливает мир.',
-    ].join('\n')).setY(270);
+    ].join('\n')).setY(280);
     const mkB = (x, label, fn) => {
       const t = this.add.text(x, 420, label, { fontFamily: D, fontSize: '23px', color: '#cfe8dc', fontStyle: '700', backgroundColor: 'rgba(20,48,41,0.9)', padding: { x: 18, y: 8 } })
         .setOrigin(0.5).setInteractive({ useHandCursor: true });
@@ -1588,6 +1619,7 @@ class UIScene extends Phaser.Scene {
     const pbtns = labels.map(([l, fn]) => mkB(0, l, fn));
     const gap = 18, total = pbtns.reduce((s, b) => s + b.width, 0) + gap * (pbtns.length - 1);
     let px = VW / 2 - total / 2; for (const b of pbtns) { b.setX(px + b.width / 2); px += b.width + gap; }
+    this.pauseBtns = pbtns;
     this.pause.add([pb, pt, pc, ...pbtns]);
     this.win = this.add.container(0, 0).setVisible(false);
     // «вид сверху» для фазы Миши
@@ -1599,13 +1631,18 @@ class UIScene extends Phaser.Scene {
     this.tdLayer = this.add.container(0, 0, [this.tdG, ...this.tdTags, this.tdSay, this.tdInfo, this.tdTitle]).setVisible(false);
     this.children.sendToBack(this.tdLayer); // под всем интерфейсом: здоровье, подсказки, пауза видны поверх
     this.t = 0;
-    this.input.keyboard.on('keydown-ENTER', () => { if (this.gs.won) this.winEnter(); });
-    this.input.keyboard.on('keydown-SPACE', () => { if (this.gs.won) this.winEnter(); });
-    this.input.keyboard.on('keydown-R', () => { if (this.gs.won && !this.gs.online) this.retry(); });
+    // клавиши экрана победы: только когда он уже показан, не от удержания (Пробел — прыжок) и не раньше чем через 0,8 с;
+    // «ещё раз» — на N: R в боях с Мишей — дымовуха
+    this.winAt = 0; this.campWinS = null;
+    const winKey = (e) => this.gs.won && this.winShown() && !(e && e.repeat) && performance.now() - this.winAt > 800;
+    this.input.keyboard.on('keydown-ENTER', (e) => { if (winKey(e)) this.winEnter(); });
+    this.input.keyboard.on('keydown-SPACE', (e) => { if (winKey(e)) this.winEnter(); });
+    this.input.keyboard.on('keydown-N', (e) => { if (winKey(e) && !this.gs.online) this.retry(); });
     this.ready = true;
   }
+  winShown() { return !!this.win && this.win.visible; }
   winEnter() { this.restart(); }
-  restart() { this.ready = false; Net.onClose = null; Net.close(); this.scene.stop('bg'); this.scene.stop('game'); this.scene.start('menu'); }
+  restart() { this.ready = false; Net.close(); this.scene.stop('bg'); this.scene.stop('game'); this.scene.start('menu'); }
   openSettings() { this.pause.setVisible(false); Settings.show(() => { if (this.ready) this.pause.setVisible(true); }); }
   tdShow(on) {
     if (!this.ready) return;
@@ -1693,7 +1730,7 @@ class UIScene extends Phaser.Scene {
       : s.hits != null ? `Время боя: ${m}:${sec}\nУдаров иглой: ${s.hits}\nОбрывов нити: ${s.deaths}\nТкачей: ${s.players}`
       : `Время: ${m}:${sec}\nБусин собрано: ${s.beads}\nОбрывов нити: ${s.deaths}\nТкачей: ${s.players}`;
     const t2 = this.add.text(VW / 2, 260, lines, { fontFamily: F, fontSize: '18px', color: '#b9d4c8', align: 'center', lineSpacing: 8 }).setOrigin(0.5, 0);
-    const t3 = this.add.text(VW / 2, 440, this.gs.online ? 'Enter — в главное меню' : 'Enter — в главное меню   ·   R — ещё раз', { fontFamily: F, fontSize: '15px', color: '#ffe3a3' }).setOrigin(0.5);
+    const t3 = this.add.text(VW / 2, 440, this.gs.online ? 'Enter — в главное меню' : 'Enter — в главное меню   ·   N — ещё раз', { fontFamily: F, fontSize: '15px', color: '#ffe3a3' }).setOrigin(0.5);
     Touch.show(false);
     const btn = (x, label, fn) => {
       const t = this.add.text(x, 392, label, { fontFamily: D, fontSize: '26px', color: '#cfe8dc', fontStyle: '700', backgroundColor: 'rgba(20,48,41,0.9)', padding: { x: 16, y: 7 } })
@@ -1704,7 +1741,7 @@ class UIScene extends Phaser.Scene {
     const extra = this.gs.online ? [btn(VW / 2, 'В главное меню', () => this.restart())]
       : [btn(VW / 2 - 130, 'В главное меню', () => this.restart()), btn(VW / 2 + 130, 'Ещё раз', () => this.retry())];
     if (Touch.enabled) t3.setVisible(false);
-    this.win.add([bg, t1, t2, t3, ...extra]); this.win.setVisible(true).setAlpha(0);
+    this.win.add([bg, t1, t2, t3, ...extra]); this.win.setVisible(true).setAlpha(0); this.winAt = performance.now();
     this.tweens.add({ targets: this.win, alpha: 1, duration: 900 });
   }
   update(time, delta) {
