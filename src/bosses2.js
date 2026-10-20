@@ -118,6 +118,17 @@ Object.assign(GameScene.prototype, {
 const POISE_MAX = { 1: 6, 2: 7, 3: 8 };
 (function () {
   const proto = GameScene.prototype;
+  proto.poiseAdd = function (b, n) {
+    if (!b || b.poiseImmune > 0 || b.stagger > 0 || ['sleep', 'dead', 'gone', 'intro', 'rage'].includes(b.state)) return;
+    b.poise = (b.poise || 0) + n; b.poiseT = 0;
+    if (b.poise >= POISE_MAX[b.phase || 1]) {
+      b.poise = 0; b.stagger = 1.6; b.flash = 0.1;
+      this.sfx('slam'); this.shake(200, 0.01); this.hitstop = 0.1;
+      this.burst(24, b.x + b.w / 2, b.y + 10, 0xffd47a);
+      this.toastAll('Оглушён! Бей!');
+      for (const pr of this.projs) if (pr.kind === 'spore' || pr.kind === 'letter') pr.dead = true;
+    }
+  };
   const bossOf = (sc, key) => (key === 'boss' ? sc.boss : sc[key]);
   for (const [stepFn, dmgFn, key, name] of [['stepBoss', 'damageBoss', 'boss', 'Корнематка'], ['stepVladik', 'damageVladik', 'vladik', 'Владик Скрипка'], ['stepTima', 'damageTima', 'tima', 'Тима Пиво']]) {
     const step = proto[stepFn], dmg = proto[dmgFn];
@@ -145,15 +156,7 @@ const POISE_MAX = { 1: 6, 2: 7, 3: 8 };
         if (b.hp <= 0) { dmg.call(this, p); }
         return;
       }
-      if (b.poiseImmune > 0) return;
-      b.poise = (b.poise || 0) + 1; b.poiseT = 0;
-      if (b.poise >= POISE_MAX[b.phase || 1]) {
-        b.poise = 0; b.stagger = 1.6; b.flash = 0.1;
-        this.sfx('slam'); this.shake(200, 0.01); this.hitstop = 0.1;
-        this.burst(24, b.x + b.w / 2, b.y + 10, 0xffd47a);
-        this.toastAll('Оглушён! Бей!');
-        for (const pr of this.projs) if (pr.kind === 'spore' || pr.kind === 'letter') pr.dead = true;
-      }
+      this.poiseAdd(b, 1);
     };
   }
 })();

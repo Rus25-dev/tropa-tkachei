@@ -28,7 +28,7 @@ const P = {
   G: 1500, RUN: 230, JUMP: 700, CUT: 0.45, MAXFALL: 720, COYOTE: 0.1, BUF: 0.13,
   DASH: 540, DASHT: 0.17, DASHCD: 0.45, WSLIDE: 110, WJX: 290, WJY: 600, WJLOCK: 0.16,
   POGO: 540, ATK_T: 0.12, ATK_CD: 0.26, INV: 1.0, HURT: 0.22, SILK: 9,
-  APEX_VY: 90, APEX_G: 0.55, ATKBUF: 0.14, DASHBUF: 0.12, CORNER: 7,
+  BURST: 4, PARRY_T: 0.2, PARRY_CD: 0.65, APEX_VY: 90, APEX_G: 0.55, ATKBUF: 0.14, DASHBUF: 0.12, CORNER: 7,
 };
 const PAL = [
   { name: 'Ива', tag: 'Di', cloak: 0x2f9a8a, dark: 0x1b5c53, accent: 0x9ff0dc, hex: '#8fe8d2' },
@@ -344,6 +344,8 @@ class GameScene extends Phaser.Scene {
       else if (this.bossKind === 'tima') this.setupTimaArena();
       else this.setupMishaArena();
     }
+    this.abil = this.mode === 'bosstest' ? { double: true } : { ...(prog && prog.abil || {}) };
+    this.initItems();
     this.beads = prog ? prog.beads || 0 : 0; this.deaths = 0; this.timeSec = 0;
 
     // ввод
@@ -590,6 +592,7 @@ class GameScene extends Phaser.Scene {
       if (this.tima) this.stepTima(dt);
       this.stepProjs(dt);
       this.stepBeads(dt);
+      this.stepItems();
     } else this.guestProjHits();
     this.stepCoop(dt);
     if (auth && this.online && !this.wiping && this.players.every((p) => p.downed)) this.teamWipe();
@@ -612,7 +615,7 @@ class GameScene extends Phaser.Scene {
 
   stepPlayer(p, dt) {
     const inp = p.inp;
-    p.inv -= dt; p.hurtT -= dt; p.dashCd -= dt; p.bombCd -= dt; p.atkCd -= dt; p.atkT -= dt; p.wjLock -= dt; p.healT -= dt; p.coyote -= dt; p.jumpBuf -= dt; p.landT -= dt; p.atkBuf = (p.atkBuf || 0) - dt; p.comboT = (p.comboT || 0) - dt; p.dashBuf = (p.dashBuf || 0) - dt;
+    p.inv -= dt; p.hurtT -= dt; p.dashCd -= dt; p.bombCd -= dt; p.atkCd -= dt; p.atkT -= dt; p.wjLock -= dt; p.healT -= dt; p.coyote -= dt; p.jumpBuf -= dt; p.landT -= dt; p.atkBuf = (p.atkBuf || 0) - dt; p.comboT = (p.comboT || 0) - dt; p.parryT = (p.parryT || 0) - dt; p.parryCd = (p.parryCd || 0) - dt; p.dashBuf = (p.dashBuf || 0) - dt;
     if (p.downed) { p.vx *= 0.9; p.vy = Math.min(p.vy + P.G * dt, P.MAXFALL); this.moveBody(p, dt); return; }
     if (inp.jumpP) p.jumpBuf = P.BUF;
     if (inp.atkP) p.atkBuf = P.ATKBUF;
@@ -643,8 +646,12 @@ class GameScene extends Phaser.Scene {
           this.dust.explode(5, p.x + 7, p.y + 26);
         } else if (this.touchWall(p, 1) || this.touchWall(p, -1)) {
           const wd = this.touchWall(p, 1) ? 1 : -1;
+          p.usedDouble = false;
           p.vy = -P.WJY; p.vx = -wd * P.WJX; p.face = -wd; p.wjLock = P.WJLOCK; p.jumpBuf = 0; p.jumpCut = false; p.canDash = true;
           Snd.play('jump'); this.dust.explode(4, p.x + (wd > 0 ? 14 : 0), p.y + 14);
+        } else if (this.abil.double && !p.usedDouble) {
+          p.usedDouble = true; p.vy = -P.JUMP * 0.9; p.jumpBuf = 0; p.jumpCut = false; Snd.play('jump');
+          this.parts.setParticleTint(p.pal.accent); this.parts.explode(10, p.x + 7, p.y + 26);
         }
       }
       if (!inp.jump && p.vy < 0 && !p.jumpCut) { p.vy *= P.CUT; p.jumpCut = true; }
@@ -669,10 +676,11 @@ class GameScene extends Phaser.Scene {
       }
       if (inp.bombP) this.throwBomb(p);
       if (inp.healP) {
-        if (p.silk >= P.SILK && p.hp < p.maxHp) {
+        if (inp.up && p.silk >= P.BURST) this.silkBurst(p);
+        else if (p.silk >= P.SILK && p.hp < p.maxHp) {
           p.hp = Math.min(p.maxHp, p.hp + 3); p.silk = 0; p.healT = 0.6; Snd.play('heal');
           this.parts.explode(18, p.x + 7, p.y + 12); this.parts.setParticleTint(p.pal.accent);
-        }
+        } else if (p.parryCd <= 0) { p.parryT = P.PARRY_T; p.parryCd = P.PARRY_CD; Snd.play('slash'); }
       }
     }
     p.dropT = (p.dropT || 0) - dt; p.noPlat = p.dropT > 0;
@@ -681,7 +689,7 @@ class GameScene extends Phaser.Scene {
     if (p.hitU && vy0 < 0 && p.hurtT <= 0) this.cornerNudge(p, py0 + vy0 * dt, vy0);
     if (this.crates) this.refillBombs(p);
     if (p.onGround) {
-      p.coyote = P.COYOTE; p.canDash = true;
+      p.coyote = P.COYOTE; p.canDash = true; p.usedDouble = false;
       if (!wasGround) { p.landT = 0.1; this.dust.explode(4, p.x + 7, p.y + 26); Snd.play('land'); }
     }
     // колючки
@@ -759,6 +767,7 @@ class GameScene extends Phaser.Scene {
   }
   hurtPlayer(p, dmg, srcX, spike) {
     if (p.inv > 0 || p.downed) return;
+    if (p.parryT > 0 && !spike) { this.parrySuccess(p, srcX); return; }
     if (p.dashT > 0 && !spike) { // идеальный уворот: рывок сквозь удар — без урона, +нить, замедление
       p.inv = 0.35; p.pdodge = 0.4; if (!p.remote) { p.silk = Math.min(P.SILK, p.silk + 2); this.hitstop = 0.07; }
       Snd.play('clink'); this.parts.setParticleTint(p.pal.accent); this.parts.explode(14, p.x + 7, p.y + 13);
@@ -821,7 +830,7 @@ class GameScene extends Phaser.Scene {
             this.ui().toast('Скамья: здесь вы очнётесь. Прогресс сохранён');
             if (this.mode === 'story' && this.online !== 'guest') {
               const bi = this.benches.indexOf(b), area = this.L.areas.reduce((a, ar) => (b.x / T >= ar.x ? ar : a), this.L.areas[0]);
-              Settings.saveProgress({ bench: bi, beads: this.beads, name: area.name });
+              Settings.saveProgress({ bench: bi, beads: this.beads, name: area.name, abil: this.abil });
             }
           }
         }
@@ -1187,6 +1196,7 @@ class GameScene extends Phaser.Scene {
           if (q) { q.dead = true; if (kind === 'letter' || kind === 'rain') this.paperAt(6, q.x + 11, q.y + 13); else this.burst(6, q.x + q.w / 2, q.y + q.h / 2, 0xffd47a); this.sfx('clink'); }
         }
         break;
+      case 'burstSkill': if (this.auth() && this.players[1]) this.silkBurstHit(this.players[1], m.x, m.y); break;
       case 'repo': if (!this.auth() && this.tima) this.setRepo(!!m.on); break;
       case 'bankrupt': if (this.tima) this.bankruptSilk(); break;
       case 'foam': if (this.foam) this.foam.explode(m.n, m.x, m.y); break;
@@ -1307,6 +1317,7 @@ class GameScene extends Phaser.Scene {
     for (const p of this.players) this.drawPlayer(p, now);
     for (const e of this.enemies) if (!e.dead) this.drawEnemy(e, now);
     this.drawBoss(now);
+    this.drawItems(now);
     if (this.misha) { this.drawMisha(now); this.drawLetters(now); }
     if (this.vladik) { this.drawCurtains(now); this.drawVladik(now); }
     if (this.tima) this.drawTima(now);
@@ -1404,6 +1415,7 @@ class GameScene extends Phaser.Scene {
       lift: (!p.onGround && p.vy > 0) ? -4 : 0,
     };
     if (p.healT > 0) { g.fillStyle(p.pal.accent, 0.25 * (p.healT / 0.6)); g.fillCircle(0, -14, 24); }
+    this.drawPlayerFx(p, g);
     drawWeaver(g, 0, 0, p.face, p.pal, a, 1);
     p.tag.setPosition(cx + p.face * 0.5, fy + (-12.5 - a.bob * 0.5) * sy).setScale(sx, sy).setAlpha(blink ? 0.35 : 1);
     if (p.atkT <= 0 && !p.sit) {
