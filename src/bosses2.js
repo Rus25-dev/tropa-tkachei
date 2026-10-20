@@ -112,3 +112,51 @@ Object.assign(GameScene.prototype, {
     }
   },
 });
+
+// ===== ОГЛУШЕНИЕ (стойкость): серия ударов выбивает босса из равновесия =====
+// Копится по 1 за удар и спадает, если не бить. Заполнилась — босс замирает на 1.6 с и получает двойной урон.
+const POISE_MAX = { 1: 6, 2: 7, 3: 8 };
+(function () {
+  const proto = GameScene.prototype;
+  proto.poiseAdd = function (b, n) {
+    if (!b || b.poiseImmune > 0 || b.stagger > 0 || ['sleep', 'dead', 'gone', 'intro', 'rage'].includes(b.state)) return;
+    b.poise = (b.poise || 0) + n; b.poiseT = 0;
+    if (b.poise >= POISE_MAX[b.phase || 1]) {
+      b.poise = 0; b.stagger = 1.6; b.flash = 0.1;
+      this.sfx('slam'); this.shake(200, 0.01); this.hitstop = 0.1;
+      this.burst(24, b.x + b.w / 2, b.y + 10, 0xffd47a);
+      this.toastAll('Оглушён! Бей!');
+      for (const pr of this.projs) if (pr.kind === 'spore' || pr.kind === 'letter') pr.dead = true;
+    }
+  };
+  const bossOf = (sc, key) => (key === 'boss' ? sc.boss : sc[key]);
+  for (const [stepFn, dmgFn, key, name] of [['stepBoss', 'damageBoss', 'boss', 'Корнематка'], ['stepVladik', 'damageVladik', 'vladik', 'Владик Скрипка'], ['stepTima', 'damageTima', 'tima', 'Тима Пиво']]) {
+    const step = proto[stepFn], dmg = proto[dmgFn];
+    proto[stepFn] = function (dt) {
+      const b = bossOf(this, key);
+      if (b && b.stagger > 0) {
+        b.stagger -= dt; b.vx = 0; b.flash = Math.floor(b.stagger * 16) % 2 ? 0.05 : 0;
+        b.vy = Math.min(b.vy + P.G * dt, P.MAXFALL); this.moveBody(b, dt);
+        if (b.stagger <= 0) { b.state = 'idle'; b.t = 0.45; b.poiseImmune = 5; }
+        return;
+      }
+      step.call(this, dt);
+      if (b) { b.poiseImmune = Math.max(0, (b.poiseImmune || 0) - dt); b.poiseT = (b.poiseT || 0) + dt; if (b.poiseT > 1.4 && b.poise > 0) { b.poise--; b.poiseT = 0; } }
+    };
+    proto[dmgFn] = function (p) {
+      const b = bossOf(this, key);
+      const live = b && !['sleep', 'dead', 'gone', 'intro', 'rage'].includes(b.state);
+      const was = b && b.hp;
+      dmg.call(this, p);
+      if (!live || b.hp <= 0 || b.hp === was) return;
+      if (b.stagger > 0) {
+        // двойной урон по оглушённому
+        b.hp -= 1; this.ui().bossBar(true, name, Math.max(0, b.hp) / b.maxHp);
+        this.burst(8, b.x + b.w / 2, b.y + b.h / 2, 0xffd47a);
+        if (b.hp <= 0) { dmg.call(this, p); }
+        return;
+      }
+      this.poiseAdd(b, 1);
+    };
+  }
+})();

@@ -1,9 +1,15 @@
 // ===== ИГРА: «Тропа Ткачей» — кооперативная метроидвания =====
 let VW = 960; const VH = 540;
 // версия игры; номер сборки подставляет build.py
-const GAME_VERSION = '1.0';
+const GAME_VERSION = '1.1';
 const GAME_BUILD = '__BUILD__';
 const CHANGELOG = [
+  'Бой: третий удар подряд — тяжёлый финишер (шире, бьёт дважды)',
+  'Рывок сквозь атаку — идеальный уворот: без урона, +2 нити',
+  'Босса можно оглушить серией ударов: замирает и получает двойной урон',
+  'Боссы стали жирнее: бой длиннее',
+  'Отзывчивее управление: буфер удара и рывка, зависание в верхней точке прыжка, скольжение мимо углов потолка',
+  'Удар быстрее (0.26 с)',
   'Боссы 2.0: у каждого 3 фазы, ярость и новые атаки',
   'Корнематка: корни из-под земли, двойные прыжки',
   'Миша: «Диктант!» и застёгнутый рюкзак',
@@ -21,7 +27,8 @@ const STEP = 1 / 60;
 const P = {
   G: 1500, RUN: 230, JUMP: 700, CUT: 0.45, MAXFALL: 720, COYOTE: 0.1, BUF: 0.13,
   DASH: 540, DASHT: 0.17, DASHCD: 0.45, WSLIDE: 110, WJX: 290, WJY: 600, WJLOCK: 0.16,
-  POGO: 540, ATK_T: 0.12, ATK_CD: 0.3, INV: 1.0, HURT: 0.22, SILK: 9,
+  POGO: 540, ATK_T: 0.12, ATK_CD: 0.26, INV: 1.0, HURT: 0.22, SILK: 9,
+  BURST: 4, PARRY_T: 0.2, PARRY_CD: 0.65, APEX_VY: 90, APEX_G: 0.55, ATKBUF: 0.14, DASHBUF: 0.12, CORNER: 7,
 };
 const PAL = [
   { name: 'Ива', tag: 'Di', cloak: 0x2f9a8a, dark: 0x1b5c53, accent: 0x9ff0dc, hex: '#8fe8d2' },
@@ -337,6 +344,8 @@ class GameScene extends Phaser.Scene {
       else if (this.bossKind === 'tima') this.setupTimaArena();
       else this.setupMishaArena();
     }
+    this.abil = this.mode === 'bosstest' ? { double: true } : { ...(prog && prog.abil || {}) };
+    this.initItems();
     this.beads = prog ? prog.beads || 0 : 0; this.deaths = 0; this.timeSec = 0;
 
     // ввод
@@ -465,6 +474,18 @@ class GameScene extends Phaser.Scene {
     }
     e.y = ny; if (e.onGround || e.hitU) e.vy = 0;
   }
+  solidRect(r) {
+    const x0 = Math.floor(r.x / T), x1 = Math.floor((r.x + r.w - 0.01) / T), y0 = Math.floor(r.y / T), y1 = Math.floor((r.y + r.h - 0.01) / T);
+    for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) if (this.isSolid(tx, ty)) return true;
+    return false;
+  }
+  // скользим мимо угла потолка, если до свободного прохода меньше CORNER пикселей
+  cornerNudge(p, wantY, vy0) {
+    for (let d = 1; d <= P.CORNER; d++) for (const sg of [1, -1]) {
+      const r = { x: p.x + sg * d, y: wantY, w: p.w, h: p.h };
+      if (!this.solidRect(r)) { p.x = r.x; p.y = wantY; p.vy = vy0; p.hitU = false; return; }
+    }
+  }
   onPlatform(e) {
     const ty = Math.floor((e.y + e.h + 1) / T), x0 = Math.floor(e.x / T), x1 = Math.floor((e.x + e.w - 0.01) / T);
     let plat = false;
@@ -511,7 +532,7 @@ class GameScene extends Phaser.Scene {
   makeBoss() {
     if (this.boss && this.boss.g) this.boss.g.destroy();
     if (!this.L.boss) { this.boss = { x: -9999, y: -9999, w: 1, h: 1, vx: 0, vy: 0, hp: 1, maxHp: 1, state: 'gone', t: 0, face: 1, flash: 0, g: this.add.graphics() }; return; }
-    const b = this.L.boss, hp = this.nPlayers === 2 ? 84 : 60;
+    const b = this.L.boss, hp = this.nPlayers === 2 ? 126 : 90;
     this.boss = { x: b.x * T - 36, y: (b.y + 1) * T - 58, w: 72, h: 58, vx: 0, vy: 0, hp, maxHp: hp, phase: 1, state: 'sleep', t: 0, face: -1, jumps: 0, flash: 0, last: '', air: 0, g: this.add.graphics().setDepth(4) };
     if (this.bossDead) { this.boss.state = 'gone'; }
   }
@@ -571,6 +592,7 @@ class GameScene extends Phaser.Scene {
       if (this.tima) this.stepTima(dt);
       this.stepProjs(dt);
       this.stepBeads(dt);
+      this.stepItems();
     } else this.guestProjHits();
     this.stepCoop(dt);
     if (auth && this.online && !this.wiping && this.players.every((p) => p.downed)) this.teamWipe();
@@ -593,9 +615,11 @@ class GameScene extends Phaser.Scene {
 
   stepPlayer(p, dt) {
     const inp = p.inp;
-    p.inv -= dt; p.hurtT -= dt; p.dashCd -= dt; p.bombCd -= dt; p.atkCd -= dt; p.atkT -= dt; p.wjLock -= dt; p.healT -= dt; p.coyote -= dt; p.jumpBuf -= dt; p.landT -= dt;
+    p.inv -= dt; p.hurtT -= dt; p.dashCd -= dt; p.bombCd -= dt; p.atkCd -= dt; p.atkT -= dt; p.wjLock -= dt; p.healT -= dt; p.coyote -= dt; p.jumpBuf -= dt; p.landT -= dt; p.atkBuf = (p.atkBuf || 0) - dt; p.comboT = (p.comboT || 0) - dt; p.parryT = (p.parryT || 0) - dt; p.parryCd = (p.parryCd || 0) - dt; p.dashBuf = (p.dashBuf || 0) - dt;
     if (p.downed) { p.vx *= 0.9; p.vy = Math.min(p.vy + P.G * dt, P.MAXFALL); this.moveBody(p, dt); return; }
     if (inp.jumpP) p.jumpBuf = P.BUF;
+    if (inp.atkP) p.atkBuf = P.ATKBUF;
+    if (inp.dashP) p.dashBuf = P.DASHBUF;
     const dir = (inp.right ? 1 : 0) - (inp.left ? 1 : 0);
     if (p.sit) {
       if (dir || inp.jumpP || inp.down || inp.atkP || inp.dashP) p.sit = false;
@@ -622,38 +646,50 @@ class GameScene extends Phaser.Scene {
           this.dust.explode(5, p.x + 7, p.y + 26);
         } else if (this.touchWall(p, 1) || this.touchWall(p, -1)) {
           const wd = this.touchWall(p, 1) ? 1 : -1;
+          p.usedDouble = false;
           p.vy = -P.WJY; p.vx = -wd * P.WJX; p.face = -wd; p.wjLock = P.WJLOCK; p.jumpBuf = 0; p.jumpCut = false; p.canDash = true;
           Snd.play('jump'); this.dust.explode(4, p.x + (wd > 0 ? 14 : 0), p.y + 14);
+        } else if (this.abil.double && !p.usedDouble) {
+          p.usedDouble = true; p.vy = -P.JUMP * 0.9; p.jumpBuf = 0; p.jumpCut = false; Snd.play('jump');
+          this.parts.setParticleTint(p.pal.accent); this.parts.explode(10, p.x + 7, p.y + 26);
         }
       }
       if (!inp.jump && p.vy < 0 && !p.jumpCut) { p.vy *= P.CUT; p.jumpCut = true; }
-      p.vy += P.G * dt;
+      p.vy += P.G * dt * (inp.jump && Math.abs(p.vy) < P.APEX_VY && !p.onGround ? P.APEX_G : 1);
       if (p.wallDir !== 0 && p.vy > P.WSLIDE) p.vy = P.WSLIDE;
       if (p.vy > P.MAXFALL) p.vy = P.MAXFALL;
-      if (inp.dashP && p.dashCd <= 0 && (p.onGround || p.canDash)) {
+      if (p.dashBuf > 0 && p.dashCd <= 0 && (p.onGround || p.canDash)) {
+        p.dashBuf = 0;
         if (p.wallDir) p.face = -p.wallDir;
         else if (dir) p.face = dir;
         p.dashT = P.DASHT; p.dashCd = P.DASHCD; if (!p.onGround) p.canDash = false; p.vy = 0; p.atkT = 0;
         Snd.play('dash');
       }
-      if (inp.atkP && p.atkCd <= 0) {
+      if (p.atkBuf > 0 && p.atkCd <= 0) {
+        p.atkBuf = 0;
         p.atkDir = inp.up ? 'u' : (inp.down && !p.onGround ? 'd' : 'f');
-        p.atkT = P.ATK_T; p.atkCd = P.ATK_CD; p.atkHits = new Set(); p.pogoed = false; p.seq = (p.seq || 0) + 1;
-        Snd.play('slash');
+        // комбо: третий удар подряд (в пределах 0.6 с) — тяжёлый финишер: шире, бьёт дважды, но дольше восстанавливается
+        p.combo = p.comboT > 0 ? p.combo + 1 : 1; if (p.combo > 3) p.combo = 1;
+        p.heavy = p.combo === 3 && p.atkDir === 'f'; p.comboT = 0.6;
+        p.atkT = p.heavy ? 0.16 : P.ATK_T; p.atkCd = p.heavy ? 0.42 : P.ATK_CD; p.atkHits = new Set(); p.pogoed = false; p.seq = (p.seq || 0) + 1;
+        Snd.play(p.heavy ? 'slam' : 'slash');
       }
       if (inp.bombP) this.throwBomb(p);
       if (inp.healP) {
-        if (p.silk >= P.SILK && p.hp < p.maxHp) {
+        if (inp.up && p.silk >= P.BURST) this.silkBurst(p);
+        else if (p.silk >= P.SILK && p.hp < p.maxHp) {
           p.hp = Math.min(p.maxHp, p.hp + 3); p.silk = 0; p.healT = 0.6; Snd.play('heal');
           this.parts.explode(18, p.x + 7, p.y + 12); this.parts.setParticleTint(p.pal.accent);
-        }
+        } else if (p.parryCd <= 0) { p.parryT = P.PARRY_T; p.parryCd = P.PARRY_CD; Snd.play('slash'); }
       }
     }
     p.dropT = (p.dropT || 0) - dt; p.noPlat = p.dropT > 0;
+    const py0 = p.y, vy0 = p.vy;
     this.moveBody(p, dt);
+    if (p.hitU && vy0 < 0 && p.hurtT <= 0) this.cornerNudge(p, py0 + vy0 * dt, vy0);
     if (this.crates) this.refillBombs(p);
     if (p.onGround) {
-      p.coyote = P.COYOTE; p.canDash = true;
+      p.coyote = P.COYOTE; p.canDash = true; p.usedDouble = false;
       if (!wasGround) { p.landT = 0.1; this.dust.explode(4, p.x + 7, p.y + 26); Snd.play('land'); }
     }
     // колючки
@@ -671,7 +707,7 @@ class GameScene extends Phaser.Scene {
 
   atkBox(p) {
     const cx = p.x + p.w / 2, cy = p.y + p.h / 2;
-    if (p.atkDir === 'f') return { x: p.face > 0 ? cx + 2 : cx - 50, y: cy - 17, w: 48, h: 32 };
+    if (p.atkDir === 'f') { const w = p.heavy ? 68 : 48; return { x: p.face > 0 ? cx + 2 : cx - 2 - w, y: cy - 17, w, h: 32 }; }
     if (p.atkDir === 'u') return { x: cx - 19, y: p.y - 40, w: 38, h: 46 };
     return { x: cx - 18, y: p.y + p.h - 8, w: 36, h: 44 };
   }
@@ -684,20 +720,20 @@ class GameScene extends Phaser.Scene {
     for (const e of this.enemies) {
       if (e.dead || p.atkHits.has(e) || !overlap(box, e)) continue;
       p.atkHits.add(e);
-      if (auth) this.damageEnemy(e, p); else { e.flash = 0.1; this.hitstop = 0.045; Snd.play('hit'); }
+      if (auth) { this.damageEnemy(e, p); if (p.heavy && !e.dead) this.damageEnemy(e, p); } else { e.flash = 0.1; this.hitstop = 0.045; Snd.play('hit'); }
       if (local) { if (p.atkDir === 'd') pogo(); else if (p.atkDir === 'f') p.kbx = -p.face * 150; }
     }
     const b = this.boss;
     if (!p.atkHits.has(b) && b.state !== 'sleep' && b.state !== 'dead' && b.state !== 'gone' && overlap(box, b)) {
       p.atkHits.add(b);
-      if (auth) this.damageBoss(p); else { b.flash = 0.09; this.hitstop = 0.04; Snd.play('hit'); }
+      if (auth) { this.damageBoss(p); if (p.heavy && b.state !== 'dead' && b.state !== 'gone') this.damageBoss(p); } else { b.flash = 0.09; this.hitstop = 0.04; Snd.play('hit'); }
       if (local) { if (p.atkDir === 'd') pogo(); else if (p.atkDir === 'f') p.kbx = -p.face * 170; }
     }
     if (this.misha && this.mishaNeedle(p, box) && local) { if (p.atkDir === 'd') pogo(); else if (p.atkDir === 'f') p.kbx = -p.face * 190; }
     for (const [vb, fn] of [[this.vladik, 'damageVladik'], [this.tima, 'damageTima']]) {
       if (!vb || p.atkHits.has(vb) || ['dead', 'intro'].includes(vb.state) || !overlap(box, vb)) continue;
       p.atkHits.add(vb);
-      if (auth) this[fn](p); else { vb.flash = 0.09; this.hitstop = 0.04; Snd.play('hit'); }
+      if (auth) { this[fn](p); if (p.heavy && vb.state !== 'dead') this[fn](p); } else { vb.flash = 0.09; this.hitstop = 0.04; Snd.play('hit'); }
       if (local) { if (p.atkDir === 'd') pogo(); else if (p.atkDir === 'f') p.kbx = -p.face * 170; }
     }
     for (const pr of this.projs) if (SLASH_KINDS.has(pr.kind) && !pr.dead && overlap(box, pr)) {
@@ -731,6 +767,12 @@ class GameScene extends Phaser.Scene {
   }
   hurtPlayer(p, dmg, srcX, spike) {
     if (p.inv > 0 || p.downed) return;
+    if (p.parryT > 0 && !spike) { this.parrySuccess(p, srcX); return; }
+    if (p.dashT > 0 && !spike) { // идеальный уворот: рывок сквозь удар — без урона, +нить, замедление
+      p.inv = 0.35; p.pdodge = 0.4; if (!p.remote) { p.silk = Math.min(P.SILK, p.silk + 2); this.hitstop = 0.07; }
+      Snd.play('clink'); this.parts.setParticleTint(p.pal.accent); this.parts.explode(14, p.x + 7, p.y + 13);
+      return;
+    }
     p.hp -= dmg; p.inv = P.INV; if (!p.remote) Touch.buzz(45); p.hurtT = P.HURT; p.dashT = 0; p.sit = false; p.atkT = 0;
     p.vy = spike ? 0 : -320; p.kbx = srcX == null ? 0 : ((p.x + 7 < srcX) ? -1 : 1) * 260;
     this.hitstop = 0.09; this.cameras.main.shake(160, 0.008); Snd.play('hurt');
@@ -788,7 +830,7 @@ class GameScene extends Phaser.Scene {
             this.ui().toast('Скамья: здесь вы очнётесь. Прогресс сохранён');
             if (this.mode === 'story' && this.online !== 'guest') {
               const bi = this.benches.indexOf(b), area = this.L.areas.reduce((a, ar) => (b.x / T >= ar.x ? ar : a), this.L.areas[0]);
-              Settings.saveProgress({ bench: bi, beads: this.beads, name: area.name });
+              Settings.saveProgress({ bench: bi, beads: this.beads, name: area.name, abil: this.abil });
             }
           }
         }
@@ -1154,6 +1196,7 @@ class GameScene extends Phaser.Scene {
           if (q) { q.dead = true; if (kind === 'letter' || kind === 'rain') this.paperAt(6, q.x + 11, q.y + 13); else this.burst(6, q.x + q.w / 2, q.y + q.h / 2, 0xffd47a); this.sfx('clink'); }
         }
         break;
+      case 'burstSkill': if (this.auth() && this.players[1]) this.silkBurstHit(this.players[1], m.x, m.y); break;
       case 'repo': if (!this.auth() && this.tima) this.setRepo(!!m.on); break;
       case 'bankrupt': if (this.tima) this.bankruptSilk(); break;
       case 'foam': if (this.foam) this.foam.explode(m.n, m.x, m.y); break;
@@ -1274,6 +1317,7 @@ class GameScene extends Phaser.Scene {
     for (const p of this.players) this.drawPlayer(p, now);
     for (const e of this.enemies) if (!e.dead) this.drawEnemy(e, now);
     this.drawBoss(now);
+    this.drawItems(now);
     if (this.misha) { this.drawMisha(now); this.drawLetters(now); }
     if (this.vladik) { this.drawCurtains(now); this.drawVladik(now); }
     if (this.tima) this.drawTima(now);
@@ -1371,6 +1415,7 @@ class GameScene extends Phaser.Scene {
       lift: (!p.onGround && p.vy > 0) ? -4 : 0,
     };
     if (p.healT > 0) { g.fillStyle(p.pal.accent, 0.25 * (p.healT / 0.6)); g.fillCircle(0, -14, 24); }
+    this.drawPlayerFx(p, g);
     drawWeaver(g, 0, 0, p.face, p.pal, a, 1);
     p.tag.setPosition(cx + p.face * 0.5, fy + (-12.5 - a.bob * 0.5) * sy).setScale(sx, sy).setAlpha(blink ? 0.35 : 1);
     if (p.atkT <= 0 && !p.sit) {

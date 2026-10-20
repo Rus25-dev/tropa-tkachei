@@ -71,6 +71,7 @@ function buildLevel() {
     { type: 'gnat', x: 176, y: 28 },
   ];
   return {
+    items: [{ ability: 'double', x: 60, y: 12, text: 'Плащ-парус: прыжок в воздухе — ещё один прыжок' }],
     W, H, grid: g, spawn: { x: 4, y: 33 }, signs, benches, enemies,
     boss: { x: 214, y: 33, arenaX0: 187, arenaX1: 225, trigger: 190 },
     gateIn: { x: 186, y0: 24, y1: 33 }, gateOut: { x: 226, y0: 30, y1: 33 },

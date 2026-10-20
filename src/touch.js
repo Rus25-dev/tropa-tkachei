@@ -42,7 +42,7 @@ const Touch = {
     root.innerHTML = `
       <div class="t-zone" id="t-zone"><div class="t-base" id="t-base" hidden><div class="t-knob" id="t-knob"></div></div><span class="t-hint" id="t-hint">тяни, чтобы идти</span></div>
       <div class="t-btns">
-        <button class="t-btn t-heal" data-act="heal" type="button" aria-label="Лечение"><b>✚</b><i>Лечить</i></button>
+        <button class="t-btn t-heal" data-act="heal" type="button" aria-label="Лечение"><b>✚</b><i>Нить</i></button>
         <button class="t-btn t-dash" data-act="dash" type="button" aria-label="Рывок"><b>»</b><i>Рывок</i></button>
         <button class="t-btn t-bomb" data-act="bomb" type="button" aria-label="Дымовая бомба" hidden><b>●</b><i>Бомба</i></button>
         <button class="t-btn t-atk" data-act="atk" type="button" aria-label="Удар"><b>⟋</b><i>Удар</i></button>

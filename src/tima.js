@@ -138,7 +138,7 @@ Object.assign(GameScene.prototype, {
   },
   makeTima() {
     if (this.tima && this.tima.g) this.tima.g.destroy();
-    const d = this.L.tima, hp = this.nPlayers === 2 ? 70 : 50;
+    const d = this.L.tima, hp = this.nPlayers === 2 ? 110 : 78;
     this.tima = { x: d.x * T - 30, y: (d.y + 1) * T - 80, w: 60, h: 80, vx: 0, vy: 0, face: -1, hp, maxHp: hp, phase: 1, state: 'intro', t: 3.2,
       flash: 0, last: '', say: 'ПИВКА ДЛЯ РЫВКА!', sayT: 2.2, sayCd: 0, barShown: false, air: 0, hyper: 0, dustCd: 6, dustHits: 0, drinkCd: 8,
       g: this.add.graphics().setDepth(4) };
