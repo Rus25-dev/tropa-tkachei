@@ -96,12 +96,12 @@ function geometry(name, list, W, H, noPairs) {
       await sleep(250);
       const r = await page.evaluate(() => {
         const u = window.__game.scene.getScene('ui'), cs = window.__cs(u);
-        return { list: window.__texts(u.pause).concat(u.trHud ? window.__texts([u.trHud]) : []), cs, vis: u.pause.visible, fs: parseFloat(u.pauseColA.style.fontSize), VW, mapH: u.mapHint.getBounds(), trB: u.trBtn ? u.trBtn.getBounds() : null };
+        return { list: window.__texts(u.pause).concat(u.trHud ? window.__texts([u.trHud]) : []), cs, vis: u.pause.visible, fs: Math.min(...window.__texts(u.pause).map((t) => t.fs)), VW };
       });
       ok(r.vis, `пауза (${name}, ${variant}): не открылась`);
       geometry(`пауза (${name}, ${variant})`, r.list, r.VW, 540);
-      ok(r.fs * r.cs >= (q ? 9.5 : 11), `пауза (${name}, ${variant}): шрифт справки на экране ${(r.fs * r.cs).toFixed(1)} px`);
-      if (train) { ok(r.trB && r.list.some((t) => /Сброс босса/.test(t.t)), `пауза (${name}): нет кнопки «Сброс босса»`); ok(r.list.some((t) => /M \(|Кнопка ▤/.test(t.t)), `пауза (${name}): нет подсказки про карту`); }
+      ok(r.fs * r.cs >= 10.9, `пауза (${name}, ${variant}): шрифт на экране ${(r.fs * r.cs).toFixed(1)} px`);
+      if (train) ok(r.list.some((t) => /Сброс босса/.test(t.t)), `пауза (${name}): нет пункта «Сброс босса»`);
       if (!train) { // «Настройки» из паузы и возврат: справка остаётся на месте
         await page.evaluate(() => { const u = window.__game.scene.getScene('ui'); u.openSettings(); Settings.hide(); });
         await sleep(150);

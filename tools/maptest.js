@@ -28,6 +28,8 @@ const shot = process.argv[2];
     await new Promise((r) => setTimeout(r, 150));
     p.pend = { ...(p.pend || {}), upP: true };
     await new Promise((r) => setTimeout(r, 250));
+    // ↑ на скамье открывает меню (v1.7): выбираем «Отдохнуть»
+    if (sc.benchMenuOpen) { window.__game.scene.getScene('ui').benchMenu.pick(0); await new Promise((r) => setTimeout(r, 250)); }
     return p.sit;
   }, bi);
   const key = (code) => ev((code) => { const sc = window.__game.scene.getScene('game'); MapTravel.onKey(sc, { code, repeat: false, preventDefault() { } }); }, code);
