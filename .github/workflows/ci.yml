@@ -1,0 +1,69 @@
+name: CI
+
+# На каждый pull request и на пуши в v2 и main: линт, типы, Vitest, сборка, быстрые e2e (headless Chromium, WebGL через SwiftShader)
+# и золотые записи v1.8 на старой игре (legacy/). Полный набор — на main.
+on:
+  pull_request:
+  push:
+    branches: [v2, main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report
+          retention-days: 7
+
+  legacy-golden:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm --prefix legacy ci
+      - name: Золотые записи v1.8 на старой игре
+        run: |
+          export CHROME="$(node -e "console.log(require('@playwright/test').chromium.executablePath())")"
+          npm --prefix legacy run golden
+
+  legacy-full:
+    # полный набор тестов старой игры (UI, сеть, меню): только на main и по запросу
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm --prefix legacy ci
+      - run: |
+          export CHROME="$(node -e "console.log(require('@playwright/test').chromium.executablePath())")"
+          npm --prefix legacy run test:full

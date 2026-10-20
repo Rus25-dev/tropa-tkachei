@@ -127,3 +127,10 @@
 2. «Да» на расширение журнала в `main` отдельным PR (раздел 4, п. 1–2).
 3. Подтвердите: навыки Phaser копирую из `phaserjs/phaser/skills/` (29 штук; обязательные — `v3-to-v4-migration`, `v4-new-features`, `filters-and-postfx`, `game-setup-and-config`; добавлю `scenes`, `cameras`, `tilemaps`, `particles`, `input-keyboard-mouse-touch`, `scale-and-responsive`, `loading-assets`, `audio-and-sound`, `time-and-timers`, `text-and-bitmaptext`, `render-textures`, `graphics-and-shapes`).
 4. Что в v1.7 пропало на вашем устройстве (устройство, ориентация): исправлю в `main` отдельно, если это баг, а не «Поверните телефон».
+
+## Состояние
+| Этап | Статус |
+|---|---|
+| 0. Подготовка | сделано: план, навыки Phaser в `.claude/skills/`, тег `v1.8-final` (1.8.2), 15 золотых записей в `tests/golden` (14 + гонка `race-b1`), журнал расширен (версия 1.8.2) |
+| 1. Каркас v2 | сделано: Vite 8, TypeScript 6.0.3 strict (7.0 пока не поддержан typescript-eslint), Phaser 4.2.1, Preact 11, ESLint 10 с запретами для `src/core`, Vitest 5, Playwright Test, GitHub Actions; пустая игра: сцены, масштаб, ввод (клавиатура, геймпад, касание), сборка в один `index.html` (1,4 МБ) |
+| 2–8 | впереди |

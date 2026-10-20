@@ -4,3 +4,6 @@ shots/
 touch/
 race-shots/
 dev-shots/
+dist/
+playwright-report/
+test-results/
