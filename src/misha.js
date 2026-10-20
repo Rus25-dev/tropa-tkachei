@@ -13,7 +13,7 @@ function buildMishaArena() {
     W, H, grid: g, spawn: { x: 6, y: 17 }, benches: [], enemies: [], gates: [], exit: null,
     signs: [
       { x: 9, y: 17, text: 'R — дымовая бомба (геймпад LB)\n↑ + R — навесом, ↓ + R — под ноги', touch: 'Кнопка «Бомба» — дымовуха\nстик вверх — навесом, вниз — под ноги' },
-      { x: 14, y: 17, text: 'Иглой Мишу не пробить.\nЗакинь дымовуху ему в рюкзак!' },
+      { x: 14, y: 17, text: 'Бей Мишу иглой!\nДымовуха в рюкзак бьёт сильнее,\nа в конце боя нужны только дымовухи' },
     ],
     crates: [{ x: 3, y: 17 }, { x: 40, y: 17 }],
     misha: { x: 28, y: 17 }, ceilY: 4,
@@ -59,7 +59,7 @@ Object.assign(GameScene.prototype, {
     if (this.misha && this.misha.g) this.misha.g.destroy();
     const d = this.L.misha, hp = BAL.hp.misha[this.nPlayers === 2 ? 1 : 0];
     this.misha = { x: d.x * T - 28, y: (d.y + 1) * T - 74, w: 56, h: 74, vx: 0, vy: 0, face: -1, hp, maxHp: hp, state: 'intro', t: 3.2,
-      flash: 0, last: '', turnT: 0, hitCd: 0, tdMarks: [Math.ceil(hp * 2 / 3), Math.ceil(hp / 3)], tdUsed: [], tdQueue: false, say: 'ЭЙ! ЭТО МОЙ РЮКЗАК!', sayT: 3.0, zipT: 0, barShown: false, g: this.add.graphics().setDepth(4) };
+      flash: 0, last: '', turnT: 0, hitCd: 0, tdMarks: [Math.ceil(hp * 2 / 3), Math.ceil(hp / 3)], tdUsed: [], armorSaid: false, tdQueue: false, say: 'ЭЙ! ЭТО МОЙ РЮКЗАК!', sayT: 3.0, zipT: 0, barShown: false, g: this.add.graphics().setDepth(4) };
   },
   mishaBag(m) { const cx = m.x + m.w / 2; return { x: cx - 26 * m.face - 15, y: m.y + 12, w: 30, h: 40 }; },
   smokeAt(n, x, y) { this.smoke.explode(n, x, y); if (this.online === 'host') this.sendEv({ k: 'smoke', n, x: Math.round(x), y: Math.round(y) }); },
@@ -124,10 +124,31 @@ Object.assign(GameScene.prototype, {
   mishaNeedle(p, box) {
     const m = this.misha;
     if (!m || p.atkHits.has(m) || ['dead', 'intro'].includes(m.state) || !overlap(box, m)) return false;
-    p.atkHits.add(m); m.flash = 0.06;
+    p.atkHits.add(m);
+    if (!this.mishaArmored(m)) { if (this.auth()) this.mishaNeedleHit(p, m); else { m.flash = 0.08; Snd.play('hit'); } return true; }
+    // третья фаза: рюкзак застёгнут на все замки — иглой не пробить
+    m.flash = 0.06;
     this.gainSilk(p); Snd.play('clink'); this.parts.setParticleTint(0xffffff); this.parts.explode(5, clamp(p.x + 7 + p.face * 26, m.x, m.x + m.w), m.y + m.h / 2);
-    if (!this._needleTip) { this._needleTip = true; this.ui().toast('Иглой Мишу не пробить. Дымовуху ему в рюкзак!', 5.5); }
+    if (!this._needleTip) { this._needleTip = true; this.ui().toast('Последняя фаза: иглой Мишу не пробить. Дымовуху ему в рюкзак!', 5.5); }
     return true;
+  },
+  // третья фаза (последняя треть здоровья): только дымовые бомбы
+  mishaArmored(m) { return m.hp <= m.tdMarks[1]; },
+  // первые две фазы: Миша бьётся иглой как обычный босс, 4 удара = 1 «единица» здоровья (бомба в рюкзак снимает целую)
+  mishaNeedleHit(p, m) {
+    if (['dead', 'intro'].includes(m.state)) return;
+    const W = this.wdef ? this.wdef(p) : null, floor = m.tdMarks[1];
+    const d = 0.25 * (W && W.dmg ? W.dmg : 1) * (p.heavy ? 2 : 1);
+    m.hp = Math.max(floor, m.hp - d); m.flash = 0.1; this.gainSilk(p); if (!p.remote) this.hitstop = 0.04;
+    this.sfx('hit'); this.parts.setParticleTint(0xf4f1e6); this.parts.explode(8, clamp(p.x + 7 + p.face * 26, m.x, m.x + m.w), m.y + m.h / 2);
+    this.ui().bossBar(true, 'Миша Додик', Math.max(0, m.hp) / m.maxHp);
+    let queued = false;
+    for (const mark of m.tdMarks) if (m.hp <= mark && !m.tdUsed.includes(mark)) { m.tdUsed.push(mark); m.tdQueue = true; queued = true; }
+    if (queued) { m.state = 'cough'; m.t = 0.9; m.vx = 0; }
+    if (m.hp <= floor && !m.armorSaid) {
+      m.armorSaid = true; this.mishaSpeak('ЗАСТЁГИВАЮ НА ВСЕ ЗАМКИ!', 2.2); this.sfx('gate'); this.shake(300, 0.008);
+      this.toastAll('Последняя фаза: иглой Мишу больше не пробить — только дымовухи в рюкзак!');
+    } else if (Math.random() < 0.18 && m.sayT <= 0) this.mishaSpeak(MISHA_SAY_HIT[Math.floor(Math.random() * MISHA_SAY_HIT.length)], 1.1);
   },
 
   // ----- поведение (считает хост) -----
