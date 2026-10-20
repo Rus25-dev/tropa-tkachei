@@ -1,21 +1,21 @@
 // ===== ИГРА: «Тропа Ткачей» — кооперативная метроидвания =====
 let VW = 960; const VH = 540;
 // версия игры; номер сборки подставляет build.py
-const GAME_VERSION = '1.1';
+const GAME_VERSION = '1.2';
 const GAME_BUILD = '__BUILD__';
 const CHANGELOG = [
+  'Кампания: после Корнематки — Глава II (Миша), III (Владик), IV (Тима) с коридорами перед аренами',
+  'Прогресс по главам сохраняется на скамьях; «Продолжить» возвращает в нужную главу',
+  'Лавка у скамьи (↓ на скамье): маски здоровья, острая игла, лёгкая катушка за бусины',
   'Бой: третий удар подряд — тяжёлый финишер (шире, бьёт дважды)',
   'Рывок сквозь атаку — идеальный уворот: без урона, +2 нити',
   'Босса можно оглушить серией ударов: замирает и получает двойной урон',
-  'Боссы стали жирнее: бой длиннее',
   'Отзывчивее управление: буфер удара и рывка, зависание в верхней точке прыжка, скольжение мимо углов потолка',
-  'Удар быстрее (0.26 с)',
   'Боссы 2.0: у каждого 3 фазы, ярость и новые атаки',
   'Корнематка: корни из-под земли, двойные прыжки',
   'Миша: «Диктант!» и застёгнутый рюкзак',
   'Владик: нотный стан и выпад смычком',
   'Тима: коллекторы и падающие ачивки',
-  'Фразы и подсказки висят дольше и не перебивают друг друга',
 ];
 // ширина поля подстраивается под пропорции экрана: на вытянутых телефонах без чёрных полос
 function computeVW() {
@@ -75,7 +75,7 @@ class MenuScene extends Phaser.Scene {
     this.heroTags = PAL.map((pal) => makeTag(this, pal, 1).setScale(1.6));
 
     this.add.text(VW / 2, 92, 'ТРОПА ТКАЧЕЙ', { fontFamily: '"Cormorant SC", Georgia, serif', fontSize: '64px', color: '#e8e2cf', fontStyle: '700' }).setOrigin(0.5).setShadow(0, 0, '#9ff0c8', 18, false, true);
-    this.add.text(VW / 2, 136, 'Глава I · Мшистая Глубь', { fontFamily: '"Fira Sans", sans-serif', fontSize: '17px', color: '#8fb8a8' }).setOrigin(0.5);
+    this.add.text(VW / 2, 136, Campaign.subtitle(), { fontFamily: '"Fira Sans", sans-serif', fontSize: '17px', color: '#8fb8a8' }).setOrigin(0.5);
 
     const mkBtn = (y, label, sub, n) => {
       const t = this.add.text(VW / 2, y, label, { fontFamily: '"Cormorant SC", Georgia, serif', fontSize: '29px', color: '#cfe8dc', fontStyle: '600' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
@@ -165,14 +165,14 @@ class MenuScene extends Phaser.Scene {
     if (this.leaving) return; this.leaving = true; Snd.init();
     Lobby.mode = mode || 'story'; Lobby.boss = BOSSES[this.pickIdx].id; Lobby.bossName = BOSSES[this.pickIdx].name; Lobby.show();
   }
-  goOnline(role, mode, boss) {
+  goOnline(role, mode, boss, camp) {
     Snd.play('bench'); this.cameras.main.fadeOut(450, 3, 8, 7);
-    this.time.delayedCall(460, () => this.scene.start('game', { players: 2, online: role, mode: mode || 'story', boss: boss || 'misha' }));
+    this.time.delayedCall(460, () => this.scene.start('game', { players: 2, online: role, mode: mode || 'story', boss: boss || 'misha', camp: camp || null }));
   }
   go(n, mode) {
     if (this.leaving) return; this.leaving = true; Snd.init(); Snd.play('bench');
     this.cameras.main.fadeOut(450, 3, 8, 7);
-    this.time.delayedCall(460, () => this.scene.start('game', { players: n, mode: mode || 'story', boss: BOSSES[this.pickIdx].id }));
+    this.time.delayedCall(460, () => this.scene.start('game', { players: n, mode: mode || 'story', boss: BOSSES[this.pickIdx].id, camp: mode ? null : Campaign.resume() }));
   }
   update(time, delta) {
     this.t += delta / 1000;
@@ -261,7 +261,7 @@ class BGScene extends Phaser.Scene {
 // ---------- ИГРОВАЯ СЦЕНА ----------
 class GameScene extends Phaser.Scene {
   constructor() { super('game'); }
-  init(data) { this.startData = data; this.mode = data.mode || 'story'; this.bossKind = data.boss || 'misha'; this.nPlayers = data.players || 1; this.online = data.online || null; this.localIdx = data.online === 'guest' ? 1 : 0; }
+  init(data) { this.startData = data; this.mode = data.mode || 'story'; this.bossKind = data.boss || 'misha'; this.nPlayers = data.players || 1; this.online = data.online || null; this.localIdx = data.online === 'guest' ? 1 : 0; Campaign.init(this, data); }
   auth() { return this.online !== 'guest'; }
   sendEv(o) { if (this.online) Net.send({ t: 'ev', ...o }); }
   sfx(n) { Snd.play(n); if (this.online === 'host') this.sendEv({ k: 'snd', n }); }
@@ -275,7 +275,7 @@ class GameScene extends Phaser.Scene {
     this.scene.launch('bg'); this.scene.launch('ui');
     this.enemies = []; this.boss = null;
     const arenas = { misha: buildMishaArena, vladik: buildVladikArena, tima: buildTimaArena };
-    this.L = this.mode === 'bosstest' ? (arenas[this.bossKind] || buildMishaArena)() : buildLevel();
+    this.L = Campaign.level(this) || (this.mode === 'bosstest' ? (arenas[this.bossKind] || buildMishaArena)() : buildLevel());
     this.misha = null; this.crates = null; this.vladik = null; this.tima = null; this.curtains = null; this.puddles = null; this.repoT = 0;
     const L = this.L;
     this.grid = L.grid;
@@ -347,6 +347,7 @@ class GameScene extends Phaser.Scene {
     this.abil = this.mode === 'bosstest' ? { double: true } : { ...(prog && prog.abil || {}) };
     this.initItems();
     this.beads = prog ? prog.beads || 0 : 0; this.deaths = 0; this.timeSec = 0;
+    Campaign.setup(this);
 
     // ввод
     this.setupInput();
@@ -381,7 +382,7 @@ class GameScene extends Phaser.Scene {
   }
   speedMul() { return 1; }
   togglePause() {
-    if (this.won || Settings.open) return;
+    if (this.won || Settings.open || this.shopOpen) return;
     const u = this.ui();
     if (this.online) u.showPause(!u.pause.visible); // по сети мир не останавливаем
     else { this.paused = !this.paused; u.showPause(this.paused); }
@@ -622,8 +623,10 @@ class GameScene extends Phaser.Scene {
     if (inp.dashP) p.dashBuf = P.DASHBUF;
     const dir = (inp.right ? 1 : 0) - (inp.left ? 1 : 0);
     if (p.sit) {
-      if (dir || inp.jumpP || inp.down || inp.atkP || inp.dashP) p.sit = false;
-      else { p.vx = 0; p.vy = Math.min(p.vy + P.G * dt, P.MAXFALL); this.moveBody(p, dt); return; }
+      const dn = !!inp.down, dnP = dn && !p.dnPrev; p.dnPrev = dn;
+      if (dir || inp.jumpP || inp.atkP || inp.dashP) p.sit = false;
+      else {
+        if (dnP) Campaign.openShop(this, p); p.vx = 0; p.vy = Math.min(p.vy + P.G * dt, P.MAXFALL); this.moveBody(p, dt); return; }
     }
     const wasGround = p.onGround;
     if (p.hurtT > 0) {
@@ -750,7 +753,7 @@ class GameScene extends Phaser.Scene {
   }
   gainSilk(p) { if (p.remote) this.sendEv({ k: 'silk', i: p.i }); else p.silk = Math.min(P.SILK, p.silk + 1); }
   damageEnemy(e, p) {
-    e.hp -= 1; e.flash = 0.1; this.gainSilk(p); if (!p.remote) this.hitstop = 0.045; this.sfx('hit');
+    e.hp -= 1 + Campaign.needleBonus(this); e.flash = 0.1; this.gainSilk(p); if (!p.remote) this.hitstop = 0.045; this.sfx('hit');
     this.burst(8, e.x + e.w / 2, e.y + e.h / 2, 0xf4f1e6);
     const dx = p.atkDir === 'f' ? p.face : Math.sign(e.x + e.w / 2 - (p.x + 7)) || 1;
     e.kbT = 0.14; e.kbx = dx * (e.type === 'beetle' ? 120 : 220); e.kby = p.atkDir === 'u' ? -220 : p.atkDir === 'd' ? 160 : -60;
@@ -827,10 +830,10 @@ class GameScene extends Phaser.Scene {
             p.sit = true; p.x = b.x - 7; p.hp = p.maxHp; this.respawn = { x: b.x, y: b.y }; Snd.play('bench');
             for (const q of this.players) if (q.downed && !q.remote) { q.downed = false; q.hp = 2; q.inv = 1.5; q.x = b.x - 7 + 22; q.y = b.y - 26; }
             this.sendEv({ k: 'bench', x: b.x, y: b.y });
-            this.ui().toast('Скамья: здесь вы очнётесь. Прогресс сохранён');
+            this.ui().toast(this.camp ? (Touch.enabled ? 'Скамья: здесь вы очнётесь. Прогресс сохранён. Стик вниз — лавка' : 'Скамья: здесь вы очнётесь. Прогресс сохранён. ↓ — лавка') : 'Скамья: здесь вы очнётесь. Прогресс сохранён');
             if (this.mode === 'story' && this.online !== 'guest') {
               const bi = this.benches.indexOf(b), area = this.L.areas.reduce((a, ar) => (b.x / T >= ar.x ? ar : a), this.L.areas[0]);
-              Settings.saveProgress({ bench: bi, beads: this.beads, name: area.name, abil: this.abil });
+              Campaign.save(this, { bench: bi, name: Campaign.saveName(this, area.name) });
             }
           }
         }
@@ -1084,6 +1087,7 @@ class GameScene extends Phaser.Scene {
     this.beadsArr = this.beadsArr.filter((b) => !b.dead);
   }
   win() {
+    if (Campaign.preWin(this)) return;
     this.won = true; Snd.play('win');
     const s = { time: this.timeSec, beads: this.beads, deaths: this.deaths, players: this.nPlayers };
     if (this.mode === 'bosstest') {
@@ -1091,6 +1095,7 @@ class GameScene extends Phaser.Scene {
       else if (this.tima) { s.title = 'Тима Пиво повержен'; s.hits = this.timaHits; }
       else { s.title = 'Миша Додик повержен'; s.bag = this.bagHits; }
     }
+    Campaign.decorate(this, s);
     this.sendEv({ k: 'win', s });
     this.ui().victory(s);
   }
@@ -1221,6 +1226,7 @@ class GameScene extends Phaser.Scene {
         break;
       case 'respawn': this.respawn = { x: m.x, y: m.y }; this.respawnLocal(); break;
       case 'win': if (!this.won) { this.won = true; Snd.play('win'); this.ui().victory(m.s); } break;
+      default: Campaign.onEv(this, m);
     }
   }
   netSmooth(dt) {
@@ -1556,11 +1562,12 @@ class UIScene extends Phaser.Scene {
     this.tdLayer = this.add.container(0, 0, [this.tdG, ...this.tdTags, this.tdSay, this.tdInfo, this.tdTitle]).setVisible(false);
     this.children.sendToBack(this.tdLayer); // под всем интерфейсом: здоровье, подсказки, пауза видны поверх
     this.t = 0;
-    this.input.keyboard.on('keydown-ENTER', () => { if (this.gs.won) this.restart(); });
-    this.input.keyboard.on('keydown-SPACE', () => { if (this.gs.won) this.restart(); });
+    this.input.keyboard.on('keydown-ENTER', () => { if (this.gs.won) this.winEnter(); });
+    this.input.keyboard.on('keydown-SPACE', () => { if (this.gs.won) this.winEnter(); });
     this.input.keyboard.on('keydown-R', () => { if (this.gs.won && !this.gs.online) this.retry(); });
     this.ready = true;
   }
+  winEnter() { this.restart(); }
   restart() { this.ready = false; Net.onClose = null; Net.close(); this.scene.stop('bg'); this.scene.stop('game'); this.scene.start('menu'); }
   openSettings() { this.pause.setVisible(false); Settings.show(() => { if (this.ready) this.pause.setVisible(true); }); }
   tdShow(on) {
