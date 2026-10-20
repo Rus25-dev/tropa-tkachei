@@ -9,6 +9,9 @@ Object.assign(GameScene.prototype, {
     this.parts.setParticleTint(0xffffff); this.parts.explode(18, cx + p.face * 10, cy);
     for (const pr of this.projs) if (!pr.dead && pr.kind !== 'bomb' && Math.hypot(pr.x - cx, pr.y - cy) < 110) { pr.dead = true; this.burst(5, pr.x, pr.y, 0xffffff); }
     for (const e of this.enemies) if (!e.dead && Math.hypot(e.x + e.w / 2 - cx, e.y + e.h / 2 - cy) < 100) { e.kbT = 0.2; e.kbx = Math.sign(e.x - cx) * 300; e.kby = -120; e.flash = 0.1; if (e.state === 'charge') { e.state = 'stun'; e.st = 0.8; } }
+    if (this.auth()) this.parryPoise(cx, cy); else this.sendEv({ k: 'parrypoise', x: Math.round(cx), y: Math.round(cy) });
+  },
+  parryPoise(cx, cy) {
     for (const b of [this.boss, this.vladik, this.tima]) if (b && Math.hypot(b.x + b.w / 2 - cx, b.y + b.h / 2 - cy) < 190) this.poiseAdd(b, 3);
   },
   // нитяной всполох (↑ + кнопка нити): тратит BURST нити, бьёт всё вокруг и сбивает снаряды
@@ -43,10 +46,20 @@ Object.assign(GameScene.prototype, {
         it.got = true; this.abil[it.ability] = true; Snd.play('revive');
         this.parts.setParticleTint(0xffe3a3); this.parts.explode(40, it.px, it.py); this.shake(300, 0.006);
         this.ui().toast(it.text, 5);
-        Settings.saveProgress({ ...(Settings.progress() || { bench: 0, beads: this.beads }), abil: this.abil });
+        if (this.online) this.sendEv({ k: 'abil', a: it.ability });
+        if (this.auth()) Settings.saveProgress({ ...(Settings.progress() || { bench: 0, beads: this.beads }), abil: this.abil }); // у гостя сохранение не его: запишет хост
       }
     }
     this.items = this.items.filter((it) => !it.got);
+  },
+  // напарник подобрал способность (хост запоминает и сохраняет, гость убирает предмет с карты)
+  itemEv(m) {
+    if (!m.a) return;
+    this.abil[m.a] = true;
+    const it = (this.items || []).find((q) => q.ability === m.a);
+    if (it) { this.parts.setParticleTint(0xffe3a3); this.parts.explode(30, it.px, it.py); this.ui().toast(it.text, 5); }
+    this.items = (this.items || []).filter((q) => q.ability !== m.a);
+    if (this.auth()) Settings.saveProgress({ ...(Settings.progress() || { bench: 0, beads: this.beads }), abil: this.abil });
   },
   drawItems(now) {
     if (!this.itemG || !this.itemG.scene) this.itemG = this.add.graphics().setDepth(2.5);

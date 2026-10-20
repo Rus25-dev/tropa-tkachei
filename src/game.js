@@ -367,6 +367,7 @@ class GameScene extends Phaser.Scene {
     this.applyLoadout();
     this.beads = prog ? prog.beads || 0 : 0; this.deaths = 0; this.timeSec = 0;
     Campaign.setup(this);
+    this.items = (this.items || []).filter((it) => !this.abil[it.ability]); // у гостя способности приходят из главы только теперь
 
     // ввод
     this.setupInput();
@@ -754,30 +755,30 @@ class GameScene extends Phaser.Scene {
     for (const e of this.enemies) {
       if (e.dead || p.atkHits.has(e) || !overlap(box, e)) continue;
       p.atkHits.add(e);
-      if (auth) { this.damageEnemy(e, p); if (p.heavy && !e.dead) this.damageEnemy(e, p); } else if (!this.e2Blocked(e, p, true)) { e.flash = 0.1; this.hitstop = 0.045; Snd.play('hit'); }
+      if (auth) { this.damageEnemy(e, p); if (p.heavy && !e.dead) this.damageEnemy(e, p); } else if (!this.e2Blocked(e, p, true)) { e.flash = 0.1; if (!p.remote) { this.hitstop = 0.045; Snd.play('hit'); } } // удар напарника уже озвучил хост (snd), зависание кадра — только своему
       if (local) { if (p.atkDir === 'd') pogo(); else if (p.atkDir === 'f') p.kbx = -p.face * 150; }
     }
     const b = this.boss;
     if (!p.atkHits.has(b) && b.state !== 'sleep' && b.state !== 'dead' && b.state !== 'gone' && overlap(box, b)) {
       p.atkHits.add(b);
-      if (auth) { this.damageBoss(p); if (p.heavy && b.state !== 'dead' && b.state !== 'gone') this.damageBoss(p); } else { b.flash = 0.09; this.hitstop = 0.04; Snd.play('hit'); }
+      if (auth) { this.damageBoss(p); if (p.heavy && b.state !== 'dead' && b.state !== 'gone') this.damageBoss(p); } else { b.flash = 0.09; if (!p.remote) { this.hitstop = 0.04; Snd.play('hit'); } }
       if (local) { if (p.atkDir === 'd') pogo(); else if (p.atkDir === 'f') p.kbx = -p.face * 170; }
     }
     if (this.misha && this.mishaNeedle(p, box) && local) { if (p.atkDir === 'd') pogo(); else if (p.atkDir === 'f') p.kbx = -p.face * 190; }
     for (const [vb, fn] of [[this.vladik, 'damageVladik'], [this.tima, 'damageTima']]) {
       if (!vb || p.atkHits.has(vb) || ['dead', 'intro'].includes(vb.state) || !overlap(box, vb)) continue;
       p.atkHits.add(vb);
-      if (auth) { this[fn](p); if (p.heavy && vb.state !== 'dead') this[fn](p); } else { vb.flash = 0.09; this.hitstop = 0.04; Snd.play('hit'); }
+      if (auth) { this[fn](p); if (p.heavy && vb.state !== 'dead') this[fn](p); } else { vb.flash = 0.09; if (!p.remote) { this.hitstop = 0.04; Snd.play('hit'); } }
       if (local) { if (p.atkDir === 'd') pogo(); else if (p.atkDir === 'f') p.kbx = -p.face * 170; }
     }
     for (const pr of this.projs) if (SLASH_KINDS.has(pr.kind) && !pr.dead && overlap(box, pr)) {
-      if (pr.kind === 'collector') { if (auth) this.hitCollector(pr, p.face); else this.sendEv({ k: 'cut', kind: 'collector', x: Math.round(pr.x), y: Math.round(pr.y), d: p.face }); if (local && p.atkDir === 'd') pogo(); continue; }
+      if (pr.kind === 'collector') { if (auth) this.hitCollector(pr, p.face); else if (local) this.sendEv({ k: 'cut', kind: 'collector', x: Math.round(pr.x), y: Math.round(pr.y), d: p.face }); if (local && p.atkDir === 'd') pogo(); continue; }
       if (auth) {
         pr.dead = true;
         if (pr.kind === 'letter' || pr.kind === 'rain') { this.paperAt(6, pr.x + 11, pr.y + 13); this.sfx('clink'); }
         else if (pr.kind === 'spore') this.burst(6, pr.x + 6, pr.y + 6, 0xc7f08a);
         else { this.burst(6, pr.x + pr.w / 2, pr.y + pr.h / 2, 0xffd47a); this.sfx('clink'); }
-      } else if (pr.kind !== 'spore') { pr.dead = true; this.sendEv({ k: 'cut', kind: pr.kind, x: Math.round(pr.x), y: Math.round(pr.y) }); }
+      } else if (pr.kind !== 'spore') { pr.dead = true; if (local) this.sendEv({ k: 'cut', kind: pr.kind, x: Math.round(pr.x), y: Math.round(pr.y) }); } // чужой взмах срезает хост сам
       if (local && p.atkDir === 'd') pogo();
     }
     if (local && p.atkDir === 'd' && !p.pogoed && this.rectHitsTile(box, SPIKE, 0.7)) { pogo(); this.parts.setParticleTint(0xffffff); this.parts.explode(5, box.x + 18, box.y + 30); }
@@ -1187,6 +1188,7 @@ class GameScene extends Phaser.Scene {
     const old = this.projs;
     this.projs = m.pr.map((a, i) => {
       const q = { kind: NET_KINDS[a[0]], x: a[1], y: a[2], vx: a[3], vy: a[4], delay: a[5] ? 1 : 0, ch: a[6], w: NET_SIZES[a[0]][0], h: NET_SIZES[a[0]][1], life: 1 };
+      if (q.kind === 'rootspike') { const o = old.find((u) => u.kind === 'rootspike' && !u.delay && Math.abs(u.x - q.x) < 2); q.life = o && !q.delay ? o.life : 0.55; } // life гостю не приходит: рост шипа считаем сами
       if (q.kind === 'ringfx') q.r = a[6];
       q.rot = old[i] && old[i].kind === q.kind ? old[i].rot || 0 : 0;
       return q;
@@ -1249,6 +1251,8 @@ class GameScene extends Phaser.Scene {
       case 'deathfx': this.deathFxLocal(); break;
       case 'execfx': { const q = this.players[m.i]; if (q && q.remote) { q.execT = 0.4; q.execDir = m.d; } this.execFxLocal(m.x, m.y, m.d); break; }
       case 'exec': if (this.auth()) { const q = this.players[m.i], kit = q && this.execKit(m.key); if (q && kit) this.execBoss(q, kit, m.d); } break;
+      case 'abil': this.itemEv(m); break;
+      case 'parrypoise': if (this.auth()) this.parryPoise(m.x, m.y); break;
       case 'kb': this.knockFrom(m.x); break;
       case 'silk': { const p = this.players[m.i]; if (p && !p.remote) p.silk = Math.min(P.SILK, p.silk + 1); break; }
       case 'bench':
@@ -1291,7 +1295,8 @@ class GameScene extends Phaser.Scene {
         if (pr.kind === 'pad') continue;
         if (pr.kind === 'clef' || pr.kind === 'bottle') pr.rot = (pr.rot || 0) + dt * 10;
         if (pr.kind === 'spore') pr.vy += 700 * dt;
-        if (pr.kind === 'rootspike' || pr.kind === 'staff' || pr.kind === 'staffghost') continue;
+        if (pr.kind === 'rootspike') { pr.life -= dt; continue; }
+        if (pr.kind === 'staff' || pr.kind === 'staffghost') continue;
         if (pr.kind === 'collector') { pr.vx = 0; pr.vy = 0; continue; }
         else if (['rock', 'bigletter', 'bomb', 'note', 'drip', 'bottle', 'box', 'stamp', 'trophy'].includes(pr.kind)) pr.vy = Math.min(pr.vy + 1100 * dt, 800);
         pr.x += pr.vx * dt; pr.y += pr.vy * dt;
@@ -1315,16 +1320,28 @@ class GameScene extends Phaser.Scene {
     if (this.pingAcc >= 2) { this.pingAcc = 0; Net.send({ t: 'ping', ts: performance.now() }); }
   }
   onPeerLost() {
-    if (!this.sys.isActive()) return;
+    if (!this.sys.isActive() || !this.online) return; // повторный вызов (старый обработчик) ничего не делает
+    Net.onClose = null;
     if (this.online === 'host') {
       const rem = this.players.find((p) => p.remote);
       if (rem) { rem.g.destroy(); rem.tag.destroy(); this.players = this.players.filter((p) => !p.remote); this.ui().removePlayer(rem.i); }
       this.online = null; this.nPlayers = 1;
       this.ui().toast('Связь с напарником потеряна. Игра продолжается в одиночку');
+      if (this.players.length && this.players.every((p) => p.downed)) this.teamWipe(); // поднять в коконе некому: нить обрывается
     } else {
       this.ui().toast('Хост отключился. Возвращаемся в меню…');
       this.time.delayedCall(2800, () => this.ui().restart());
     }
+  }
+
+  // гость вернулся по тому же коду, пока хост доигрывает в одиночку: перезапускаем сцену в паре (прогресс главы берём из снимка)
+  rejoinGuest() {
+    if (this.online || this.rejoining) return; this.rejoining = true;
+    const d = { ...this.startData, players: 2, online: 'host' };
+    if (this.camp) d.camp = Campaign.snap(this);
+    Net.send({ t: 'start', mode: d.mode, boss: d.boss, camp: d.camp || null });
+    this.ui().toast('Напарник вернулся!');
+    this.time.delayedCall(400, () => { this.rejoining = false; this.ui().ready = false; this.scene.stop('bg'); this.scene.start('game', d); });
   }
 
   // ----- камера -----
@@ -1625,7 +1642,7 @@ class UIScene extends Phaser.Scene {
   }
   winShown() { return !!this.win && this.win.visible; }
   winEnter() { this.restart(); }
-  restart() { this.ready = false; Net.onClose = null; Net.close(); this.scene.stop('bg'); this.scene.stop('game'); this.scene.start('menu'); }
+  restart() { this.ready = false; Net.close(); this.scene.stop('bg'); this.scene.stop('game'); this.scene.start('menu'); }
   openSettings() { this.pause.setVisible(false); Settings.show(() => { if (this.ready) this.pause.setVisible(true); }); }
   tdShow(on) {
     if (!this.ready) return;
