@@ -160,7 +160,7 @@ Object.assign(GameScene.prototype, {
   },
   makeVladik() {
     if (this.vladik && this.vladik.g) this.vladik.g.destroy();
-    const d = this.L.vladik, hp = this.nPlayers === 2 ? 62 : 44;
+    const d = this.L.vladik, hp = this.nPlayers === 2 ? 98 : 70;
     this.vladik = { x: d.x * T - 22, y: (d.y + 1) * T - 84, w: 44, h: 84, vx: 0, vy: 0, face: -1, hp, maxHp: hp, phase: 1, state: 'intro', t: 3.2,
       flash: 0, last: '', say: 'Я НЕ СКРИПКА!', sayT: 2.2, sayCd: 0, barShown: false, air: 0, target: null, g: this.add.graphics().setDepth(4) };
     if (this.curtains) for (const c of this.curtains) { c.slime = 0; c.wet = 0; }

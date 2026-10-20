@@ -4,6 +4,10 @@ let VW = 960; const VH = 540;
 const GAME_VERSION = '1.1';
 const GAME_BUILD = '__BUILD__';
 const CHANGELOG = [
+  'Бой: третий удар подряд — тяжёлый финишер (шире, бьёт дважды)',
+  'Рывок сквозь атаку — идеальный уворот: без урона, +2 нити',
+  'Босса можно оглушить серией ударов: замирает и получает двойной урон',
+  'Боссы стали жирнее: бой длиннее',
   'Отзывчивее управление: буфер удара и рывка, зависание в верхней точке прыжка, скольжение мимо углов потолка',
   'Удар быстрее (0.26 с)',
   'Боссы 2.0: у каждого 3 фазы, ярость и новые атаки',
@@ -526,7 +530,7 @@ class GameScene extends Phaser.Scene {
   makeBoss() {
     if (this.boss && this.boss.g) this.boss.g.destroy();
     if (!this.L.boss) { this.boss = { x: -9999, y: -9999, w: 1, h: 1, vx: 0, vy: 0, hp: 1, maxHp: 1, state: 'gone', t: 0, face: 1, flash: 0, g: this.add.graphics() }; return; }
-    const b = this.L.boss, hp = this.nPlayers === 2 ? 84 : 60;
+    const b = this.L.boss, hp = this.nPlayers === 2 ? 126 : 90;
     this.boss = { x: b.x * T - 36, y: (b.y + 1) * T - 58, w: 72, h: 58, vx: 0, vy: 0, hp, maxHp: hp, phase: 1, state: 'sleep', t: 0, face: -1, jumps: 0, flash: 0, last: '', air: 0, g: this.add.graphics().setDepth(4) };
     if (this.bossDead) { this.boss.state = 'gone'; }
   }
@@ -608,7 +612,7 @@ class GameScene extends Phaser.Scene {
 
   stepPlayer(p, dt) {
     const inp = p.inp;
-    p.inv -= dt; p.hurtT -= dt; p.dashCd -= dt; p.bombCd -= dt; p.atkCd -= dt; p.atkT -= dt; p.wjLock -= dt; p.healT -= dt; p.coyote -= dt; p.jumpBuf -= dt; p.landT -= dt; p.atkBuf = (p.atkBuf || 0) - dt; p.dashBuf = (p.dashBuf || 0) - dt;
+    p.inv -= dt; p.hurtT -= dt; p.dashCd -= dt; p.bombCd -= dt; p.atkCd -= dt; p.atkT -= dt; p.wjLock -= dt; p.healT -= dt; p.coyote -= dt; p.jumpBuf -= dt; p.landT -= dt; p.atkBuf = (p.atkBuf || 0) - dt; p.comboT = (p.comboT || 0) - dt; p.dashBuf = (p.dashBuf || 0) - dt;
     if (p.downed) { p.vx *= 0.9; p.vy = Math.min(p.vy + P.G * dt, P.MAXFALL); this.moveBody(p, dt); return; }
     if (inp.jumpP) p.jumpBuf = P.BUF;
     if (inp.atkP) p.atkBuf = P.ATKBUF;
@@ -657,8 +661,11 @@ class GameScene extends Phaser.Scene {
       if (p.atkBuf > 0 && p.atkCd <= 0) {
         p.atkBuf = 0;
         p.atkDir = inp.up ? 'u' : (inp.down && !p.onGround ? 'd' : 'f');
-        p.atkT = P.ATK_T; p.atkCd = P.ATK_CD; p.atkHits = new Set(); p.pogoed = false; p.seq = (p.seq || 0) + 1;
-        Snd.play('slash');
+        // комбо: третий удар подряд (в пределах 0.6 с) — тяжёлый финишер: шире, бьёт дважды, но дольше восстанавливается
+        p.combo = p.comboT > 0 ? p.combo + 1 : 1; if (p.combo > 3) p.combo = 1;
+        p.heavy = p.combo === 3 && p.atkDir === 'f'; p.comboT = 0.6;
+        p.atkT = p.heavy ? 0.16 : P.ATK_T; p.atkCd = p.heavy ? 0.42 : P.ATK_CD; p.atkHits = new Set(); p.pogoed = false; p.seq = (p.seq || 0) + 1;
+        Snd.play(p.heavy ? 'slam' : 'slash');
       }
       if (inp.bombP) this.throwBomb(p);
       if (inp.healP) {
@@ -692,7 +699,7 @@ class GameScene extends Phaser.Scene {
 
   atkBox(p) {
     const cx = p.x + p.w / 2, cy = p.y + p.h / 2;
-    if (p.atkDir === 'f') return { x: p.face > 0 ? cx + 2 : cx - 50, y: cy - 17, w: 48, h: 32 };
+    if (p.atkDir === 'f') { const w = p.heavy ? 68 : 48; return { x: p.face > 0 ? cx + 2 : cx - 2 - w, y: cy - 17, w, h: 32 }; }
     if (p.atkDir === 'u') return { x: cx - 19, y: p.y - 40, w: 38, h: 46 };
     return { x: cx - 18, y: p.y + p.h - 8, w: 36, h: 44 };
   }
@@ -705,20 +712,20 @@ class GameScene extends Phaser.Scene {
     for (const e of this.enemies) {
       if (e.dead || p.atkHits.has(e) || !overlap(box, e)) continue;
       p.atkHits.add(e);
-      if (auth) this.damageEnemy(e, p); else { e.flash = 0.1; this.hitstop = 0.045; Snd.play('hit'); }
+      if (auth) { this.damageEnemy(e, p); if (p.heavy && !e.dead) this.damageEnemy(e, p); } else { e.flash = 0.1; this.hitstop = 0.045; Snd.play('hit'); }
       if (local) { if (p.atkDir === 'd') pogo(); else if (p.atkDir === 'f') p.kbx = -p.face * 150; }
     }
     const b = this.boss;
     if (!p.atkHits.has(b) && b.state !== 'sleep' && b.state !== 'dead' && b.state !== 'gone' && overlap(box, b)) {
       p.atkHits.add(b);
-      if (auth) this.damageBoss(p); else { b.flash = 0.09; this.hitstop = 0.04; Snd.play('hit'); }
+      if (auth) { this.damageBoss(p); if (p.heavy && b.state !== 'dead' && b.state !== 'gone') this.damageBoss(p); } else { b.flash = 0.09; this.hitstop = 0.04; Snd.play('hit'); }
       if (local) { if (p.atkDir === 'd') pogo(); else if (p.atkDir === 'f') p.kbx = -p.face * 170; }
     }
     if (this.misha && this.mishaNeedle(p, box) && local) { if (p.atkDir === 'd') pogo(); else if (p.atkDir === 'f') p.kbx = -p.face * 190; }
     for (const [vb, fn] of [[this.vladik, 'damageVladik'], [this.tima, 'damageTima']]) {
       if (!vb || p.atkHits.has(vb) || ['dead', 'intro'].includes(vb.state) || !overlap(box, vb)) continue;
       p.atkHits.add(vb);
-      if (auth) this[fn](p); else { vb.flash = 0.09; this.hitstop = 0.04; Snd.play('hit'); }
+      if (auth) { this[fn](p); if (p.heavy && vb.state !== 'dead') this[fn](p); } else { vb.flash = 0.09; this.hitstop = 0.04; Snd.play('hit'); }
       if (local) { if (p.atkDir === 'd') pogo(); else if (p.atkDir === 'f') p.kbx = -p.face * 170; }
     }
     for (const pr of this.projs) if (SLASH_KINDS.has(pr.kind) && !pr.dead && overlap(box, pr)) {
@@ -752,6 +759,11 @@ class GameScene extends Phaser.Scene {
   }
   hurtPlayer(p, dmg, srcX, spike) {
     if (p.inv > 0 || p.downed) return;
+    if (p.dashT > 0 && !spike) { // идеальный уворот: рывок сквозь удар — без урона, +нить, замедление
+      p.inv = 0.35; p.pdodge = 0.4; if (!p.remote) { p.silk = Math.min(P.SILK, p.silk + 2); this.hitstop = 0.07; }
+      Snd.play('clink'); this.parts.setParticleTint(p.pal.accent); this.parts.explode(14, p.x + 7, p.y + 13);
+      return;
+    }
     p.hp -= dmg; p.inv = P.INV; if (!p.remote) Touch.buzz(45); p.hurtT = P.HURT; p.dashT = 0; p.sit = false; p.atkT = 0;
     p.vy = spike ? 0 : -320; p.kbx = srcX == null ? 0 : ((p.x + 7 < srcX) ? -1 : 1) * 260;
     this.hitstop = 0.09; this.cameras.main.shake(160, 0.008); Snd.play('hurt');
