@@ -163,7 +163,8 @@
   /* кнопка «На весь экран» в меню больше не нужна: она в «Настройки › Экран», а на Android экран разворачивается первым касанием */
   #ios-tip { position: fixed; z-index: 21; inset: 0; display: grid; place-items: center; background: rgba(3,8,7,0.86);
     padding-inline: max(16px, var(--sl)) max(16px, var(--sr)); }
-  #ios-tip .card { max-width: 420px; background: #0c1815; border: 1px solid #24433a; border-radius: 10px; padding: 18px 20px; display: grid; gap: 10px; }
+  @media (orientation: portrait) { html.touch #ios-tip { display: none !important; } } /* поверх «Поверните телефон» подсказка не нужна */
+  #ios-tip .card { max-width: 420px; max-height: calc(100% - 16px); overflow: auto; background: #0c1815; border: 1px solid #24433a; border-radius: 10px; padding: 18px 20px; display: grid; gap: 10px; }
   #ios-tip h4 { margin: 0; font: 700 24px var(--display); color: var(--bone); }
   #ios-tip p { margin: 0; color: #b9d4c8; font-size: 14px; line-height: 1.5; }
   #ios-tip button { justify-self: start; font: 600 14px var(--body); color: #08130f; background: var(--moss); border: 0; border-radius: 7px; padding: 8px 14px; }
