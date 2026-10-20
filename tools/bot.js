@@ -58,7 +58,7 @@ async function fightInPage({ boss, skill, players, seed, maxSec, trace }) {
   if (boss === 'korne') {
     // история: переносим героев к арене Корнематки и даём способности
     const tr = sc.L.boss.trigger;
-    sc.abil = { double: true, ...sc.abil };
+    sc.abil = { double: true, ledge: false, glide: false, ...sc.abil }; // бот не знает про хват и планер: его модель физики без них
     sc.players.forEach((p, i) => { p.x = (tr + 1) * 32 + i * 20; p.y = (sc.L.boss.y + 1) * 32 - 26; p.vx = p.vy = 0; p.safeX = p.x; p.safeY = p.y; });
     sc.respawn = { x: (tr - 1) * 32, y: (sc.L.boss.y + 1) * 32 };
   }
