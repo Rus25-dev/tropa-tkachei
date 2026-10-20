@@ -68,7 +68,7 @@ const Lobby = {
   },
   selectLink() { const r = document.createRange(); r.selectNodeContents(document.getElementById('lb-link')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); },
   show() {
-    document.getElementById('lb-title').textContent = this.mode === 'bosstest' ? 'Босс-тест по сети: ' + (this.bossName || '') : 'Вдвоём по сети';
+    document.getElementById('lb-title').textContent = this.mode === 'race' ? 'Гонка 1×1 по сети' : this.mode === 'bosstest' ? 'Босс-тест по сети: ' + (this.bossName || '') : 'Вдвоём по сети';
     this.el.hidden = false; this.status(''); document.getElementById('lb-hostbox').hidden = true;
     if (this.room) { document.getElementById('lb-code').value = this.room; const r = this.room; this.room = null; this.doJoin(r); }
   },
@@ -87,6 +87,7 @@ const Lobby = {
         this.status('Ждём напарника. Отправьте ему код или ссылку.', 'wait');
       } else if (ev === 'connected') {
         this.status('Напарник подключился!', 'ok');
+        if (this.mode === 'race') { Speedrun.raceOpen('host'); return; }
         const mode = this.mode || 'story', boss = this.boss || 'misha';
         const camp = mode === 'story' ? Campaign.resume() : null;
         setTimeout(() => { Net.send({ t: 'start', mode, boss, camp }); this.start('host', mode, boss, camp); }, 400);
@@ -102,6 +103,7 @@ const Lobby = {
     });
   },
   route(m) {
+    if (m && m.t === 'race') { Speedrun.onNet(m); return; }
     if (m && m.t === 'start' && Net.role === 'guest') { this.start('guest', m.mode, m.boss, m.camp); return; }
     const gs = window.__game && window.__game.scene.getScene('game');
     if (gs && gs.sys.isActive() && gs.onNet) gs.onNet(m);

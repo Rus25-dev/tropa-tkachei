@@ -86,6 +86,19 @@
   #settings button { font: 600 14px var(--body); border-radius: 7px; padding: 9px 14px; cursor: pointer; border: 1px solid #3a6b5a; background: #143029; color: var(--bone); }
   #settings button:disabled { opacity: 0.45; cursor: default; }
   #settings button.primary { background: var(--moss); border-color: var(--moss); color: #08130f; }
+  #keys { position: fixed; inset: 0; z-index: 7; display: grid; place-items: center; overflow-y: auto; background: rgba(3, 8, 7, 0.9); padding: 16px; }
+  #keys[hidden] { display: none; }
+  #keys .card { width: min(480px, 100%); background: #0c1815; border: 1px solid #24433a; border-radius: 10px; padding: 18px 22px 16px; display: grid; gap: 10px; margin-block: auto; }
+  #keys h2 { font: 700 30px var(--display); margin: 0; color: var(--bone); }
+  #keys .label { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  #keys .krow { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 14px; color: #cfe2d8; padding: 3px 0; }
+  #keys .kb { min-width: 128px; }
+  #keys .kb.listen { background: var(--moss); color: #08130f; }
+  #keys #kb-note { font-size: 12.5px; color: var(--ember); min-height: 2.6em; }
+  #keys .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+  #keys button { font: 600 14px var(--body); border-radius: 7px; padding: 8px 14px; cursor: pointer; border: 1px solid #3a6b5a; background: #143029; color: var(--bone); }
+  #keys button.primary { background: var(--moss); border-color: var(--moss); color: #08130f; }
+  #keys button:focus-visible { outline: 2px solid var(--glow); outline-offset: 2px; }
   #settings button:focus-visible, #settings input:focus-visible { outline: 2px solid var(--glow); outline-offset: 2px; }
   #st-prog { font-size: 13px; color: var(--muted); }
   /* плашка обновления */
@@ -122,6 +135,8 @@
   #touch .t-bomb { right: 166px; bottom: 112px; width: 58px; height: 58px; }
   #touch .t-pause { position: absolute; left: 50%; top: max(8px, var(--st)); transform: translateX(-50%); pointer-events: auto; width: 46px; height: 34px;
     border-radius: 8px; border: 1px solid rgba(232,226,207,0.35); background: rgba(10,24,21,0.55); color: var(--bone); font: 700 13px var(--body); letter-spacing: -2px; }
+  #touch .t-map { position: absolute; left: calc(50% - 74px); top: max(8px, var(--st)); pointer-events: auto; width: 40px; height: 34px;
+    border-radius: 8px; border: 1px solid rgba(232,226,207,0.35); background: rgba(10,24,21,0.55); color: var(--bone); font: 700 16px var(--body); }
   #touch .t-fs { position: absolute; left: calc(50% + 34px); top: max(8px, var(--st)); pointer-events: auto; width: 40px; height: 34px;
     border-radius: 8px; border: 1px solid rgba(232,226,207,0.35); background: rgba(10,24,21,0.55); color: var(--bone); font: 700 16px var(--body); }
   #fs-btn { position: fixed; z-index: 4; right: max(12px, var(--sr)); top: max(10px, var(--st)); display: none;
@@ -177,11 +192,29 @@
       <label class="opt st-touch" for="st-lefty"><input id="st-lefty" type="checkbox"><span>Для левши<small>кнопки слева, стик справа</small></span></label>
       <label class="opt st-touch" for="st-bop">Видимость кнопок <input id="st-bop" type="range" min="30" max="100" step="10"><span class="val" id="st-bop-v"></span></label>
     </div>
+    <span class="label">Доступность</span>
+    <div class="grid">
+      <label class="opt" for="st-noflash"><input id="st-noflash" type="checkbox"><span>Без вспышек<small>вместо белых вспышек — мягкое затемнение</small></span></label>
+      <label class="opt" for="st-outl"><input id="st-outl" type="checkbox"><span>Контуры опасного<small>яркая обводка снарядов и шипов</small></span></label>
+    </div>
+    <div class="row"><span><span class="label">Скорость игры</span><br>
+      <span class="seg"><label><input type="radio" name="st-speed" value="100">100 %</label><label><input type="radio" name="st-speed" value="80">80 %</label><label><input type="radio" name="st-speed" value="60">60 %</label></span>
+      <small style="color:var(--muted);font-size:12px"> по сети всегда 100 %</small></span>
+      <button id="st-keys" type="button">Управление…</button></div>
     <div class="st-touch"><span class="label">Размер кнопок</span><br>
       <span class="seg"><label><input type="radio" name="st-bsize" value="S">Меньше</label><label><input type="radio" name="st-bsize" value="M">Обычные</label><label><input type="radio" name="st-bsize" value="L">Крупнее</label></span></div>
     <span class="label">Прогресс главы</span>
     <div class="row"><span id="st-prog"></span><button id="st-reset" type="button">Сбросить прогресс</button></div>
     <div class="row"><span class="label">Лёгкий режим включится со следующего боя</span><button id="st-done" class="primary" type="button">Готово</button></div>
+  </div>
+</div>
+<div id="keys" hidden>
+  <div class="card" role="dialog" aria-labelledby="kb-title">
+    <h2 id="kb-title">Управление</h2>
+    <span class="label">Игрок 1 (игрок 2 и стрелки не меняются)</span>
+    <div class="kr"></div>
+    <div id="kb-note" role="status"></div>
+    <div class="row"><button id="kb-def" type="button">По умолчанию</button><button id="kb-done" class="primary" type="button">Готово</button></div>
   </div>
 </div>
 <div id="update" hidden role="status"><span id="upd-text">Вышла новая версия</span><button id="upd-btn" class="primary" type="button">Обновить</button><button id="upd-later" type="button">Позже</button></div>
@@ -738,7 +771,7 @@ const Music = {
 
 // ===== НАСТРОЙКИ И СОХРАНЕНИЕ (localStorage; без него всё работает на значениях по умолчанию) =====
 const Settings = {
-  def: { vol: 80, mvol: 60, shake: true, easy: false, vibro: true, bsize: 'M', bop: 100, lefty: false, boss: 0 },
+  def: { vol: 80, mvol: 60, shake: true, easy: false, vibro: true, bsize: 'M', bop: 100, lefty: false, boss: 0, speed: 100, noflash: false, outl: false },
   s: null, open: false, onClose: null,
   load() {
     this.s = { ...this.def };
@@ -766,7 +799,8 @@ const Settings = {
       $('st-vol').value = this.s.vol; $('st-vol-v').textContent = this.s.vol + '%';
       $('st-mvol').value = this.s.mvol; $('st-mvol-v').textContent = this.s.mvol + '%';
       $('st-shake').checked = this.s.shake; $('st-easy').checked = this.s.easy;
-      $('st-vibro').checked = this.s.vibro; $('st-lefty').checked = this.s.lefty;
+      $('st-vibro').checked = this.s.vibro; $('st-lefty').checked = this.s.lefty; $('st-noflash').checked = this.s.noflash; $('st-outl').checked = this.s.outl;
+      el.querySelectorAll('[name=st-speed]').forEach((r) => { r.checked = +r.value === this.s.speed; });
       $('st-bop').value = this.s.bop; $('st-bop-v').textContent = this.s.bop + '%';
       el.querySelectorAll('[name=st-bsize]').forEach((r) => { r.checked = r.value === this.s.bsize; });
       const p = this.progress();
@@ -778,8 +812,10 @@ const Settings = {
     $('st-vol').addEventListener('change', () => { Snd.init(); Snd.play('bead'); });
     $('st-mvol').addEventListener('input', (e) => { this.s.mvol = +e.target.value; $('st-mvol-v').textContent = this.s.mvol + '%'; Snd.init(); this.save(); });
     $('st-bop').addEventListener('input', (e) => { this.s.bop = +e.target.value; $('st-bop-v').textContent = this.s.bop + '%'; this.save(); });
-    for (const k of ['shake', 'easy', 'vibro', 'lefty']) $('st-' + k).addEventListener('change', (e) => { this.s[k] = e.target.checked; this.save(); });
+    for (const k of ['shake', 'easy', 'vibro', 'lefty', 'noflash', 'outl']) $('st-' + k).addEventListener('change', (e) => { this.s[k] = e.target.checked; this.save(); });
     el.querySelectorAll('[name=st-bsize]').forEach((r) => r.addEventListener('change', () => { this.s.bsize = r.value; this.save(); }));
+    el.querySelectorAll('[name=st-speed]').forEach((r) => r.addEventListener('change', () => { this.s.speed = +r.value; this.save(); }));
+    if (typeof Access !== 'undefined') Access.init();
     $('st-reset').addEventListener('click', (e) => {
       const b = e.currentTarget;
       if (b.dataset.armed !== '1') { b.dataset.armed = '1'; b.textContent = 'Точно сбросить? Нажмите ещё раз'; setTimeout(() => { b.dataset.armed = ''; bind(); }, 3500); return; }
@@ -994,7 +1030,7 @@ const Lobby = {
   },
   selectLink() { const r = document.createRange(); r.selectNodeContents(document.getElementById('lb-link')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); },
   show() {
-    document.getElementById('lb-title').textContent = this.mode === 'bosstest' ? 'Босс-тест по сети: ' + (this.bossName || '') : 'Вдвоём по сети';
+    document.getElementById('lb-title').textContent = this.mode === 'race' ? 'Гонка 1×1 по сети' : this.mode === 'bosstest' ? 'Босс-тест по сети: ' + (this.bossName || '') : 'Вдвоём по сети';
     this.el.hidden = false; this.status(''); document.getElementById('lb-hostbox').hidden = true;
     if (this.room) { document.getElementById('lb-code').value = this.room; const r = this.room; this.room = null; this.doJoin(r); }
   },
@@ -1013,6 +1049,7 @@ const Lobby = {
         this.status('Ждём напарника. Отправьте ему код или ссылку.', 'wait');
       } else if (ev === 'connected') {
         this.status('Напарник подключился!', 'ok');
+        if (this.mode === 'race') { Speedrun.raceOpen('host'); return; }
         const mode = this.mode || 'story', boss = this.boss || 'misha';
         const camp = mode === 'story' ? Campaign.resume() : null;
         setTimeout(() => { Net.send({ t: 'start', mode, boss, camp }); this.start('host', mode, boss, camp); }, 400);
@@ -1028,6 +1065,7 @@ const Lobby = {
     });
   },
   route(m) {
+    if (m && m.t === 'race') { Speedrun.onNet(m); return; }
     if (m && m.t === 'start' && Net.role === 'guest') { this.start('guest', m.mode, m.boss, m.camp); return; }
     const gs = window.__game && window.__game.scene.getScene('game');
     if (gs && gs.sys.isActive() && gs.onNet) gs.onNet(m);
@@ -1042,9 +1080,11 @@ const Lobby = {
 // ===== ИГРА: «Тропа Ткачей» — кооперативная метроидвания =====
 let VW = 960; const VH = 540;
 // версия игры; номер сборки подставляет build.py
-const GAME_VERSION = '1.3';
-const GAME_BUILD = '261020.1306';
+const GAME_VERSION = '1.4';
+const GAME_BUILD = '261020.1358';
 const CHANGELOG = [
+  'Спидран (клавиша 6): «Тропа целиком» и «Босс-раш», таймер RTA/IGT, сплиты с дельтой к рекорду, код результата и таблица друзей',
+  'Гонка 1×1 по сети: оба проходят один забег в своей игре, видят прогресс и призрака соперника',
   'Рекорды боссов (попытки, лучшее время), возрождение у арены Корнематки, подсказки про отбив и всполох',
   'Кампания: после Корнематки — Глава II (Миша), III (Владик), IV (Тима) с коридорами перед аренами',
   'Прогресс по главам сохраняется на скамьях; «Продолжить» возвращает в нужную главу',
@@ -1130,18 +1170,19 @@ class MenuScene extends Phaser.Scene {
       const t = this.add.text(VW / 2, y, label, { fontFamily: '"Cormorant SC", Georgia, serif', fontSize: '29px', color: '#cfe8dc', fontStyle: '600' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
       const s = this.add.text(VW / 2, y + 21, sub, { fontFamily: '"Fira Sans", sans-serif', fontSize: '13px', color: '#6f9586' }).setOrigin(0.5);
       t.on('pointerover', () => t.setColor('#ffd47a')); t.on('pointerout', () => t.setColor('#cfe8dc'));
-      t.on('pointerdown', () => (n === 3 ? this.openLobby() : n === 4 ? this.openPick() : n === 5 ? this.openSettings() : this.go(n)));
+      t.on('pointerdown', () => (n === 3 ? this.openLobby() : n === 4 ? this.openPick() : n === 5 ? this.openSettings() : n === 6 ? this.openSpeedrun() : this.go(n)));
       return [t, s];
     };
     const prog = Settings.progress(), cont = prog ? ` · продолжение: ${prog.name || 'скамья'}` : '';
-    mkBtn(238, '1 · Один ткач', 'клавиша 1 · геймпад A' + cont, 1);
-    mkBtn(284, '2 · Двое за одним компьютером', 'клавиша 2 · геймпад Y' + cont, 2);
-    mkBtn(330, '3 · Вдвоём по сети', 'клавиша 3 · комната с кодом, работает и с серым IP', 3);
-    mkBtn(376, '4 · Босс-тест', 'клавиша 4 · геймпад X · три босса на выбор, сразу в бой', 4);
-    mkBtn(422, '5 · Настройки', 'клавиша 5 · громкость, тряска, лёгкий режим, кнопки', 5);
+    mkBtn(230, '1 · Один ткач', 'клавиша 1 · геймпад A' + cont, 1);
+    mkBtn(270, '2 · Двое за одним компьютером', 'клавиша 2 · геймпад Y' + cont, 2);
+    mkBtn(310, '3 · Вдвоём по сети', 'клавиша 3 · комната с кодом, работает и с серым IP', 3);
+    mkBtn(350, '4 · Босс-тест', 'клавиша 4 · геймпад X · три босса на выбор, сразу в бой', 4);
+    mkBtn(390, '5 · Настройки', 'клавиша 5 · громкость, тряска, лёгкий режим, кнопки', 5);
+    mkBtn(430, '6 · Спидран', 'клавиша 6 · забег на время, сплиты, таблица друзей, гонка 1×1', 6);
 
     const ctl = [
-      'Игрок 1:  A D W S — ходить   Пробел — прыжок   F — удар   G — рывок   Q — лечение   R — дымовуха',
+      Access.line(false),
       'Игрок 2:  стрелки   Num1 или / — прыжок   Num2 или . — удар   Num3 или , — рывок   Num0 или M — лечение   Num4 или N — дымовуха',
       'В одиночку можно и так: стрелки + Z X C V B.   Геймпад: A прыжок, X удар, B/RB рывок, Y лечение, LB дымовуха.   Esc — пауза',
     ];
@@ -1149,13 +1190,13 @@ class MenuScene extends Phaser.Scene {
       'Кнопки справа: прыжок, удар, рывок, лечение, а на арене Миши ещё и бомба.   Лучше держать телефон горизонтально.', 'Можно подключить геймпад по Bluetooth — он подхватится сам.');
     document.documentElement.classList.add('in-menu');
     this.events.once('shutdown', () => document.documentElement.classList.remove('in-menu'));
-    this.add.text(VW / 2, 488, ctl.join('\n'), { fontFamily: '"Fira Sans", sans-serif', fontSize: '12px', color: '#86a89a', align: 'center', lineSpacing: 7 }).setOrigin(0.5);
+    this.add.text(VW / 2, 496, ctl.join('\n'), { fontFamily: '"Fira Sans", sans-serif', fontSize: '12px', color: '#86a89a', align: 'center', lineSpacing: 7 }).setOrigin(0.5);
 
     const k = this.input.keyboard;
     // версия, сборка и что нового
     const vF = '"Fira Sans", sans-serif';
     this.add.text(14, 10, `Версия ${GAME_VERSION} · сборка ${GAME_BUILD}`, { fontFamily: vF, fontSize: '12px', fontStyle: '600', color: '#9fc4b4' });
-    this.add.text(14, 28, 'Что нового:\n' + CHANGELOG.map((l) => '· ' + l).join('\n'), { fontFamily: vF, fontSize: '10.5px', color: '#7fa596', lineSpacing: 3, wordWrap: { width: Math.max(170, Math.min(230, VW / 2 - 300)) } });
+    this.add.text(14, 28, 'Что нового:\n' + CHANGELOG.slice(0, 9).map((l) => '· ' + l).join('\n'), { fontFamily: vF, fontSize: '10.5px', color: '#7fa596', lineSpacing: 3, wordWrap: { width: Math.max(170, Math.min(230, VW / 2 - 300)) } });
     // выбор для босс-теста
     this.pick = this.add.container(0, 0).setVisible(false).setDepth(10);
     const pg = this.add.graphics(); pg.fillStyle(0x030807, 0.9); pg.fillRect(0, 0, VW, VH);
@@ -1185,6 +1226,7 @@ class MenuScene extends Phaser.Scene {
     k.on('keydown', (e) => {
       Snd.init();
       if (Settings.open || !Lobby.el.hidden) return;
+      if (this.srP && this.srP.visible) return;
       if (this.pick.visible) {
         if (e.key === '1') this.go(1, 'bosstest'); if (e.key === '2') this.go(2, 'bosstest'); if (e.key === '3') this.openLobby('bosstest');
         if (e.key === 'Escape') this.closePick();
@@ -1192,7 +1234,7 @@ class MenuScene extends Phaser.Scene {
         if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D' || e.key === 'в' || e.key === 'В') this.setPick(this.pickIdx + 1);
         return;
       }
-      if (e.key === '1') this.go(1); if (e.key === '2') this.go(2); if (e.key === '3') this.openLobby(); if (e.key === '4') this.openPick(); if (e.key === '5') this.openSettings();
+      if (e.key === '1') this.go(1); if (e.key === '2') this.go(2); if (e.key === '3') this.openLobby(); if (e.key === '4') this.openPick(); if (e.key === '5') this.openSettings(); if (e.key === '6') this.openSpeedrun();
     });
     if (Lobby.room) this.time.delayedCall(300, () => this.openLobby());
     Music.setDuck(1); Music.play('menu');
@@ -1228,7 +1270,7 @@ class MenuScene extends Phaser.Scene {
     this.mid.tilePositionX += delta * 0.01; this.fog.tilePositionX += delta * 0.02; this.rays.setAlpha(0.75 + Math.sin(this.t * 0.6) * 0.25);
     const pads = this.input.gamepad ? this.input.gamepad.gamepads.filter(Boolean) : [];
     this.pickT = (this.pickT || 0) - delta / 1000;
-    if (Settings.open) return;
+    if (Settings.open || (this.srP && this.srP.visible)) return;
     for (const pad of pads) {
       const b = (n) => !!(pad.buttons[n] && pad.buttons[n].pressed);
       if (this.pick.visible) {
@@ -1340,7 +1382,7 @@ class GameScene extends Phaser.Scene {
       g.fillStyle(0x2a3b33, 0.92); g.fillRoundedRect(sx - 14, sy - 50, 28, 20, 4);
       g.lineStyle(1, 0x67ad62, 0.8); g.strokeRoundedRect(sx - 14, sy - 50, 28, 20, 4);
       g.fillStyle(0x9ff0c8, 0.9); g.fillCircle(sx, sy - 40, 3);
-      const txt = this.add.text(sx, sy - 62, Touch.enabled && s.touch ? s.touch : s.text, { fontFamily: '"Fira Sans", sans-serif', fontSize: '13px', color: '#d9ecdf', align: 'center', lineSpacing: 3, backgroundColor: 'rgba(8,18,15,0.72)', padding: { x: 8, y: 5 } }).setOrigin(0.5, 1).setDepth(8).setAlpha(0);
+      const txt = this.add.text(sx, sy - 62, Touch.enabled && s.touch ? s.touch : Access.sign(s.text), { fontFamily: '"Fira Sans", sans-serif', fontSize: '13px', color: '#d9ecdf', align: 'center', lineSpacing: 3, backgroundColor: 'rgba(8,18,15,0.72)', padding: { x: 8, y: 5 } }).setOrigin(0.5, 1).setDepth(8).setAlpha(0);
       s.txt = txt; s.px = sx; s.py = sy;
     }
     // скамьи
@@ -2597,7 +2639,7 @@ class UIScene extends Phaser.Scene {
     this.pause = this.add.container(0, 0).setVisible(false);
     const pb = this.add.graphics(); pb.fillStyle(0x030807, 0.82); pb.fillRect(0, 0, VW, VH);
     const pt = this.add.text(VW / 2, 150, 'Пауза', { fontFamily: D, fontSize: '52px', color: '#e8e2cf', fontStyle: '700' }).setOrigin(0.5);
-    const pc = this.add.text(VW / 2, 300, [
+    const pc = this.pauseL1 = this.add.text(VW / 2, 300, [
       'Игрок 1:  A D W S · Пробел — прыжок · F — удар · G — рывок · Q — лечение · R — дымовуха',
       'Игрок 2:  стрелки · Num1 или / — прыжок · Num2 или . — удар · Num3 или , — рывок · Num0 или M — лечение · Num4 или N — дымовуха',
       '', 'Удар вверх: держи ↑ + удар.  Удар вниз в прыжке: ↓ + удар — отскок от колючек и врагов.',
@@ -5304,7 +5346,7 @@ const Records = {
   const step = proto.step;
   proto.step = function (dt) {
     step.call(this, dt);
-    if (this.online === 'guest') return;
+    if (this.online === 'guest' || this.train) return; // в тренировке (training.js) попытки и рекорды не считаем
     if (bossLive(this)) {
       if (!this.fightOn) {
         this.fightOn = true; this.fightT = 0;
@@ -5322,7 +5364,7 @@ const Records = {
   proto.respawnAll = function () { this.fightOn = false; respawnAll.call(this); };
   // запись победы
   const onWin = function (sc) {
-    if (!sc.fightOn || sc.fightWon) return; sc.fightWon = true;
+    if (!sc.fightOn || sc.fightWon || sc.train) return; sc.fightWon = true;
     const id = bossId(sc), r = Records.get(id), t = sc.fightT || 0;
     r.wins++; const rec = !r.best || t < r.best; if (rec) r.best = t; Records.put(id, r);
     sc.ui().toast(`Босс повержен за ${Records.fmt(t)}` + (rec ? ' — новый рекорд!' : ` (лучшее ${Records.fmt(r.best)})`), 4);
@@ -5348,6 +5390,1346 @@ const Records = {
     this.pickAbout.setText(BOSSES[this.pickIdx].about + '\n' + Records.line(BOSSES[this.pickIdx].id));
   };
 })();
+
+// ===== ДОСТУПНОСТЬ: переназначение клавиш, скорость игры, «без вспышек», «контуры опасного» =====
+const Access = {
+  ACTS: [['left', 'Идти влево'], ['right', 'Идти вправо'], ['up', 'Вверх (удар вверх, скамья)'], ['down', 'Вниз (удар вниз, лавка)'],
+    ['jump', 'Прыжок'], ['atk', 'Удар'], ['dash', 'Рывок'], ['heal', 'Нить: лечение и отбив'], ['bomb', 'Дымовуха']],
+  DEF: { left: [65, 'A'], right: [68, 'D'], up: [87, 'W'], down: [83, 'S'], jump: [32, 'Пробел'], atk: [70, 'F'], dash: [71, 'G'], heal: [81, 'Q'], bomb: [82, 'R'] },
+  // клавиши игрока 2, стрелок и запасной раскладки заняты и не отдаются
+  RESERVED: new Set([27, 37, 38, 39, 40, 96, 97, 98, 99, 100, 188, 190, 191, 77, 78, 90, 88, 67, 86, 66]),
+  keys: null, listening: null, scene: null,
+  load() {
+    this.keys = {};
+    for (const a in this.DEF) this.keys[a] = [...this.DEF[a]];
+    try {
+      const raw = JSON.parse(localStorage.getItem('tt_keys') || 'null');
+      if (raw) for (const a in this.DEF) if (raw[a] && typeof raw[a][0] === 'number' && typeof raw[a][1] === 'string') this.keys[a] = [raw[a][0], raw[a][1].slice(0, 12)];
+    } catch (_) { }
+    // защита от битого сохранения: дубликаты или занятые клавиши — сброс по умолчанию
+    const seen = new Set();
+    for (const a in this.keys) { const c = this.keys[a][0]; if (seen.has(c) || this.RESERVED.has(c)) { this.reset(); return; } seen.add(c); }
+  },
+  save() { try { localStorage.setItem('tt_keys', JSON.stringify(this.keys)); } catch (_) { } },
+  reset() { this.keys = {}; for (const a in this.DEF) this.keys[a] = [...this.DEF[a]]; this.save(); },
+  name(a) { return this.keys[a][1]; },
+  codeOf(a) { return this.keys[a][0]; },
+  label(e) {
+    const c = e.code || '';
+    const m = { Space: 'Пробел', ArrowLeft: '←', ArrowRight: '→', ArrowUp: '↑', ArrowDown: '↓', Enter: 'Enter', Tab: 'Tab', Backspace: 'Backspace', ShiftLeft: 'Shift', ShiftRight: 'Shift', ControlLeft: 'Ctrl', ControlRight: 'Ctrl', AltLeft: 'Alt', AltRight: 'Alt', Minus: '-', Equal: '=', BracketLeft: '[', BracketRight: ']', Semicolon: ';', Quote: "'", Backquote: '`', Backslash: '\\', CapsLock: 'Caps' };
+    if (m[c]) return m[c];
+    if (/^Key[A-Z]$/.test(c)) return c.slice(3);
+    if (/^Digit\d$/.test(c)) return c.slice(5);
+    if (/^Numpad/.test(c)) return 'Num ' + c.slice(6);
+    return (e.key && e.key.length <= 8 ? e.key.toUpperCase() : c || String(e.keyCode)).slice(0, 12);
+  },
+  // назначение клавиши действию; если она уже стоит на другом действии, они меняются местами
+  assign(act, code, name) {
+    if (this.RESERVED.has(code)) return false;
+    const old = this.keys[act].slice();
+    for (const a in this.keys) if (a !== act && this.keys[a][0] === code) this.keys[a] = old;
+    this.keys[act] = [code, name]; this.save(); return true;
+  },
+  // строка подсказки про раскладку игрока 1 (для меню и паузы)
+  line(sep) {
+    const n = (a) => this.name(a), mv = [n('left'), n('right'), n('up'), n('down')].join(' ');
+    const sp = sep ? ' · ' : '   ';
+    return `Игрок 1:  ${mv} — ходить${sp}${n('jump')} — прыжок${sp}${n('atk')} — удар${sp}${n('dash')} — рывок${sp}${n('heal')} — лечение${sp}${n('bomb')} — дымовуха`;
+  },
+  // подсказки на табличках уровня: подставляем актуальные клавиши
+  sign(t) {
+    const n = (a) => this.name(a);
+    return t.replace('A / D —', `${n('left')} / ${n('right')} —`).replace('Пробел — прыжок', `${n('jump')} — прыжок`)
+      .replace('F — удар', `${n('atk')} — удар`).replace('Q — связать', `${n('heal')} — связать`).replace('G — рывок', `${n('dash')} — рывок`)
+      .replace('Q без полной', `${n('heal')} без полной`).replace('Стик/↑ + Q', `Стик/${n('up')} + ${n('heal')}`).replace('S + F', `${n('down')} + ${n('atk')}`);
+  },
+  refreshPause(u) {
+    if (!u || !u.ready || !u.pauseL1 || Touch.enabled) return;
+    const ls = u.pauseL1.text.split('\n'); ls[0] = this.line(true); u.pauseL1.setText(ls.join('\n'));
+  },
+  speed() { return (this.scene && this.scene.online) ? 1 : (Settings.s.speed || 100) / 100; },
+  // мягкое затемнение вместо белой вспышки
+  dim(sc, d) {
+    const u = sc.ui && sc.ui(); if (!u || !u.ready || !u.add) return;
+    const r = u.add.rectangle(VW / 2, VH / 2, VW, VH, 0x050c0a, 0.34).setDepth(50);
+    u.tweens.add({ targets: r, alpha: 0, duration: Math.max(260, d * 1.3), onComplete: () => r.destroy() });
+  },
+
+  // ----- экран «Управление» -----
+  init() {
+    this.load();
+    const el = this.el = document.getElementById('keys');
+    const render = () => {
+      const box = el.querySelector('.kr'); box.innerHTML = '';
+      for (const [a, t] of this.ACTS) {
+        const row = document.createElement('div'); row.className = 'krow';
+        const l = document.createElement('span'); l.textContent = t;
+        const b = document.createElement('button'); b.type = 'button'; b.dataset.act = a; b.className = 'kb';
+        b.textContent = this.listening === a ? 'Нажмите клавишу…' : this.name(a);
+        if (this.listening === a) b.classList.add('listen');
+        b.addEventListener('click', () => { this.listening = this.listening === a ? null : a; this.note(''); render(); });
+        row.append(l, b); box.append(row);
+      }
+    };
+    this.render = render;
+    el.querySelector('#kb-def').addEventListener('click', () => { this.reset(); this.listening = null; render(); this.note('Клавиши возвращены по умолчанию', true); });
+    el.querySelector('#kb-done').addEventListener('click', () => this.hide());
+    document.getElementById('st-keys').addEventListener('click', () => this.show());
+    window.addEventListener('keydown', (e) => {
+      if (el.hidden) return;
+      e.stopPropagation(); // пока открыт экран, игра клавиш не видит
+      if (this.listening) {
+        e.preventDefault();
+        if (e.key === 'Escape') { this.listening = null; render(); this.note(''); return; }
+        if (e.repeat) return;
+        const a = this.listening, nm = this.label(e), ok = this.assign(a, e.keyCode, nm);
+        this.listening = null; render();
+        this.note(ok ? `«${nm}» назначена` : 'Эта клавиша занята игроком 2 или запасной раскладкой', true);
+        return;
+      }
+      if (e.key === 'Escape') { e.preventDefault(); this.hide(); }
+    }, true);
+  },
+  note(t, keep) { const n = this.el.querySelector('#kb-note'); n.textContent = t || 'Нажмите на действие, затем на нужную клавишу. Если она уже занята, действия поменяются местами.'; n.dataset.keep = keep ? '1' : ''; },
+  show() { this.listening = null; this.render(); this.note(''); this.el.hidden = false; setTimeout(() => this.el.querySelector('#kb-done').focus(), 0); },
+  hide() { this.listening = null; this.el.hidden = true; if (this.scene && this.scene.ui) this.refreshPause(this.scene.ui()); const b = document.getElementById('st-keys'); if (b) b.focus(); },
+};
+
+(function () {
+  const G = GameScene.prototype;
+  // раскладка игрока 1 из настроек
+  const setupO = G.setupInput;
+  G.setupInput = function () {
+    setupO.call(this);
+    const k = this.input.keyboard, o = {};
+    for (const [a] of Access.ACTS) o[a] = [k.addKey(Access.codeOf(a))];
+    this.kb1 = o;
+  };
+  const createO = G.create;
+  G.create = function (...a) {
+    this.accG = null; Access.scene = this;
+    createO.apply(this, a);
+    const cam = this.cameras.main, flashO = cam.flash.bind(cam);
+    cam.flash = (d, ...c) => { if (!Settings.s.noflash) return flashO(d, ...c); Access.dim(this, d || 250); return cam; };
+    this.events.once('shutdown', () => { if (Access.scene === this) Access.scene = null; });
+  };
+  // замедление игры (по сети всегда 100 %)
+  const updO = G.update;
+  G.update = function (time, delta) { Access.scene = this; return updO.call(this, time, delta * Access.speed()); };
+  // яркие контуры снарядов и шипов
+  const NOT_HARM = new Set(['bomb', 'ringfx', 'staffghost', 'mark']);
+  const renderO = G.render;
+  G.render = function (dt) {
+    renderO.call(this, dt);
+    if (!Settings.s.outl || this.td) { if (this.accG) this.accG.clear(); return; }
+    if (!this.accG || !this.accG.scene) this.accG = this.add.graphics().setDepth(8.5);
+    const g = this.accG; g.clear();
+    const line = (x, y, w, h) => {
+      g.lineStyle(5, 0x000000, 0.65); g.strokeRect(x, y, w, h);
+      g.lineStyle(2.5, 0xffe600, 1); g.strokeRect(x, y, w, h);
+    };
+    const wv = this.cameras.main.worldView;
+    if (this._spkFor !== this.grid) {
+      this._spkFor = this.grid; this._spk = [];
+      for (let y = 0; y < this.L.H; y++) for (let x = 0; x < this.L.W; x++) if (this.grid[y][x] === SPIKE) this._spk.push([x * T, y * T]);
+    }
+    for (const [x, y] of this._spk) if (x > wv.x - T && x < wv.right && y > wv.y - T && y < wv.bottom) line(x + 1, y + T * 0.38, T - 2, T * 0.62);
+    for (const pr of this.projs) {
+      if (pr.dead || pr.delay > 0 || NOT_HARM.has(pr.kind) || !(pr.w > 0)) continue;
+      line(pr.x - 1, pr.y - 1, pr.w + 2, pr.h + 2);
+    }
+  };
+  // подсказки в паузе обновляем при каждом показе
+  const sp = UIScene.prototype.showPause;
+  UIScene.prototype.showPause = function (on) {
+    if (on) Access.refreshPause(this);
+    return sp.call(this, on);
+  };
+})();
+
+// ===== ТРЕНИРОВКА (экран «Босс-тест»): бесконечное здоровье, старт с нужной фазы, урон/DPS, сброс босса =====
+// Только локально: по сети режим недоступен (в меню он гасит пункт «Вдвоём по сети»). Рекорды в тренировке не пишутся (см. qol.js, this.train).
+const Training = {
+  on: false, phase: 1,
+  load() { try { const o = JSON.parse(localStorage.getItem('tt_train') || '{}') || {}; this.on = !!o.on; this.phase = [1, 2, 3].includes(o.phase) ? o.phase : 1; } catch (_) { } },
+  save() { try { localStorage.setItem('tt_train', JSON.stringify({ on: this.on, phase: this.phase })); } catch (_) { } },
+  // как называется атака по состоянию босса (только «телеграфы» — замахи и сама атака)
+  TELE: {
+    misha: { word: 'Слово из букв', bigWind: 'Большая буква', chargeWind: 'Разбег', dictWind: 'Диктант', rollWind: 'Печатный валик' },
+    vladik: { clefWind: 'Скрипичный ключ', leapWind: 'Прыжок', lungeWind: 'Выпад смычком', staffWind: 'Нотный стан', echoWind: 'Эхо-дуэт', smearGo: 'Слизь на шторы' },
+    tima: { beerWind: 'Пиво', pad: 'Геймпад', ringWind: 'Красное кольцо', boxWind: 'Приставка', bankWind: 'Банкротство', collWind: 'Коллекторы', lagWind: 'Лаги', achWind: 'Ачивки', drink: 'Пьёт пиво', dustDraw: 'Волшебная пыль' },
+  },
+  // hp босса под порог фазы (см. phaseOf: фаза 2 — до 60 %, фаза 3 — до 30 %; у Миши вторая половина боя — с 50 %)
+  hpFor(b, kind, ph) {
+    if (ph <= 1) return b.maxHp;
+    if (ph === 2) return Math.max(1, Math.floor(b.maxHp * (kind === 'misha' ? 0.5 : 0.58)));
+    return Math.max(1, Math.floor(b.maxHp * 0.28));
+  },
+  // выставить фазу без рёва и отталкивания: hp и b.phase напрямую, без phaseShift
+  applyPhase(sc) {
+    const b = sc.testBoss(), tr = sc.train; if (!b || !tr) return;
+    b.hp = this.hpFor(b, sc.bossKind, this.phase); b.phase = sc.phaseOf(b);
+    if (b.tdMarks) b.tdUsed = b.tdMarks.filter((m) => b.hp <= m); // «вид сверху» у Миши считаем уже пройденным
+    tr.boss = b; tr.lastHp = b.hp; tr.prev = b.state;
+  },
+  reset(sc) {
+    const tr = sc.train; if (!tr || sc.online || sc.won) return;
+    for (const pr of sc.projs) pr.dead = true;
+    if (sc.td) { sc.td = null; sc.tdFlip = false; sc.cameras.main.setRotation(0); sc.ui().tdShow(false); }
+    if (sc.misha) sc.makeMisha();
+    if (sc.vladik) sc.makeVladik();
+    if (sc.tima) { sc.repoT = 0; if (sc.setRepo) sc.setRepo(false); sc.makeTima(); }
+    sc.ui().bossBar(false); sc.respawnLocal();
+    this.applyPhase(sc); tr.log = []; tr.total = 0; tr.first = null; tr.tele = null; tr.resets++;
+    if (sc.paused) sc.togglePause();
+    sc.ui().toast(`Босс сброшен — фаза ${this.phase}`, 1.8);
+  },
+  tick(sc, dt) {
+    const tr = sc.train, b = sc.testBoss(); if (!tr || !b) return;
+    tr.t += dt;
+    if (tr.boss !== b) { tr.boss = b; tr.lastHp = b.hp; tr.prev = b.state; }
+    if (b.hp < tr.lastHp) { const n = tr.lastHp - b.hp; tr.log.push([tr.t, n]); tr.total += n; if (tr.first == null) tr.first = tr.t; }
+    tr.lastHp = b.hp;
+    while (tr.log.length && tr.log[0][0] < tr.t - 10) tr.log.shift();
+    if (b.state !== tr.prev) {
+      const nm = (this.TELE[sc.bossKind] || {})[b.state];
+      if (nm) tr.tele = { name: nm, win: b.t, at: tr.t };
+      tr.prev = b.state;
+    }
+  },
+  dps(tr) {
+    if (tr.first == null) return 0;
+    const sum = tr.log.reduce((s, e) => s + e[1], 0), win = Math.min(10, Math.max(1, tr.t - tr.first));
+    return sum / win;
+  },
+  teleText(tr) {
+    if (!tr.tele) return 'Последний телеграф: пока не было';
+    return `Последний телеграф: ${tr.tele.name} (окно ${tr.tele.win.toFixed(1)} с, ${Math.max(0, tr.t - tr.tele.at).toFixed(0)} с назад)`;
+  },
+};
+Training.load();
+
+(function () {
+  const proto = GameScene.prototype;
+  // режим включается только в локальном босс-тесте
+  const init = proto.init;
+  proto.init = function (data) {
+    init.call(this, data);
+    this.train = (this.mode === 'bosstest' && !this.online && Training.on) ? { t: 0, log: [], total: 0, first: null, tele: null, boss: null, lastHp: 0, prev: '', hits: 0, resets: 0 } : null;
+  };
+  const create = proto.create;
+  proto.create = function () {
+    create.call(this);
+    if (!this.train) return;
+    Training.applyPhase(this);
+    this.input.keyboard.on('keydown', (e) => { if (e.code === 'KeyY' && !e.repeat) Training.reset(this); });
+  };
+  const step = proto.step;
+  proto.step = function (dt) { step.call(this, dt); if (this.train) Training.tick(this, dt); };
+  // здоровье не убывает, но удар виден: «-1», откидывание и неуязвимость работают как обычно
+  const hurt = proto.hurtPlayer;
+  proto.hurtPlayer = function (p, dmg, srcX, spike) {
+    if (!this.train) return hurt.call(this, p, dmg, srcX, spike);
+    const before = p.hp; p.hp = before + 99;
+    hurt.call(this, p, dmg, srcX, spike);
+    const taken = before + 99 - p.hp; p.hp = before;
+    if (taken > 0) {
+      this.train.hits++;
+      const t = this.add.text(p.x + 7, p.y - 6, '-' + taken, { fontFamily: '"Cormorant SC", Georgia, serif', fontSize: '26px', fontStyle: '700', color: '#ff8a7a', stroke: '#1a1410', strokeThickness: 5 }).setOrigin(0.5).setDepth(8.8);
+      this.tweens.add({ targets: t, y: t.y - 46, alpha: 0, duration: 800, ease: 'Cubic.easeOut', onComplete: () => t.destroy() });
+    }
+  };
+
+  // ----- интерфейс -----
+  const ucreate = UIScene.prototype.create;
+  UIScene.prototype.create = function () {
+    ucreate.call(this);
+    const gs = this.gs; if (!gs.train) return;
+    const F = '"Fira Sans", sans-serif', D = '"Cormorant SC", Georgia, serif';
+    this.trHud = this.add.text(VW - 16, 96, '', { fontFamily: F, fontSize: '13px', color: '#ffd47a', align: 'right', lineSpacing: 3, backgroundColor: 'rgba(6,14,12,0.6)', padding: { x: 8, y: 5 } }).setOrigin(1, 0);
+    this.trTele = this.add.text(VW / 2, 458, '', { fontFamily: F, fontSize: '15px', color: '#ffd47a' }).setOrigin(0.5);
+    this.trKeys = this.add.text(VW / 2, 482, 'Тренировка: здоровье бесконечное, рекорды не пишутся.  Y — сбросить босса', { fontFamily: F, fontSize: '12px', color: '#8fb8a8' }).setOrigin(0.5);
+    const btn = this.add.text(VW / 2, 512, 'Сброс босса (Y)', { fontFamily: D, fontSize: '21px', color: '#cfe8dc', fontStyle: '700', backgroundColor: 'rgba(20,48,41,0.9)', padding: { x: 14, y: 5 } }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    btn.on('pointerover', () => btn.setColor('#ffd47a')); btn.on('pointerout', () => btn.setColor('#cfe8dc')); btn.on('pointerdown', () => Training.reset(gs));
+    this.pause.add([this.trTele, this.trKeys, btn]);
+    const upd = () => {
+      const tr = gs.train, b = gs.testBoss(); if (!tr) return;
+      const ph = b && b.maxHp ? gs.phaseOf(b) : 1;
+      this.trHud.setText(`ТРЕНИРОВКА · фаза ${ph}\nУрон за 10 с: ${tr.log.reduce((s, e) => s + e[1], 0)} · DPS ${Training.dps(tr).toFixed(1)}\nВсего: ${tr.total} · ударов по вам: ${tr.hits}`);
+      if (this.pause.visible) this.trTele.setText(Training.teleText(tr));
+    };
+    this.events.on('update', upd);
+    this.events.once('shutdown', () => this.events.off('update', upd));
+    this.toast('Тренировка: здоровье бесконечное, Y — сбросить босса', 3);
+  };
+
+  // ----- выбор босса: переключатель и фаза -----
+  const mcreate = MenuScene.prototype.create;
+  MenuScene.prototype.create = function () {
+    mcreate.call(this);
+    const F = '"Fira Sans", sans-serif', D = '"Cormorant SC", Georgia, serif';
+    const st = { fontFamily: D, fontSize: '22px', fontStyle: '600' };
+    const tg = this.add.text(VW / 2 - 175, 432, '', st).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    const ph = this.add.text(VW / 2 + 175, 432, '', st).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    const hint = this.add.text(VW / 2, 454, 'Бесконечное здоровье, счётчик урона и DPS, сброс босса клавишей Y. Рекорды не пишутся. Только за одним компьютером.', { fontFamily: F, fontSize: '11px', color: '#6f9586' }).setOrigin(0.5);
+    this.pick.add([tg, ph, hint]);
+    const p3 = this.pick.list.find((o) => o.text && o.text.startsWith('3 ·'));
+    const refresh = () => {
+      tg.setText(`Тренировка: ${Training.on ? 'вкл' : 'выкл'} (T)`).setColor(Training.on ? '#ffd47a' : '#8fb8a8');
+      ph.setText(`Старт с фазы ${Training.phase} (P)`).setColor(Training.on ? '#ffd47a' : '#5d7a6e');
+      if (p3) p3.setAlpha(Training.on ? 0.3 : 1);
+    };
+    const toggle = () => { Training.on = !Training.on; Training.save(); refresh(); };
+    const cycle = () => { if (!Training.on) { toggle(); return; } Training.phase = Training.phase % 3 + 1; Training.save(); refresh(); };
+    tg.on('pointerdown', toggle); ph.on('pointerdown', cycle);
+    this.input.keyboard.on('keydown', (e) => {
+      if (!this.pick.visible || Settings.open || !Lobby.el.hidden || e.repeat) return;
+      if (e.code === 'KeyT') toggle(); else if (e.code === 'KeyP') cycle();
+    });
+    refresh();
+  };
+  const openLobby = MenuScene.prototype.openLobby;
+  MenuScene.prototype.openLobby = function (mode) {
+    if (mode === 'bosstest' && Training.on) return; // тренировка — только локально
+    return openLobby.call(this, mode);
+  };
+})();
+
+// ===== КАРТА И БЫСТРЫЕ ПЕРЕХОДЫ: клавиша M / кнопка на телефоне, открытые участки, телепорт между скамьями =====
+// Карта заполняется по мере прохождения (клетки 4×4 вокруг героев). Посещённые клетки и скамьи лежат в
+// Settings.progress().map[глава] рядом с остальным прогрессом. Телепорт: только с сидячей позиции на скамье,
+// только вне боя с боссом; по сети переносится лишь свой герой, остальное доносит событие 'bench'.
+const MapTravel = {
+  CH: 4, open: false, busy: false, ownPause: false, sel: -1,
+  key(gs) { return gs.camp && gs.camp.st !== 'arena' ? String(gs.camp.ch) : null; },
+  persistent(gs) { return !!(gs.camp && this.key(gs) && Campaign.canSave(gs)); },
+  cid(cx, cy) { return cy * 1000 + cx; },
+  revealed(gs, tx, ty) { return gs.mapV.has(this.cid(Math.floor(tx / this.CH), Math.floor(ty / this.CH))); },
+  load(gs) {
+    gs.mapV = new Set(); gs.mapB = new Set(); gs.mapDirty = false; gs.mapSaveT = 0;
+    if (!this.persistent(gs)) return;
+    const p = Settings.progress(), m = p && p.map && p.map[this.key(gs)]; if (!m) return;
+    for (const v of m.v || []) if (Number.isInteger(v)) gs.mapV.add(v);
+    for (const b of m.b || []) if (gs.benches[b]) gs.mapB.add(b);
+  },
+  exportMap(gs) {
+    const p = Settings.progress(), all = { ...((p && p.map) || {}) };
+    if (this.persistent(gs) && gs.mapV) all[this.key(gs)] = { v: [...gs.mapV], b: [...gs.mapB] };
+    return all;
+  },
+  persist(gs) {
+    gs.mapDirty = false;
+    if (!this.persistent(gs)) return;
+    const p = Settings.progress(); if (!p) return; // сохранения ещё нет: карта уйдёт с первой скамьёй
+    Settings.saveProgress({ ...p, map: this.exportMap(gs) });
+  },
+  // каждый шаг: открываем клетки вокруг героев, отмечаем скамьи
+  visit(gs, dt) {
+    if (!gs.mapV || !gs.players) return;
+    for (const p of gs.players) {
+      if (p.downed) continue;
+      const tx = Math.floor((p.x + 7) / T), ty = Math.floor((p.y + 13) / T), C = this.CH;
+      for (let cy = Math.floor((ty - 5) / C); cy <= Math.floor((ty + 5) / C); cy++) for (let cx = Math.floor((tx - 6) / C); cx <= Math.floor((tx + 6) / C); cx++) {
+        if (cx < 0 || cy < 0 || cx * C >= gs.L.W || cy * C >= gs.L.H) continue;
+        const id = this.cid(cx, cy); if (!gs.mapV.has(id)) { gs.mapV.add(id); gs.mapDirty = true; }
+      }
+      if (p.sit) { const bi = this.benchOf(gs, p); if (bi >= 0 && !gs.mapB.has(bi)) { gs.mapB.add(bi); gs.mapDirty = true; this.persist(gs); } }
+    }
+    if (gs.mapDirty) { gs.mapSaveT += dt; if (gs.mapSaveT > 3) { gs.mapSaveT = 0; this.persist(gs); } }
+  },
+  benchOf(gs, p) {
+    let best = -1, bd = 40;
+    gs.benches.forEach((b, i) => { const d = Math.abs(p.x + 7 - b.x) + Math.abs(p.y + 26 - b.y); if (d < bd) { bd = d; best = i; } });
+    return best;
+  },
+  area(gs, b) { const L = gs.L; return L.areas.reduce((a, ar) => (b.x / T >= ar.x ? ar : a), L.areas[0]); },
+  // идёт ли бой с боссом (телепорт тогда запрещён)
+  fighting(gs) {
+    if (gs.td || gs.fightOn) return true;
+    if (gs.gates && gs.gates[0] && gs.gates[0].closed) return true;
+    for (const b of [gs.boss, gs.misha, gs.vladik, gs.tima]) if (b && !['sleep', 'gone', 'dead', 'intro'].includes(b.state) && !gs.bossDead) return true;
+    return false;
+  },
+  sitter(gs) { return gs.players.find((p) => !p.remote && p.sit && !p.downed) || null; },
+  visited(gs) { return [...gs.mapB].filter((i) => gs.benches[i]).sort((a, b) => gs.benches[a].x - gs.benches[b].x); },
+  // можно ли сейчас телепортироваться на выбранную скамью; why — причина отказа
+  can(gs) {
+    if (this.fighting(gs)) return { ok: false, why: 'Во время боя с боссом телепорт недоступен' };
+    const s = this.sitter(gs);
+    if (!s) return { ok: false, why: Touch.enabled ? 'Телепорт: сядьте на скамью (стик вверх у скамьи)' : 'Телепорт: сядьте на скамью (↑ у скамьи)' };
+    if (this.sel < 0 || !gs.mapB.has(this.sel)) return { ok: false, why: 'Выберите посещённую скамью' };
+    if (this.benchOf(gs, s) === this.sel) return { ok: false, why: 'Вы уже у этой скамьи' };
+    return { ok: true, why: '' };
+  },
+  allowM(gs) { return gs.nPlayers === 1 || !!gs.online; },
+  canOpen(gs) {
+    const u = gs.ui();
+    return !!(gs.mapV && u && u.ready && !this.open && !this.busy && !gs.won && !gs.wiping && !gs.shopOpen && !gs.paused && !Settings.open && !(u.pause && u.pause.visible));
+  },
+  toggle(gs) { if (this.open) this.close(gs); else this.show(gs); },
+  show(gs) {
+    if (!this.canOpen(gs)) return;
+    const s = this.sitter(gs), v = this.visited(gs);
+    this.sel = s && this.benchOf(gs, s) >= 0 ? this.benchOf(gs, s) : -1;
+    if (this.sel < 0 && v.length) { const p = gs.players.find((q) => !q.remote) || gs.players[0]; this.sel = v.reduce((a, i) => (Math.abs(gs.benches[i].x - p.x) < Math.abs(gs.benches[a].x - p.x) ? i : a), v[0]); }
+    this.open = true;
+    if (!gs.online) { gs.paused = true; this.ownPause = true; }
+    Touch.show(false); Snd.play('bead');
+    gs.ui().mapShow();
+  },
+  close(gs) {
+    if (!this.open) return;
+    this.open = false;
+    if (this.ownPause) { gs.paused = false; this.ownPause = false; }
+    gs.ui().mapHide();
+    if (!this.busy) Touch.show(true, { bombs: !!gs.L.crates });
+  },
+  move(gs, d) {
+    const v = this.visited(gs); if (!v.length) return;
+    const i = v.indexOf(this.sel);
+    this.sel = v[i < 0 ? (d > 0 ? 0 : v.length - 1) : (i + d + v.length) % v.length];
+    Snd.play('bead'); gs.ui().mapRefresh();
+  },
+  // телепорт на выбранную скамью: затемнение → перенос → появление
+  go(gs) {
+    const c = this.can(gs);
+    if (!c.ok) { gs.ui().toast(c.why); Snd.play('hit'); return; }
+    const bi = this.sel, b = gs.benches[bi];
+    this.busy = true; this.open = false; gs.ui().mapHide();
+    if (!gs.online) { gs.paused = true; this.ownPause = false; } // на время затемнения мир стоит
+    Snd.play('bench');
+    gs.cameras.main.fadeOut(350, 3, 8, 7); gs.ui().cameras.main.fadeOut(350, 3, 8, 7);
+    gs.time.delayedCall(420, () => {
+      if (!gs.players) return;
+      for (const p of gs.players) {
+        if (p.remote) continue;
+        Object.assign(p, { x: b.x - 7 + p.i * 22, y: b.y - 26, vx: 0, vy: 0, kbx: 0, dashT: 0, atkT: 0, healCh: 0, healT: 0, hurtT: 0, inv: 1, sit: true, onGround: true });
+        p.safeX = p.x; p.safeY = p.y;
+      }
+      gs.respawn = { x: b.x, y: b.y };
+      gs.camX = b.x; gs.camY = b.y - 80; gs.cameras.main.centerOn(gs.camX, gs.camY);
+      gs.sendEv({ k: 'bench', x: b.x, y: b.y });
+      gs.mapB.add(bi); gs.mapDirty = true;
+      const ar = this.area(gs, b);
+      if (gs.mode === 'story' && gs.online !== 'guest') Campaign.save(gs, { bench: bi, name: Campaign.saveName(gs, ar.name) });
+      gs.cameras.main.fadeIn(500, 3, 8, 7); gs.ui().cameras.main.fadeIn(500, 3, 8, 7);
+      gs.ui().toast(`Быстрый переход: ${ar.name}`);
+      if (!gs.online) gs.paused = false;
+      this.busy = false; Touch.show(true, { bombs: !!gs.L.crates });
+    });
+  },
+  onKey(gs, e) {
+    const k = e.code;
+    if (!this.open) {
+      if (e.repeat) return;
+      if (k === 'Tab' || (k === 'KeyM' && this.allowM(gs))) { e.preventDefault(); this.show(gs); }
+      return;
+    }
+    if (k === 'Tab' || (k === 'KeyM' && this.allowM(gs)) || k === 'KeyQ' || k === 'KeyE') { e.preventDefault(); this.close(gs); }
+    else if (k === 'ArrowLeft' || k === 'ArrowUp' || k === 'KeyA' || k === 'KeyW') this.move(gs, -1);
+    else if (k === 'ArrowRight' || k === 'ArrowDown' || k === 'KeyD' || k === 'KeyS') this.move(gs, 1);
+    else if (k === 'Enter' || k === 'NumpadEnter' || k === 'Space' || k === 'KeyF') this.go(gs);
+  },
+  tick(gs) {
+    const ui = gs.ui();
+    if (this.open) {
+      const p = gs.players.find((q) => !q.remote);
+      // по сети мир идёт: при ударе, обрыве нити или победе карту закрываем
+      if (gs.won || gs.wiping || (p && (p.downed || p.hurtT > 0))) { this.close(gs); return; }
+      const pads = gs.input.gamepad ? gs.input.gamepad.gamepads.filter(Boolean) : [];
+      let l = false, r = false, ok = false, back = false;
+      for (const pad of pads) { const b = (n) => !!(pad.buttons[n] && pad.buttons[n].pressed); l = l || pad.left || pad.up; r = r || pad.right || pad.down; ok = ok || b(0); back = back || b(1) || b(8); }
+      const prev = gs._mapPad || {}; gs._mapPad = { l, r, ok, back };
+      if (l && !prev.l) this.move(gs, -1);
+      if (r && !prev.r) this.move(gs, 1);
+      if (ok && !prev.ok) this.go(gs);
+      if (back && !prev.back) this.close(gs);
+      if (this.open) ui.mapDynamic();
+    } else if (gs._mapPad) gs._mapPad = null;
+  },
+};
+
+// ----- хуки в GameScene -----
+{
+  const G = GameScene.prototype, createO = G.create, stepO = G.step, updO = G.update, rawO = G.rawInput, tapO = G.onKeyTap, touchO = G.onTouchTap, pauseO = G.togglePause;
+  const frozen = () => MapTravel.open || MapTravel.busy;
+  G.create = function () {
+    createO.call(this);
+    MapTravel.open = false; MapTravel.busy = false; MapTravel.ownPause = false; MapTravel.sel = -1;
+    MapTravel.load(this);
+    this.input.keyboard.on('keydown', (e) => MapTravel.onKey(this, e));
+    if (Touch.enabled && Touch.root) {
+      let b = Touch.root.querySelector('#t-map');
+      if (!b) { b = document.createElement('button'); b.id = 't-map'; b.className = 't-map'; b.type = 'button'; b.setAttribute('aria-label', 'Карта'); b.textContent = '▤'; Touch.root.appendChild(b); }
+      b.onclick = () => { const gs = Touch.game(); if (gs) MapTravel.toggle(gs); };
+    }
+  };
+  G.step = function (dt) { stepO.call(this, dt); MapTravel.visit(this, dt); };
+  G.update = function (t, d) { MapTravel.tick(this); return updO.call(this, t, d); };
+  G.rawInput = function (i) {
+    if (frozen()) return { left: false, right: false, up: false, down: false, jump: false, atk: false, dash: false, heal: false, bomb: false };
+    return rawO.call(this, i);
+  };
+  G.onKeyTap = function (e) { if (!frozen()) tapO.call(this, e); };
+  G.onTouchTap = function (act) { if (!frozen()) touchO.call(this, act); };
+  G.togglePause = function () { if (MapTravel.open) { MapTravel.close(this); return; } if (MapTravel.busy) return; pauseO.call(this); };
+
+  // прогресс карты не теряется ни при обычном сохранении у скамьи, ни при переходе на новую главу
+  const saveO = Campaign.save, decO = Campaign.decorate;
+  Campaign.save = function (gs, extra) { return saveO.call(this, gs, { map: MapTravel.exportMap(gs), ...extra }); };
+  Campaign.decorate = function (gs, s) {
+    const old = Settings.progress(), map = old && old.map;
+    decO.call(this, gs, s);
+    const now = Settings.progress();
+    if (map && now && !now.map) Settings.saveProgress({ ...now, map });
+  };
+}
+
+// ----- оверлей карты в UIScene -----
+{
+  const createO = UIScene.prototype.create;
+  UIScene.prototype.create = function () {
+    createO.call(this);
+    this.mapC = null;
+    const hint = Touch.enabled ? 'Кнопка ▤ рядом с паузой — карта' : 'M (вдвоём за одним экраном — Tab) — карта и быстрые переходы между скамьями';
+    this.pause.add(this.add.text(VW / 2, VH - 26, hint, { fontFamily: '"Fira Sans", sans-serif', fontSize: '13px', color: '#6f9586' }).setOrigin(0.5));
+  };
+}
+Object.assign(UIScene.prototype, {
+  mapBuild() {
+    const D = '"Cormorant SC", Georgia, serif', F = '"Fira Sans", sans-serif', c = this.add.container(0, 0).setVisible(false).setDepth(48);
+    const bg = this.add.graphics(); bg.fillStyle(0x030807, 0.92); bg.fillRect(0, 0, VW, VH);
+    bg.fillStyle(0x0b1714, 0.97); bg.fillRoundedRect(20, 20, VW - 40, VH - 40, 10); bg.lineStyle(2, 0x3c5a50, 1); bg.strokeRoundedRect(20, 20, VW - 40, VH - 40, 10);
+    const catcher = this.add.rectangle(VW / 2, VH / 2, VW, VH, 0xffffff, 0.001).setInteractive();
+    catcher.on('pointerdown', (p) => this.mapTap(p.x, p.y));
+    this.mapStatic = this.add.graphics(); this.mapDyn = this.add.graphics();
+    this.mapTitle = this.add.text(VW / 2, 46, '', { fontFamily: D, fontSize: '32px', color: '#e8e2cf', fontStyle: '700' }).setOrigin(0.5);
+    this.mapInfo = this.add.text(VW / 2, 392, '', { fontFamily: F, fontSize: '17px', color: '#ffe3a3', fontStyle: '600' }).setOrigin(0.5);
+    this.mapWhy = this.add.text(VW / 2, 418, '', { fontFamily: F, fontSize: '14px', color: '#9ff0c8' }).setOrigin(0.5);
+    this.mapLegend = this.add.text(VW / 2, 446, '◆ скамья   ● герой   ◇ нераскрытая способность   ▭ арена босса', { fontFamily: F, fontSize: '12px', color: '#86a89a' }).setOrigin(0.5);
+    this.mapKeys = this.add.text(VW / 2, 508, '', { fontFamily: F, fontSize: '12px', color: '#6f9586' }).setOrigin(0.5);
+    const btn = (x, label, fn) => {
+      const t = this.add.text(x, 476, label, { fontFamily: D, fontSize: '24px', color: '#cfe8dc', fontStyle: '700', backgroundColor: 'rgba(20,48,41,0.9)', padding: { x: 14, y: 5 } }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+      t.on('pointerdown', fn); return t;
+    };
+    this.mapBtnGo = btn(VW / 2 - 110, 'Телепорт', () => MapTravel.go(this.gs));
+    this.mapBtnX = btn(VW / 2 + 110, 'Закрыть', () => MapTravel.close(this.gs));
+    this.mapLabels = [];
+    c.add([bg, catcher, this.mapStatic, this.mapDyn, this.mapTitle, this.mapInfo, this.mapWhy, this.mapLegend, this.mapKeys, this.mapBtnGo, this.mapBtnX]);
+    this.mapC = c;
+  },
+  mapGeo() {
+    const L = this.gs.L, aw = 860, ah = 290, s = Math.min(aw / L.W, ah / L.H, 10);
+    return { s, ox: (VW - L.W * s) / 2, oy: 86 + (ah - L.H * s) / 2 };
+  },
+  mapShow() {
+    if (!this.ready) return;
+    if (!this.mapC || !this.mapC.scene) this.mapBuild();
+    this.mapTitle.setText(`Карта · ${this.gs.L.region || 'Мшистая Глубь'}`);
+    this.mapKeys.setText(Touch.enabled ? 'Нажмите на скамью, затем «Телепорт»' : '← → ↑ ↓ — выбрать скамью   ·   Enter — телепорт   ·   M / Esc — закрыть   ·   геймпад: A — телепорт, B — закрыть');
+    this.mapDrawStatic(); this.mapC.setVisible(true); this.mapRefresh(); this.mapDynamic();
+  },
+  mapHide() { if (this.mapC) this.mapC.setVisible(false); },
+  // неизменяемая часть: открытые клетки уровня и названия посещённых зон
+  mapDrawStatic() {
+    const gs = this.gs, L = gs.L, grid = gs.grid || L.grid, { s, ox, oy } = this.mapGeo(), g = this.mapStatic; g.clear();
+    for (const t of this.mapLabels) t.destroy(); this.mapLabels = [];
+    const at = (x, y) => (x < 0 || y < 0 || x >= L.W || y >= L.H ? SOLID : grid[y][x]);
+    const cls = (x, y) => {
+      if (!MapTravel.revealed(gs, x, y)) return 0;
+      const t = grid[y][x];
+      if (t === EMPTY) return 1;
+      if (t === PLAT) return 3;
+      if (t === SPIKE) return 4;
+      return at(x - 1, y) !== SOLID || at(x + 1, y) !== SOLID || at(x, y - 1) !== SOLID || at(x, y + 1) !== SOLID ? 2 : 0;
+    };
+    const col = [0, 0x1d3a31, 0x7fb59f, 0x1d3a31, 0x1d3a31];
+    for (let y = 0; y < L.H; y++) {
+      let x = 0;
+      while (x < L.W) {
+        const k = cls(x, y); let x2 = x + 1;
+        while (x2 < L.W && cls(x2, y) === k) x2++;
+        if (k) {
+          g.fillStyle(col[k], k === 1 ? 0.85 : 1); g.fillRect(ox + x * s, oy + y * s, (x2 - x) * s + 0.4, s + 0.4);
+          if (k === 3) { g.fillStyle(0xd9c48a, 1); g.fillRect(ox + x * s, oy + y * s, (x2 - x) * s, Math.max(1.2, s * 0.35)); }
+          if (k === 4) { g.fillStyle(0xd9715f, 1); g.fillRect(ox + x * s, oy + (y + 0.45) * s, (x2 - x) * s, Math.max(1.2, s * 0.55)); }
+        }
+        x = x2;
+      }
+    }
+    // зоны, в которых что-то открыто
+    L.areas.forEach((a, i) => {
+      const x1 = i + 1 < L.areas.length ? L.areas[i + 1].x : L.W;
+      let seen = false; for (const id of gs.mapV) { const tx = (id % 1000) * MapTravel.CH; if (tx + MapTravel.CH > a.x && tx < x1) { seen = true; break; } }
+      if (!seen) return;
+      const t = this.add.text(ox + a.x * s + 3, oy - 6 - (i % 2) * 14, a.name, { fontFamily: '"Fira Sans", sans-serif', fontSize: '12px', color: '#bfe3d3' }).setOrigin(0, 1);
+      this.mapC.add(t); this.mapLabels.push(t);
+    });
+  },
+  mapRefresh() {
+    const gs = this.gs, sel = MapTravel.sel, c = MapTravel.can(gs), b = gs.benches[sel];
+    this.mapInfo.setText(b ? `Скамья: ${MapTravel.area(gs, b).name}` : (gs.mapB.size ? 'Выберите скамью' : 'Вы ещё не отдыхали на скамьях'));
+    this.mapWhy.setText(c.ok ? (Touch.enabled ? 'Нажмите «Телепорт»' : 'Enter — телепорт на эту скамью') + (gs.online ? ' (только вы)' : '') : c.why);
+    this.mapWhy.setColor(c.ok ? '#9ff0c8' : '#d9a37a');
+    this.mapBtnGo.setAlpha(c.ok ? 1 : 0.4);
+  },
+  // подвижная часть: скамьи, предметы, арена, герои
+  mapDynamic() {
+    const gs = this.gs, L = gs.L, { s, ox, oy } = this.mapGeo(), g = this.mapDyn, now = this.time.now / 1000; g.clear();
+    if ((this._mapStamp = (this._mapStamp || 0) + 1) % 30 === 0) this.mapRefresh();
+    const rv = (tx, ty) => MapTravel.revealed(gs, tx, ty);
+    // арена босса
+    if (L.boss && L.boss.arenaX0 != null) {
+      const x0 = L.boss.arenaX0, x1 = L.boss.arenaX1 + 1, y0 = L.gateIn ? L.gateIn.y0 - 6 : L.boss.y - 14, y1 = L.boss.y + 1;
+      let seen = false; for (let x = x0; x <= x1 && !seen; x += MapTravel.CH) seen = rv(x, Math.floor(L.boss.y));
+      if (seen) { g.lineStyle(2, 0xd9715f, 0.9); g.strokeRect(ox + x0 * s, oy + y0 * s, (x1 - x0) * s, (y1 - y0) * s); }
+    } else if (L.road && L.exit) {
+      const ex = ox + L.exit.x * s, ey = oy + L.exit.y * s;
+      g.fillStyle(0xd9715f, 1); g.fillTriangle(ex + 8, ey - 14, ex + 8, ey - 2, ex - 4, ey - 8);
+    }
+    // способности, которые ещё не взяты (если участок открыт)
+    for (const it of gs.items || []) {
+      if (it.got || !rv(it.x, it.y)) continue;
+      const x = ox + (it.x + 0.5) * s, y = oy + (it.y + 0.5) * s + Math.sin(now * 3) * 1.2, r = 5;
+      g.fillStyle(0xffe3a3, 1); g.fillTriangle(x, y - r - 1, x + r, y, x - r, y); g.fillTriangle(x, y + r + 1, x + r, y, x - r, y);
+    }
+    // скамьи
+    const sitter = MapTravel.sitter(gs), cur = sitter ? MapTravel.benchOf(gs, sitter) : -1;
+    gs.benches.forEach((b, i) => {
+      const tx = b.x / T, ty = b.y / T - 0.5, x = ox + tx * s, y = oy + ty * s, vis = gs.mapB.has(i);
+      if (!vis && !rv(Math.floor(tx), Math.floor(ty))) return;
+      if (vis) { g.fillStyle(0xffd47a, 1); g.fillTriangle(x, y - 6, x + 6, y, x, y + 6); g.fillTriangle(x, y - 6, x - 6, y, x, y + 6); }
+      else { g.lineStyle(1.5, 0x6f9586, 0.8); g.strokeTriangle(x, y - 5, x + 5, y, x, y + 5); g.strokeTriangle(x, y - 5, x - 5, y, x, y + 5); }
+      if (i === cur) { g.lineStyle(1.5, 0x9ff0c8, 1); g.strokeCircle(x, y, 10); }
+      if (i === MapTravel.sel) { g.lineStyle(2, 0xffffff, 0.55 + 0.4 * Math.sin(now * 6)); g.strokeCircle(x, y, 13 + Math.sin(now * 6)); }
+    });
+    // герои
+    for (const p of gs.players) {
+      const x = ox + (p.x + 7) / T * s, y = oy + (p.y + 13) / T * s, a = p.remote || Math.sin(now * 8) > -0.3 ? 1 : 0.35;
+      g.fillStyle(0x030807, 1); g.fillCircle(x, y, 5.5); g.fillStyle(p.pal.accent, a); g.fillCircle(x, y, 4);
+    }
+  },
+  mapTap(px, py) {
+    const gs = this.gs, { s, ox, oy } = this.mapGeo();
+    let best = -1, bd = 26;
+    gs.benches.forEach((b, i) => {
+      if (!gs.mapB.has(i)) return;
+      const d = Math.hypot(ox + b.x / T * s - px, oy + (b.y / T - 0.5) * s - py); if (d < bd) { bd = d; best = i; }
+    });
+    if (best < 0) return;
+    if (best === MapTravel.sel) MapTravel.go(gs); else { MapTravel.sel = best; Snd.play('bead'); this.mapRefresh(); }
+  },
+});
+
+// ===== СПИДРАН: забеги на время, сплиты, код результата, таблица друзей, гонка 1×1 по сети =====
+// Забег живёт в Speedrun.run и переживает смену сцен (главы). Пока забег идёт, обычное сохранение не читается и не пишется,
+// рекорды боссов не трогаются. RTA — настенные часы с первого движения до последнего удара финального босса,
+// IGT — только время, когда игра не на паузе и не в лавке. Без бэкенда результаты честны лишь на слово:
+// код защищает от опечаток, но не от подделки.
+const SR_CATS = {
+  trail: { id: 'trail', name: 'Тропа целиком', tags: ['Гл. I', 'Гл. II', 'Гл. III', 'Гл. IV'],
+    about: 'Главы I–IV подряд, с нуля. Лавка и бусины разрешены. Сплит — на смерти босса каждой главы.' },
+  boss: { id: 'boss', name: 'Босс-раш', tags: ['Корнематка', 'Миша', 'Владик', 'Тима'],
+    about: 'Четыре босса подряд: Корнематка, Миша, Владик, Тима. Все способности открыты, лавки нет.' },
+};
+const SR_BOSS_NAMES = ['Корнематка', 'Миша', 'Владик', 'Тима'];
+
+const Speedrun = {
+  run: null, race: null,
+  clock: () => performance.now(),
+  active() { return !!this.run; },
+
+  // ----- время -----
+  p2(n) { return String(n).padStart(2, '0'); },
+  fmt(ms) {
+    const cs = Math.max(0, Math.floor(ms / 10)), h = Math.floor(cs / 360000), m = Math.floor(cs / 6000) % 60, s = Math.floor(cs / 100) % 60, c = cs % 100;
+    return h ? `${h}:${this.p2(m)}:${this.p2(s)}.${this.p2(c)}` : `${Math.floor(cs / 6000)}:${this.p2(s)}.${this.p2(c)}`;
+  },
+  fmtD(ms) { // дельта: +0:12.4 / -0:03.2
+    const a = Math.abs(ms), t = Math.floor(a / 100), m = Math.floor(t / 600), s = Math.floor(t / 10) % 60;
+    return `${ms < 0 ? '-' : '+'}${m}:${this.p2(s)}.${t % 10}`;
+  },
+  parseTime(str) { // «1:02:03.45» → сотые доли секунды
+    const [a, c] = str.split('.'), parts = a.split(':').map(Number);
+    let s = 0; for (const p of parts) s = s * 60 + p;
+    return s * 100 + Number(c);
+  },
+  rta() { const r = this.run; if (!r || r.t0 == null) return 0; return (r.end != null ? r.end : this.clock()) - r.t0; },
+
+  // ----- правила честности -----
+  violation() {
+    const v = [];
+    if (Settings.s.easy) v.push('Лёгкий режим');
+    if ((Settings.s.speed || 100) !== 100) v.push(`Замедление игры (${Settings.s.speed} %)`);
+    return v;
+  },
+  fixRules() { Settings.s.easy = false; Settings.s.speed = 100; Settings.save(); },
+
+  // ----- хранилище -----
+  store() { try { return JSON.parse(localStorage.getItem('tt_sr') || '{}') || {}; } catch (_) { return {}; } },
+  saveStore(o) { try { localStorage.setItem('tt_sr', JSON.stringify(o)); } catch (_) { } },
+  rec(cat) { const s = this.store(); return s[cat] || { pb: null, seg: [] }; },
+  putRec(cat, r) { const s = this.store(); s[cat] = r; this.saveStore(s); },
+  friends() { try { const a = JSON.parse(localStorage.getItem('tt_sr_friends') || '[]'); return Array.isArray(a) ? a : []; } catch (_) { return []; } },
+  saveFriends(a) { try { localStorage.setItem('tt_sr_friends', JSON.stringify(a)); } catch (_) { } },
+  myName() { try { return (localStorage.getItem('tt_sr_name') || '').slice(0, 20); } catch (_) { return ''; } },
+  setMyName(n) { try { localStorage.setItem('tt_sr_name', n.slice(0, 20)); } catch (_) { } },
+
+  // ----- код результата и текст для друзей -----
+  // e: { ver, cat, rta, igt (сотые доли секунды), deaths, splits: [сотые] }
+  code(e) {
+    const s = 'tropa-tkachei/' + e.ver + '/' + [e.ver, e.cat, e.rta, e.igt, e.deaths, e.splits.join(',')].join('|');
+    let h = 0x811c9dc5;
+    for (const ch of s) { h ^= ch.codePointAt(0); h = Math.imul(h, 0x01000193) >>> 0; }
+    h ^= h >>> 15; h = Math.imul(h, 0x2c1b3c6d) >>> 0; h ^= h >>> 12;
+    return ((h >>> 0) & 0xffffff).toString(16).toUpperCase().padStart(6, '0');
+  },
+  entryOf(res) {
+    const cs = (ms) => Math.floor(ms / 10);
+    return { ver: res.ver, cat: res.cat, rta: cs(res.rta), igt: cs(res.igt), deaths: res.deaths, splits: res.splits.map((s) => cs(s.rta)) };
+  },
+  text(e, name) {
+    const f = (cs) => this.fmt(cs * 10);
+    return `${name ? name + ': ' : ''}ТТ v${e.ver} ${SR_CATS[e.cat].name} ${f(e.rta)} (IGT ${f(e.igt)}) обрывов ${e.deaths} · сплиты ${e.splits.map(f).join(' / ')} · код ${this.code(e)}`;
+  },
+  // разбор строки друга: { ok:true, e } или { ok:false, err }
+  parse(line) {
+    const T = '\\d+(?::\\d\\d)*\\.\\d\\d';
+    const m = new RegExp(`^(.*?)\\s*ТТ v(\\d+(?:\\.\\d+)*) (Тропа целиком|Босс-раш) (${T}) \\(IGT (${T})\\) обрывов (\\d+) · сплиты ([\\d:./ ]+?) · код ([0-9A-Fa-f]{6})\\s*$`).exec(line.trim());
+    if (!m) return { ok: false, err: 'не похоже на результат (нужна строка из «Скопировать результат»)' };
+    const cat = m[3] === 'Босс-раш' ? 'boss' : 'trail';
+    const e = { ver: m[2], cat, rta: this.parseTime(m[4]), igt: this.parseTime(m[5]), deaths: +m[6], splits: m[7].trim().split(/\s*\/\s*/).map((x) => this.parseTime(x)) };
+    if (e.splits.length !== 4 || e.splits.some((x) => !(x >= 0))) return { ok: false, err: 'неверный список сплитов' };
+    if (this.code(e) !== m[8].toUpperCase()) return { ok: false, err: 'код не совпал: вероятна опечатка при копировании' };
+    for (let i = 1; i < 4; i++) if (e.splits[i] < e.splits[i - 1]) return { ok: false, err: 'сплиты идут не по порядку' };
+    if (e.splits[3] !== e.rta) return { ok: false, err: 'итог не равен последнему сплиту' };
+    const name = m[1].replace(/[\s:·\-—]+$/g, '').trim().slice(0, 24);
+    return { ok: true, e, name: name || 'Без имени', code: m[8].toUpperCase() };
+  },
+
+  // ----- запуск и ход забега -----
+  dataFor(cat) {
+    const camp = cat === 'boss' ? { ch: 1, st: 'level', beads: 0, abil: { double: true }, up: Campaign.freshUp(), time: 0, deaths: 0 } : Campaign.fresh();
+    return { players: 1, mode: 'story', online: null, camp };
+  },
+  begin(cat, race) {
+    this.run = { cat, t0: null, end: null, igt: 0, splits: [], deaths: 0, done: false, taint: null, hold: !!race, cd: '', race: race || null, result: null };
+    return this.dataFor(cat);
+  },
+  start() { const r = this.run; if (r && r.t0 == null) { r.t0 = this.clock(); r.igt = 0; } },
+  // сплит на смерти босса текущей главы; последняя глава завершает забег
+  onSplit(gs) {
+    const r = this.run; if (!r || !gs.sr || r.done || r.t0 == null) return;
+    const i = Math.max(0, (gs.camp ? gs.camp.ch : 1) - 1);
+    if (r.splits.length > i) return;
+    r.splits[i] = { rta: this.rta(), igt: Math.round(r.igt) };
+    if (!r.taint) {
+      const rec = this.rec(r.cat), prev = i ? r.splits[i - 1].rta : 0, seg = r.splits[i].rta - prev;
+      if (!rec.seg[i] || seg < rec.seg[i]) { rec.seg[i] = seg; this.putRec(r.cat, rec); }
+    }
+    if (i >= 3) this.finish(gs); else if (gs.ui().ready) gs.ui().toast(`Сплит: ${SR_CATS[r.cat].tags[i]} · ${this.fmt(r.splits[i].rta)}`, 2.4);
+  },
+  finish(gs) {
+    const r = this.run; r.done = true; r.end = this.clock();
+    const rta = r.end - r.t0; r.splits[r.splits.length - 1].rta = rta;
+    const res = { cat: r.cat, ver: GAME_VERSION, rta, igt: Math.round(r.igt), deaths: r.deaths, splits: r.splits.map((s) => ({ ...s })), taint: r.taint, newPb: false, pbPrev: null };
+    const rec = this.rec(r.cat); res.pbPrev = rec.pb ? JSON.parse(JSON.stringify(rec.pb)) : null;
+    if (!r.taint && (!rec.pb || rta < rec.pb.rta)) {
+      res.newPb = true;
+      rec.pb = { rta, igt: res.igt, deaths: r.deaths, splits: res.splits, ver: GAME_VERSION, date: Date.now() };
+      this.putRec(r.cat, rec);
+    }
+    r.result = res;
+    if (r.race) Net.send({ t: 'race', k: 'fin', rta, igt: res.igt, deaths: r.deaths });
+    Snd.play('win');
+  },
+  // каждый кадр игры (после основного update)
+  tick(gs, delta) {
+    const r = this.run; if (!r || !gs.sr) return;
+    if (r.hold) return;
+    if (r.t0 == null && !r.race) {
+      const raw = gs.players[0] && gs.players[0].raw;
+      if (raw && (raw.left || raw.right || raw.up || raw.down || raw.jump || raw.atk || raw.dash || raw.heal || raw.bomb)) this.start();
+    }
+    if (r.t0 != null && !r.done && !gs.paused && !gs.shopOpen) r.igt += Math.min(delta, 500);
+    if (!r.taint && !r.done) { const v = this.violation(); if (v.length) r.taint = v.join(', '); }
+    if (r.race) this.raceSend(gs);
+  },
+  leave() { // выход в меню: забег прерван
+    if (this.race) { Net.send({ t: 'race', k: 'bye' }); this.race = null; }
+    this.run = null;
+  },
+  restartRun(ui) {
+    const r = this.run; if (!r) return;
+    if (r.race) { ui.toast('В гонке нельзя начать заново'); return; }
+    const data = this.begin(r.cat);
+    ui.ready = false; ui.scene.stop('bg'); ui.scene.start('game', data);
+  },
+  // переход в следующую главу/к следующему боссу без экрана победы
+  advance(gs) {
+    const r = this.run, c = gs.camp, snap = Campaign.snap(gs);
+    gs.won = true; Snd.play('win');
+    const next = r.cat === 'boss' ? { ...snap, ch: c.ch + 1, st: 'arena', beads: 0, abil: { double: true }, up: Campaign.freshUp() } : { ...snap, ch: c.ch + 1, st: 'road' };
+    Campaign.go(gs, next);
+  },
+
+  // ----- копирование в буфер обмена -----
+  copy(str, done) {
+    const fb = () => {
+      try {
+        const ta = document.createElement('textarea'); ta.value = str; ta.style.cssText = 'position:fixed;left:-999px;top:0';
+        document.body.appendChild(ta); ta.select(); const ok = document.execCommand('copy'); ta.remove(); done(ok);
+      } catch (_) { done(false); }
+    };
+    try { navigator.clipboard.writeText(str).then(() => done(true), fb); } catch (_) { fb(); }
+  },
+
+  // ----- табличка «Соперник» -----
+  rivalInfo() {
+    const R = this.race, r = this.run; if (!R || !r) return null;
+    if (R.fin) return { text: `Соперник финишировал: ${this.fmt(R.fin.rta)}`, col: '#ffd47a' };
+    if (R.lost) return { text: 'Соперник: связь потеряна', col: '#d28a6a' };
+    const o = R.oppProg; if (!o) return { text: 'Соперник: ждём данных…', col: '#86a89a' };
+    const ch = r.cat === 'boss' ? SR_BOSS_NAMES[o.c - 1] : `Глава ${CHAPTERS[o.c] ? CHAPTERS[o.c].roman : o.c}`;
+    const mine = r.splits.map((s) => s.rta), th = o.sp || [], m = mine.length, n = th.length;
+    const myNow = this.rta(), thNow = o.el + (this.clock() - o.at);
+    let lead = null; // плюс — соперник впереди
+    if (m === n && n > 0) lead = mine[n - 1] - th[n - 1];
+    else if (m < n) lead = myNow - th[m];
+    else if (m > n) lead = mine[n] - thNow;
+    if (lead == null || r.t0 == null) return { text: `Соперник: ${ch}`, col: '#b9d4c8' };
+    return { text: `Соперник: ${ch} · ${this.fmtD(lead)} ${lead >= 0 ? 'впереди' : 'позади'}`, col: lead >= 0 ? '#ff9a8a' : '#9ff0c8' };
+  },
+  raceBanner() {
+    const R = this.race, r = this.run; if (!R || !r || !r.result) return null;
+    const mine = r.result.rta;
+    if (R.fin) {
+      const d = R.fin.rta - mine;
+      if (Math.abs(d) < 10) return { text: 'НИЧЬЯ', sub: 'время совпало до сотых', col: '#ffd47a' };
+      return d > 0 ? { text: 'ПОБЕДА', sub: `быстрее соперника на ${this.fmt(d)} (его время ${this.fmt(R.fin.rta)})`, col: '#9ff0c8' }
+        : { text: 'ПОРАЖЕНИЕ', sub: `медленнее соперника на ${this.fmt(-d)} (его время ${this.fmt(R.fin.rta)})`, col: '#ff9a8a' };
+    }
+    if (R.lost) return { text: 'Связь потеряна', sub: 'результат соперника неизвестен', col: '#d28a6a' };
+    return { text: 'Финиш!', sub: 'ждём, когда соперник закончит…', col: '#ffe3a3' };
+  },
+};
+
+// ===== изоляция от обычного прогресса, честные настройки =====
+(function () {
+  const S = Settings;
+  const progO = S.progress, saveO = S.saveProgress, resetO = S.resetProgress;
+  S.progress = function () { return Speedrun.run ? null : progO.call(this); };
+  S.saveProgress = function (p) { if (!Speedrun.run) saveO.call(this, p); };
+  S.resetProgress = function () { if (!Speedrun.run) resetO.call(this); };
+  const putO = Records.put;
+  Records.put = function (id, r) { if (!Speedrun.run) putO.call(this, id, r); };
+  const spO = Access.speed;
+  Access.speed = function () { return Speedrun.run ? 1 : spO.call(this); };
+  // во время забега лёгкий режим и замедление в настройках заблокированы
+  const showO = S.show;
+  S.show = function (cb) {
+    showO.call(this, cb);
+    const lock = !!Speedrun.run, el = document.getElementById('settings');
+    document.getElementById('st-easy').disabled = lock;
+    el.querySelectorAll('[name=st-speed]').forEach((r) => { r.disabled = lock; });
+    let note = document.getElementById('st-srnote');
+    if (lock && !note) {
+      note = document.createElement('p'); note.id = 'st-srnote'; note.style.cssText = 'margin:0;color:#ffb48a;font-size:13px';
+      note.textContent = 'Идёт забег: лёгкий режим и замедление игры заблокированы.';
+      el.querySelector('h2').after(note);
+    }
+    if (note) note.hidden = !lock;
+  };
+  // сплиты на смерти боссов
+  const P = GameScene.prototype;
+  for (const fn of ['killBoss', 'mishaDie', 'vladikDie', 'timaDie']) {
+    const f = P[fn]; if (!f) continue;
+    P[fn] = function (...a) {
+      const was = this.boss && this.boss.state;
+      const out = f.apply(this, a);
+      if (this.sr) {
+        Speedrun.onSplit(this);
+        // в босс-раше у Корнематки нет пути к выходу: переходим к Мише сами, как у остальных боссов
+        if (this.sr.cat === 'boss' && fn === 'killBoss' && was !== 'dead' && !this.sr.done) this.time.delayedCall(3300, () => { if (!this.won) this.win(); });
+      }
+      return out;
+    };
+  }
+  const wipeO = P.teamWipe;
+  P.teamWipe = function () { const w = this.wiping; wipeO.call(this); if (!w && this.wiping && this.sr && !this.sr.done) this.sr.deaths++; };
+  const initO = P.init;
+  P.init = function (data) { this.sr = Speedrun.run || null; return initO.call(this, data); };
+  const createO = P.create;
+  P.create = function (...a) {
+    this.srGhost = null; this.srGhostTag = null; this.srGhostPos = null;
+    createO.apply(this, a);
+    const r = this.sr; if (!r) return;
+    if (r.cat === 'boss' && this.camp && this.camp.st === 'level' && this.L.boss && this.L.boss.trigger != null) {
+      // босс-раш: сразу к арене Корнематки
+      const tr = this.L.boss.trigger, by = (this.L.boss.y + 1) * T;
+      this.respawn = { x: (tr - 1) * T, y: by };
+      for (const p of this.players) { p.x = (tr + 1) * T + p.i * 20; p.y = by - 26; p.vx = p.vy = 0; p.safeX = p.x; p.safeY = p.y; }
+      this.camX = this.players[0].x; this.camY = this.players[0].y - 80; this.cameras.main.centerOn(this.camX, this.camY);
+    }
+    if (r.race) Speedrun.sceneReady(this);
+  };
+  // до сигнала «пошёл» герой стоит, нажатия не копятся
+  const rawO = P.rawInput, tapO = P.onKeyTap, touchO = P.onTouchTap;
+  P.rawInput = function (i) {
+    if (this.sr && this.sr.hold) return { left: false, right: false, up: false, down: false, jump: false, atk: false, dash: false, heal: false, bomb: false };
+    return rawO.call(this, i);
+  };
+  P.onKeyTap = function (e) { if (!(this.sr && this.sr.hold)) tapO.call(this, e); };
+  P.onTouchTap = function (act) { if (!(this.sr && this.sr.hold)) touchO.call(this, act); };
+  const updO = P.update;
+  P.update = function (time, delta) { const out = updO.call(this, time, delta); if (this.sr) Speedrun.tick(this, delta); return out; };
+  // выход из главы: в забеге экрана победы нет
+  const winO = P.win;
+  P.win = function () {
+    const r = this.sr;
+    if (r && !this.won && !(this.camp && this.camp.st === 'road')) {
+      if (!r.done && this.camp && this.camp.ch >= 4) Speedrun.onSplit(this);
+      if (r.done) { this.won = true; this.ui().srResult(); return; }
+      Speedrun.advance(this); return;
+    }
+    return winO.call(this);
+  };
+  // в босс-раше лавки нет
+  const shopO = Campaign.openShop;
+  Campaign.openShop = function (gs, p) {
+    if (gs.sr && gs.sr.cat === 'boss') { gs.ui().toast('В босс-раше лавка закрыта'); return; }
+    return shopO.call(this, gs, p);
+  };
+  // призрак соперника
+  const renderO = P.render;
+  P.render = function (dt) { renderO.call(this, dt); if (this.sr && this.sr.race) Speedrun.drawGhost(this, dt); };
+})();
+
+// ===== гонка 1×1: каждый играет свою симуляцию, по сети идут только готовность, отсчёт, прогресс и финиш =====
+Object.assign(Speedrun, {
+  rmsg(o) { Net.send({ t: 'race', ...o }); },
+  // комната гонки открывается у хоста при подключении гостя, у гостя — по приветствию хоста
+  raceOpen(role, hello) {
+    if (this.race) return;
+    this.race = { role, cat: hello && SR_CATS[hello.cat] ? hello.cat : (this.lastCat || 'trail'), me: false, opp: false, peerVer: hello ? hello.ver : null, lost: false, rtt: null,
+      hostLoaded: false, oppLoaded: false, state: 'room', oppProg: null, fin: null, sentAt: 0 };
+    Net.onClose = () => this.peerLost();
+    if (typeof Lobby !== 'undefined' && Lobby.el) Lobby.hide(false);
+    this.roomBuild(); this.roomShow();
+    if (role === 'host') this.rmsg({ k: 'hello', ver: GAME_VERSION, cat: this.race.cat });
+    else this.rmsg({ k: 'hi', ver: GAME_VERSION });
+    this.pingT = setInterval(() => { const R = this.race; if (!R || R.state !== 'room') { clearInterval(this.pingT); return; } if (R.role === 'host') this.rmsg({ k: 'ping', t: performance.now() }); }, 1000);
+  },
+  onNet(m) {
+    if (m.k === 'hello' && !this.race && Net.role === 'guest') { this.raceOpen('guest', m); return; }
+    const R = this.race; if (!R) return;
+    switch (m.k) {
+      case 'hi': R.peerVer = m.ver; this.roomRefresh(); break;
+      case 'cat': if (SR_CATS[m.cat]) { R.cat = m.cat; R.me = false; R.opp = false; this.roomRefresh(); } break;
+      case 'ready': R.opp = !!m.v; this.roomRefresh(); this.maybeStart(); break;
+      case 'prep': if (R.role === 'guest' && R.state === 'room') { R.cat = m.cat; this.beginRace(); } break;
+      case 'loaded': R.oppLoaded = true; this.tryCount(); break;
+      case 'cd': if (this.run) this.run.cd = String(m.n); Snd.play('bead'); break;
+      case 'go': if (R.role === 'guest') this.release(); break;
+      case 'ping': this.rmsg({ k: 'pong', t: m.t }); break;
+      case 'pong': { const d = performance.now() - m.t; R.rtt = R.rtt == null ? d : Math.min(R.rtt * 0.7 + d * 0.3, R.rtt + 30); break; }
+      case 'prog': R.oppProg = { c: m.c, s: m.s, x: m.x, y: m.y, f: m.f, g: m.g, vx: m.vx, vy: m.vy, d: m.d, el: m.el, sp: m.sp || [], dn: m.dn, at: this.clock() }; break;
+      case 'fin': R.fin = { rta: m.rta, igt: m.igt, deaths: m.deaths }; if (this.run && !this.run.done) { const u = window.__game.scene.getScene('ui'); if (u && u.ready) u.toast(`Соперник финишировал: ${this.fmt(m.rta)}`, 4); } break;
+      case 'bye': R.lost = true; this.peerLost(); break;
+    }
+  },
+  peerLost() {
+    const R = this.race; if (!R) return;
+    R.lost = true;
+    if (R.state === 'room') this.roomRefresh();
+    else if (this.run && this.run.hold) this.release(); // до старта связь пропала — не стоим вечно
+  },
+  maybeStart() {
+    const R = this.race;
+    if (!R || R.role !== 'host' || R.state !== 'room' || !R.me || !R.opp || R.lost || R.peerVer !== GAME_VERSION) return;
+    this.rmsg({ k: 'prep', cat: R.cat }); this.beginRace();
+  },
+  beginRace() {
+    const R = this.race; R.state = 'loading'; clearInterval(this.pingT);
+    this.roomHide();
+    const data = this.begin(R.cat, R);
+    const menu = window.__game.scene.getScene('menu');
+    if (!menu || !menu.sys.isActive()) return;
+    menu.leaving = true; Snd.init(); Snd.play('bench');
+    this.run.cd = 'Загрузка…';
+    menu.cameras.main.fadeOut(450, 3, 8, 7);
+    menu.time.delayedCall(460, () => menu.scene.start('game', data));
+  },
+  sceneReady() {
+    const R = this.race, r = this.run; if (!R || !r || !r.hold || R.loadedSent) return;
+    R.loadedSent = true; r.cd = 'Ждём соперника…';
+    if (R.role === 'host') { R.hostLoaded = true; this.tryCount(); } else this.rmsg({ k: 'loaded' });
+    if (R.lost) this.release();
+  },
+  // общий отсчёт ведёт хост: 3, 2, 1, пошёл; сам стартует с поправкой на половину пинга, чтобы старт был одновременным
+  tryCount() {
+    const R = this.race, r = this.run;
+    if (!R || !r || R.role !== 'host' || R.counting || !R.hostLoaded || !R.oppLoaded) return;
+    R.counting = true; let n = 3;
+    const step = () => {
+      if (!this.run || this.race !== R) return;
+      if (n > 0) { r.cd = String(n); this.rmsg({ k: 'cd', n }); Snd.play('bead'); n--; setTimeout(step, 1000); }
+      else { this.rmsg({ k: 'go' }); setTimeout(() => this.release(), Math.min(400, (R.rtt || 0) / 2)); }
+    };
+    step();
+  },
+  release() {
+    const r = this.run; if (!r || !r.hold) return;
+    r.hold = false; r.t0 = this.clock(); r.igt = 0; r.cd = 'ПОШЁЛ!'; Snd.play('revive');
+    setTimeout(() => { if (r.cd === 'ПОШЁЛ!') r.cd = ''; }, 900);
+  },
+  raceSend(gs) {
+    const R = this.race; if (!R || R.lost) return;
+    const now = performance.now(); if (now - R.sentAt < 100) return; R.sentAt = now;
+    const p = gs.players[0], r = this.run;
+    this.rmsg({ k: 'prog', c: gs.camp ? gs.camp.ch : 1, s: gs.camp ? gs.camp.st : 'level', x: Math.round(p.x), y: Math.round(p.y), f: p.face, g: p.onGround ? 1 : 0,
+      vx: Math.round(p.vx), vy: Math.round(p.vy), d: p.dashT > 0 ? 1 : 0, el: Math.round(this.rta()), sp: r.splits.map((s) => s.rta), dn: r.done ? 1 : 0 });
+  },
+  // полупрозрачный силуэт соперника, если он в той же главе и на том же этапе
+  drawGhost(gs, dt) {
+    const R = this.race, o = R && R.oppProg;
+    if (!gs.srGhost || !gs.srGhost.scene) {
+      gs.srGhost = gs.add.graphics().setDepth(4.8);
+      gs.srGhostTag = gs.add.text(0, 0, 'Соперник', { fontFamily: '"Fira Sans", sans-serif', fontSize: '10px', fontStyle: '600', color: '#ffd9a0' }).setOrigin(0.5).setDepth(4.9);
+      gs.srGhostPos = null;
+    }
+    const g = gs.srGhost, tag = gs.srGhostTag, same = o && !R.lost && !R.fin && this.clock() - o.at < 3000 && gs.camp && o.c === gs.camp.ch && o.s === gs.camp.st;
+    g.clear();
+    if (!same) { tag.setVisible(false); gs.srGhostPos = null; return; }
+    let gp = gs.srGhostPos;
+    if (!gp) gp = gs.srGhostPos = { x: o.x, y: o.y };
+    const k = Math.min(1, dt * 12), ex = o.x + (o.vx || 0) * Math.min(0.2, (this.clock() - o.at) / 1000), ey = o.y + (o.vy || 0) * Math.min(0.2, (this.clock() - o.at) / 1000);
+    gp.x += (ex - gp.x) * k; gp.y += (ey - gp.y) * k;
+    const cx = gp.x + 7, fy = gp.y + 26, run = o.g && Math.abs(o.vx) > 10, ph = gs.animT * 14;
+    g.setPosition(cx, fy); g.setAlpha(0.38);
+    drawWeaver(g, 0, 0, o.f || 1, PAL[1], { leg: run ? Math.sin(ph) * 5 : (o.g ? 0 : 2), bob: run ? Math.abs(Math.sin(ph)) * 1.5 : 0, sway: run ? -4 : (!o.g ? (o.vy < 0 ? -2 : 3) : 0), lift: (!o.g && o.vy > 0) ? -4 : 0 }, 1);
+    tag.setVisible(true).setAlpha(0.6).setPosition(cx, fy - 52);
+  },
+
+  // ----- комната ожидания гонки (HTML поверх игры) -----
+  css() {
+    if (document.getElementById('sr-css')) return;
+    const st = document.createElement('style'); st.id = 'sr-css';
+    st.textContent = `.sr-ov{position:fixed;inset:0;z-index:7;display:grid;place-items:center;overflow-y:auto;background:rgba(3,8,7,.86);padding:16px}
+.sr-ov .card{width:min(620px,100%);background:#0c1815;border:1px solid #24433a;border-radius:10px;padding:18px 22px 16px;display:grid;gap:10px;margin-block:auto;color:#cfe2d8;font:14px/1.45 var(--body)}
+.sr-ov h2{font:700 32px var(--display);margin:0;color:var(--bone)}.sr-ov h3{font:700 22px var(--display);margin:6px 0 2px;color:var(--ember)}
+.sr-ov .lead{margin:0;color:var(--muted);font-size:13px}.sr-ov .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.sr-ov button{font:600 14px var(--body);border-radius:7px;padding:9px 14px;cursor:pointer;border:1px solid #3a6b5a;background:#143029;color:var(--bone)}
+.sr-ov button:hover:not(:disabled){background:#1b3f35}.sr-ov button:disabled{opacity:.45;cursor:default}
+.sr-ov button.primary{background:var(--moss);border-color:var(--moss);color:#08130f}.sr-ov button.on{background:var(--moss);color:#08130f;border-color:var(--moss)}
+.sr-ov button.ghost{background:transparent;border-color:transparent;color:var(--muted)}
+.sr-ov input,.sr-ov textarea{font:14px var(--body);background:#08130f;color:var(--bone);border:1px solid #2c5246;border-radius:6px;padding:7px 9px;width:100%;box-sizing:border-box}
+.sr-ov textarea{resize:vertical;min-height:84px;font-size:12px}.sr-ov .bad{color:#ffb48a}.sr-ov .good{color:#9ff0c8}
+.sr-ov table{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}.sr-ov th{color:var(--muted);font-weight:400;text-align:left;padding:3px 6px;border-bottom:1px solid #1d3630}
+.sr-ov td{padding:4px 6px;border-bottom:1px solid #12251f}.sr-ov tr.me td{background:rgba(159,240,200,.1);color:#fff}.sr-ov td.x{text-align:right}
+.sr-ov button.del{padding:0 6px;font-size:12px}.sr-ov label.nm{display:grid;gap:4px;font-size:12px;color:var(--muted)}`;
+    document.head.appendChild(st);
+  },
+  roomBuild() {
+    this.css();
+    let el = document.getElementById('sr-room'); if (el) return;
+    el = document.createElement('div'); el.id = 'sr-room'; el.className = 'sr-ov'; el.hidden = true;
+    el.innerHTML = `<div class="card" role="dialog" aria-labelledby="sr-rt"><h2 id="sr-rt">Гонка 1×1</h2>
+<p class="lead">Оба играют один и тот же забег одновременно, каждый в своей игре. По сети идут только готовность, отсчёт, ваше положение и итог.</p>
+<div class="row" id="sr-rcat"></div><div id="sr-rst"></div><div id="sr-rwarn" class="bad"></div>
+<div class="row"><button id="sr-ready" class="primary" type="button">Готов</button><button id="sr-rfix" type="button" hidden>Отключить запрещённые настройки</button></div>
+<div class="row"><button id="sr-rleave" class="ghost" type="button">← Выйти из комнаты</button></div></div>`;
+    document.body.appendChild(el);
+    el.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Escape') this.raceLeave(); });
+    el.querySelector('#sr-ready').onclick = () => { const R = this.race; if (!R || R.state !== 'room') return; R.me = !R.me; this.rmsg({ k: 'ready', v: R.me }); this.roomRefresh(); this.maybeStart(); };
+    el.querySelector('#sr-rleave').onclick = () => this.raceLeave();
+    el.querySelector('#sr-rfix').onclick = () => { this.fixRules(); this.roomRefresh(); };
+  },
+  roomShow() { const el = document.getElementById('sr-room'); el.hidden = false; this.roomRefresh(); setTimeout(() => document.getElementById('sr-ready').focus(), 0); },
+  roomHide() { const el = document.getElementById('sr-room'); if (el) el.hidden = true; },
+  roomRefresh() {
+    const R = this.race, el = document.getElementById('sr-room'); if (!R || !el || el.hidden) return;
+    const catBox = el.querySelector('#sr-rcat'); catBox.innerHTML = '';
+    for (const id of ['trail', 'boss']) {
+      const b = document.createElement('button'); b.type = 'button'; b.textContent = SR_CATS[id].name; if (R.cat === id) b.className = 'on';
+      b.disabled = R.role !== 'host' || R.state !== 'room';
+      b.onclick = () => { R.cat = id; R.me = false; R.opp = false; this.rmsg({ k: 'cat', cat: id }); this.roomRefresh(); };
+      catBox.appendChild(b);
+    }
+    const v = this.violation(), vm = R.peerVer && R.peerVer !== GAME_VERSION;
+    const warn = [];
+    if (R.lost) warn.push('Соперник отключился. Выйдите и создайте комнату заново.');
+    if (vm) warn.push(`Версии игры различаются (у вас ${GAME_VERSION}, у соперника ${R.peerVer}): обновите страницу, иначе гонка не начнётся.`);
+    if (v.length) warn.push(`Запрещено в спидране: ${v.join(', ')}.`);
+    el.querySelector('#sr-rwarn').textContent = warn.join(' ');
+    el.querySelector('#sr-rfix').hidden = !v.length;
+    const rtt = R.rtt != null ? ` · пинг ~${Math.round(R.rtt)} мс` : '';
+    el.querySelector('#sr-rst').innerHTML = `<div>${R.role === 'host' ? 'Вы — хост: категорию выбираете вы.' : 'Категорию выбирает хост: ' + SR_CATS[R.cat].name + '.'}${rtt}</div>
+<div class="${R.me ? 'good' : ''}">Вы: ${R.me ? 'готов' : 'не готов'}</div><div class="${R.opp ? 'good' : ''}">Соперник: ${R.lost ? 'нет связи' : R.opp ? 'готов' : 'не готов'}</div>
+<div class="lead">${SR_CATS[R.cat].about}</div>`;
+    const btn = el.querySelector('#sr-ready');
+    btn.textContent = R.me ? 'Не готов' : 'Готов'; btn.disabled = R.lost || v.length > 0 || vm || R.state !== 'room';
+  },
+  raceLeave() {
+    const R = this.race; clearInterval(this.pingT);
+    if (R) this.rmsg({ k: 'bye' });
+    this.race = null; this.run = null; Net.onClose = null; Net.close();
+    this.roomHide();
+    const menu = window.__game.scene.getScene('menu'); if (menu) menu.leaving = false;
+  },
+
+  // ----- таблица друзей (HTML поверх игры) -----
+  friendsOpen(last) {
+    this.css();
+    let el = document.getElementById('sr-fr');
+    if (!el) {
+      el = document.createElement('div'); el.id = 'sr-fr'; el.className = 'sr-ov'; el.hidden = true;
+      el.innerHTML = `<div class="card" role="dialog" aria-labelledby="sr-ft"><h2 id="sr-ft">Таблица друзей</h2>
+<p class="lead">Вставьте результаты друзей по одному в строку (у друга: «Скопировать результат» на итоговом экране). Код ловит опечатки при копировании, но не подделку: без сервера честность держится на слове.</p>
+<label class="nm">Ваше имя (подставится в копируемый результат)<input id="sr-name" maxlength="20" autocomplete="off" placeholder="например, Ива"></label>
+<textarea id="sr-paste" spellcheck="false" placeholder="Вася: ТТ v1.4 Тропа целиком 23:41.52 (IGT 22:58.10) обрывов 3 · сплиты … · код A1B2C3"></textarea>
+<div class="row"><button id="sr-add" class="primary" type="button">Добавить в таблицу</button><button id="sr-clear" type="button">Очистить чужие результаты</button></div>
+<div id="sr-fmsg" role="status"></div><div id="sr-tabs"></div>
+<div class="row"><button id="sr-fclose" class="ghost" type="button">← Закрыть</button></div></div>`;
+      document.body.appendChild(el);
+      el.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Escape') this.friendsClose(); });
+      el.querySelector('#sr-fclose').onclick = () => this.friendsClose();
+      el.querySelector('#sr-name').addEventListener('input', (e) => { this.setMyName(e.target.value); });
+      el.querySelector('#sr-clear').onclick = () => { this.saveFriends([]); this.friendsMsg('Чужие результаты очищены', 'good'); this.friendsRender(); };
+      el.querySelector('#sr-add').onclick = () => this.friendsAdd(el.querySelector('#sr-paste').value);
+    }
+    this.frLast = last || null;
+    el.querySelector('#sr-name').value = this.myName();
+    el.hidden = false; this.friendsMsg(''); this.friendsRender();
+    setTimeout(() => el.querySelector('#sr-paste').focus(), 0);
+  },
+  friendsClose() { const el = document.getElementById('sr-fr'); if (el) el.hidden = true; },
+  friendsMsg(t, kind) { const m = document.getElementById('sr-fmsg'); if (m) { m.textContent = t; m.className = kind || ''; m.style.whiteSpace = 'pre-line'; } },
+  friendsAdd(raw) {
+    const lines = raw.split(/\r?\n/).map((l) => l.trim()).filter(Boolean), list = this.friends(), errs = [];
+    let ok = 0, dup = 0;
+    lines.forEach((l, i) => {
+      const p = this.parse(l);
+      if (!p.ok) { errs.push(`Строка ${i + 1}: ${p.err}`); return; }
+      if (list.some((x) => x.code === p.code && x.name === p.name && x.cat === p.e.cat)) { dup++; return; }
+      list.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7), name: p.name, code: p.code, ...p.e }); ok++;
+    });
+    this.saveFriends(list);
+    if (ok) document.getElementById('sr-paste').value = '';
+    this.friendsMsg([ok ? `Добавлено: ${ok}` : '', dup ? `Уже были: ${dup}` : '', ...errs].filter(Boolean).join('\n') || 'Нечего добавлять', errs.length ? 'bad' : 'good');
+    this.friendsRender();
+  },
+  // строки таблицы по категории: друзья + ваш рекорд (+ последний забег)
+  boardRows(cat) {
+    const rows = this.friends().filter((x) => x.cat === cat).map((x) => ({ name: x.name, e: x, friend: x }));
+    const mine = this.myName() || 'Вы', pb = this.rec(cat).pb;
+    const add = (label, res) => {
+      const e = { ver: res.ver, cat, rta: Math.floor(res.rta / 10), igt: Math.floor(res.igt / 10), deaths: res.deaths, splits: res.splits.map((s) => Math.floor(s.rta / 10)) };
+      rows.push({ name: label, e, me: true });
+    };
+    if (pb) add(mine + ' (рекорд)', pb);
+    const l = this.frLast;
+    if (l && l.cat === cat && !l.taint && (!pb || l.rta !== pb.rta)) add(mine + ' (этот забег)', l);
+    return rows.sort((a, b) => a.e.rta - b.e.rta);
+  },
+  friendsRender() {
+    const box = document.getElementById('sr-tabs'); if (!box) return; box.innerHTML = '';
+    const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    for (const id of ['trail', 'boss']) {
+      const rows = this.boardRows(id), h = document.createElement('div');
+      h.innerHTML = `<h3>${SR_CATS[id].name}</h3>` + (rows.length ? `<table><tr><th>#</th><th>Игрок</th><th>RTA</th><th>IGT</th><th>Обрывов</th><th>Версия</th><th></th></tr>${rows.map((r, i) =>
+        `<tr class="${r.me ? 'me' : ''}"><td>${i + 1}</td><td>${esc(r.name)}</td><td>${this.fmt(r.e.rta * 10)}</td><td>${this.fmt(r.e.igt * 10)}</td><td>${r.e.deaths}</td><td>${esc(r.e.ver)}${r.e.ver !== GAME_VERSION ? ' ⚠' : ''}</td><td class="x">${r.friend ? `<button class="del" data-k="${esc(r.friend.id || '')}" type="button" aria-label="Убрать">✕</button>` : ''}</td></tr>`).join('')}</table>`
+        : '<div class="lead">Пока пусто: добавьте результаты друзей или пройдите забег сами.</div>');
+      box.appendChild(h);
+    }
+    box.querySelectorAll('button.del').forEach((b) => { b.onclick = () => { const k = b.dataset.k; this.saveFriends(this.friends().filter((x) => (x.id || '') !== k)); this.friendsRender(); }; });
+  },
+});
+
+// ===== интерфейс: таймер, сплиты, соперник, отсчёт, итоговый экран =====
+(function () {
+  const U = UIScene.prototype, M = 'ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace';
+  // сцена интерфейса переиспользуется при каждом старте игры: старые объекты уничтожены, сбрасываем ссылки
+  const createO = U.create;
+  U.create = function () { this.srH = null; this.srShown = null; this.srKey = false; this.srRace = null; this.srBanner = null; createO.call(this); };
+  const updO = U.update, restartO = U.restart, retryO = U.retry, winEnterO = U.winEnter;
+  U.restart = function () { Speedrun.leave(); restartO.call(this); };
+  U.retry = function () {
+    if (this.gs.sr && Speedrun.run) { if (this.gs.won && !this.srShown) return; Speedrun.restartRun(this); return; }
+    retryO.call(this);
+  };
+  // в забеге Space (прыжок) и Enter не должны случайно вынести в меню: выход с итогового экрана — только Enter через 1.2 с или кнопка
+  U.winEnter = function () { if (this.gs.sr) return; winEnterO.call(this); };
+  const setT = (t, s, col) => { if (t._v !== s) { t._v = s; t.setText(s); } if (col && t._c !== col) { t._c = col; t.setColor(col); } };
+  U.update = function (time, delta) {
+    updO.call(this, time, delta);
+    const r = Speedrun.run, gs = this.gs;
+    if (!r || !gs || !gs.sr || !this.ready) { if (this.srH) this.srH.c.setVisible(false); return; }
+    if (!this.srH) {
+      const x = VW - 14, c = this.add.container(0, 0).setDepth(5), mk = (px, y, size, ox, bold) => { const t = this.add.text(px, y, '', { fontFamily: M, fontSize: size + 'px', fontStyle: bold ? '700' : '400', color: '#e8e2cf' }).setOrigin(ox, 0).setShadow(0, 1, '#000', 4, false, true); c.add(t); return t; };
+      this.srH = { c, rta: mk(x, 8, 30, 1, true), igt: mk(x, 42, 13, 1), rows: [0, 1, 2, 3].map((i) => ({ n: mk(x - 232, 62 + i * 17, 13, 0), t: mk(x - 72, 62 + i * 17, 13, 1), d: mk(x, 62 + i * 17, 13, 1) })),
+        rival: mk(x, 136, 13, 1), big: this.add.text(VW / 2, 190, '', { fontFamily: '"Cormorant SC", Georgia, serif', fontSize: '110px', fontStyle: '700', color: '#e8e2cf' }).setOrigin(0.5).setShadow(0, 0, '#9ff0c8', 18, false, true).setDepth(6) };
+    }
+    const h = this.srH, cat = SR_CATS[r.cat], rec = Speedrun.rec(r.cat), pb = rec.pb;
+    h.c.setVisible(!this.srShown);
+    h.big.setVisible(!!r.cd && !this.srShown); setT(h.big, r.cd || '');
+    const fs = r.cd && r.cd.length > 2 ? (r.cd.length > 8 ? 46 : 64) : 110;
+    if (h.fs !== fs) { h.fs = fs; h.big.setFontSize(fs); }
+    if (this.srShown) { Speedrun.resUpdate(this); return; }
+    const rta = Speedrun.rta();
+    setT(h.rta, Speedrun.fmt(rta), r.taint ? '#ff9a8a' : r.done ? '#9ff0c8' : r.t0 == null ? '#6f9586' : '#e8e2cf');
+    setT(h.igt, `IGT ${Speedrun.fmt(r.igt)}${gs.paused ? ' · пауза' : ''}${r.t0 == null && !r.race ? ' · ждём первого шага' : ''}${r.taint ? ' · ВНЕ ЗАЧЁТА' : ''}`, r.taint ? '#ff9a8a' : '#86a89a');
+    const cur = r.splits.length;
+    h.rows.forEach((row, i) => {
+      const sp = r.splits[i];
+      setT(row.n, `${i === cur && !r.done ? '▸ ' : '  '}${cat.tags[i]}`, sp ? '#cfe8dc' : i === cur ? '#ffe3a3' : '#5f7a6f');
+      setT(row.t, sp ? Speedrun.fmt(sp.rta) : i === cur ? Speedrun.fmt(rta) : '—', sp ? '#cfe8dc' : i === cur ? '#ffe3a3' : '#5f7a6f');
+      if (sp && pb && pb.splits[i]) { const d = sp.rta - pb.splits[i].rta; setT(row.d, Speedrun.fmtD(d), d <= 0 ? '#7ff0a8' : '#ff8a7a'); } else setT(row.d, sp ? ' ' : '');
+    });
+    const rv = Speedrun.race ? Speedrun.rivalInfo() : null;
+    setT(h.rival, rv ? rv.text : '', rv ? rv.col : null);
+    h.rival.setVisible(!!rv);
+  };
+
+  // ----- итоговый экран -----
+  U.srResult = function () {
+    const r = Speedrun.run, res = r && r.result; if (!res || this.srShown) return;
+    const D = '"Cormorant SC", Georgia, serif', F = '"Fira Sans", sans-serif', cx = VW / 2, items = [], cat = SR_CATS[res.cat];
+    this.srShown = performance.now();
+    Touch.show(false);
+    if (!this.srKey) { this.srKey = true; this.input.keyboard.on('keydown-ENTER', () => { if (this.srShown && performance.now() - this.srShown > 1200) this.restart(); }); }
+    const bg = this.add.graphics(); bg.fillStyle(0x030807, 0.96); bg.fillRect(0, 0, VW, VH); items.push(bg);
+    const tx = (x, y, s, st, ox) => { const t = this.add.text(x, y, s, st).setOrigin(ox == null ? 0.5 : ox, 0); items.push(t); return t; };
+    tx(cx, 18, `${cat.name} · забег окончен`, { fontFamily: D, fontSize: '38px', color: '#e8e2cf', fontStyle: '700' }).setShadow(0, 0, '#9ff0c8', 14, false, true);
+    tx(cx, 62, Speedrun.fmt(res.rta), { fontFamily: M, fontSize: '56px', color: res.taint ? '#ff9a8a' : '#9ff0c8', fontStyle: '700' });
+    tx(cx, 126, `RTA (настенные часы)   ·   IGT ${Speedrun.fmt(res.igt)} (без пауз и лавки)   ·   обрывов нити: ${res.deaths}`, { fontFamily: F, fontSize: '16px', color: '#b9d4c8' });
+    const pb = res.pbPrev;
+    let pbl = res.newPb ? (pb ? `Новый личный рекорд! Прошлый: ${Speedrun.fmt(pb.rta)} (${Speedrun.fmtD(res.rta - pb.rta)})` : 'Первый результат в этой категории: личный рекорд установлен') : pb ? `Личный рекорд: ${Speedrun.fmt(pb.rta)} (${Speedrun.fmtD(res.rta - pb.rta)})` : '';
+    if (res.taint) pbl = `Вне зачёта: ${res.taint}. Рекорд не записан`;
+    tx(cx, 150, pbl, { fontFamily: F, fontSize: '16px', color: res.taint ? '#ff9a8a' : res.newPb ? '#ffd47a' : '#8fb8a8', fontStyle: '600' });
+    // таблица сплитов
+    const cols = [cx - 250, cx - 60, cx + 40, cx + 150, cx + 250], y0 = 184;
+    ['Сплит', 'RTA', 'Сегмент', 'IGT', 'к рекорду'].forEach((s, i) => tx(cols[i], y0, s, { fontFamily: F, fontSize: '12px', color: '#6f9586' }, i === 0 ? 0 : i === 4 ? 1 : 1));
+    const seg = Speedrun.rec(res.cat).seg;
+    res.splits.forEach((sp, i) => {
+      const y = y0 + 20 + i * 24, prev = i ? res.splits[i - 1].rta : 0, sg = sp.rta - prev, best = !res.taint && seg[i] === sg;
+      tx(cols[0], y, cat.tags[i], { fontFamily: M, fontSize: '16px', color: '#cfe8dc' }, 0);
+      tx(cols[1], y, Speedrun.fmt(sp.rta), { fontFamily: M, fontSize: '16px', color: '#e8e2cf' }, 1);
+      tx(cols[2], y, Speedrun.fmt(sg) + (best ? ' ★' : ''), { fontFamily: M, fontSize: '16px', color: best ? '#ffd47a' : '#b9d4c8' }, 1);
+      tx(cols[3], y, Speedrun.fmt(sp.igt), { fontFamily: M, fontSize: '16px', color: '#86a89a' }, 1);
+      if (pb && pb.splits[i]) { const d = sp.rta - pb.splits[i].rta; tx(cols[4], y, Speedrun.fmtD(d), { fontFamily: M, fontSize: '16px', color: d <= 0 ? '#7ff0a8' : '#ff8a7a' }, 1); }
+    });
+    // гонка
+    this.srRace = Speedrun.race ? tx(cx, 312, '', { fontFamily: D, fontSize: '40px', color: '#e8e2cf', fontStyle: '700' }) : null;
+    this.srRaceSub = Speedrun.race ? tx(cx, 354, '', { fontFamily: F, fontSize: '15px', color: '#b9d4c8' }) : null;
+    // текст для друзей
+    const e = Speedrun.entryOf(res), line = res.taint ? '' : Speedrun.text(e, Speedrun.myName());
+    this.srLine = line;
+    if (line) tx(cx, Speedrun.race ? 380 : 330, line, { fontFamily: M, fontSize: '11px', color: '#7fa596', align: 'center', wordWrap: { width: Math.min(VW - 60, 880) } });
+    const btn = (x, y, label, fn) => {
+      const t = this.add.text(x, y, label, { fontFamily: D, fontSize: '24px', color: '#cfe8dc', fontStyle: '700', backgroundColor: 'rgba(20,48,41,0.9)', padding: { x: 14, y: 6 } }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+      t.on('pointerover', () => t.setColor('#ffd47a')); t.on('pointerout', () => t.setColor('#cfe8dc')); t.on('pointerdown', fn); items.push(t); return t;
+    };
+    const by = 438;
+    if (line) {
+      const cp = btn(cx - 190, by, 'Скопировать результат', () => Speedrun.copy(line, (ok) => { cp.setText(ok ? 'Скопировано!' : 'Выделите и скопируйте строку выше'); setTimeout(() => cp.setText('Скопировать результат'), 2200); }));
+    }
+    btn(cx + (line ? 190 : -120), by, 'Таблица друзей', () => Speedrun.friendsOpen(res));
+    if (!Speedrun.race) btn(cx - 130, by + 52, 'Ещё раз (R)', () => this.retry());
+    btn(cx + (Speedrun.race ? 0 : 130), by + 52, 'В главное меню', () => this.restart());
+    this.win.add(items); this.win.setVisible(true).setAlpha(0);
+    this.tweens.add({ targets: this.win, alpha: 1, duration: 700 });
+    this.srBanner = null; Speedrun.resUpdate(this);
+  };
+  // баннер гонки обновляется, когда приходит результат соперника
+  Speedrun.resUpdate = function (ui) {
+    if (!ui.srRace) return;
+    const b = this.raceBanner(), key = b ? b.text + b.sub : '';
+    if (ui.srBanner === key) return; ui.srBanner = key;
+    if (b) { ui.srRace.setText(b.text).setColor(b.col); ui.srRaceSub.setText(b.sub); }
+  };
+})();
+
+// ===== меню: пункт «Спидран» (клавиша 6) =====
+{
+  const mc = MenuScene.prototype.create;
+  MenuScene.prototype.create = function () { this.srP = null; this.srUi = null; mc.call(this); };
+}
+Object.assign(MenuScene.prototype, {
+  srBuild() {
+    const D = '"Cormorant SC", Georgia, serif', F = '"Fira Sans", sans-serif', M = 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace', cx = VW / 2;
+    const c = this.add.container(0, 0).setVisible(false).setDepth(11), s = this.srUi = {};
+    const g = this.add.graphics(); g.fillStyle(0x030807, 0.985); g.fillRect(0, 0, VW, VH);
+    const t = (x, y, str, st, ox) => { const o = this.add.text(x, y, str, st).setOrigin(ox == null ? 0.5 : ox, 0); c.add(o); return o; };
+    c.add(g);
+    t(cx, 24, 'Спидран', { fontFamily: D, fontSize: '46px', color: '#e8e2cf', fontStyle: '700' }).setShadow(0, 0, '#9ff0c8', 14, false, true);
+    s.cat = 'trail';
+    s.tabs = ['trail', 'boss'].map((id, i) => {
+      const o = t(cx + (i ? 150 : -150), 86, SR_CATS[id].name, { fontFamily: D, fontSize: '28px', color: '#8fb8a8', fontStyle: '700' }).setInteractive({ useHandCursor: true });
+      o.on('pointerdown', () => this.srSetCat(id)); return o;
+    });
+    s.line = this.add.graphics(); c.add(s.line);
+    t(cx, 132, '← → выбрать категорию', { fontFamily: F, fontSize: '12px', color: '#6f9586' });
+    s.about = t(cx, 152, '', { fontFamily: F, fontSize: '14px', color: '#cfe8dc', align: 'center', lineSpacing: 5 });
+    s.rec = t(cx, 196, '', { fontFamily: M, fontSize: '13px', color: '#ffe3a3', align: 'center', lineSpacing: 4 });
+    t(cx, 248, 'RTA идёт с первого шага до последнего удара финального босса. Пауза останавливает только игровое время (IGT).\nОбычное сохранение и рекорды боссов не затрагиваются. Переназначение клавиш разрешено.', { fontFamily: F, fontSize: '12.5px', color: '#86a89a', align: 'center', lineSpacing: 4 });
+    s.rules = t(cx, 296, '', { fontFamily: F, fontSize: '14px', color: '#9ff0c8', align: 'center', lineSpacing: 5 });
+    s.fix = t(cx, 346, 'Отключить запрещённые настройки', { fontFamily: D, fontSize: '22px', color: '#ffb48a', fontStyle: '700', backgroundColor: 'rgba(60,24,16,0.85)', padding: { x: 12, y: 5 } }).setInteractive({ useHandCursor: true });
+    s.fix.on('pointerdown', () => { Speedrun.fixRules(); this.srRefresh(); });
+    const mk = (y, label, fn) => {
+      const o = t(cx, y, label, { fontFamily: D, fontSize: '28px', color: '#cfe8dc', fontStyle: '600' }).setInteractive({ useHandCursor: true });
+      o.on('pointerover', () => { if (!o._off) o.setColor('#ffd47a'); }); o.on('pointerout', () => o.setColor(o._off ? '#5f7a6f' : '#cfe8dc')); o.on('pointerdown', fn); return o;
+    };
+    s.b1 = mk(386, '1 · Забег в одиночку', () => this.srStart());
+    s.b2 = mk(424, '2 · Гонка 1×1 по сети', () => this.srRace());
+    mk(462, '3 · Таблица друзей', () => Speedrun.friendsOpen());
+    mk(496, '← Назад (Esc)', () => this.srClose()).setFontSize(22);
+    this.srP = c;
+    this.input.keyboard.on('keydown', (e) => {
+      if (!c.visible || Settings.open || !Lobby.el.hidden || this.leaving) return;
+      const k = e.key;
+      if (k === '1') this.srStart(); else if (k === '2') this.srRace(); else if (k === '3') Speedrun.friendsOpen();
+      else if (k === 'Escape') this.srClose();
+      else if (k === 'ArrowLeft' || k === 'ArrowRight' || k === 'a' || k === 'd' || k === 'A' || k === 'D' || k === 'ф' || k === 'в') this.srSetCat(s.cat === 'trail' ? 'boss' : 'trail');
+    });
+  },
+  openSpeedrun() {
+    if (this.leaving) return; Snd.init();
+    if (!this.srP) this.srBuild();
+    this.srSetCat(this.srUi.cat); this.srP.setVisible(true);
+  },
+  srClose() { if (this.srP) this.srP.setVisible(false); },
+  srSetCat(id) {
+    if (!this.srP) this.srBuild();
+    const s = this.srUi; s.cat = id;
+    s.tabs.forEach((o, i) => o.setColor(['trail', 'boss'][i] === id ? '#ffd47a' : '#8fb8a8'));
+    const o = s.tabs[id === 'trail' ? 0 : 1], g = s.line; g.clear(); g.fillStyle(0xffd47a, 1); g.fillRect(o.x - o.width / 2, 118, o.width, 2);
+    this.srRefresh();
+  },
+  srRefresh() {
+    const s = this.srUi, id = s.cat, rec = Speedrun.rec(id), pb = rec.pb, f = Speedrun.fmt.bind(Speedrun);
+    s.about.setText(SR_CATS[id].about);
+    const best = rec.seg.length === 4 && rec.seg.every(Boolean) ? rec.seg.reduce((a, b) => a + b, 0) : 0;
+    s.rec.setText(pb ? `Личный рекорд: ${f(pb.rta)}  (IGT ${f(pb.igt)}, обрывов ${pb.deaths}, v${pb.ver})\nСплиты: ${pb.splits.map((x) => f(x.rta)).join('  ')}${best ? `\nСумма лучших сегментов: ${f(best)}` : ''}` : 'Личного рекорда пока нет');
+    const v = Speedrun.violation();
+    s.rules.setText(`Лёгкий режим: ${Settings.s.easy ? 'ВКЛЮЧЁН — запрещено' : 'выключен'}\nЗамедление игры: ${(Settings.s.speed || 100) !== 100 ? Settings.s.speed + ' % — запрещено' : '100 %'}`);
+    s.rules.setColor(v.length ? '#ff9a8a' : '#9ff0c8');
+    s.fix.setVisible(v.length > 0);
+    for (const b of [s.b1, s.b2]) { b._off = v.length > 0; b.setColor(v.length ? '#5f7a6f' : '#cfe8dc'); }
+  },
+  srStart() {
+    if (this.leaving || Speedrun.violation().length) { if (!this.leaving) Snd.play('hit'); return; }
+    this.leaving = true; Snd.init(); Snd.play('bench');
+    const data = Speedrun.begin(this.srUi.cat);
+    this.cameras.main.fadeOut(450, 3, 8, 7);
+    this.time.delayedCall(460, () => this.scene.start('game', data));
+  },
+  srRace() {
+    if (this.leaving || Speedrun.violation().length) { if (!this.leaving) Snd.play('hit'); return; }
+    Speedrun.lastCat = this.srUi.cat;
+    this.srClose(); this.openLobby('race');
+  },
+});
 
 // ===== ПРОВЕРКА ОБНОВЛЕНИЙ: важно для иконки на экране «Домой» (iPhone держит старую версию в кэше и в памяти) =====
 const Updater = {

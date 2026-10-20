@@ -2,7 +2,30 @@
 # Запуск: python build.py
 import os
 SRC = os.path.join(os.path.dirname(__file__), 'src')
-parts = ["level.js", "art.js", "sound.js", "music.js", "settings.js", "touch.js", "net.js", "game.js", "misha.js", "vladik.js", "tima.js","bosses2.js", "combat2.js", "enemies2.js", "campaign.js", "qol.js", "update.js"]
+parts = [
+    "level.js",
+    "art.js",
+    "sound.js",
+    "music.js",
+    "settings.js",
+    "touch.js",
+    "net.js",
+    "game.js",
+    "misha.js",
+    "vladik.js",
+    "tima.js",
+    "bosses2.js",
+    "combat2.js",
+    "enemies2.js",
+    "campaign.js",
+    "qol.js",
+    "access.js",
+    "training.js",
+    "maptravel.js",
+    "speedrun.js",
+    # новые модули добавляй строкой выше (по одному на строку — меньше конфликтов слияния)
+    "update.js",
+]
 code = "\n".join(open(os.path.join(SRC, f), encoding='utf-8').read() for f in parts)
 code = code.replace("if (typeof module !== 'undefined') module.exports = { buildLevel, T, EMPTY, SOLID, PLAT, SPIKE };", "")
 import os as _os, datetime as _dt

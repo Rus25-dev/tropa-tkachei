@@ -1,9 +1,11 @@
 // ===== ИГРА: «Тропа Ткачей» — кооперативная метроидвания =====
 let VW = 960; const VH = 540;
 // версия игры; номер сборки подставляет build.py
-const GAME_VERSION = '1.3';
+const GAME_VERSION = '1.4';
 const GAME_BUILD = '__BUILD__';
 const CHANGELOG = [
+  'Спидран (клавиша 6): «Тропа целиком» и «Босс-раш», таймер RTA/IGT, сплиты с дельтой к рекорду, код результата и таблица друзей',
+  'Гонка 1×1 по сети: оба проходят один забег в своей игре, видят прогресс и призрака соперника',
   'Рекорды боссов (попытки, лучшее время), возрождение у арены Корнематки, подсказки про отбив и всполох',
   'Кампания: после Корнематки — Глава II (Миша), III (Владик), IV (Тима) с коридорами перед аренами',
   'Прогресс по главам сохраняется на скамьях; «Продолжить» возвращает в нужную главу',
@@ -89,18 +91,19 @@ class MenuScene extends Phaser.Scene {
       const t = this.add.text(VW / 2, y, label, { fontFamily: '"Cormorant SC", Georgia, serif', fontSize: '29px', color: '#cfe8dc', fontStyle: '600' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
       const s = this.add.text(VW / 2, y + 21, sub, { fontFamily: '"Fira Sans", sans-serif', fontSize: '13px', color: '#6f9586' }).setOrigin(0.5);
       t.on('pointerover', () => t.setColor('#ffd47a')); t.on('pointerout', () => t.setColor('#cfe8dc'));
-      t.on('pointerdown', () => (n === 3 ? this.openLobby() : n === 4 ? this.openPick() : n === 5 ? this.openSettings() : this.go(n)));
+      t.on('pointerdown', () => (n === 3 ? this.openLobby() : n === 4 ? this.openPick() : n === 5 ? this.openSettings() : n === 6 ? this.openSpeedrun() : this.go(n)));
       return [t, s];
     };
     const prog = Settings.progress(), cont = prog ? ` · продолжение: ${prog.name || 'скамья'}` : '';
-    mkBtn(238, '1 · Один ткач', 'клавиша 1 · геймпад A' + cont, 1);
-    mkBtn(284, '2 · Двое за одним компьютером', 'клавиша 2 · геймпад Y' + cont, 2);
-    mkBtn(330, '3 · Вдвоём по сети', 'клавиша 3 · комната с кодом, работает и с серым IP', 3);
-    mkBtn(376, '4 · Босс-тест', 'клавиша 4 · геймпад X · три босса на выбор, сразу в бой', 4);
-    mkBtn(422, '5 · Настройки', 'клавиша 5 · громкость, тряска, лёгкий режим, кнопки', 5);
+    mkBtn(230, '1 · Один ткач', 'клавиша 1 · геймпад A' + cont, 1);
+    mkBtn(270, '2 · Двое за одним компьютером', 'клавиша 2 · геймпад Y' + cont, 2);
+    mkBtn(310, '3 · Вдвоём по сети', 'клавиша 3 · комната с кодом, работает и с серым IP', 3);
+    mkBtn(350, '4 · Босс-тест', 'клавиша 4 · геймпад X · три босса на выбор, сразу в бой', 4);
+    mkBtn(390, '5 · Настройки', 'клавиша 5 · громкость, тряска, лёгкий режим, кнопки', 5);
+    mkBtn(430, '6 · Спидран', 'клавиша 6 · забег на время, сплиты, таблица друзей, гонка 1×1', 6);
 
     const ctl = [
-      'Игрок 1:  A D W S — ходить   Пробел — прыжок   F — удар   G — рывок   Q — лечение   R — дымовуха',
+      Access.line(false),
       'Игрок 2:  стрелки   Num1 или / — прыжок   Num2 или . — удар   Num3 или , — рывок   Num0 или M — лечение   Num4 или N — дымовуха',
       'В одиночку можно и так: стрелки + Z X C V B.   Геймпад: A прыжок, X удар, B/RB рывок, Y лечение, LB дымовуха.   Esc — пауза',
     ];
@@ -108,13 +111,13 @@ class MenuScene extends Phaser.Scene {
       'Кнопки справа: прыжок, удар, рывок, лечение, а на арене Миши ещё и бомба.   Лучше держать телефон горизонтально.', 'Можно подключить геймпад по Bluetooth — он подхватится сам.');
     document.documentElement.classList.add('in-menu');
     this.events.once('shutdown', () => document.documentElement.classList.remove('in-menu'));
-    this.add.text(VW / 2, 488, ctl.join('\n'), { fontFamily: '"Fira Sans", sans-serif', fontSize: '12px', color: '#86a89a', align: 'center', lineSpacing: 7 }).setOrigin(0.5);
+    this.add.text(VW / 2, 496, ctl.join('\n'), { fontFamily: '"Fira Sans", sans-serif', fontSize: '12px', color: '#86a89a', align: 'center', lineSpacing: 7 }).setOrigin(0.5);
 
     const k = this.input.keyboard;
     // версия, сборка и что нового
     const vF = '"Fira Sans", sans-serif';
     this.add.text(14, 10, `Версия ${GAME_VERSION} · сборка ${GAME_BUILD}`, { fontFamily: vF, fontSize: '12px', fontStyle: '600', color: '#9fc4b4' });
-    this.add.text(14, 28, 'Что нового:\n' + CHANGELOG.map((l) => '· ' + l).join('\n'), { fontFamily: vF, fontSize: '10.5px', color: '#7fa596', lineSpacing: 3, wordWrap: { width: Math.max(170, Math.min(230, VW / 2 - 300)) } });
+    this.add.text(14, 28, 'Что нового:\n' + CHANGELOG.slice(0, 9).map((l) => '· ' + l).join('\n'), { fontFamily: vF, fontSize: '10.5px', color: '#7fa596', lineSpacing: 3, wordWrap: { width: Math.max(170, Math.min(230, VW / 2 - 300)) } });
     // выбор для босс-теста
     this.pick = this.add.container(0, 0).setVisible(false).setDepth(10);
     const pg = this.add.graphics(); pg.fillStyle(0x030807, 0.9); pg.fillRect(0, 0, VW, VH);
@@ -144,6 +147,7 @@ class MenuScene extends Phaser.Scene {
     k.on('keydown', (e) => {
       Snd.init();
       if (Settings.open || !Lobby.el.hidden) return;
+      if (this.srP && this.srP.visible) return;
       if (this.pick.visible) {
         if (e.key === '1') this.go(1, 'bosstest'); if (e.key === '2') this.go(2, 'bosstest'); if (e.key === '3') this.openLobby('bosstest');
         if (e.key === 'Escape') this.closePick();
@@ -151,7 +155,7 @@ class MenuScene extends Phaser.Scene {
         if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D' || e.key === 'в' || e.key === 'В') this.setPick(this.pickIdx + 1);
         return;
       }
-      if (e.key === '1') this.go(1); if (e.key === '2') this.go(2); if (e.key === '3') this.openLobby(); if (e.key === '4') this.openPick(); if (e.key === '5') this.openSettings();
+      if (e.key === '1') this.go(1); if (e.key === '2') this.go(2); if (e.key === '3') this.openLobby(); if (e.key === '4') this.openPick(); if (e.key === '5') this.openSettings(); if (e.key === '6') this.openSpeedrun();
     });
     if (Lobby.room) this.time.delayedCall(300, () => this.openLobby());
     Music.setDuck(1); Music.play('menu');
@@ -187,7 +191,7 @@ class MenuScene extends Phaser.Scene {
     this.mid.tilePositionX += delta * 0.01; this.fog.tilePositionX += delta * 0.02; this.rays.setAlpha(0.75 + Math.sin(this.t * 0.6) * 0.25);
     const pads = this.input.gamepad ? this.input.gamepad.gamepads.filter(Boolean) : [];
     this.pickT = (this.pickT || 0) - delta / 1000;
-    if (Settings.open) return;
+    if (Settings.open || (this.srP && this.srP.visible)) return;
     for (const pad of pads) {
       const b = (n) => !!(pad.buttons[n] && pad.buttons[n].pressed);
       if (this.pick.visible) {
@@ -299,7 +303,7 @@ class GameScene extends Phaser.Scene {
       g.fillStyle(0x2a3b33, 0.92); g.fillRoundedRect(sx - 14, sy - 50, 28, 20, 4);
       g.lineStyle(1, 0x67ad62, 0.8); g.strokeRoundedRect(sx - 14, sy - 50, 28, 20, 4);
       g.fillStyle(0x9ff0c8, 0.9); g.fillCircle(sx, sy - 40, 3);
-      const txt = this.add.text(sx, sy - 62, Touch.enabled && s.touch ? s.touch : s.text, { fontFamily: '"Fira Sans", sans-serif', fontSize: '13px', color: '#d9ecdf', align: 'center', lineSpacing: 3, backgroundColor: 'rgba(8,18,15,0.72)', padding: { x: 8, y: 5 } }).setOrigin(0.5, 1).setDepth(8).setAlpha(0);
+      const txt = this.add.text(sx, sy - 62, Touch.enabled && s.touch ? s.touch : Access.sign(s.text), { fontFamily: '"Fira Sans", sans-serif', fontSize: '13px', color: '#d9ecdf', align: 'center', lineSpacing: 3, backgroundColor: 'rgba(8,18,15,0.72)', padding: { x: 8, y: 5 } }).setOrigin(0.5, 1).setDepth(8).setAlpha(0);
       s.txt = txt; s.px = sx; s.py = sy;
     }
     // скамьи
@@ -1556,7 +1560,7 @@ class UIScene extends Phaser.Scene {
     this.pause = this.add.container(0, 0).setVisible(false);
     const pb = this.add.graphics(); pb.fillStyle(0x030807, 0.82); pb.fillRect(0, 0, VW, VH);
     const pt = this.add.text(VW / 2, 150, 'Пауза', { fontFamily: D, fontSize: '52px', color: '#e8e2cf', fontStyle: '700' }).setOrigin(0.5);
-    const pc = this.add.text(VW / 2, 300, [
+    const pc = this.pauseL1 = this.add.text(VW / 2, 300, [
       'Игрок 1:  A D W S · Пробел — прыжок · F — удар · G — рывок · Q — лечение · R — дымовуха',
       'Игрок 2:  стрелки · Num1 или / — прыжок · Num2 или . — удар · Num3 или , — рывок · Num0 или M — лечение · Num4 или N — дымовуха',
       '', 'Удар вверх: держи ↑ + удар.  Удар вниз в прыжке: ↓ + удар — отскок от колючек и врагов.',
