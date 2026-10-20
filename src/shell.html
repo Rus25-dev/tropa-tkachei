@@ -72,6 +72,12 @@
   #settings button.primary { background: var(--moss); border-color: var(--moss); color: #08130f; }
   #settings button:focus-visible, #settings input:focus-visible { outline: 2px solid var(--glow); outline-offset: 2px; }
   #st-prog { font-size: 13px; color: var(--muted); }
+  /* плашка обновления */
+  #update { position: fixed; z-index: 7; left: 50%; transform: translateX(-50%); top: calc(var(--st) + 10px); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: center;
+    max-width: calc(100vw - 32px); background: #0c1815; border: 1px solid #3a6b5a; border-radius: 10px; padding: 8px 10px 8px 14px; box-shadow: 0 6px 30px rgba(0,0,0,0.5); }
+  #update span { font-size: 13px; color: var(--bone); }
+  #update button { font: 600 13px var(--body); border-radius: 7px; padding: 7px 12px; cursor: pointer; border: 1px solid #3a6b5a; background: #143029; color: var(--bone); }
+  #update button.primary { background: var(--moss); border-color: var(--moss); color: #08130f; }
   /* сенсорное управление */
   html.touch, html.touch body { touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; overscroll-behavior: none; }
   #touch { position: fixed; left: 0; top: var(--app-top, 0px); width: var(--app-w, 100vw); height: var(--app-h, 100vh); z-index: 3; pointer-events: none; }
@@ -162,6 +168,7 @@
     <div class="row"><span class="label">Лёгкий режим включится со следующего боя</span><button id="st-done" class="primary" type="button">Готово</button></div>
   </div>
 </div>
+<div id="update" hidden role="status"><span id="upd-text">Вышла новая версия</span><button id="upd-btn" class="primary" type="button">Обновить</button><button id="upd-later" type="button">Позже</button></div>
 <div id="boot"><div><h1>Тропа Ткачей</h1><p>Плетём пещеру…</p><div class="dot"></div></div></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.90.0/phaser.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
@@ -182,6 +189,7 @@
     Settings.init();
     Lobby.init();
     startGame();
+    Updater.init();
   });
 })();
 </script>
