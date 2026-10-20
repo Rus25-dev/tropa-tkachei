@@ -9,7 +9,8 @@ function buildVladikArena() {
   plat(12, 15, 15); plat(28, 31, 15); // парты
   return {
     W, H, grid: g, theme: 'class', spawn: { x: 6, y: 17 }, benches: [], enemies: [], gates: [], exit: null,
-    signs: [{ x: 13, y: 17, text: 'Шторы в слизи жгутся — не прыгай в них.\nПод шторой можно пройти низом' }],
+    signs: [{ x: 13, y: 17, text: 'Шторы в слизи жгутся — не прыгай в них.\nПод шторой можно пройти низом' },
+      { x: 29, y: 17, text: '↓ + прыжок — спрыгнуть с парты', touch: 'Стик вниз + «Прыжок» — спрыгнуть с парты' }],
     windows: [[4, 8], [19, 24], [35, 39]],
     curtains: [[2, 3], [9, 10], [17, 18], [25, 26], [33, 34], [40, 41]],
     vladik: { x: 30, y: 17 }, floorY: 18,
@@ -85,6 +86,46 @@ function drawClassroom(scene, L) {
     c.fillStyle = '#8a6440'; c.fillRect(dx, dy, dw, 10); c.fillStyle = '#a77b4f'; c.fillRect(dx, dy, dw, 3);
     c.strokeStyle = 'rgba(30,20,10,0.5)'; c.lineWidth = 1; c.beginPath(); c.moveTo(dx + 20, dy + 5); c.lineTo(dx + 40, dy + 6); c.stroke();
   }
+  // ---- свет и объём ----
+  // фактура штукатурки
+  for (let i = 0; i < 2600; i++) { c.fillStyle = R() < 0.5 ? 'rgba(255,255,255,0.025)' : 'rgba(0,0,0,0.05)'; c.fillRect(T + R() * (w - 2 * T), top + R() * (floorY - top - 72), 2 + R() * 3, 1 + R() * 2); }
+  // лунные лучи из окон на пол
+  for (const [a, b] of L.windows) {
+    const x0 = a * T, x1 = (b + 1) * T, y0 = 5 * T + 8, y1 = 12 * T + 8;
+    const lg = c.createLinearGradient(0, y0, 0, floorY); lg.addColorStop(0, 'rgba(150,170,255,0.10)'); lg.addColorStop(1, 'rgba(150,170,255,0.02)');
+    c.fillStyle = lg; c.beginPath(); c.moveTo(x0, y1); c.lineTo(x1, y1); c.lineTo(x1 + 110, floorY); c.lineTo(x0 + 110, floorY); c.closePath(); c.fill();
+    c.fillStyle = 'rgba(160,180,255,0.07)'; c.fillRect(x0 + 110, floorY, x1 - x0, 12);
+  }
+  // потолочные лампы с тёплыми конусами света
+  for (const lx of [8 * T, 22 * T, 35 * T]) {
+    c.strokeStyle = '#1a1410'; c.lineWidth = 2; c.beginPath(); c.moveTo(lx, top); c.lineTo(lx, top + 26); c.stroke();
+    c.fillStyle = '#2b2622'; c.beginPath(); c.moveTo(lx - 22, top + 40); c.lineTo(lx + 22, top + 40); c.lineTo(lx + 10, top + 24); c.lineTo(lx - 10, top + 24); c.closePath(); c.fill();
+    c.fillStyle = '#ffe7b0'; c.beginPath(); c.ellipse(lx, top + 41, 14, 4, 0, 0, Math.PI * 2); c.fill();
+    c.globalCompositeOperation = 'lighter';
+    const cone = c.createLinearGradient(0, top + 40, 0, floorY); cone.addColorStop(0, 'rgba(255,214,150,0.16)'); cone.addColorStop(1, 'rgba(255,214,150,0.02)');
+    c.fillStyle = cone; c.beginPath(); c.moveTo(lx - 18, top + 42); c.lineTo(lx + 18, top + 42); c.lineTo(lx + 150, floorY); c.lineTo(lx - 150, floorY); c.closePath(); c.fill();
+    const pool = c.createRadialGradient(lx, floorY, 0, lx, floorY, 170); pool.addColorStop(0, 'rgba(255,200,130,0.22)'); pool.addColorStop(1, 'rgba(255,200,130,0)');
+    c.fillStyle = pool; c.fillRect(lx - 170, floorY - 170, 340, 190);
+    const halo = c.createRadialGradient(lx, top + 42, 0, lx, top + 42, 60); halo.addColorStop(0, 'rgba(255,230,180,0.35)'); halo.addColorStop(1, 'rgba(255,230,180,0)');
+    c.fillStyle = halo; c.fillRect(lx - 60, top - 18, 120, 120);
+    c.globalCompositeOperation = 'source-over';
+  }
+  // тени под партами и у плинтуса, затемнение углов
+  for (let y = 0; y < L.H; y++) for (let x = 0; x < L.W; x++) {
+    if (L.grid[y][x] !== PLAT || L.grid[y][x - 1] === PLAT) continue;
+    let x1 = x; while (L.grid[y][x1 + 1] === PLAT) x1++;
+    const cx = (x + x1 + 1) * T / 2, rw = (x1 - x + 1) * T * 0.6;
+    const sh = c.createRadialGradient(cx, floorY, 0, cx, floorY, rw); sh.addColorStop(0, 'rgba(0,0,0,0.45)'); sh.addColorStop(1, 'rgba(0,0,0,0)');
+    c.fillStyle = sh; c.fillRect(cx - rw, floorY - 14, rw * 2, 20);
+  }
+  const base = c.createLinearGradient(0, floorY - 40, 0, floorY); base.addColorStop(0, 'rgba(0,0,0,0)'); base.addColorStop(1, 'rgba(0,0,0,0.35)');
+  c.fillStyle = base; c.fillRect(0, floorY - 40, w, 40);
+  const ceil = c.createLinearGradient(0, top, 0, top + 90); ceil.addColorStop(0, 'rgba(0,0,0,0.45)'); ceil.addColorStop(1, 'rgba(0,0,0,0)');
+  c.fillStyle = ceil; c.fillRect(0, top, w, 90);
+  for (const side of [0, 1]) { const sg = c.createLinearGradient(side ? w - 160 : 0, 0, side ? w : 160, 0); sg.addColorStop(side ? 0 : 1, 'rgba(0,0,0,0)'); sg.addColorStop(side ? 1 : 0, 'rgba(0,0,0,0.45)'); c.fillStyle = sg; c.fillRect(side ? w - 160 : 0, top, 160, floorY - top); }
+  // блик на паркете
+  const gloss = c.createLinearGradient(0, floorY, 0, floorY + 12); gloss.addColorStop(0, 'rgba(255,230,190,0.10)'); gloss.addColorStop(1, 'rgba(255,230,190,0)');
+  c.fillStyle = gloss; c.fillRect(0, floorY, w, 12);
   scene.textures.addCanvas(key, cv);
   return [{ key, x: 0 }];
 }
@@ -278,7 +319,7 @@ Object.assign(GameScene.prototype, {
           const bx = c.x + 8 + ((i * 37) % (c.w - 16)), by = c.y + 20 + ((i * 53) % Math.max(20, hh - 40));
           if (by < c.y + hh) s.fillEllipse(bx, by + Math.sin(now * 2 + i) * 2, 14, 20);
         }
-        if (c.slime > 0) for (let i = 0; i < 3; i++) { const dx = c.x + 10 + i * ((c.w - 20) / 2), len = 8 + Math.abs(Math.sin(now * 1.5 + i)) * 12; s.fillRect(dx - 2, c.y + c.h - 4, 4, len); s.fillCircle(dx, c.y + c.h - 4 + len, 3); }
+        if (c.slime > 0) for (let i = 0; i < 3; i++) { const dx = c.x + 10 + i * ((c.w - 20) / 2), len = 4 + Math.abs(Math.sin(now * 1.5 + i)) * 5; s.fillRect(dx - 2, c.y + c.h - 4, 4, len); s.fillCircle(dx, c.y + c.h - 4 + len, 3); }
         s.fillStyle(0xe8ffc0, 0.6 * fade); for (let i = 0; i < 4; i++) s.fillCircle(c.x + 10 + i * 12, c.y + 30 + i * 40, 2);
       }
     }

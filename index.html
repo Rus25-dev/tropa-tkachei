@@ -163,7 +163,8 @@
   <div class="card" role="dialog" aria-labelledby="st-title">
     <h2 id="st-title">Настройки</h2>
     <div class="grid">
-      <label class="opt" for="st-vol">Громкость <input id="st-vol" type="range" min="0" max="100" step="10"><span class="val" id="st-vol-v"></span></label>
+      <label class="opt" for="st-vol">Звуки <input id="st-vol" type="range" min="0" max="100" step="10"><span class="val" id="st-vol-v"></span></label>
+      <label class="opt" for="st-mvol">Музыка <input id="st-mvol" type="range" min="0" max="100" step="10"><span class="val" id="st-mvol-v"></span></label>
       <label class="opt" for="st-shake"><input id="st-shake" type="checkbox"><span>Тряска экрана<small>выключите, если укачивает</small></span></label>
       <label class="opt" for="st-easy"><input id="st-easy" type="checkbox"><span>Лёгкий режим<small>8 бутонов здоровья вместо 5</small></span></label>
       <label class="opt st-touch" for="st-vibro"><input id="st-vibro" type="checkbox"><span>Вибрация<small>при нажатии и уроне (Android)</small></span></label>
@@ -320,6 +321,14 @@ function drawLevelChunks(scene, L) {
       }
       ctx.globalAlpha = 1;
     }
+    // 2б) фактура всей породы и мягкая подсветка под верхними кромками
+    for (let y = 0; y < L.H; y++) for (let x = tx0; x <= tx1; x++) {
+      if (L.grid[y][x] !== SOLID) continue;
+      const px = x * T - ox, py = y * T;
+      for (let i = 0; i < 3; i++) { ctx.fillStyle = R() < 0.5 ? 'rgba(150,210,190,0.05)' : 'rgba(0,0,0,0.16)'; ctx.fillRect(px + R() * T, py + R() * T, 2 + R() * 5, 1 + R() * 2); }
+      if (!solid(x, y - 1)) { const lg = ctx.createLinearGradient(0, py, 0, py + 22); lg.addColorStop(0, 'rgba(120,200,170,0.20)'); lg.addColorStop(1, 'rgba(120,200,170,0)'); ctx.fillStyle = lg; ctx.fillRect(px, py, T, 22); }
+      if (!solid(x, y + 1)) { const lg = ctx.createLinearGradient(0, py + T - 14, 0, py + T); lg.addColorStop(0, 'rgba(0,0,0,0)'); lg.addColorStop(1, 'rgba(0,0,0,0.28)'); ctx.fillStyle = lg; ctx.fillRect(px, py + T - 14, T, 14); }
+    }
     // 3) скругляем внешние углы
     ctx.globalCompositeOperation = 'destination-out';
     for (let y = 0; y < L.H; y++) for (let x = tx0; x <= tx1; x++) {
@@ -404,53 +413,107 @@ function drawLevelChunks(scene, L) {
 
 function genBackgrounds(scene) {
   if (scene.textures.exists('bgFar')) return;
-  // дальний слой: колонны и сталактиты
   const mk = (key, w, h, fn) => { const cv = document.createElement('canvas'); cv.width = w; cv.height = h; fn(cv.getContext('2d'), w, h); scene.textures.addCanvas(key, cv); };
+  // бесшовный «шум» по ширине: сумма синусов с целыми частотами
+  const wave = (R, w, parts) => { const p = parts.map(([k, amp]) => [k, amp, R() * Math.PI * 2]); return (x) => p.reduce((s, [k, amp, ph]) => s + amp * Math.sin((x / w) * Math.PI * 2 * k + ph), 0); };
+  const silhouette = (c, w, h, R, col, baseTop, baseBot, rough) => {
+    const top = wave(R, w, [[2, 30], [5, 16], [11, 8], [23, 4]]), bot = wave(R, w, [[3, 26], [7, 14], [13, 7], [29, 3]]);
+    c.fillStyle = col;
+    c.beginPath(); c.moveTo(0, 0);
+    for (let x = 0; x <= w; x += 4) c.lineTo(x, baseTop + top(x) + (rough ? (R() - 0.5) * rough : 0));
+    c.lineTo(w, 0); c.closePath(); c.fill();
+    c.beginPath(); c.moveTo(0, h);
+    for (let x = 0; x <= w; x += 4) c.lineTo(x, baseBot + bot(x) + (rough ? (R() - 0.5) * rough : 0));
+    c.lineTo(w, h); c.closePath(); c.fill();
+  };
+  // дальний слой: глубина, дымка, несколько планов свода
   mk('bgFar', 1024, 540, (c, w, h) => {
     const R = rng(7);
-    const grd = c.createLinearGradient(0, 0, 0, h);
-    grd.addColorStop(0, '#08110f'); grd.addColorStop(0.55, '#0c1d1a'); grd.addColorStop(1, '#0a1513');
-    c.fillStyle = grd; c.fillRect(0, 0, w, h);
-    c.fillStyle = '#10221e';
-    for (let i = 0; i < 9; i++) {
-      const x = R() * w, wd = 30 + R() * 70;
-      for (const off of [0, -w, w]) {
-        c.beginPath(); c.moveTo(x + off - wd, h); c.quadraticCurveTo(x + off - wd * 0.3, h * 0.4, x + off - wd * 0.2, 0);
-        c.lineTo(x + off + wd * 0.2, 0); c.quadraticCurveTo(x + off + wd * 0.3, h * 0.5, x + off + wd, h); c.fill();
-      }
+    const g = c.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, '#040908'); g.addColorStop(0.45, '#0e2420'); g.addColorStop(0.7, '#10261f'); g.addColorStop(1, '#060d0b');
+    c.fillStyle = g; c.fillRect(0, 0, w, h);
+    // далёкие источники света за колоннами
+    for (const [x, y, r, col] of [[220, 300, 260, '70,190,160'], [700, 260, 220, '255,190,110'], [930, 330, 200, '90,200,170']]) {
+      for (const off of [0, -w, w]) { const rg = c.createRadialGradient(x + off, y, 0, x + off, y, r); rg.addColorStop(0, `rgba(${col},0.16)`); rg.addColorStop(1, `rgba(${col},0)`); c.fillStyle = rg; c.fillRect(x + off - r, y - r, r * 2, r * 2); }
     }
-    c.fillStyle = '#0d1b18';
-    for (let i = 0; i < 22; i++) {
-      const x = R() * w, wd = 8 + R() * 22, len = 40 + R() * 140;
-      for (const off of [0, -w, w]) { c.beginPath(); c.moveTo(x + off - wd, 0); c.lineTo(x + off, len); c.lineTo(x + off + wd, 0); c.fill(); }
+    // три плана свода: чем ближе, тем темнее и чётче
+    silhouette(c, w, h, R, 'rgba(24,52,46,0.55)', 70, 470, 0);
+    for (let i = 0; i < 7; i++) {
+      const x = R() * w, wd = 26 + R() * 50, col = 'rgba(20,44,39,0.7)';
+      for (const off of [0, -w, w]) { c.fillStyle = col; c.beginPath(); c.moveTo(x + off - wd, h); c.bezierCurveTo(x + off - wd * 0.4, h * 0.55, x + off - wd * 0.2, h * 0.3, x + off - wd * 0.15, 0); c.lineTo(x + off + wd * 0.15, 0); c.bezierCurveTo(x + off + wd * 0.2, h * 0.3, x + off + wd * 0.4, h * 0.55, x + off + wd, h); c.fill(); }
+    }
+    silhouette(c, w, h, R, 'rgba(13,30,26,0.85)', 40, 505, 0);
+    // туманная дымка по центру добавляет воздуха
+    const hz = c.createLinearGradient(0, h * 0.35, 0, h * 0.8); hz.addColorStop(0, 'rgba(120,200,175,0)'); hz.addColorStop(0.5, 'rgba(120,200,175,0.07)'); hz.addColorStop(1, 'rgba(120,200,175,0)');
+    c.fillStyle = hz; c.fillRect(0, 0, w, h);
+    // мелкие звёздочки-светляки вдали
+    for (let i = 0; i < 70; i++) { c.fillStyle = `rgba(170,240,210,${0.15 + R() * 0.35})`; c.fillRect(R() * w, 60 + R() * 380, 1.2, 1.2); }
+  });
+  // лучи света сверху (накладываются сложением)
+  mk('bgRays', 1024, 540, (c, w, h) => {
+    const R = rng(55);
+    for (let i = 0; i < 6; i++) {
+      const x = R() * w, wd = 30 + R() * 70, skew = 90 + R() * 120, a = 0.05 + R() * 0.06;
+      for (const off of [0, -w, w]) {
+        const lg = c.createLinearGradient(0, 0, 0, h); lg.addColorStop(0, `rgba(170,240,210,${a})`); lg.addColorStop(0.7, `rgba(170,240,210,${a * 0.35})`); lg.addColorStop(1, 'rgba(170,240,210,0)');
+        c.fillStyle = lg; c.beginPath(); c.moveTo(x + off, 0); c.lineTo(x + off + wd, 0); c.lineTo(x + off + wd + skew, h); c.lineTo(x + off + skew - wd * 0.6, h); c.closePath(); c.fill();
+      }
     }
   });
+  // средний план: объёмные колонны со светом сбоку, корни со светящимися каплями
   mk('bgMid', 1024, 540, (c, w, h) => {
     const R = rng(21);
-    c.strokeStyle = '#173a31'; c.lineCap = 'round';
-    for (let i = 0; i < 26; i++) {
-      const x = R() * w, len = 60 + R() * 260; c.lineWidth = 1.5 + R() * 3;
+    for (let i = 0; i < 6; i++) {
+      const x = R() * w, wd = 34 + R() * 46, lean = (R() - 0.5) * 40;
       for (const off of [0, -w, w]) {
-        c.beginPath(); c.moveTo(x + off, 0);
-        c.bezierCurveTo(x + off + (R() - 0.5) * 40, len * 0.4, x + off + (R() - 0.5) * 40, len * 0.8, x + off + (R() - 0.5) * 20, len); c.stroke();
+        const X = x + off, lg = c.createLinearGradient(X - wd, 0, X + wd, 0);
+        lg.addColorStop(0, '#2b5248'); lg.addColorStop(0.18, '#1a3832'); lg.addColorStop(0.6, '#10241f'); lg.addColorStop(1, '#0a1714');
+        c.fillStyle = lg; c.beginPath();
+        c.moveTo(X - wd * 1.4, h); c.bezierCurveTo(X - wd * 0.7, h * 0.7, X - wd * 0.8 + lean, h * 0.35, X - wd * 0.5 + lean, 0);
+        c.lineTo(X + wd * 0.5 + lean, 0); c.bezierCurveTo(X + wd * 0.8 + lean, h * 0.35, X + wd * 0.7, h * 0.7, X + wd * 1.4, h); c.closePath(); c.fill();
+        // светлая кромка со стороны света
+        c.strokeStyle = 'rgba(140,220,190,0.22)'; c.lineWidth = 2; c.beginPath();
+        c.moveTo(X - wd * 1.35, h); c.bezierCurveTo(X - wd * 0.68, h * 0.7, X - wd * 0.78 + lean, h * 0.35, X - wd * 0.48 + lean, 0); c.stroke();
+        // фактура камня
+        for (let k = 0; k < 40; k++) { c.fillStyle = R() < 0.5 ? 'rgba(160,220,200,0.05)' : 'rgba(0,0,0,0.18)'; const yy = R() * h; c.fillRect(X - wd * 0.6 + R() * wd * 1.2 + lean * (1 - yy / h), yy, 2 + R() * 6, 1 + R() * 3); }
+        // мох на выступах
+        c.fillStyle = 'rgba(80,150,95,0.35)'; for (let k = 0; k < 4; k++) { const yy = 120 + R() * 320; c.beginPath(); c.ellipse(X - wd * 0.6 + lean * (1 - yy / h), yy, 10 + R() * 12, 3 + R() * 3, 0, 0, Math.PI * 2); c.fill(); }
       }
-      if (R() < 0.4) { c.fillStyle = '#7fe0b8'; c.globalAlpha = 0.5; c.beginPath(); c.arc(x, len, 2.5, 0, Math.PI * 2); c.fill(); c.globalAlpha = 1; }
     }
-    c.fillStyle = '#122a24';
-    for (let i = 0; i < 7; i++) {
-      const x = R() * w, wd = 80 + R() * 120, hh = 30 + R() * 80;
-      for (const off of [0, -w, w]) { c.beginPath(); c.ellipse(x + off, h + 10, wd, hh, 0, Math.PI, 0); c.fill(); }
+    // корни сверху
+    c.lineCap = 'round';
+    for (let i = 0; i < 22; i++) {
+      const x = R() * w, len = 60 + R() * 240; c.lineWidth = 1.5 + R() * 2.5;
+      const pts = [R() - 0.5, R() - 0.5, R() - 0.5];
+      for (const off of [0, -w, w]) {
+        c.strokeStyle = '#163a31'; c.beginPath(); c.moveTo(x + off, 0);
+        c.bezierCurveTo(x + off + pts[0] * 40, len * 0.4, x + off + pts[1] * 40, len * 0.8, x + off + pts[2] * 20, len); c.stroke();
+        if (i % 3 === 0) { const rg = c.createRadialGradient(x + off + pts[2] * 20, len, 0, x + off + pts[2] * 20, len, 14); rg.addColorStop(0, 'rgba(160,250,210,0.75)'); rg.addColorStop(0.25, 'rgba(160,250,210,0.25)'); rg.addColorStop(1, 'rgba(160,250,210,0)'); c.fillStyle = rg; c.fillRect(x + off + pts[2] * 20 - 14, len - 14, 28, 28); }
+      }
+    }
+    // нижние валуны с тенью
+    for (let i = 0; i < 6; i++) {
+      const x = R() * w, wd = 90 + R() * 130, hh = 40 + R() * 70;
+      for (const off of [0, -w, w]) { const rg = c.createLinearGradient(0, h - hh, 0, h); rg.addColorStop(0, '#1b3a32'); rg.addColorStop(1, '#0a1513'); c.fillStyle = rg; c.beginPath(); c.ellipse(x + off, h + 10, wd, hh, 0, Math.PI, 0); c.fill(); }
+    }
+  });
+  // туман: мягкие полосы, плывут сами
+  mk('bgFog', 1024, 540, (c, w, h) => {
+    const R = rng(311);
+    for (let i = 0; i < 16; i++) {
+      const x = R() * w, y = 250 + R() * 280, rx = 120 + R() * 220, ry = 18 + R() * 40, a = 0.05 + R() * 0.07;
+      for (const off of [0, -w, w]) { const rg = c.createRadialGradient(x + off, y, 0, x + off, y, rx); rg.addColorStop(0, `rgba(150,215,195,${a})`); rg.addColorStop(1, 'rgba(150,215,195,0)'); c.save(); c.translate(x + off, y); c.scale(1, ry / rx); c.translate(-(x + off), -y); c.fillStyle = rg; c.fillRect(x + off - rx, y - rx, rx * 2, rx * 2); c.restore(); }
     }
   });
   mk('bgGlow', 1024, 540, (c, w, h) => {
     const R = rng(99);
     for (let i = 0; i < 26; i++) {
-      const x = R() * w, y = R() * h, r = 30 + R() * 80;
-      const col = R() < 0.7 ? '120,230,190' : '255,200,120';
+      const x = R() * w, y = R() * h, r = 24 + R() * 70, warm = R() < 0.3, col = warm ? '255,200,120' : '120,230,190';
       for (const off of [0, -w, w]) {
         const g = c.createRadialGradient(x + off, y, 0, x + off, y, r);
-        g.addColorStop(0, `rgba(${col},0.16)`); g.addColorStop(1, `rgba(${col},0)`);
+        g.addColorStop(0, `rgba(${col},0.15)`); g.addColorStop(0.6, `rgba(${col},0.05)`); g.addColorStop(1, `rgba(${col},0)`);
         c.fillStyle = g; c.fillRect(x + off - r, y - r, r * 2, r * 2);
+        if (i % 4 === 0) { c.strokeStyle = `rgba(${col},0.08)`; c.lineWidth = 1.5; c.beginPath(); c.arc(x + off, y, r * 0.45, 0, Math.PI * 2); c.stroke(); }
       }
     }
   });
@@ -470,12 +533,13 @@ const Snd = {
     try {
       if (!this.ctx) {
         const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
-        this.ctx = new AC(); this.master = this.ctx.createGain(); this.master.gain.value = 0.35; this.master.connect(this.ctx.destination);
+        this.ctx = new AC(); this.master = this.ctx.createGain(); this.master.gain.value = 0.35 * ((typeof Settings !== 'undefined' && Settings.s ? Settings.s.vol : 80) / 100); this.master.connect(this.ctx.destination);
         const len = this.ctx.sampleRate * 0.5, b = this.ctx.createBuffer(1, len, this.ctx.sampleRate), d = b.getChannelData(0);
         for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
         this.noise = b;
       }
       if (this.ctx.state !== 'running') this.ctx.resume();
+      if (typeof Music !== 'undefined') setTimeout(() => Music.resume(), 60);
     } catch (e) { /* звук недоступен */ }
   },
   tone(type, f0, f1, dur, vol) {
@@ -533,9 +597,115 @@ const Snd = {
   },
 };
 
+// ===== МУЗЫКА: процедурный секвенсор на WebAudio (без файлов) =====
+// Каждый трек — темп, аккорды и набор партий. Шаг = шестнадцатая (или восьмая в вальсе).
+const noteNum = (name) => { const m = { C: 0, 'C#': 1, Db: 1, D: 2, Eb: 3, E: 4, F: 5, 'F#': 6, G: 7, Ab: 8, A: 9, Bb: 10, B: 11 }; return m[name]; };
+const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
+const chordNotes = (root, q) => { const r = noteNum(root); return q === 'm' ? [r, r + 3, r + 7] : q === '7' ? [r, r + 4, r + 7, r + 10] : [r, r + 4, r + 7]; };
+
+const TRACKS = {
+  menu: { bpm: 68, steps: 16, chords: [['D', 'm'], ['Bb', ''], ['F', ''], ['C', '']], parts: ['pad', 'arpSoft', 'bassLong'] },
+  cave: { bpm: 62, steps: 16, chords: [['A', 'm'], ['F', ''], ['C', ''], ['G', ''], ['A', 'm'], ['E', 'm'], ['F', ''], ['G', '']], parts: ['pad', 'drops', 'bassLong'] },
+  boss: { bpm: 128, steps: 16, chords: [['E', 'm'], ['C', ''], ['D', ''], ['B', 'm']], parts: ['padDark', 'bass8', 'kick', 'hat', 'arpFast'] },
+  misha: { bpm: 140, steps: 16, chords: [['G', 'm'], ['Eb', ''], ['Bb', ''], ['F', '']], parts: ['bass8', 'kick', 'type', 'leadSquare', 'snare'] },
+  vladik: { bpm: 168, steps: 12, waltz: true, chords: [['A', 'm'], ['D', 'm'], ['E', ''], ['A', 'm'], ['F', ''], ['D', 'm'], ['E', '7'], ['A', 'm']], parts: ['waltzBass', 'waltzChord', 'violin'] },
+  tima: { bpm: 150, steps: 16, chords: [['C', 'm'], ['Ab', ''], ['Bb', ''], ['G', '']], parts: ['chipBass', 'kick', 'snare', 'chipArp', 'hat'] },
+};
+
+const Music = {
+  out: null, cur: null, want: null, timer: null, nextT: 0, step: 0, bar: 0, duck: 1,
+  ctx() { return Snd.ctx; },
+  vol() { return (typeof Settings !== 'undefined' && Settings.s ? Settings.s.mvol : 60) / 100; },
+  ensure() {
+    const c = this.ctx(); if (!c) return false;
+    if (!this.out) {
+      this.out = c.createGain(); this.out.gain.value = 0;
+      this.lp = c.createBiquadFilter(); this.lp.type = 'lowpass'; this.lp.frequency.value = 9000;
+      // общий «зал»: короткое эхо делает звук объёмнее
+      this.dly = c.createDelay(1); this.dly.delayTime.value = 0.27; this.fb = c.createGain(); this.fb.gain.value = 0.28;
+      this.wet = c.createGain(); this.wet.gain.value = 0.22;
+      this.bus = c.createGain();
+      this.bus.connect(this.lp); this.lp.connect(this.out);
+      this.bus.connect(this.dly); this.dly.connect(this.fb); this.fb.connect(this.dly); this.dly.connect(this.wet); this.wet.connect(this.out);
+      this.out.connect(c.destination);
+    }
+    return true;
+  },
+  setVolume() { if (!this.out) return; const c = this.ctx(); this.out.gain.setTargetAtTime(0.32 * this.vol() * this.duck, c.currentTime, 0.15); },
+  setDuck(d) { this.duck = d; this.setVolume(); if (this.lp) this.lp.frequency.setTargetAtTime(d < 1 ? 1400 : 9000, this.ctx().currentTime, 0.2); },
+  play(name) {
+    this.want = name;
+    if (!this.ensure()) return; // запустится после первого касания/клика
+    if (this.cur === name && this.timer) return;
+    const c = this.ctx();
+    this.cur = name; this.step = 0; this.bar = 0; this.nextT = c.currentTime + 0.12;
+    this.out.gain.cancelScheduledValues(c.currentTime); this.out.gain.setValueAtTime(0.0001, c.currentTime); this.setVolume();
+    if (!this.timer) this.timer = setInterval(() => this.tick(), 25);
+  },
+  stop() { this.want = null; this.cur = null; if (this.timer) { clearInterval(this.timer); this.timer = null; } if (this.out) this.out.gain.setTargetAtTime(0.0001, this.ctx().currentTime, 0.2); },
+  resume() { if (this.want && this.cur !== this.want) { const w = this.want; this.cur = null; this.play(w); } },
+  tick() {
+    const c = this.ctx(), tr = TRACKS[this.cur]; if (!c || !tr || c.state !== 'running') return;
+    const dt = 60 / tr.bpm / (tr.waltz ? 2 : 4);
+    while (this.nextT < c.currentTime + 0.15) {
+      const cd = tr.chords[this.bar % tr.chords.length], ch = chordNotes(cd[0], cd[1]);
+      for (const part of tr.parts) this.parts[part].call(this, this.step, ch, this.nextT, dt, tr);
+      this.nextT += dt; this.step++;
+      if (this.step >= tr.steps) { this.step = 0; this.bar++; }
+    }
+  },
+  // ----- инструменты -----
+  osc(type, f, t, dur, vol, opt) {
+    const c = this.ctx(), o = c.createOscillator(), g = c.createGain(); o.type = type; o.frequency.setValueAtTime(f, t);
+    if (opt && opt.detune) o.detune.value = opt.detune;
+    if (opt && opt.vib) { const l = c.createOscillator(), lg = c.createGain(); l.frequency.value = opt.vib; lg.gain.value = f * 0.012; l.connect(lg); lg.connect(o.frequency); l.start(t); l.stop(t + dur + 0.1); }
+    const a = (opt && opt.att) || 0.005, r = (opt && opt.rel) || dur;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + a + r);
+    let node = o;
+    if (opt && opt.lp) { const f2 = c.createBiquadFilter(); f2.type = 'lowpass'; f2.frequency.value = opt.lp; o.connect(f2); node = f2; }
+    node.connect(g); g.connect(this.bus); o.start(t); o.stop(t + a + r + 0.05);
+  },
+  noise(t, dur, vol, freq, type) {
+    const c = this.ctx(); if (!Snd.noise) return;
+    const s = c.createBufferSource(); s.buffer = Snd.noise; const f = c.createBiquadFilter(); f.type = type || 'highpass'; f.frequency.value = freq;
+    const g = c.createGain(); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    s.connect(f); f.connect(g); g.connect(this.bus); s.start(t, Math.random() * 0.3); s.stop(t + dur + 0.02);
+  },
+  parts: {
+    pad(s, ch, t, dt) { if (s !== 0) return; for (const n of ch.slice(0, 3)) for (const d of [-7, 7]) this.osc('sawtooth', mtof(48 + n), t, dt * 16, 0.018, { att: dt * 5, rel: dt * 13, detune: d, lp: 900 }); },
+    padDark(s, ch, t, dt) { if (s !== 0) return; for (const n of ch.slice(0, 3)) this.osc('sawtooth', mtof(45 + n), t, dt * 16, 0.016, { att: dt * 2, rel: dt * 15, detune: 6, lp: 700 }); },
+    arpSoft(s, ch, t, dt) { if (s % 2) return; const seq = [0, 1, 2, 1, 0, 2, 1, 2]; const n = ch[seq[(s / 2) % 8] % ch.length]; this.osc('triangle', mtof(64 + n), t, dt * 2, 0.04, { rel: dt * 3 }); },
+    drops(s, ch, t, dt) { if (s % 3 || Math.random() > 0.45) return; const n = ch[Math.floor(Math.random() * ch.length)] + (Math.random() < 0.4 ? 12 : 0); this.osc('sine', mtof(72 + n), t, dt * 4, 0.035, { rel: dt * 6 }); },
+    bassLong(s, ch, t, dt) { if (s === 0) this.osc('sine', mtof(36 + ch[0]), t, dt * 16, 0.07, { att: 0.05, rel: dt * 14 }); },
+    bass8(s, ch, t, dt) { if (s % 2) return; const oct = s % 8 === 6 ? 12 : 0; this.osc('square', mtof(33 + ch[0] + oct), t, dt * 1.6, 0.045, { rel: dt * 1.4, lp: 600 }); },
+    kick(s, ch, t) { if (s % 4) return; const c = this.ctx(), o = c.createOscillator(), g = c.createGain(); o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(40, t + 0.12);
+      g.gain.setValueAtTime(0.22, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16); o.connect(g); g.connect(this.bus); o.start(t); o.stop(t + 0.2); },
+    hat(s, ch, t) { if (s % 4 === 2) this.noise(t, 0.04, 0.05, 7000); },
+    snare(s, ch, t) { if (s === 4 || s === 12) { this.noise(t, 0.14, 0.12, 1800, 'bandpass'); this.osc('triangle', 190, t, 0.08, 0.05, { rel: 0.08 }); } },
+    arpFast(s, ch, t, dt) { const seq = [0, 1, 2, 1]; this.osc('sawtooth', mtof(60 + ch[seq[s % 4] % ch.length] + (s >= 8 ? 12 : 0)), t, dt, 0.022, { rel: dt * 0.9, lp: 2200 }); },
+    type(s, ch, t) { if (Math.random() < 0.55) this.noise(t, 0.02, 0.06, 4500 + Math.random() * 3000); if (s === 15) this.osc('sine', 2093, t, 0.1, 0.03, { rel: 0.12 }); },
+    leadSquare(s, ch, t, dt) {
+      const mel = [0, -1, 2, -1, 1, -1, 0, -1, 2, -1, 3, -1, 2, 1, 0, -1];
+      const i = mel[s]; if (i < 0) return; const n = i === 3 ? ch[0] + 12 : ch[i % ch.length];
+      this.osc('square', mtof(67 + n), t, dt * 1.5, 0.028, { rel: dt * 1.4, lp: 2600 });
+    },
+    waltzBass(s, ch, t, dt) { if (s === 0 || s === 6) this.osc('triangle', mtof(36 + ch[0] + (s === 6 ? 7 : 0)), t, dt * 2, 0.08, { rel: dt * 2 }); },
+    waltzChord(s, ch, t, dt) { if (s === 2 || s === 4 || s === 8 || s === 10) for (const n of ch.slice(0, 3)) this.osc('triangle', mtof(57 + n), t, dt, 0.022, { rel: dt * 0.9 }); },
+    violin(s, ch, t, dt) {
+      const mel = [[0, 0, 4], [2, 1, 2], [4, 2, 2], [6, 1, 4], [10, 0, 2]];
+      for (const [st, idx, len] of mel) if (s === st) {
+        const up = this.bar % 2 ? 12 : 0, n = ch[idx % ch.length];
+        this.osc('sawtooth', mtof(69 + n + up - 12), t, dt * len, 0.03, { att: 0.06, rel: dt * len, vib: 5.5, lp: 3000 });
+      }
+    },
+    chipBass(s, ch, t, dt) { if (s % 2) return; const n = ch[0] + (s % 4 === 2 ? 12 : 0); this.osc('triangle', mtof(36 + n), t, dt * 1.8, 0.09, { rel: dt * 1.7 }); },
+    chipArp(s, ch, t, dt) { const n = ch[s % ch.length] + (Math.floor(s / 4) % 2 ? 12 : 0); this.osc('square', mtof(72 + n), t, dt * 0.9, 0.02, { rel: dt * 0.8 }); },
+  },
+};
+
 // ===== НАСТРОЙКИ И СОХРАНЕНИЕ (localStorage; без него всё работает на значениях по умолчанию) =====
 const Settings = {
-  def: { vol: 80, shake: true, easy: false, vibro: true, bsize: 'M', bop: 100, lefty: false, boss: 0 },
+  def: { vol: 80, mvol: 60, shake: true, easy: false, vibro: true, bsize: 'M', bop: 100, lefty: false, boss: 0 },
   s: null, open: false, onClose: null,
   load() {
     this.s = { ...this.def };
@@ -552,6 +722,7 @@ const Settings = {
     de.classList.toggle('lefty', !!this.s.lefty);
     de.style.setProperty('--bop', String(this.s.bop / 100));
     if (Snd.master) Snd.master.gain.value = 0.35 * (this.s.vol / 100);
+    if (typeof Music !== 'undefined') Music.setVolume();
     if (typeof Layout !== 'undefined') Layout.apply();
   },
   init() {
@@ -560,6 +731,7 @@ const Settings = {
     const $ = (id) => document.getElementById(id);
     const bind = () => {
       $('st-vol').value = this.s.vol; $('st-vol-v').textContent = this.s.vol + '%';
+      $('st-mvol').value = this.s.mvol; $('st-mvol-v').textContent = this.s.mvol + '%';
       $('st-shake').checked = this.s.shake; $('st-easy').checked = this.s.easy;
       $('st-vibro').checked = this.s.vibro; $('st-lefty').checked = this.s.lefty;
       $('st-bop').value = this.s.bop; $('st-bop-v').textContent = this.s.bop + '%';
@@ -571,6 +743,7 @@ const Settings = {
     this.bindUI = bind;
     $('st-vol').addEventListener('input', (e) => { this.s.vol = +e.target.value; $('st-vol-v').textContent = this.s.vol + '%'; this.save(); });
     $('st-vol').addEventListener('change', () => { Snd.init(); Snd.play('bead'); });
+    $('st-mvol').addEventListener('input', (e) => { this.s.mvol = +e.target.value; $('st-mvol-v').textContent = this.s.mvol + '%'; Snd.init(); this.save(); });
     $('st-bop').addEventListener('input', (e) => { this.s.bop = +e.target.value; $('st-bop-v').textContent = this.s.bop + '%'; this.save(); });
     for (const k of ['shake', 'easy', 'vibro', 'lefty']) $('st-' + k).addEventListener('change', (e) => { this.s[k] = e.target.checked; this.save(); });
     el.querySelectorAll('[name=st-bsize]').forEach((r) => r.addEventListener('change', () => { this.s.bsize = r.value; this.save(); }));
@@ -835,14 +1008,14 @@ const Lobby = {
 // ===== ИГРА: «Тропа Ткачей» — кооперативная метроидвания =====
 let VW = 960; const VH = 540;
 // версия игры; номер сборки подставляет build.py
-const GAME_VERSION = '0.8';
-const GAME_BUILD = '12 от 20.10.2026';
+const GAME_VERSION = '0.9';
+const GAME_BUILD = '13 от 20.10.2026';
 const CHANGELOG = [
-  'Настройки: громкость, тряска, лёгкий режим, кнопки и левша',
-  'Сохранение на скамье, автопауза, «Заново» в паузе',
-  'Игра с телефона: стик, кнопки, полный экран, iPhone 13–17',
-  'Новые боссы: Владик Скрипка и Тима Пиво',
-  'Босс-тест: Миша Додик, дымовухи и рюкзак',
+  'Миша: фаза «Пропустите!» — вид сверху и коридоры',
+  'Тима чертит круг перед пылью — успей подбежать',
+  'Фоновая музыка у меню, пещеры и каждого босса',
+  'Объёмные фоны: свет, туман, лампы, тени',
+  'Спрыгнуть с платформы: ↓ + прыжок',
 ];
 // ширина поля подстраивается под пропорции экрана: на вытянутых телефонах без чёрных полос
 function computeVW() {
@@ -884,7 +1057,9 @@ class MenuScene extends Phaser.Scene {
     this.leaving = false;
     genBackgrounds(this);
     this.add.tileSprite(0, 0, VW, VH, 'bgFar').setOrigin(0);
+    this.rays = this.add.tileSprite(0, 0, VW, VH, 'bgRays').setOrigin(0).setBlendMode(Phaser.BlendModes.ADD);
     this.mid = this.add.tileSprite(0, 0, VW, VH, 'bgMid').setOrigin(0);
+    this.fog = this.add.tileSprite(0, 0, VW, VH, 'bgFog').setOrigin(0);
     this.add.tileSprite(0, 0, VW, VH, 'bgGlow').setOrigin(0).setBlendMode(Phaser.BlendModes.ADD);
     this.add.particles(0, 0, 'spark', {
       x: { min: 0, max: VW }, y: { min: 0, max: VH }, lifespan: 6000, speedY: { min: -14, max: -4 }, speedX: { min: -6, max: 6 },
@@ -970,6 +1145,7 @@ class MenuScene extends Phaser.Scene {
       if (e.key === '1') this.go(1); if (e.key === '2') this.go(2); if (e.key === '3') this.openLobby(); if (e.key === '4') this.openPick(); if (e.key === '5') this.openSettings();
     });
     if (Lobby.room) this.time.delayedCall(300, () => this.openLobby());
+    Music.setDuck(1); Music.play('menu');
     this.input.on('pointerdown', () => Snd.init());
     this.t = 0;
   }
@@ -999,7 +1175,7 @@ class MenuScene extends Phaser.Scene {
   }
   update(time, delta) {
     this.t += delta / 1000;
-    this.mid.tilePositionX += delta * 0.01;
+    this.mid.tilePositionX += delta * 0.01; this.fog.tilePositionX += delta * 0.02; this.rays.setAlpha(0.75 + Math.sin(this.t * 0.6) * 0.25);
     const pads = this.input.gamepad ? this.input.gamepad.gamepads.filter(Boolean) : [];
     this.pickT = (this.pickT || 0) - delta / 1000;
     if (Settings.open) return;
@@ -1057,8 +1233,11 @@ class BGScene extends Phaser.Scene {
   constructor() { super('bg'); }
   create() {
     this.far = this.add.tileSprite(0, 0, VW, VH, 'bgFar').setOrigin(0);
+    this.rays = this.add.tileSprite(0, 0, VW, VH, 'bgRays').setOrigin(0).setBlendMode(Phaser.BlendModes.ADD);
     this.mid = this.add.tileSprite(0, 0, VW, VH, 'bgMid').setOrigin(0);
+    this.fog = this.add.tileSprite(0, 0, VW, VH, 'bgFog').setOrigin(0);
     this.glow = this.add.tileSprite(0, 0, VW, VH, 'bgGlow').setOrigin(0).setBlendMode(Phaser.BlendModes.ADD);
+    this.t = 0;
     this.spores = this.add.particles(0, 0, 'spark', {
       x: { min: 0, max: VW }, y: { min: 0, max: VH }, lifespan: { min: 4000, max: 8000 },
       speedY: { min: -12, max: -3 }, speedX: { min: -8, max: 8 }, scale: { min: 0.25, max: 0.8 },
@@ -1068,11 +1247,13 @@ class BGScene extends Phaser.Scene {
   update() {
     const gs = this.scene.get('game'); if (!gs || !gs.cameras || !gs.camX) return;
     const room = !!(gs.L && gs.L.theme);
-    for (const o of [this.far, this.mid, this.glow, this.spores]) o.setVisible(!room);
-    const x = gs.camX, y = gs.camY;
-    this.far.tilePositionX = x * 0.12; this.far.tilePositionY = (y - 600) * 0.05;
-    this.mid.tilePositionX = x * 0.3; this.mid.tilePositionY = (y - 600) * 0.12;
-    this.glow.tilePositionX = x * 0.45; this.glow.tilePositionY = (y - 600) * 0.2;
+    for (const o of [this.far, this.rays, this.mid, this.fog, this.glow, this.spores]) o.setVisible(!room);
+    const x = gs.camX, y = gs.camY; this.t += 1 / 60;
+    this.far.tilePositionX = x * 0.08; this.far.tilePositionY = (y - 600) * 0.03;
+    this.rays.tilePositionX = x * 0.14; this.rays.setAlpha(0.75 + Math.sin(this.t * 0.5) * 0.25);
+    this.mid.tilePositionX = x * 0.3; this.mid.tilePositionY = (y - 600) * 0.1;
+    this.fog.tilePositionX = x * 0.45 + this.t * 6; this.fog.tilePositionY = (y - 600) * 0.15;
+    this.glow.tilePositionX = x * 0.5; this.glow.tilePositionY = (y - 600) * 0.2;
   }
 }
 
@@ -1184,12 +1365,17 @@ class GameScene extends Phaser.Scene {
     // автопауза, когда вкладку свернули или переключились в другое приложение
     this._vis = () => { if (document.hidden && !this.online && !this.paused && !this.won && this.sys.isActive()) this.togglePause(); };
     document.addEventListener('visibilitychange', this._vis);
-    this.events.once('shutdown', () => document.removeEventListener('visibilitychange', this._vis));
+    this.events.once('shutdown', () => { document.removeEventListener('visibilitychange', this._vis); Music.setDuck(1); });
     Touch.show(true, { bombs: !!this.L.crates });
     this.events.once('shutdown', () => { Touch.show(false); Touch.onTap = null; });
   }
   ui() { return this.scene.get('ui'); }
   testBoss() { return this.misha || this.vladik || this.tima; }
+  musicTrack() {
+    if (this.won) return 'menu';
+    if (this.mode === 'bosstest') return this.bossKind;
+    const b = this.boss; return b && !['sleep', 'gone', 'dead'].includes(b.state) ? 'boss' : 'cave';
+  }
   speedMul() { return 1; }
   togglePause() {
     if (this.won || Settings.open) return;
@@ -1197,6 +1383,7 @@ class GameScene extends Phaser.Scene {
     if (this.online) u.showPause(!u.pause.visible); // по сети мир не останавливаем
     else { this.paused = !this.paused; u.showPause(this.paused); }
     Touch.show(!u.pause.visible);
+    Music.setDuck(u.pause.visible ? 0.4 : 1);
   }
 
   // ----- ввод -----
@@ -1284,6 +1471,12 @@ class GameScene extends Phaser.Scene {
     }
     e.y = ny; if (e.onGround || e.hitU) e.vy = 0;
   }
+  onPlatform(e) {
+    const ty = Math.floor((e.y + e.h + 1) / T), x0 = Math.floor(e.x / T), x1 = Math.floor((e.x + e.w - 0.01) / T);
+    let plat = false;
+    for (let tx = x0; tx <= x1; tx++) { const t = this.tileAt(tx, ty); if (t === SOLID) return false; if (t === PLAT) plat = true; }
+    return plat;
+  }
   touchWall(e, dir) {
     const tx = dir > 0 ? Math.floor((e.x + e.w + 1) / T) : Math.floor((e.x - 1) / T);
     const ya = Math.floor((e.y + 4) / T), yb = Math.floor((e.y + e.h - 4) / T);
@@ -1365,11 +1558,13 @@ class GameScene extends Phaser.Scene {
       }
     }
     if (this.online) { this.netSmooth(dt); this.netTick(dt); }
+    Music.play(this.musicTrack());
     this.render(dt);
     this.updateCamera(dt);
   }
 
   step(dt) {
+    if (this.td) { this.tdStep(dt); return; }
     const auth = this.auth();
     for (const p of this.players) { if (p.remote) p.atkT -= dt; else this.stepPlayer(p, dt); }
     for (const p of this.players) this.resolveAttack(p);
@@ -1424,7 +1619,10 @@ class GameScene extends Phaser.Scene {
       p.wallDir = 0;
       if (!p.onGround && p.vy > 0) { if (dir === 1 && this.touchWall(p, 1)) p.wallDir = 1; else if (dir === -1 && this.touchWall(p, -1)) p.wallDir = -1; }
       if (p.jumpBuf > 0) {
-        if (p.onGround || p.coyote > 0) {
+        if (inp.down && p.onGround && this.onPlatform(p)) {
+          // ↓ + прыжок на платформе — спрыгнуть вниз сквозь неё
+          p.dropT = 0.22; p.jumpBuf = 0; p.coyote = 0; p.onGround = false; p.vy = 60; p.y += 2;
+        } else if (p.onGround || p.coyote > 0) {
           p.vy = -P.JUMP; p.jumpBuf = 0; p.coyote = 0; p.jumpCut = false; Snd.play('jump');
           this.dust.explode(5, p.x + 7, p.y + 26);
         } else if (this.touchWall(p, 1) || this.touchWall(p, -1)) {
@@ -1456,6 +1654,7 @@ class GameScene extends Phaser.Scene {
         }
       }
     }
+    p.dropT = (p.dropT || 0) - dt; p.noPlat = p.dropT > 0;
     this.moveBody(p, dt);
     if (this.crates) this.refillBombs(p);
     if (p.onGround) {
@@ -1561,6 +1760,7 @@ class GameScene extends Phaser.Scene {
     this.spawnEnemies();
     for (const pr of this.projs) pr.dead = true;
     if (!this.bossDead) { this.makeBoss(); if (this.gates[0]) this.setGate(this.gates[0], false); this.ui().bossBar(false); }
+    if (this.td) { this.td = null; this.tdFlip = false; this.cameras.main.setRotation(0); this.ui().tdShow(false); }
     if (this.misha && this.misha.state !== 'dead') { this.makeMisha(); this.ui().bossBar(false); }
     if (this.vladik && this.vladik.state !== 'dead') { this.makeVladik(); this.ui().bossBar(false); }
     if (this.tima && this.tima.state !== 'dead') { this.repoT = 0; this.makeTima(); this.sendEv({ k: 'repo', on: 0 }); this.ui().bossBar(false); }
@@ -1841,7 +2041,7 @@ class GameScene extends Phaser.Scene {
     const r = (v) => Math.round(v * 10) / 10, f2 = (v) => Math.round(Math.max(0, v) * 100) / 100;
     return { t: 'p', i: p.i, x: r(p.x), y: r(p.y), vx: Math.round(p.vx), vy: Math.round(p.vy), f: p.face, g: p.onGround ? 1 : 0,
       d: f2(p.dashT), s: p.sit ? 1 : 0, h: f2(p.healT), l: f2(p.landT), hp: p.hp, mh: p.maxHp, sk: p.silk, dn: p.downed ? 1 : 0,
-      iv: f2(p.inv), u: p.raw && p.raw.up ? 1 : 0, rv: f2(p.reviveT), sq: p.seq || 0, ad: p.atkDir, bm: p.bombs };
+      iv: f2(p.inv), u: p.raw && p.raw.up ? 1 : 0, rv: f2(p.reviveT), sq: p.seq || 0, ad: p.atkDir, bm: p.bombs, tp: this.td ? [Math.round(p.tdx), Math.round(p.tdy)] : null };
   }
   packSnap() {
     const r = Math.round, b = this.boss;
@@ -1853,6 +2053,7 @@ class GameScene extends Phaser.Scene {
       pr: this.projs.map((q) => [NET_KINDS.indexOf(q.kind), r(q.x), r(q.y), r(q.vx), r(q.vy), q.delay > 0 ? 1 : 0, q.ch || (q.kind === 'ringfx' ? r(q.r) : '')]),
       vl: vl ? [r(vl.x), r(vl.y), vl.face, vl.hp, vl.maxHp, vl.state, vl.flash > 0 ? 1 : 0, r10(vl.t), vl.sayT > 0 ? vl.say : '', this.curtains.map((c) => [r10(c.slime), Math.round(c.wet * 100) / 100])] : null,
       tm: tm ? [r(tm.x), r(tm.y), tm.face, tm.hp, tm.maxHp, tm.state, tm.flash > 0 ? 1 : 0, r10(tm.t), tm.sayT > 0 ? tm.say : '', r10(tm.hyper), this.repo ? 1 : 0, this.puddles.map((q) => [r(q.x), q.w, r(q.y), r10(q.t)])] : null,
+      td: this.td ? [this.td.state, this.td.lane, r(this.td.mx), this.td.blocks, this.td.need, this.td.sayT > 0 ? this.td.say : ''] : null,
       mi: mi ? [r(mi.x), r(mi.y), mi.face, mi.hp, mi.maxHp, mi.state, mi.flash > 0 ? 1 : 0, Math.round(mi.t * 100) / 100, mi.sayT > 0 ? mi.say : ''] : null,
       bd: this.beadsArr.map((d) => [r(d.x), r(d.y)]), bc: this.beads,
       g: this.gates.map((gt) => (gt.closed ? 1 : 0)), bD: this.bossDead ? 1 : 0, rs: [r(this.respawn.x), r(this.respawn.y)] };
@@ -1863,6 +2064,7 @@ class GameScene extends Phaser.Scene {
       const p = this.players[m.i]; if (!p || !p.remote) return;
       Object.assign(p, { tx: m.x, ty: m.y, vx: m.vx, vy: m.vy, face: m.f, onGround: !!m.g, dashT: m.d, sit: !!m.s, healT: m.h, landT: m.l,
         hp: m.hp, maxHp: m.mh, silk: m.sk, downed: !!m.dn, inv: m.iv, netUp: !!m.u, reviveT: m.rv, netT: 0, bombs: m.bm || 0 });
+      if (m.tp) { p.tdx = m.tp[0]; p.tdy = m.tp[1]; }
       p.inp = { up: p.netUp };
       if (m.sq !== p.lastSeq) { p.lastSeq = m.sq; p.atkT = P.ATK_T; p.atkHits = new Set(); p.atkDir = m.ad; p.pogoed = true; }
     } else if (m.t === 's' && this.online === 'guest') this.applySnap(m);
@@ -1900,6 +2102,9 @@ class GameScene extends Phaser.Scene {
     };
     if (m.vl && this.vladik) { syncBoss(this.vladik, m.vl, 'Владик Скрипка', '_vb'); m.vl[9].forEach((c, i) => { if (this.curtains[i]) { this.curtains[i].slime = c[0]; this.curtains[i].wet = c[1]; } }); }
     if (m.tm && this.tima) { syncBoss(this.tima, m.tm, 'Тима Пиво', '_tb'); this.tima.hyper = m.tm[9]; this.setRepo(!!m.tm[10]); this.puddles = m.tm[11].map((q) => ({ x: q[0], w: q[1], y: q[2], t: q[3] })); }
+    if (m.td && !this.td) this.tdBegin(true);
+    if (!m.td && this.td) this.tdEnd(false, true);
+    if (m.td && this.td) { const d = m.td; Object.assign(this.td, { state: d[0], lane: d[1], mx: d[2], blocks: d[3], need: d[4] }); if (d[5]) { this.td.say = d[5]; this.td.sayT = 0.2; } }
     if (m.mi && this.misha) {
       const M = m.mi, mm = this.misha;
       if (mm.tx == null || Math.abs(mm.x - M[0]) > 140) { mm.x = M[0]; mm.y = M[1]; }
@@ -2014,6 +2219,7 @@ class GameScene extends Phaser.Scene {
   // ----- камера -----
   updateCamera(dt) {
     const cam = this.cameras.main;
+    if (this.tdFlip) return; // во время «вида сверху» камерой управляет переворот
     const pts = this.alivePlayers().length ? this.alivePlayers() : this.players;
     let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
     for (const p of pts) { x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x + p.w); y0 = Math.min(y0, p.y); y1 = Math.max(y1, p.y + p.h); }
@@ -2245,14 +2451,14 @@ class UIScene extends Phaser.Scene {
       'Игрок 1:  A D W S · Пробел — прыжок · F — удар · G — рывок · Q — лечение · R — дымовуха',
       'Игрок 2:  стрелки · Num1 или / — прыжок · Num2 или . — удар · Num3 или , — рывок · Num0 или M — лечение · Num4 или N — дымовуха',
       '', 'Удар вверх: держи ↑ + удар.  Удар вниз в прыжке: ↓ + удар — отскок от колючек и врагов.',
-      'Прыжок от стены: прижмись к стене в падении и прыгни.',
+      'Прыжок от стены: прижмись к стене в падении и прыгни.  Спрыгнуть с платформы: ↓ + прыжок.',
       'Лечение: когда катушка нити полна, восстанавливает 3 бутона.',
       'Напарник в коконе: подойди и держи ↑ одну секунду.  Скамья (↑) лечит и оживляет.',
       'По сети каждый играет раскладкой игрока 1, а пауза не останавливает мир.',
     ].join('\n'), { fontFamily: F, fontSize: '14px', color: '#b9d4c8', align: 'center', lineSpacing: 7 }).setOrigin(0.5).setY(285);
     if (Touch.enabled) pc.setText([
       'Стик слева — идти. Вверх + удар — удар вверх, в прыжке вниз + удар — отскок.',
-      'Прыжок от стены: прижмись стиком к стене в падении и жми «Прыжок».',
+      'Прыжок от стены: прижмись стиком к стене в падении и жми «Прыжок».  Спрыгнуть с платформы: стик вниз + «Прыжок».',
       'Лечение: когда катушка нити полна, восстанавливает 3 бутона.',
       'Напарник в коконе: подойди и держи стик вверх одну секунду.  Скамья: стик вверх.',
       'По сети пауза не останавливает мир.',
@@ -2272,6 +2478,14 @@ class UIScene extends Phaser.Scene {
     let px = VW / 2 - total / 2; for (const b of pbtns) { b.setX(px + b.width / 2); px += b.width + gap; }
     this.pause.add([pb, pt, pc, ...pbtns]);
     this.win = this.add.container(0, 0).setVisible(false);
+    // «вид сверху» для фазы Миши
+    this.tdG = this.add.graphics();
+    this.tdTags = [0, 1].map(() => this.add.text(0, 0, '', { fontFamily: F, fontSize: '11px', fontStyle: '700', color: '#f4efe0' }).setOrigin(0.5).setVisible(false));
+    this.tdSay = this.add.text(0, 0, '', { fontFamily: F, fontSize: '17px', fontStyle: '700', color: '#1a1410', backgroundColor: '#f4efe0', padding: { x: 9, y: 5 } }).setOrigin(0.5, 1).setVisible(false);
+    this.tdInfo = this.add.text(VW / 2, 92, '', { fontFamily: F, fontSize: '14px', color: '#ffd47a' }).setOrigin(0.5);
+    this.tdTitle = this.add.text(VW / 2, 66, 'ПРОПУСТИТЕ!', { fontFamily: D, fontSize: '30px', fontStyle: '700', color: '#e8e2cf' }).setOrigin(0.5);
+    this.tdLayer = this.add.container(0, 0, [this.tdG, ...this.tdTags, this.tdSay, this.tdInfo, this.tdTitle]).setVisible(false);
+    this.children.sendToBack(this.tdLayer); // под всем интерфейсом: здоровье, подсказки, пауза видны поверх
     this.t = 0;
     this.input.keyboard.on('keydown-ENTER', () => { if (this.gs.won) this.restart(); });
     this.input.keyboard.on('keydown-SPACE', () => { if (this.gs.won) this.restart(); });
@@ -2280,6 +2494,52 @@ class UIScene extends Phaser.Scene {
   }
   restart() { this.ready = false; Net.onClose = null; Net.close(); this.scene.stop('bg'); this.scene.stop('game'); this.scene.start('menu'); }
   openSettings() { this.pause.setVisible(false); Settings.show(() => { if (this.ready) this.pause.setVisible(true); }); }
+  tdShow(on) {
+    if (!this.ready) return;
+    this.tweens.killTweensOf(this.tdLayer);
+    if (on) { this.tdLayer.setVisible(true).setAlpha(0); this.tweens.add({ targets: this.tdLayer, alpha: 1, duration: 450, delay: 450 }); }
+    else this.tweens.add({ targets: this.tdLayer, alpha: 0, duration: 300, onComplete: () => this.tdLayer.setVisible(false) });
+  }
+  drawTD() {
+    const gs = this.gs, td = gs.td, g = this.tdG; g.clear();
+    if (!td) { this.tdSay.setVisible(false); this.tdTags.forEach((t) => t.setVisible(false)); return; }
+    const G = gs.tdGeo(), now = this.t;
+    // пол и стены
+    g.fillStyle(0x0b1512, 1); g.fillRect(0, 0, VW, VH);
+    g.fillStyle(0x2a2620, 1); g.fillRect(G.x0, G.lanes[0].y0, G.x1 - G.x0, G.lanes[2].y1 - G.lanes[0].y0);
+    G.lanes.forEach((ln, i) => {
+      for (let x = G.x0; x < G.x1; x += 32) { g.fillStyle((x / 32 + i) % 2 ? 0x312c25 : 0x2a2620, 1); g.fillRect(x, ln.y0, 32, ln.y1 - ln.y0); }
+      if (i === td.lane && (td.state === 'tele' || td.state === 'walk')) { g.fillStyle(0xff6a4a, td.state === 'tele' ? 0.18 + Math.sin(now * 14) * 0.08 : 0.07); g.fillRect(G.x0, ln.y0, G.x1 - G.x0, ln.y1 - ln.y0); }
+    });
+    for (const w of G.walls) { g.fillStyle(0x5a6a62, 1); g.fillRect(w.x, w.y, w.w, w.h); g.fillStyle(0x7f9087, 1); g.fillRect(w.x, w.y, w.w, 3); }
+    // старт и выход
+    g.fillStyle(0x67ad62, 0.25); g.fillRect(G.x0, G.lanes[0].y0, 40, G.lanes[2].y1 - G.lanes[0].y0);
+    g.fillStyle(0xd23a2a, 0.35 + Math.sin(now * 4) * 0.1); g.fillRect(G.x1 - 14, G.lanes[0].y0, 14, G.lanes[2].y1 - G.lanes[0].y0);
+    // Миша сверху: рука скользит по стене коридора
+    const ln = G.lanes[td.lane], my = (ln.y0 + ln.y1) / 2 + 10, mx = td.mx;
+    const showM = td.state !== 'intro' && td.state !== 'win';
+    if (showM) {
+      g.lineStyle(2, 0x9aa39f, 0.5); for (let k = 0; k < 6; k++) { const sx = mx - 20 - k * 14; if (sx > G.x0) g.lineBetween(sx, ln.y0 + 2, sx - 8, ln.y0 + 6); }
+      g.lineStyle(7, 0x4f5b78, 1); g.lineBetween(mx + 6, my - 10, mx + 14, ln.y0 + 4);
+      g.fillStyle(0x7c86a0, 1); g.fillCircle(mx + 14, ln.y0 + 5, 5);
+      g.fillStyle(0xe08a2c, 1); g.fillRoundedRect(mx - 34, my - 14, 18, 28, 5);
+      g.fillStyle(0x4f5b78, 1); g.fillCircle(mx, my, 20);
+      g.fillStyle(0xc8463c, 1); g.fillCircle(mx + 2, my, 11); g.fillRect(mx - 14, my - 4, 8, 8);
+      if (td.state === 'blocked') { g.fillStyle(0xffe3a3, 0.9); for (let k = 0; k < 4; k++) g.fillCircle(mx + Math.cos(now * 6 + k * 1.6) * 26, my + Math.sin(now * 6 + k * 1.6) * 26, 2.5); }
+    }
+    // игроки сверху
+    gs.players.forEach((p, i) => {
+      if (p.tdx == null) return;
+      g.fillStyle(0x000000, 0.35); g.fillEllipse(p.tdx + 2, p.tdy + 4, 26, 18);
+      g.fillStyle(p.pal.cloak, 1); g.fillCircle(p.tdx, p.tdy, 12);
+      g.fillStyle(MASK, 1); g.fillCircle(p.tdx + p.face * 3, p.tdy - 1, 6.5);
+      g.lineStyle(1.6, MASK, 1); g.lineBetween(p.tdx - 3, p.tdy - 6, p.tdx - 9, p.tdy - 14); g.lineBetween(p.tdx + 3, p.tdy - 6, p.tdx + 6, p.tdy - 15);
+      const tag = this.tdTags[i]; tag.setText(p.pal.tag).setPosition(p.tdx, p.tdy + 20).setVisible(true);
+    });
+    const say = td.sayT > 0 && td.say && showM;
+    this.tdSay.setVisible(!!say); if (say) this.tdSay.setText(td.say).setPosition(clamp(mx, 140, VW - 140), ln.y0 - 20);
+    this.tdInfo.setText(`Не пропусти Мишу! Встань у него на пути в подсвеченном коридоре.   Остановлено: ${td.blocks} из ${td.need}`);
+  }
   retry() { const d = { ...this.gs.startData }; this.ready = false; this.scene.stop('bg'); this.scene.start('game', d); }
   removePlayer(i) { if (this.names[i]) this.names[i].setVisible(false); }
   showPause(on) { if (this.ready) this.pause.setVisible(on); }
@@ -2322,6 +2582,7 @@ class UIScene extends Phaser.Scene {
   }
   update(time, delta) {
     this.t += delta / 1000;
+    if (this.tdLayer && this.tdLayer.visible) this.drawTD();
     const g = this.hud; g.clear();
     const gs = this.gs; if (!gs.players) return;
     gs.players.forEach((p, i) => {
@@ -2464,7 +2725,7 @@ Object.assign(GameScene.prototype, {
     if (this.misha && this.misha.g) this.misha.g.destroy();
     const d = this.L.misha, hp = this.nPlayers === 2 ? 8 : 6;
     this.misha = { x: d.x * T - 28, y: (d.y + 1) * T - 74, w: 56, h: 74, vx: 0, vy: 0, face: -1, hp, maxHp: hp, state: 'intro', t: 1.8,
-      flash: 0, last: '', turnT: 0, hitCd: 0, say: 'ЭЙ! ЭТО МОЙ РЮКЗАК!', sayT: 2.2, barShown: false, g: this.add.graphics().setDepth(4) };
+      flash: 0, last: '', turnT: 0, hitCd: 0, tdMarks: [Math.ceil(hp * 2 / 3), Math.ceil(hp / 3)], tdUsed: [], tdQueue: false, say: 'ЭЙ! ЭТО МОЙ РЮКЗАК!', sayT: 2.2, barShown: false, g: this.add.graphics().setDepth(4) };
   },
   mishaBag(m) { const cx = m.x + m.w / 2; return { x: cx - 26 * m.face - 15, y: m.y + 12, w: 30, h: 40 }; },
   smokeAt(n, x, y) { this.smoke.explode(n, x, y); if (this.online === 'host') this.sendEv({ k: 'smoke', n, x: Math.round(x), y: Math.round(y) }); },
@@ -2511,6 +2772,7 @@ Object.assign(GameScene.prototype, {
     this.ui().bossBar(true, 'Миша Додик', Math.max(0, m.hp) / m.maxHp);
     if (m.hp <= 0) { this.mishaDie(); return; }
     m.state = 'cough'; m.t = 1.5; m.vx = 0;
+    for (const mark of m.tdMarks) if (m.hp <= mark && !m.tdUsed.includes(mark)) { m.tdUsed.push(mark); m.tdQueue = true; }
     this.mishaSpeak(MISHA_SAY_HIT[Math.floor(Math.random() * MISHA_SAY_HIT.length)], 1.3);
     if (m.hp === Math.floor(m.maxHp / 2)) this.toastAll('Миша злится: буквы летят быстрее');
   },
@@ -2571,7 +2833,9 @@ Object.assign(GameScene.prototype, {
         break;
       case 'chargeWind': m.vx = 0; if (m.t <= 0) { m.state = 'charge'; this.sfx('roar'); } break;
       case 'charge': m.vx = m.face * (phase2 ? 500 : 420); break;
-      case 'cough': m.vx = 0; if (Math.random() < 0.25) { const b = this.mishaBag(m); this.smokeAt(1, b.x + 15, b.y); } if (m.t <= 0) { m.state = 'idle'; m.t = phase2 ? 0.4 : 0.7; } break;
+      case 'cough': m.vx = 0; if (Math.random() < 0.25) { const b = this.mishaBag(m); this.smokeAt(1, b.x + 15, b.y); }
+        if (m.t <= 0) { m.state = 'idle'; m.t = phase2 ? 0.4 : 0.7; if (m.tdQueue) { m.tdQueue = false; this.tdBegin(); } }
+        break;
       case 'stun': m.vx = 0; if (m.t <= 0) { m.state = 'idle'; m.t = 0.5; } break;
       case 'recover': m.vx = 0; if (m.t <= 0) { m.state = 'idle'; m.t = phase2 ? 0.35 : 0.65; } break;
     }
@@ -2710,6 +2974,102 @@ Object.assign(GameScene.prototype, {
   },
 });
 
+// ===== ФАЗА «ПРОПУСТИТЕ!»: вид сверху, коридоры, Миша ведёт рукой по стене =====
+Object.assign(GameScene.prototype, {
+  tdGeo() {
+    const x0 = 96, x1 = VW - 96, y0 = 122, lh = 104, wt = 14;
+    const lanes = [0, 1, 2].map((i) => ({ y0: y0 + i * (lh + wt), y1: y0 + i * (lh + wt) + lh }));
+    const L = x1 - x0, door = 84;
+    const doors = [[x0 + L * 0.3, x0 + L * 0.72], [x0 + L * 0.5]];
+    const walls = [{ x: x0 - wt, y: y0 - wt, w: L + wt * 2, h: wt }, { x: x0 - wt, y: lanes[2].y1, w: L + wt * 2, h: wt }];
+    for (let i = 0; i < 2; i++) {
+      const wy = lanes[i].y1; let sx = x0;
+      for (const d of doors[i]) { walls.push({ x: sx, y: wy, w: d - door / 2 - sx, h: wt }); sx = d + door / 2; }
+      walls.push({ x: sx, y: wy, w: x1 - sx, h: wt });
+    }
+    return { x0, x1, lanes, walls, doors, door, wt, start: x0 + 34, goal: x1 - 26 };
+  },
+  // запуск фазы (хост) — у гостя вызывается из снимка с fromNet
+  tdBegin(fromNet) {
+    if (this.td) return;
+    const G = this.tdGeo(), m = this.misha;
+    this.td = { state: 'intro', t: 1.0, lane: 1, mx: G.start, blocks: 0, need: this.nPlayers === 2 ? 4 : 3, round: 0, say: '', sayT: 0 };
+    const spots = [[G.x1 - 150, G.lanes[0].y0 + 52], [G.x1 - 150, G.lanes[2].y0 + 52]];
+    this.players.forEach((p, i) => {
+      if (p.remote) return;
+      if (p.downed) { p.downed = false; p.hp = Math.max(p.hp, 2); }
+      p.tdx = spots[i % 2][0]; p.tdy = spots[i % 2][1]; p.tdDash = 0; p.tdDashCd = 0; p.atkT = 0; p.dashT = 0;
+    });
+    for (const pr of this.projs) if (pr.kind !== 'bomb') pr.dead = true;
+    // камера переворачивается и уходит в «вид сверху»
+    const cam = this.cameras.main; this.tdFlip = true;
+    this.tweens.add({ targets: cam, rotation: Math.PI / 2, zoom: 2.6, duration: 650, ease: 'Cubic.easeIn' });
+    this.ui().tdShow(true);
+    if (!fromNet) { this.sfx('roar'); this.shake(400, 0.006); }
+    Touch.show(true, { bombs: false });
+  },
+  tdEnd(success, fromNet) {
+    if (!this.td) return;
+    this.td = null;
+    const cam = this.cameras.main;
+    this.tweens.add({ targets: cam, rotation: 0, duration: 550, ease: 'Cubic.easeOut', onComplete: () => { this.tdFlip = false; } });
+    this.ui().tdShow(false);
+    Touch.show(true, { bombs: !!this.L.crates });
+    for (const p of this.players) if (!p.remote) { p.bombs = 3; p.inv = 1.2; }
+    if (fromNet) return;
+    const m = this.misha;
+    if (success) {
+      m.state = 'stun'; m.t = 3.2; m.hitCd = 0; m.vx = 0;
+      this.mishaSpeak('НУ И ЛАДНО…', 1.6); this.toastAll('Миша выдохся — рюкзак открыт!'); this.sfx('gate');
+    } else this.teamWipe();
+  },
+  tdPickLane() {
+    const td = this.td, G = this.tdGeo();
+    let lane = Math.floor(Math.random() * 3); if (lane === td.lane && Math.random() < 0.6) lane = (lane + 1 + Math.floor(Math.random() * 2)) % 3;
+    td.lane = lane; td.mx = G.start; td.state = 'tele'; td.t = 1.1; td.round++;
+    td.say = ['ПОСТОРОНИСЬ!', 'Я ПРОЙДУ!', 'С ДОРОГИ!'][td.round % 3]; td.sayT = 1.0;
+  },
+  tdMove(p, dt) {
+    const G = this.tdGeo(), inp = p.inp || {}, r = 12;
+    let dx = (inp.right ? 1 : 0) - (inp.left ? 1 : 0), dy = (inp.down ? 1 : 0) - (inp.up ? 1 : 0);
+    const l = Math.hypot(dx, dy) || 1; dx /= l; dy /= l;
+    p.tdDashCd -= dt; p.tdDash -= dt;
+    if (inp.dashP && p.tdDashCd <= 0 && (dx || dy)) { p.tdDash = 0.16; p.tdDashCd = 0.5; Snd.play('dash'); }
+    const sp = p.tdDash > 0 ? 620 : 250;
+    if (dx || dy) p.face = dx > 0 ? 1 : dx < 0 ? -1 : p.face;
+    const hit = (x, y) => G.walls.some((w) => x + r > w.x && x - r < w.x + w.w && y + r > w.y && y - r < w.y + w.h);
+    const nx = clamp(p.tdx + dx * sp * dt, G.x0 + r, G.x1 - r); if (!hit(nx, p.tdy)) p.tdx = nx;
+    const ny = p.tdy + dy * sp * dt; if (!hit(p.tdx, ny)) p.tdy = ny;
+  },
+  tdStep(dt) {
+    const td = this.td; if (!td) return;
+    for (const p of this.players) if (!p.remote) this.tdMove(p, dt);
+    td.sayT -= dt;
+    if (!this.auth()) return;
+    const G = this.tdGeo();
+    td.t -= dt;
+    switch (td.state) {
+      case 'intro': if (td.t <= 0) this.tdPickLane(); break;
+      case 'tele': if (td.t <= 0) { td.state = 'walk'; this.sfx('slam'); } break;
+      case 'walk': {
+        td.mx += (85 + td.round * 12) * dt;
+        const ln = G.lanes[td.lane];
+        const blocker = this.players.find((p) => !p.downed && p.tdy > ln.y0 + 4 && p.tdy < ln.y1 - 4 && p.tdx - td.mx > 14 && p.tdx - td.mx < 46);
+        if (blocker) {
+          td.blocks++; td.state = 'blocked'; td.t = 1.3; td.say = 'ПРОПУСТИТЕ!'; td.sayT = 1.3;
+          this.sfx('roar'); this.shake(220, 0.006);
+        } else if (td.mx >= G.goal) { td.state = 'through'; td.t = 1.3; td.say = 'ПРОШЁЛ! ХА!'; td.sayT = 1.3; this.sfx('win'); }
+        break;
+      }
+      case 'blocked':
+        if (td.t <= 0) { if (td.blocks >= td.need) { td.state = 'win'; td.t = 1.0; td.say = 'ВСЁ, ВСЁ, ПОНЯЛ…'; td.sayT = 1.0; } else this.tdPickLane(); }
+        break;
+      case 'through': if (td.t <= 0) this.tdEnd(false); break;
+      case 'win': if (td.t <= 0) this.tdEnd(true); break;
+    }
+  },
+});
+
 // ===== БОСС «ВЛАДИК СКРИПКА»: школьный класс, скрипичные ключи, слизь на шторах =====
 const VLADIK_SAY_HIT = ['Я НЕ СКРИПКА!', 'Я ВЛАДИК!', 'НЕ НАЗЫВАЙТЕ МЕНЯ ТАК!', 'Я НЕ СКРИПКА!!!'];
 
@@ -2721,7 +3081,8 @@ function buildVladikArena() {
   plat(12, 15, 15); plat(28, 31, 15); // парты
   return {
     W, H, grid: g, theme: 'class', spawn: { x: 6, y: 17 }, benches: [], enemies: [], gates: [], exit: null,
-    signs: [{ x: 13, y: 17, text: 'Шторы в слизи жгутся — не прыгай в них.\nПод шторой можно пройти низом' }],
+    signs: [{ x: 13, y: 17, text: 'Шторы в слизи жгутся — не прыгай в них.\nПод шторой можно пройти низом' },
+      { x: 29, y: 17, text: '↓ + прыжок — спрыгнуть с парты', touch: 'Стик вниз + «Прыжок» — спрыгнуть с парты' }],
     windows: [[4, 8], [19, 24], [35, 39]],
     curtains: [[2, 3], [9, 10], [17, 18], [25, 26], [33, 34], [40, 41]],
     vladik: { x: 30, y: 17 }, floorY: 18,
@@ -2797,6 +3158,46 @@ function drawClassroom(scene, L) {
     c.fillStyle = '#8a6440'; c.fillRect(dx, dy, dw, 10); c.fillStyle = '#a77b4f'; c.fillRect(dx, dy, dw, 3);
     c.strokeStyle = 'rgba(30,20,10,0.5)'; c.lineWidth = 1; c.beginPath(); c.moveTo(dx + 20, dy + 5); c.lineTo(dx + 40, dy + 6); c.stroke();
   }
+  // ---- свет и объём ----
+  // фактура штукатурки
+  for (let i = 0; i < 2600; i++) { c.fillStyle = R() < 0.5 ? 'rgba(255,255,255,0.025)' : 'rgba(0,0,0,0.05)'; c.fillRect(T + R() * (w - 2 * T), top + R() * (floorY - top - 72), 2 + R() * 3, 1 + R() * 2); }
+  // лунные лучи из окон на пол
+  for (const [a, b] of L.windows) {
+    const x0 = a * T, x1 = (b + 1) * T, y0 = 5 * T + 8, y1 = 12 * T + 8;
+    const lg = c.createLinearGradient(0, y0, 0, floorY); lg.addColorStop(0, 'rgba(150,170,255,0.10)'); lg.addColorStop(1, 'rgba(150,170,255,0.02)');
+    c.fillStyle = lg; c.beginPath(); c.moveTo(x0, y1); c.lineTo(x1, y1); c.lineTo(x1 + 110, floorY); c.lineTo(x0 + 110, floorY); c.closePath(); c.fill();
+    c.fillStyle = 'rgba(160,180,255,0.07)'; c.fillRect(x0 + 110, floorY, x1 - x0, 12);
+  }
+  // потолочные лампы с тёплыми конусами света
+  for (const lx of [8 * T, 22 * T, 35 * T]) {
+    c.strokeStyle = '#1a1410'; c.lineWidth = 2; c.beginPath(); c.moveTo(lx, top); c.lineTo(lx, top + 26); c.stroke();
+    c.fillStyle = '#2b2622'; c.beginPath(); c.moveTo(lx - 22, top + 40); c.lineTo(lx + 22, top + 40); c.lineTo(lx + 10, top + 24); c.lineTo(lx - 10, top + 24); c.closePath(); c.fill();
+    c.fillStyle = '#ffe7b0'; c.beginPath(); c.ellipse(lx, top + 41, 14, 4, 0, 0, Math.PI * 2); c.fill();
+    c.globalCompositeOperation = 'lighter';
+    const cone = c.createLinearGradient(0, top + 40, 0, floorY); cone.addColorStop(0, 'rgba(255,214,150,0.16)'); cone.addColorStop(1, 'rgba(255,214,150,0.02)');
+    c.fillStyle = cone; c.beginPath(); c.moveTo(lx - 18, top + 42); c.lineTo(lx + 18, top + 42); c.lineTo(lx + 150, floorY); c.lineTo(lx - 150, floorY); c.closePath(); c.fill();
+    const pool = c.createRadialGradient(lx, floorY, 0, lx, floorY, 170); pool.addColorStop(0, 'rgba(255,200,130,0.22)'); pool.addColorStop(1, 'rgba(255,200,130,0)');
+    c.fillStyle = pool; c.fillRect(lx - 170, floorY - 170, 340, 190);
+    const halo = c.createRadialGradient(lx, top + 42, 0, lx, top + 42, 60); halo.addColorStop(0, 'rgba(255,230,180,0.35)'); halo.addColorStop(1, 'rgba(255,230,180,0)');
+    c.fillStyle = halo; c.fillRect(lx - 60, top - 18, 120, 120);
+    c.globalCompositeOperation = 'source-over';
+  }
+  // тени под партами и у плинтуса, затемнение углов
+  for (let y = 0; y < L.H; y++) for (let x = 0; x < L.W; x++) {
+    if (L.grid[y][x] !== PLAT || L.grid[y][x - 1] === PLAT) continue;
+    let x1 = x; while (L.grid[y][x1 + 1] === PLAT) x1++;
+    const cx = (x + x1 + 1) * T / 2, rw = (x1 - x + 1) * T * 0.6;
+    const sh = c.createRadialGradient(cx, floorY, 0, cx, floorY, rw); sh.addColorStop(0, 'rgba(0,0,0,0.45)'); sh.addColorStop(1, 'rgba(0,0,0,0)');
+    c.fillStyle = sh; c.fillRect(cx - rw, floorY - 14, rw * 2, 20);
+  }
+  const base = c.createLinearGradient(0, floorY - 40, 0, floorY); base.addColorStop(0, 'rgba(0,0,0,0)'); base.addColorStop(1, 'rgba(0,0,0,0.35)');
+  c.fillStyle = base; c.fillRect(0, floorY - 40, w, 40);
+  const ceil = c.createLinearGradient(0, top, 0, top + 90); ceil.addColorStop(0, 'rgba(0,0,0,0.45)'); ceil.addColorStop(1, 'rgba(0,0,0,0)');
+  c.fillStyle = ceil; c.fillRect(0, top, w, 90);
+  for (const side of [0, 1]) { const sg = c.createLinearGradient(side ? w - 160 : 0, 0, side ? w : 160, 0); sg.addColorStop(side ? 0 : 1, 'rgba(0,0,0,0)'); sg.addColorStop(side ? 1 : 0, 'rgba(0,0,0,0.45)'); c.fillStyle = sg; c.fillRect(side ? w - 160 : 0, top, 160, floorY - top); }
+  // блик на паркете
+  const gloss = c.createLinearGradient(0, floorY, 0, floorY + 12); gloss.addColorStop(0, 'rgba(255,230,190,0.10)'); gloss.addColorStop(1, 'rgba(255,230,190,0)');
+  c.fillStyle = gloss; c.fillRect(0, floorY, w, 12);
   scene.textures.addCanvas(key, cv);
   return [{ key, x: 0 }];
 }
@@ -2990,7 +3391,7 @@ Object.assign(GameScene.prototype, {
           const bx = c.x + 8 + ((i * 37) % (c.w - 16)), by = c.y + 20 + ((i * 53) % Math.max(20, hh - 40));
           if (by < c.y + hh) s.fillEllipse(bx, by + Math.sin(now * 2 + i) * 2, 14, 20);
         }
-        if (c.slime > 0) for (let i = 0; i < 3; i++) { const dx = c.x + 10 + i * ((c.w - 20) / 2), len = 8 + Math.abs(Math.sin(now * 1.5 + i)) * 12; s.fillRect(dx - 2, c.y + c.h - 4, 4, len); s.fillCircle(dx, c.y + c.h - 4 + len, 3); }
+        if (c.slime > 0) for (let i = 0; i < 3; i++) { const dx = c.x + 10 + i * ((c.w - 20) / 2), len = 4 + Math.abs(Math.sin(now * 1.5 + i)) * 5; s.fillRect(dx - 2, c.y + c.h - 4, 4, len); s.fillCircle(dx, c.y + c.h - 4 + len, 3); }
         s.fillStyle(0xe8ffc0, 0.6 * fade); for (let i = 0; i < 4; i++) s.fillCircle(c.x + 10 + i * 12, c.y + 30 + i * 40, 2);
       }
     }
@@ -3069,7 +3470,7 @@ function buildTimaArena() {
   for (const f of furniture) for (let x = f.x0; x <= f.x1; x++) g[f.y][x] = PLAT;
   return {
     W, H, grid: g, theme: 'den', spawn: { x: 4, y: 17 }, benches: [], enemies: [], gates: [], exit: null,
-    signs: [{ x: 5, y: 17, text: 'Тима бьётся обычной иглой.\nПока он нюхает пыль — бей: три удара, и он чихнёт' }],
+    signs: [{ x: 5, y: 17, text: 'Тима бьётся обычной иглой.\nКогда он чертит круг для пыли — беги и бей:\nтри удара, и он чихнёт' }],
     furniture, tima: { x: 30, y: 17 }, floorY: 18,
     areas: [{ x: 0, name: 'Берлога Тимы' }], region: 'Босс-тест',
   };
@@ -3111,6 +3512,38 @@ function drawDen(scene, L) {
   c.fillStyle = '#5a2a2a'; c.fillRect(6 * T, floorY, 30 * T, 10);
   c.fillStyle = '#7a3a34'; for (let x = 6 * T; x < 36 * T; x += 16) c.fillRect(x, floorY + 3, 8, 3);
   c.fillStyle = '#4a3726'; c.fillRect(0, 4 * T - 8, w, 8);
+  // ---- свет и объём ----
+  for (let i = 0; i < 2400; i++) { c.fillStyle = R() < 0.5 ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.05)'; c.fillRect(T + R() * (w - 2 * T), 4 * T + R() * (floorY - 4 * T), 2 + R() * 3, 1 + R() * 2); }
+  c.globalCompositeOperation = 'lighter';
+  // синее свечение телевизора
+  const tvx = 28.5 * T, tvy = 12.5 * T;
+  const tv = c.createRadialGradient(tvx, tvy, 20, tvx, tvy, 420); tv.addColorStop(0, 'rgba(90,140,255,0.28)'); tv.addColorStop(0.5, 'rgba(120,80,220,0.08)'); tv.addColorStop(1, 'rgba(90,140,255,0)');
+  c.fillStyle = tv; c.fillRect(tvx - 420, tvy - 420, 840, 840);
+  const tvf = c.createRadialGradient(tvx, floorY, 0, tvx, floorY, 260); tvf.addColorStop(0, 'rgba(120,150,255,0.18)'); tvf.addColorStop(1, 'rgba(120,150,255,0)');
+  c.fillStyle = tvf; c.fillRect(tvx - 260, floorY - 60, 520, 80);
+  // торшер у дивана
+  const lx = 15.5 * T;
+  c.globalCompositeOperation = 'source-over';
+  c.fillStyle = '#2b2622'; c.fillRect(lx - 2, 9 * T, 4, floorY - 9 * T); c.fillRect(lx - 14, floorY - 6, 28, 6);
+  c.fillStyle = '#c9a66b'; c.beginPath(); c.moveTo(lx - 24, 9 * T + 26); c.lineTo(lx + 24, 9 * T + 26); c.lineTo(lx + 14, 9 * T); c.lineTo(lx - 14, 9 * T); c.closePath(); c.fill();
+  c.globalCompositeOperation = 'lighter';
+  const lamp = c.createRadialGradient(lx, 9 * T + 20, 0, lx, 9 * T + 20, 300); lamp.addColorStop(0, 'rgba(255,200,120,0.30)'); lamp.addColorStop(0.4, 'rgba(255,180,100,0.10)'); lamp.addColorStop(1, 'rgba(255,180,100,0)');
+  c.fillStyle = lamp; c.fillRect(lx - 300, 9 * T - 280, 600, 600);
+  const lampF = c.createRadialGradient(lx, floorY, 0, lx, floorY, 220); lampF.addColorStop(0, 'rgba(255,190,120,0.20)'); lampF.addColorStop(1, 'rgba(255,190,120,0)');
+  c.fillStyle = lampF; c.fillRect(lx - 220, floorY - 60, 440, 80);
+  // свет из окна
+  const mw = c.createLinearGradient(0, 6 * T, 0, floorY); mw.addColorStop(0, 'rgba(150,170,255,0.09)'); mw.addColorStop(1, 'rgba(150,170,255,0.02)');
+  c.fillStyle = mw; c.beginPath(); c.moveTo(2 * T, 10 * T); c.lineTo(6 * T, 10 * T); c.lineTo(9 * T, floorY); c.lineTo(5 * T, floorY); c.closePath(); c.fill();
+  c.globalCompositeOperation = 'source-over';
+  // тени: под мебелью, у потолка и по углам
+  for (const f of L.furniture) {
+    const cx = (f.x0 + f.x1 + 1) * T / 2, rw = (f.x1 - f.x0 + 1) * T * 0.65;
+    const sh = c.createRadialGradient(cx, floorY, 0, cx, floorY, rw); sh.addColorStop(0, 'rgba(0,0,0,0.5)'); sh.addColorStop(1, 'rgba(0,0,0,0)');
+    c.fillStyle = sh; c.fillRect(cx - rw, floorY - 16, rw * 2, 24);
+  }
+  const ceil = c.createLinearGradient(0, 4 * T, 0, 4 * T + 100); ceil.addColorStop(0, 'rgba(0,0,0,0.5)'); ceil.addColorStop(1, 'rgba(0,0,0,0)');
+  c.fillStyle = ceil; c.fillRect(0, 4 * T, w, 100);
+  for (const side of [0, 1]) { const sg = c.createLinearGradient(side ? w - 180 : 0, 0, side ? w : 180, 0); sg.addColorStop(side ? 0 : 1, 'rgba(0,0,0,0)'); sg.addColorStop(side ? 1 : 0, 'rgba(0,0,0,0.5)'); c.fillStyle = sg; c.fillRect(side ? w - 180 : 0, 4 * T, 180, floorY - 4 * T); }
   scene.textures.addCanvas(key, cv);
   return [{ key, x: 0 }];
 }
@@ -3196,7 +3629,7 @@ Object.assign(GameScene.prototype, {
         v.vx = Math.abs(tx - vcx) > 180 ? v.face * 80 * sp : 0;
         if (v.t <= 0) {
           v.vx = 0;
-          if (v.dustCd <= 0 && v.hp < v.maxHp * 0.75 && v.hyper <= 0) { v.state = 'dust'; v.t = 1.5; v.dustHits = 0; this.timaSpeak('ВОЛШЕБНАЯ ПЫЛЬ!', 1.5); this.sfx('sparkle'); break; }
+          if (v.dustCd <= 0 && v.hp < v.maxHp * 0.75 && v.hyper <= 0) { v.state = 'dustDraw'; v.t = 2.2; v.dustHits = 0; this.timaSpeak('ЩАС-ЩАС, НАЧЕРЧУ…', 1.6); this.toastAll('Тима чертит круг для пыли — беги к нему и бей!'); break; }
           if (v.drinkCd <= 0 && v.hp < v.maxHp * 0.85 && Math.random() < 0.5) { v.state = 'drink'; v.t = 1.2; v.drinkCd = 14; this.timaSpeak('БУЛЬ-БУЛЬ…', 1.2); this.sfx('glug'); break; }
           const opts = ['beer', 'pad', 'ring', 'box', 'bankrupt'].filter((o) => o !== v.last && !(o === 'bankrupt' && (this.repoT > 0 || !phase2 && Math.random() < 0.5)));
           const pick = opts[Math.floor(Math.random() * opts.length)]; v.last = pick;
@@ -3250,6 +3683,11 @@ Object.assign(GameScene.prototype, {
         v.vx = 0;
         if (v.t <= 0) { v.hp = Math.min(v.maxHp, v.hp + 2); this.ui().bossBar(true, 'Тима Пиво', v.hp / v.maxHp); this.timaSpeak('БУЭЭЭ!', 1.0); this.sfx('burp'); v.state = 'recover'; v.t = 0.5; }
         break;
+      case 'dustDraw':
+        v.vx = 0;
+        if (Math.random() < 0.3) this.dustFx.explode(1, vcx + v.face * (26 + Math.random() * 44), v.y + v.h - 4);
+        if (v.t <= 0) { v.state = 'dust'; v.t = 1.3; this.timaSpeak('ВОЛШЕБНАЯ ПЫЛЬ!', 1.3); this.sfx('sparkle'); }
+        break;
       case 'dust':
         v.vx = 0;
         if (Math.random() < 0.6) this.dustFx.explode(1, vcx + v.face * 30 + (Math.random() - 0.5) * 30, v.y + 10 + Math.random() * 20);
@@ -3267,7 +3705,7 @@ Object.assign(GameScene.prototype, {
     v.hp -= 1; v.flash = 0.09; this.gainSilk(p); if (!p.remote) this.hitstop = 0.04; this.sfx('hit'); this.timaHits++;
     this.burst(9, clamp(p.x + 7 + p.face * 28, v.x, v.x + v.w), v.y + v.h / 2, 0xf4f1e6);
     if (v.state === 'drink') { v.state = 'recover'; v.t = 0.4; this.timaSpeak('ЭЙ, РАЗЛИЛ!', 1.0); this.foamAt(12, v.x + v.w / 2, v.y + 30); }
-    if (v.state === 'dust') {
+    if (v.state === 'dust' || v.state === 'dustDraw') {
       v.dustHits++;
       if (v.dustHits >= 3) { v.state = 'sneeze'; v.t = 1.6; v.dustCd = 14; this.timaSpeak('АПЧХИ!', 1.2); this.sfx('cough'); this.dustFx.explode(30, v.x + v.w / 2 + v.face * 30, v.y + 20); }
     }
@@ -3352,18 +3790,28 @@ Object.assign(GameScene.prototype, {
     }
     const open = v.sayT > 0;
     g.fillStyle(0x1a1410, 1); if (open) g.fillEllipse(hx + 10 * f, hy + 9, 7, 4 + Math.abs(Math.sin(now * 14)) * 3); else g.fillRect(Math.min(hx + 7 * f, hx + 13 * f), hy + 9, 6, 1.6);
+    // светящийся круг на полу: сначала чертит, потом встаёт в него
+    if (v.state === 'dustDraw' || v.state === 'dust') {
+      const rx = v.state === 'dust' ? cx : cx + f * 52, prog = v.state === 'dust' ? 1 : clamp(1 - v.t / 2.2, 0, 1);
+      const pulse = 0.6 + Math.sin(now * 10) * 0.25;
+      g.lineStyle(3, 0xffe38a, v.state === 'dust' ? pulse : 0.85);
+      g.beginPath(); g.arc(rx, fy - 3, 34, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * prog, false); g.strokePath();
+      g.lineStyle(1.5, 0xffb6f0, 0.7); g.strokeEllipse(rx, fy - 3, 52 * prog, 10 * prog);
+      if (v.state === 'dust') { g.fillStyle(0xffe38a, 0.12 + Math.sin(now * 8) * 0.05); g.fillRect(rx - 26, fy - 90, 52, 88); }
+    }
     // рука с бутылкой / приставкой / мешочком
     g.lineStyle(5, fl ? 0xffffff : 0x6f7f56, 1);
     const up = ['beerWind', 'ringWind', 'boxWind', 'bankWind', 'drink'].includes(v.state);
-    const ax = cx + f * (up ? 26 : 30), ay = fy - (up ? 78 : 42);
+    const draw = v.state === 'dustDraw';
+    const ax = cx + f * (draw ? 50 + Math.sin(now * 9) * 10 : up ? 26 : 30), ay = draw ? fy - 8 : fy - (up ? 78 : 42);
     g.lineBetween(cx + 18 * f, fy - 54, ax, ay);
     if (v.state === 'ringWind') {
       g.fillStyle(0x1e1e22, 1); g.fillRoundedRect(ax - 22, ay - 30, 44, 28, 5);
       g.lineStyle(3, 0xff3a2a, 0.5 + Math.abs(Math.sin(now * 16)) * 0.5); g.strokeCircle(ax, ay - 16, 8);
     } else if (v.state === 'boxWind') {
       g.fillStyle(0x1e1e22, 1); g.fillRoundedRect(ax - 18, ay - 24, 36, 22, 5); g.fillStyle(0x6bd36b, 1); g.fillCircle(ax + 10, ay - 13, 2);
-    } else if (v.state === 'dust') {
-      g.fillStyle(0xb98a52, 1); g.fillCircle(cx + 22 * f, fy - 70, 7); g.fillStyle(0xffe38a, 0.8); g.fillCircle(cx + 22 * f, fy - 76, 3);
+    } else if (v.state === 'dust' || draw) {
+      g.fillStyle(0xb98a52, 1); g.fillCircle(ax, ay, 7); g.fillStyle(0xffe38a, 0.9); g.fillCircle(ax, ay - 6, 3);
     } else if (v.state === 'bankWind') {
       g.fillStyle(0x6b3d14, 1); g.fillRoundedRect(ax - 14, ay - 10, 28, 18, 3); g.fillStyle(0x1a1410, 1); g.fillRect(ax - 10, ay - 4, 20, 3);
     } else {

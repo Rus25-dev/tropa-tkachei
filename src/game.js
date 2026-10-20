@@ -1,14 +1,14 @@
 // ===== ИГРА: «Тропа Ткачей» — кооперативная метроидвания =====
 let VW = 960; const VH = 540;
 // версия игры; номер сборки подставляет build.py
-const GAME_VERSION = '0.8';
+const GAME_VERSION = '0.9';
 const GAME_BUILD = '__BUILD__';
 const CHANGELOG = [
-  'Настройки: громкость, тряска, лёгкий режим, кнопки и левша',
-  'Сохранение на скамье, автопауза, «Заново» в паузе',
-  'Игра с телефона: стик, кнопки, полный экран, iPhone 13–17',
-  'Новые боссы: Владик Скрипка и Тима Пиво',
-  'Босс-тест: Миша Додик, дымовухи и рюкзак',
+  'Миша: фаза «Пропустите!» — вид сверху и коридоры',
+  'Тима чертит круг перед пылью — успей подбежать',
+  'Фоновая музыка у меню, пещеры и каждого босса',
+  'Объёмные фоны: свет, туман, лампы, тени',
+  'Спрыгнуть с платформы: ↓ + прыжок',
 ];
 // ширина поля подстраивается под пропорции экрана: на вытянутых телефонах без чёрных полос
 function computeVW() {
@@ -50,7 +50,9 @@ class MenuScene extends Phaser.Scene {
     this.leaving = false;
     genBackgrounds(this);
     this.add.tileSprite(0, 0, VW, VH, 'bgFar').setOrigin(0);
+    this.rays = this.add.tileSprite(0, 0, VW, VH, 'bgRays').setOrigin(0).setBlendMode(Phaser.BlendModes.ADD);
     this.mid = this.add.tileSprite(0, 0, VW, VH, 'bgMid').setOrigin(0);
+    this.fog = this.add.tileSprite(0, 0, VW, VH, 'bgFog').setOrigin(0);
     this.add.tileSprite(0, 0, VW, VH, 'bgGlow').setOrigin(0).setBlendMode(Phaser.BlendModes.ADD);
     this.add.particles(0, 0, 'spark', {
       x: { min: 0, max: VW }, y: { min: 0, max: VH }, lifespan: 6000, speedY: { min: -14, max: -4 }, speedX: { min: -6, max: 6 },
@@ -136,6 +138,7 @@ class MenuScene extends Phaser.Scene {
       if (e.key === '1') this.go(1); if (e.key === '2') this.go(2); if (e.key === '3') this.openLobby(); if (e.key === '4') this.openPick(); if (e.key === '5') this.openSettings();
     });
     if (Lobby.room) this.time.delayedCall(300, () => this.openLobby());
+    Music.setDuck(1); Music.play('menu');
     this.input.on('pointerdown', () => Snd.init());
     this.t = 0;
   }
@@ -165,7 +168,7 @@ class MenuScene extends Phaser.Scene {
   }
   update(time, delta) {
     this.t += delta / 1000;
-    this.mid.tilePositionX += delta * 0.01;
+    this.mid.tilePositionX += delta * 0.01; this.fog.tilePositionX += delta * 0.02; this.rays.setAlpha(0.75 + Math.sin(this.t * 0.6) * 0.25);
     const pads = this.input.gamepad ? this.input.gamepad.gamepads.filter(Boolean) : [];
     this.pickT = (this.pickT || 0) - delta / 1000;
     if (Settings.open) return;
@@ -223,8 +226,11 @@ class BGScene extends Phaser.Scene {
   constructor() { super('bg'); }
   create() {
     this.far = this.add.tileSprite(0, 0, VW, VH, 'bgFar').setOrigin(0);
+    this.rays = this.add.tileSprite(0, 0, VW, VH, 'bgRays').setOrigin(0).setBlendMode(Phaser.BlendModes.ADD);
     this.mid = this.add.tileSprite(0, 0, VW, VH, 'bgMid').setOrigin(0);
+    this.fog = this.add.tileSprite(0, 0, VW, VH, 'bgFog').setOrigin(0);
     this.glow = this.add.tileSprite(0, 0, VW, VH, 'bgGlow').setOrigin(0).setBlendMode(Phaser.BlendModes.ADD);
+    this.t = 0;
     this.spores = this.add.particles(0, 0, 'spark', {
       x: { min: 0, max: VW }, y: { min: 0, max: VH }, lifespan: { min: 4000, max: 8000 },
       speedY: { min: -12, max: -3 }, speedX: { min: -8, max: 8 }, scale: { min: 0.25, max: 0.8 },
@@ -234,11 +240,13 @@ class BGScene extends Phaser.Scene {
   update() {
     const gs = this.scene.get('game'); if (!gs || !gs.cameras || !gs.camX) return;
     const room = !!(gs.L && gs.L.theme);
-    for (const o of [this.far, this.mid, this.glow, this.spores]) o.setVisible(!room);
-    const x = gs.camX, y = gs.camY;
-    this.far.tilePositionX = x * 0.12; this.far.tilePositionY = (y - 600) * 0.05;
-    this.mid.tilePositionX = x * 0.3; this.mid.tilePositionY = (y - 600) * 0.12;
-    this.glow.tilePositionX = x * 0.45; this.glow.tilePositionY = (y - 600) * 0.2;
+    for (const o of [this.far, this.rays, this.mid, this.fog, this.glow, this.spores]) o.setVisible(!room);
+    const x = gs.camX, y = gs.camY; this.t += 1 / 60;
+    this.far.tilePositionX = x * 0.08; this.far.tilePositionY = (y - 600) * 0.03;
+    this.rays.tilePositionX = x * 0.14; this.rays.setAlpha(0.75 + Math.sin(this.t * 0.5) * 0.25);
+    this.mid.tilePositionX = x * 0.3; this.mid.tilePositionY = (y - 600) * 0.1;
+    this.fog.tilePositionX = x * 0.45 + this.t * 6; this.fog.tilePositionY = (y - 600) * 0.15;
+    this.glow.tilePositionX = x * 0.5; this.glow.tilePositionY = (y - 600) * 0.2;
   }
 }
 
@@ -350,12 +358,17 @@ class GameScene extends Phaser.Scene {
     // автопауза, когда вкладку свернули или переключились в другое приложение
     this._vis = () => { if (document.hidden && !this.online && !this.paused && !this.won && this.sys.isActive()) this.togglePause(); };
     document.addEventListener('visibilitychange', this._vis);
-    this.events.once('shutdown', () => document.removeEventListener('visibilitychange', this._vis));
+    this.events.once('shutdown', () => { document.removeEventListener('visibilitychange', this._vis); Music.setDuck(1); });
     Touch.show(true, { bombs: !!this.L.crates });
     this.events.once('shutdown', () => { Touch.show(false); Touch.onTap = null; });
   }
   ui() { return this.scene.get('ui'); }
   testBoss() { return this.misha || this.vladik || this.tima; }
+  musicTrack() {
+    if (this.won) return 'menu';
+    if (this.mode === 'bosstest') return this.bossKind;
+    const b = this.boss; return b && !['sleep', 'gone', 'dead'].includes(b.state) ? 'boss' : 'cave';
+  }
   speedMul() { return 1; }
   togglePause() {
     if (this.won || Settings.open) return;
@@ -363,6 +376,7 @@ class GameScene extends Phaser.Scene {
     if (this.online) u.showPause(!u.pause.visible); // по сети мир не останавливаем
     else { this.paused = !this.paused; u.showPause(this.paused); }
     Touch.show(!u.pause.visible);
+    Music.setDuck(u.pause.visible ? 0.4 : 1);
   }
 
   // ----- ввод -----
@@ -450,6 +464,12 @@ class GameScene extends Phaser.Scene {
     }
     e.y = ny; if (e.onGround || e.hitU) e.vy = 0;
   }
+  onPlatform(e) {
+    const ty = Math.floor((e.y + e.h + 1) / T), x0 = Math.floor(e.x / T), x1 = Math.floor((e.x + e.w - 0.01) / T);
+    let plat = false;
+    for (let tx = x0; tx <= x1; tx++) { const t = this.tileAt(tx, ty); if (t === SOLID) return false; if (t === PLAT) plat = true; }
+    return plat;
+  }
   touchWall(e, dir) {
     const tx = dir > 0 ? Math.floor((e.x + e.w + 1) / T) : Math.floor((e.x - 1) / T);
     const ya = Math.floor((e.y + 4) / T), yb = Math.floor((e.y + e.h - 4) / T);
@@ -531,11 +551,13 @@ class GameScene extends Phaser.Scene {
       }
     }
     if (this.online) { this.netSmooth(dt); this.netTick(dt); }
+    Music.play(this.musicTrack());
     this.render(dt);
     this.updateCamera(dt);
   }
 
   step(dt) {
+    if (this.td) { this.tdStep(dt); return; }
     const auth = this.auth();
     for (const p of this.players) { if (p.remote) p.atkT -= dt; else this.stepPlayer(p, dt); }
     for (const p of this.players) this.resolveAttack(p);
@@ -590,7 +612,10 @@ class GameScene extends Phaser.Scene {
       p.wallDir = 0;
       if (!p.onGround && p.vy > 0) { if (dir === 1 && this.touchWall(p, 1)) p.wallDir = 1; else if (dir === -1 && this.touchWall(p, -1)) p.wallDir = -1; }
       if (p.jumpBuf > 0) {
-        if (p.onGround || p.coyote > 0) {
+        if (inp.down && p.onGround && this.onPlatform(p)) {
+          // ↓ + прыжок на платформе — спрыгнуть вниз сквозь неё
+          p.dropT = 0.22; p.jumpBuf = 0; p.coyote = 0; p.onGround = false; p.vy = 60; p.y += 2;
+        } else if (p.onGround || p.coyote > 0) {
           p.vy = -P.JUMP; p.jumpBuf = 0; p.coyote = 0; p.jumpCut = false; Snd.play('jump');
           this.dust.explode(5, p.x + 7, p.y + 26);
         } else if (this.touchWall(p, 1) || this.touchWall(p, -1)) {
@@ -622,6 +647,7 @@ class GameScene extends Phaser.Scene {
         }
       }
     }
+    p.dropT = (p.dropT || 0) - dt; p.noPlat = p.dropT > 0;
     this.moveBody(p, dt);
     if (this.crates) this.refillBombs(p);
     if (p.onGround) {
@@ -727,6 +753,7 @@ class GameScene extends Phaser.Scene {
     this.spawnEnemies();
     for (const pr of this.projs) pr.dead = true;
     if (!this.bossDead) { this.makeBoss(); if (this.gates[0]) this.setGate(this.gates[0], false); this.ui().bossBar(false); }
+    if (this.td) { this.td = null; this.tdFlip = false; this.cameras.main.setRotation(0); this.ui().tdShow(false); }
     if (this.misha && this.misha.state !== 'dead') { this.makeMisha(); this.ui().bossBar(false); }
     if (this.vladik && this.vladik.state !== 'dead') { this.makeVladik(); this.ui().bossBar(false); }
     if (this.tima && this.tima.state !== 'dead') { this.repoT = 0; this.makeTima(); this.sendEv({ k: 'repo', on: 0 }); this.ui().bossBar(false); }
@@ -1007,7 +1034,7 @@ class GameScene extends Phaser.Scene {
     const r = (v) => Math.round(v * 10) / 10, f2 = (v) => Math.round(Math.max(0, v) * 100) / 100;
     return { t: 'p', i: p.i, x: r(p.x), y: r(p.y), vx: Math.round(p.vx), vy: Math.round(p.vy), f: p.face, g: p.onGround ? 1 : 0,
       d: f2(p.dashT), s: p.sit ? 1 : 0, h: f2(p.healT), l: f2(p.landT), hp: p.hp, mh: p.maxHp, sk: p.silk, dn: p.downed ? 1 : 0,
-      iv: f2(p.inv), u: p.raw && p.raw.up ? 1 : 0, rv: f2(p.reviveT), sq: p.seq || 0, ad: p.atkDir, bm: p.bombs };
+      iv: f2(p.inv), u: p.raw && p.raw.up ? 1 : 0, rv: f2(p.reviveT), sq: p.seq || 0, ad: p.atkDir, bm: p.bombs, tp: this.td ? [Math.round(p.tdx), Math.round(p.tdy)] : null };
   }
   packSnap() {
     const r = Math.round, b = this.boss;
@@ -1019,6 +1046,7 @@ class GameScene extends Phaser.Scene {
       pr: this.projs.map((q) => [NET_KINDS.indexOf(q.kind), r(q.x), r(q.y), r(q.vx), r(q.vy), q.delay > 0 ? 1 : 0, q.ch || (q.kind === 'ringfx' ? r(q.r) : '')]),
       vl: vl ? [r(vl.x), r(vl.y), vl.face, vl.hp, vl.maxHp, vl.state, vl.flash > 0 ? 1 : 0, r10(vl.t), vl.sayT > 0 ? vl.say : '', this.curtains.map((c) => [r10(c.slime), Math.round(c.wet * 100) / 100])] : null,
       tm: tm ? [r(tm.x), r(tm.y), tm.face, tm.hp, tm.maxHp, tm.state, tm.flash > 0 ? 1 : 0, r10(tm.t), tm.sayT > 0 ? tm.say : '', r10(tm.hyper), this.repo ? 1 : 0, this.puddles.map((q) => [r(q.x), q.w, r(q.y), r10(q.t)])] : null,
+      td: this.td ? [this.td.state, this.td.lane, r(this.td.mx), this.td.blocks, this.td.need, this.td.sayT > 0 ? this.td.say : ''] : null,
       mi: mi ? [r(mi.x), r(mi.y), mi.face, mi.hp, mi.maxHp, mi.state, mi.flash > 0 ? 1 : 0, Math.round(mi.t * 100) / 100, mi.sayT > 0 ? mi.say : ''] : null,
       bd: this.beadsArr.map((d) => [r(d.x), r(d.y)]), bc: this.beads,
       g: this.gates.map((gt) => (gt.closed ? 1 : 0)), bD: this.bossDead ? 1 : 0, rs: [r(this.respawn.x), r(this.respawn.y)] };
@@ -1029,6 +1057,7 @@ class GameScene extends Phaser.Scene {
       const p = this.players[m.i]; if (!p || !p.remote) return;
       Object.assign(p, { tx: m.x, ty: m.y, vx: m.vx, vy: m.vy, face: m.f, onGround: !!m.g, dashT: m.d, sit: !!m.s, healT: m.h, landT: m.l,
         hp: m.hp, maxHp: m.mh, silk: m.sk, downed: !!m.dn, inv: m.iv, netUp: !!m.u, reviveT: m.rv, netT: 0, bombs: m.bm || 0 });
+      if (m.tp) { p.tdx = m.tp[0]; p.tdy = m.tp[1]; }
       p.inp = { up: p.netUp };
       if (m.sq !== p.lastSeq) { p.lastSeq = m.sq; p.atkT = P.ATK_T; p.atkHits = new Set(); p.atkDir = m.ad; p.pogoed = true; }
     } else if (m.t === 's' && this.online === 'guest') this.applySnap(m);
@@ -1066,6 +1095,9 @@ class GameScene extends Phaser.Scene {
     };
     if (m.vl && this.vladik) { syncBoss(this.vladik, m.vl, 'Владик Скрипка', '_vb'); m.vl[9].forEach((c, i) => { if (this.curtains[i]) { this.curtains[i].slime = c[0]; this.curtains[i].wet = c[1]; } }); }
     if (m.tm && this.tima) { syncBoss(this.tima, m.tm, 'Тима Пиво', '_tb'); this.tima.hyper = m.tm[9]; this.setRepo(!!m.tm[10]); this.puddles = m.tm[11].map((q) => ({ x: q[0], w: q[1], y: q[2], t: q[3] })); }
+    if (m.td && !this.td) this.tdBegin(true);
+    if (!m.td && this.td) this.tdEnd(false, true);
+    if (m.td && this.td) { const d = m.td; Object.assign(this.td, { state: d[0], lane: d[1], mx: d[2], blocks: d[3], need: d[4] }); if (d[5]) { this.td.say = d[5]; this.td.sayT = 0.2; } }
     if (m.mi && this.misha) {
       const M = m.mi, mm = this.misha;
       if (mm.tx == null || Math.abs(mm.x - M[0]) > 140) { mm.x = M[0]; mm.y = M[1]; }
@@ -1180,6 +1212,7 @@ class GameScene extends Phaser.Scene {
   // ----- камера -----
   updateCamera(dt) {
     const cam = this.cameras.main;
+    if (this.tdFlip) return; // во время «вида сверху» камерой управляет переворот
     const pts = this.alivePlayers().length ? this.alivePlayers() : this.players;
     let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
     for (const p of pts) { x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x + p.w); y0 = Math.min(y0, p.y); y1 = Math.max(y1, p.y + p.h); }
@@ -1411,14 +1444,14 @@ class UIScene extends Phaser.Scene {
       'Игрок 1:  A D W S · Пробел — прыжок · F — удар · G — рывок · Q — лечение · R — дымовуха',
       'Игрок 2:  стрелки · Num1 или / — прыжок · Num2 или . — удар · Num3 или , — рывок · Num0 или M — лечение · Num4 или N — дымовуха',
       '', 'Удар вверх: держи ↑ + удар.  Удар вниз в прыжке: ↓ + удар — отскок от колючек и врагов.',
-      'Прыжок от стены: прижмись к стене в падении и прыгни.',
+      'Прыжок от стены: прижмись к стене в падении и прыгни.  Спрыгнуть с платформы: ↓ + прыжок.',
       'Лечение: когда катушка нити полна, восстанавливает 3 бутона.',
       'Напарник в коконе: подойди и держи ↑ одну секунду.  Скамья (↑) лечит и оживляет.',
       'По сети каждый играет раскладкой игрока 1, а пауза не останавливает мир.',
     ].join('\n'), { fontFamily: F, fontSize: '14px', color: '#b9d4c8', align: 'center', lineSpacing: 7 }).setOrigin(0.5).setY(285);
     if (Touch.enabled) pc.setText([
       'Стик слева — идти. Вверх + удар — удар вверх, в прыжке вниз + удар — отскок.',
-      'Прыжок от стены: прижмись стиком к стене в падении и жми «Прыжок».',
+      'Прыжок от стены: прижмись стиком к стене в падении и жми «Прыжок».  Спрыгнуть с платформы: стик вниз + «Прыжок».',
       'Лечение: когда катушка нити полна, восстанавливает 3 бутона.',
       'Напарник в коконе: подойди и держи стик вверх одну секунду.  Скамья: стик вверх.',
       'По сети пауза не останавливает мир.',
@@ -1438,6 +1471,14 @@ class UIScene extends Phaser.Scene {
     let px = VW / 2 - total / 2; for (const b of pbtns) { b.setX(px + b.width / 2); px += b.width + gap; }
     this.pause.add([pb, pt, pc, ...pbtns]);
     this.win = this.add.container(0, 0).setVisible(false);
+    // «вид сверху» для фазы Миши
+    this.tdG = this.add.graphics();
+    this.tdTags = [0, 1].map(() => this.add.text(0, 0, '', { fontFamily: F, fontSize: '11px', fontStyle: '700', color: '#f4efe0' }).setOrigin(0.5).setVisible(false));
+    this.tdSay = this.add.text(0, 0, '', { fontFamily: F, fontSize: '17px', fontStyle: '700', color: '#1a1410', backgroundColor: '#f4efe0', padding: { x: 9, y: 5 } }).setOrigin(0.5, 1).setVisible(false);
+    this.tdInfo = this.add.text(VW / 2, 92, '', { fontFamily: F, fontSize: '14px', color: '#ffd47a' }).setOrigin(0.5);
+    this.tdTitle = this.add.text(VW / 2, 66, 'ПРОПУСТИТЕ!', { fontFamily: D, fontSize: '30px', fontStyle: '700', color: '#e8e2cf' }).setOrigin(0.5);
+    this.tdLayer = this.add.container(0, 0, [this.tdG, ...this.tdTags, this.tdSay, this.tdInfo, this.tdTitle]).setVisible(false);
+    this.children.sendToBack(this.tdLayer); // под всем интерфейсом: здоровье, подсказки, пауза видны поверх
     this.t = 0;
     this.input.keyboard.on('keydown-ENTER', () => { if (this.gs.won) this.restart(); });
     this.input.keyboard.on('keydown-SPACE', () => { if (this.gs.won) this.restart(); });
@@ -1446,6 +1487,52 @@ class UIScene extends Phaser.Scene {
   }
   restart() { this.ready = false; Net.onClose = null; Net.close(); this.scene.stop('bg'); this.scene.stop('game'); this.scene.start('menu'); }
   openSettings() { this.pause.setVisible(false); Settings.show(() => { if (this.ready) this.pause.setVisible(true); }); }
+  tdShow(on) {
+    if (!this.ready) return;
+    this.tweens.killTweensOf(this.tdLayer);
+    if (on) { this.tdLayer.setVisible(true).setAlpha(0); this.tweens.add({ targets: this.tdLayer, alpha: 1, duration: 450, delay: 450 }); }
+    else this.tweens.add({ targets: this.tdLayer, alpha: 0, duration: 300, onComplete: () => this.tdLayer.setVisible(false) });
+  }
+  drawTD() {
+    const gs = this.gs, td = gs.td, g = this.tdG; g.clear();
+    if (!td) { this.tdSay.setVisible(false); this.tdTags.forEach((t) => t.setVisible(false)); return; }
+    const G = gs.tdGeo(), now = this.t;
+    // пол и стены
+    g.fillStyle(0x0b1512, 1); g.fillRect(0, 0, VW, VH);
+    g.fillStyle(0x2a2620, 1); g.fillRect(G.x0, G.lanes[0].y0, G.x1 - G.x0, G.lanes[2].y1 - G.lanes[0].y0);
+    G.lanes.forEach((ln, i) => {
+      for (let x = G.x0; x < G.x1; x += 32) { g.fillStyle((x / 32 + i) % 2 ? 0x312c25 : 0x2a2620, 1); g.fillRect(x, ln.y0, 32, ln.y1 - ln.y0); }
+      if (i === td.lane && (td.state === 'tele' || td.state === 'walk')) { g.fillStyle(0xff6a4a, td.state === 'tele' ? 0.18 + Math.sin(now * 14) * 0.08 : 0.07); g.fillRect(G.x0, ln.y0, G.x1 - G.x0, ln.y1 - ln.y0); }
+    });
+    for (const w of G.walls) { g.fillStyle(0x5a6a62, 1); g.fillRect(w.x, w.y, w.w, w.h); g.fillStyle(0x7f9087, 1); g.fillRect(w.x, w.y, w.w, 3); }
+    // старт и выход
+    g.fillStyle(0x67ad62, 0.25); g.fillRect(G.x0, G.lanes[0].y0, 40, G.lanes[2].y1 - G.lanes[0].y0);
+    g.fillStyle(0xd23a2a, 0.35 + Math.sin(now * 4) * 0.1); g.fillRect(G.x1 - 14, G.lanes[0].y0, 14, G.lanes[2].y1 - G.lanes[0].y0);
+    // Миша сверху: рука скользит по стене коридора
+    const ln = G.lanes[td.lane], my = (ln.y0 + ln.y1) / 2 + 10, mx = td.mx;
+    const showM = td.state !== 'intro' && td.state !== 'win';
+    if (showM) {
+      g.lineStyle(2, 0x9aa39f, 0.5); for (let k = 0; k < 6; k++) { const sx = mx - 20 - k * 14; if (sx > G.x0) g.lineBetween(sx, ln.y0 + 2, sx - 8, ln.y0 + 6); }
+      g.lineStyle(7, 0x4f5b78, 1); g.lineBetween(mx + 6, my - 10, mx + 14, ln.y0 + 4);
+      g.fillStyle(0x7c86a0, 1); g.fillCircle(mx + 14, ln.y0 + 5, 5);
+      g.fillStyle(0xe08a2c, 1); g.fillRoundedRect(mx - 34, my - 14, 18, 28, 5);
+      g.fillStyle(0x4f5b78, 1); g.fillCircle(mx, my, 20);
+      g.fillStyle(0xc8463c, 1); g.fillCircle(mx + 2, my, 11); g.fillRect(mx - 14, my - 4, 8, 8);
+      if (td.state === 'blocked') { g.fillStyle(0xffe3a3, 0.9); for (let k = 0; k < 4; k++) g.fillCircle(mx + Math.cos(now * 6 + k * 1.6) * 26, my + Math.sin(now * 6 + k * 1.6) * 26, 2.5); }
+    }
+    // игроки сверху
+    gs.players.forEach((p, i) => {
+      if (p.tdx == null) return;
+      g.fillStyle(0x000000, 0.35); g.fillEllipse(p.tdx + 2, p.tdy + 4, 26, 18);
+      g.fillStyle(p.pal.cloak, 1); g.fillCircle(p.tdx, p.tdy, 12);
+      g.fillStyle(MASK, 1); g.fillCircle(p.tdx + p.face * 3, p.tdy - 1, 6.5);
+      g.lineStyle(1.6, MASK, 1); g.lineBetween(p.tdx - 3, p.tdy - 6, p.tdx - 9, p.tdy - 14); g.lineBetween(p.tdx + 3, p.tdy - 6, p.tdx + 6, p.tdy - 15);
+      const tag = this.tdTags[i]; tag.setText(p.pal.tag).setPosition(p.tdx, p.tdy + 20).setVisible(true);
+    });
+    const say = td.sayT > 0 && td.say && showM;
+    this.tdSay.setVisible(!!say); if (say) this.tdSay.setText(td.say).setPosition(clamp(mx, 140, VW - 140), ln.y0 - 20);
+    this.tdInfo.setText(`Не пропусти Мишу! Встань у него на пути в подсвеченном коридоре.   Остановлено: ${td.blocks} из ${td.need}`);
+  }
   retry() { const d = { ...this.gs.startData }; this.ready = false; this.scene.stop('bg'); this.scene.start('game', d); }
   removePlayer(i) { if (this.names[i]) this.names[i].setVisible(false); }
   showPause(on) { if (this.ready) this.pause.setVisible(on); }
@@ -1488,6 +1575,7 @@ class UIScene extends Phaser.Scene {
   }
   update(time, delta) {
     this.t += delta / 1000;
+    if (this.tdLayer && this.tdLayer.visible) this.drawTD();
     const g = this.hud; g.clear();
     const gs = this.gs; if (!gs.players) return;
     gs.players.forEach((p, i) => {

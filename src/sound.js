@@ -5,12 +5,13 @@ const Snd = {
     try {
       if (!this.ctx) {
         const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
-        this.ctx = new AC(); this.master = this.ctx.createGain(); this.master.gain.value = 0.35; this.master.connect(this.ctx.destination);
+        this.ctx = new AC(); this.master = this.ctx.createGain(); this.master.gain.value = 0.35 * ((typeof Settings !== 'undefined' && Settings.s ? Settings.s.vol : 80) / 100); this.master.connect(this.ctx.destination);
         const len = this.ctx.sampleRate * 0.5, b = this.ctx.createBuffer(1, len, this.ctx.sampleRate), d = b.getChannelData(0);
         for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
         this.noise = b;
       }
       if (this.ctx.state !== 'running') this.ctx.resume();
+      if (typeof Music !== 'undefined') setTimeout(() => Music.resume(), 60);
     } catch (e) { /* звук недоступен */ }
   },
   tone(type, f0, f1, dur, vol) {

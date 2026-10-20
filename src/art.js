@@ -51,6 +51,14 @@ function drawLevelChunks(scene, L) {
       }
       ctx.globalAlpha = 1;
     }
+    // 2б) фактура всей породы и мягкая подсветка под верхними кромками
+    for (let y = 0; y < L.H; y++) for (let x = tx0; x <= tx1; x++) {
+      if (L.grid[y][x] !== SOLID) continue;
+      const px = x * T - ox, py = y * T;
+      for (let i = 0; i < 3; i++) { ctx.fillStyle = R() < 0.5 ? 'rgba(150,210,190,0.05)' : 'rgba(0,0,0,0.16)'; ctx.fillRect(px + R() * T, py + R() * T, 2 + R() * 5, 1 + R() * 2); }
+      if (!solid(x, y - 1)) { const lg = ctx.createLinearGradient(0, py, 0, py + 22); lg.addColorStop(0, 'rgba(120,200,170,0.20)'); lg.addColorStop(1, 'rgba(120,200,170,0)'); ctx.fillStyle = lg; ctx.fillRect(px, py, T, 22); }
+      if (!solid(x, y + 1)) { const lg = ctx.createLinearGradient(0, py + T - 14, 0, py + T); lg.addColorStop(0, 'rgba(0,0,0,0)'); lg.addColorStop(1, 'rgba(0,0,0,0.28)'); ctx.fillStyle = lg; ctx.fillRect(px, py + T - 14, T, 14); }
+    }
     // 3) скругляем внешние углы
     ctx.globalCompositeOperation = 'destination-out';
     for (let y = 0; y < L.H; y++) for (let x = tx0; x <= tx1; x++) {
@@ -135,53 +143,107 @@ function drawLevelChunks(scene, L) {
 
 function genBackgrounds(scene) {
   if (scene.textures.exists('bgFar')) return;
-  // дальний слой: колонны и сталактиты
   const mk = (key, w, h, fn) => { const cv = document.createElement('canvas'); cv.width = w; cv.height = h; fn(cv.getContext('2d'), w, h); scene.textures.addCanvas(key, cv); };
+  // бесшовный «шум» по ширине: сумма синусов с целыми частотами
+  const wave = (R, w, parts) => { const p = parts.map(([k, amp]) => [k, amp, R() * Math.PI * 2]); return (x) => p.reduce((s, [k, amp, ph]) => s + amp * Math.sin((x / w) * Math.PI * 2 * k + ph), 0); };
+  const silhouette = (c, w, h, R, col, baseTop, baseBot, rough) => {
+    const top = wave(R, w, [[2, 30], [5, 16], [11, 8], [23, 4]]), bot = wave(R, w, [[3, 26], [7, 14], [13, 7], [29, 3]]);
+    c.fillStyle = col;
+    c.beginPath(); c.moveTo(0, 0);
+    for (let x = 0; x <= w; x += 4) c.lineTo(x, baseTop + top(x) + (rough ? (R() - 0.5) * rough : 0));
+    c.lineTo(w, 0); c.closePath(); c.fill();
+    c.beginPath(); c.moveTo(0, h);
+    for (let x = 0; x <= w; x += 4) c.lineTo(x, baseBot + bot(x) + (rough ? (R() - 0.5) * rough : 0));
+    c.lineTo(w, h); c.closePath(); c.fill();
+  };
+  // дальний слой: глубина, дымка, несколько планов свода
   mk('bgFar', 1024, 540, (c, w, h) => {
     const R = rng(7);
-    const grd = c.createLinearGradient(0, 0, 0, h);
-    grd.addColorStop(0, '#08110f'); grd.addColorStop(0.55, '#0c1d1a'); grd.addColorStop(1, '#0a1513');
-    c.fillStyle = grd; c.fillRect(0, 0, w, h);
-    c.fillStyle = '#10221e';
-    for (let i = 0; i < 9; i++) {
-      const x = R() * w, wd = 30 + R() * 70;
-      for (const off of [0, -w, w]) {
-        c.beginPath(); c.moveTo(x + off - wd, h); c.quadraticCurveTo(x + off - wd * 0.3, h * 0.4, x + off - wd * 0.2, 0);
-        c.lineTo(x + off + wd * 0.2, 0); c.quadraticCurveTo(x + off + wd * 0.3, h * 0.5, x + off + wd, h); c.fill();
-      }
+    const g = c.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, '#040908'); g.addColorStop(0.45, '#0e2420'); g.addColorStop(0.7, '#10261f'); g.addColorStop(1, '#060d0b');
+    c.fillStyle = g; c.fillRect(0, 0, w, h);
+    // далёкие источники света за колоннами
+    for (const [x, y, r, col] of [[220, 300, 260, '70,190,160'], [700, 260, 220, '255,190,110'], [930, 330, 200, '90,200,170']]) {
+      for (const off of [0, -w, w]) { const rg = c.createRadialGradient(x + off, y, 0, x + off, y, r); rg.addColorStop(0, `rgba(${col},0.16)`); rg.addColorStop(1, `rgba(${col},0)`); c.fillStyle = rg; c.fillRect(x + off - r, y - r, r * 2, r * 2); }
     }
-    c.fillStyle = '#0d1b18';
-    for (let i = 0; i < 22; i++) {
-      const x = R() * w, wd = 8 + R() * 22, len = 40 + R() * 140;
-      for (const off of [0, -w, w]) { c.beginPath(); c.moveTo(x + off - wd, 0); c.lineTo(x + off, len); c.lineTo(x + off + wd, 0); c.fill(); }
+    // три плана свода: чем ближе, тем темнее и чётче
+    silhouette(c, w, h, R, 'rgba(24,52,46,0.55)', 70, 470, 0);
+    for (let i = 0; i < 7; i++) {
+      const x = R() * w, wd = 26 + R() * 50, col = 'rgba(20,44,39,0.7)';
+      for (const off of [0, -w, w]) { c.fillStyle = col; c.beginPath(); c.moveTo(x + off - wd, h); c.bezierCurveTo(x + off - wd * 0.4, h * 0.55, x + off - wd * 0.2, h * 0.3, x + off - wd * 0.15, 0); c.lineTo(x + off + wd * 0.15, 0); c.bezierCurveTo(x + off + wd * 0.2, h * 0.3, x + off + wd * 0.4, h * 0.55, x + off + wd, h); c.fill(); }
+    }
+    silhouette(c, w, h, R, 'rgba(13,30,26,0.85)', 40, 505, 0);
+    // туманная дымка по центру добавляет воздуха
+    const hz = c.createLinearGradient(0, h * 0.35, 0, h * 0.8); hz.addColorStop(0, 'rgba(120,200,175,0)'); hz.addColorStop(0.5, 'rgba(120,200,175,0.07)'); hz.addColorStop(1, 'rgba(120,200,175,0)');
+    c.fillStyle = hz; c.fillRect(0, 0, w, h);
+    // мелкие звёздочки-светляки вдали
+    for (let i = 0; i < 70; i++) { c.fillStyle = `rgba(170,240,210,${0.15 + R() * 0.35})`; c.fillRect(R() * w, 60 + R() * 380, 1.2, 1.2); }
+  });
+  // лучи света сверху (накладываются сложением)
+  mk('bgRays', 1024, 540, (c, w, h) => {
+    const R = rng(55);
+    for (let i = 0; i < 6; i++) {
+      const x = R() * w, wd = 30 + R() * 70, skew = 90 + R() * 120, a = 0.05 + R() * 0.06;
+      for (const off of [0, -w, w]) {
+        const lg = c.createLinearGradient(0, 0, 0, h); lg.addColorStop(0, `rgba(170,240,210,${a})`); lg.addColorStop(0.7, `rgba(170,240,210,${a * 0.35})`); lg.addColorStop(1, 'rgba(170,240,210,0)');
+        c.fillStyle = lg; c.beginPath(); c.moveTo(x + off, 0); c.lineTo(x + off + wd, 0); c.lineTo(x + off + wd + skew, h); c.lineTo(x + off + skew - wd * 0.6, h); c.closePath(); c.fill();
+      }
     }
   });
+  // средний план: объёмные колонны со светом сбоку, корни со светящимися каплями
   mk('bgMid', 1024, 540, (c, w, h) => {
     const R = rng(21);
-    c.strokeStyle = '#173a31'; c.lineCap = 'round';
-    for (let i = 0; i < 26; i++) {
-      const x = R() * w, len = 60 + R() * 260; c.lineWidth = 1.5 + R() * 3;
+    for (let i = 0; i < 6; i++) {
+      const x = R() * w, wd = 34 + R() * 46, lean = (R() - 0.5) * 40;
       for (const off of [0, -w, w]) {
-        c.beginPath(); c.moveTo(x + off, 0);
-        c.bezierCurveTo(x + off + (R() - 0.5) * 40, len * 0.4, x + off + (R() - 0.5) * 40, len * 0.8, x + off + (R() - 0.5) * 20, len); c.stroke();
+        const X = x + off, lg = c.createLinearGradient(X - wd, 0, X + wd, 0);
+        lg.addColorStop(0, '#2b5248'); lg.addColorStop(0.18, '#1a3832'); lg.addColorStop(0.6, '#10241f'); lg.addColorStop(1, '#0a1714');
+        c.fillStyle = lg; c.beginPath();
+        c.moveTo(X - wd * 1.4, h); c.bezierCurveTo(X - wd * 0.7, h * 0.7, X - wd * 0.8 + lean, h * 0.35, X - wd * 0.5 + lean, 0);
+        c.lineTo(X + wd * 0.5 + lean, 0); c.bezierCurveTo(X + wd * 0.8 + lean, h * 0.35, X + wd * 0.7, h * 0.7, X + wd * 1.4, h); c.closePath(); c.fill();
+        // светлая кромка со стороны света
+        c.strokeStyle = 'rgba(140,220,190,0.22)'; c.lineWidth = 2; c.beginPath();
+        c.moveTo(X - wd * 1.35, h); c.bezierCurveTo(X - wd * 0.68, h * 0.7, X - wd * 0.78 + lean, h * 0.35, X - wd * 0.48 + lean, 0); c.stroke();
+        // фактура камня
+        for (let k = 0; k < 40; k++) { c.fillStyle = R() < 0.5 ? 'rgba(160,220,200,0.05)' : 'rgba(0,0,0,0.18)'; const yy = R() * h; c.fillRect(X - wd * 0.6 + R() * wd * 1.2 + lean * (1 - yy / h), yy, 2 + R() * 6, 1 + R() * 3); }
+        // мох на выступах
+        c.fillStyle = 'rgba(80,150,95,0.35)'; for (let k = 0; k < 4; k++) { const yy = 120 + R() * 320; c.beginPath(); c.ellipse(X - wd * 0.6 + lean * (1 - yy / h), yy, 10 + R() * 12, 3 + R() * 3, 0, 0, Math.PI * 2); c.fill(); }
       }
-      if (R() < 0.4) { c.fillStyle = '#7fe0b8'; c.globalAlpha = 0.5; c.beginPath(); c.arc(x, len, 2.5, 0, Math.PI * 2); c.fill(); c.globalAlpha = 1; }
     }
-    c.fillStyle = '#122a24';
-    for (let i = 0; i < 7; i++) {
-      const x = R() * w, wd = 80 + R() * 120, hh = 30 + R() * 80;
-      for (const off of [0, -w, w]) { c.beginPath(); c.ellipse(x + off, h + 10, wd, hh, 0, Math.PI, 0); c.fill(); }
+    // корни сверху
+    c.lineCap = 'round';
+    for (let i = 0; i < 22; i++) {
+      const x = R() * w, len = 60 + R() * 240; c.lineWidth = 1.5 + R() * 2.5;
+      const pts = [R() - 0.5, R() - 0.5, R() - 0.5];
+      for (const off of [0, -w, w]) {
+        c.strokeStyle = '#163a31'; c.beginPath(); c.moveTo(x + off, 0);
+        c.bezierCurveTo(x + off + pts[0] * 40, len * 0.4, x + off + pts[1] * 40, len * 0.8, x + off + pts[2] * 20, len); c.stroke();
+        if (i % 3 === 0) { const rg = c.createRadialGradient(x + off + pts[2] * 20, len, 0, x + off + pts[2] * 20, len, 14); rg.addColorStop(0, 'rgba(160,250,210,0.75)'); rg.addColorStop(0.25, 'rgba(160,250,210,0.25)'); rg.addColorStop(1, 'rgba(160,250,210,0)'); c.fillStyle = rg; c.fillRect(x + off + pts[2] * 20 - 14, len - 14, 28, 28); }
+      }
+    }
+    // нижние валуны с тенью
+    for (let i = 0; i < 6; i++) {
+      const x = R() * w, wd = 90 + R() * 130, hh = 40 + R() * 70;
+      for (const off of [0, -w, w]) { const rg = c.createLinearGradient(0, h - hh, 0, h); rg.addColorStop(0, '#1b3a32'); rg.addColorStop(1, '#0a1513'); c.fillStyle = rg; c.beginPath(); c.ellipse(x + off, h + 10, wd, hh, 0, Math.PI, 0); c.fill(); }
+    }
+  });
+  // туман: мягкие полосы, плывут сами
+  mk('bgFog', 1024, 540, (c, w, h) => {
+    const R = rng(311);
+    for (let i = 0; i < 16; i++) {
+      const x = R() * w, y = 250 + R() * 280, rx = 120 + R() * 220, ry = 18 + R() * 40, a = 0.05 + R() * 0.07;
+      for (const off of [0, -w, w]) { const rg = c.createRadialGradient(x + off, y, 0, x + off, y, rx); rg.addColorStop(0, `rgba(150,215,195,${a})`); rg.addColorStop(1, 'rgba(150,215,195,0)'); c.save(); c.translate(x + off, y); c.scale(1, ry / rx); c.translate(-(x + off), -y); c.fillStyle = rg; c.fillRect(x + off - rx, y - rx, rx * 2, rx * 2); c.restore(); }
     }
   });
   mk('bgGlow', 1024, 540, (c, w, h) => {
     const R = rng(99);
     for (let i = 0; i < 26; i++) {
-      const x = R() * w, y = R() * h, r = 30 + R() * 80;
-      const col = R() < 0.7 ? '120,230,190' : '255,200,120';
+      const x = R() * w, y = R() * h, r = 24 + R() * 70, warm = R() < 0.3, col = warm ? '255,200,120' : '120,230,190';
       for (const off of [0, -w, w]) {
         const g = c.createRadialGradient(x + off, y, 0, x + off, y, r);
-        g.addColorStop(0, `rgba(${col},0.16)`); g.addColorStop(1, `rgba(${col},0)`);
+        g.addColorStop(0, `rgba(${col},0.15)`); g.addColorStop(0.6, `rgba(${col},0.05)`); g.addColorStop(1, `rgba(${col},0)`);
         c.fillStyle = g; c.fillRect(x + off - r, y - r, r * 2, r * 2);
+        if (i % 4 === 0) { c.strokeStyle = `rgba(${col},0.08)`; c.lineWidth = 1.5; c.beginPath(); c.arc(x + off, y, r * 0.45, 0, Math.PI * 2); c.stroke(); }
       }
     }
   });

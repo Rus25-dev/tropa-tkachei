@@ -13,7 +13,7 @@ function buildTimaArena() {
   for (const f of furniture) for (let x = f.x0; x <= f.x1; x++) g[f.y][x] = PLAT;
   return {
     W, H, grid: g, theme: 'den', spawn: { x: 4, y: 17 }, benches: [], enemies: [], gates: [], exit: null,
-    signs: [{ x: 5, y: 17, text: 'Тима бьётся обычной иглой.\nПока он нюхает пыль — бей: три удара, и он чихнёт' }],
+    signs: [{ x: 5, y: 17, text: 'Тима бьётся обычной иглой.\nКогда он чертит круг для пыли — беги и бей:\nтри удара, и он чихнёт' }],
     furniture, tima: { x: 30, y: 17 }, floorY: 18,
     areas: [{ x: 0, name: 'Берлога Тимы' }], region: 'Босс-тест',
   };
@@ -55,6 +55,38 @@ function drawDen(scene, L) {
   c.fillStyle = '#5a2a2a'; c.fillRect(6 * T, floorY, 30 * T, 10);
   c.fillStyle = '#7a3a34'; for (let x = 6 * T; x < 36 * T; x += 16) c.fillRect(x, floorY + 3, 8, 3);
   c.fillStyle = '#4a3726'; c.fillRect(0, 4 * T - 8, w, 8);
+  // ---- свет и объём ----
+  for (let i = 0; i < 2400; i++) { c.fillStyle = R() < 0.5 ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.05)'; c.fillRect(T + R() * (w - 2 * T), 4 * T + R() * (floorY - 4 * T), 2 + R() * 3, 1 + R() * 2); }
+  c.globalCompositeOperation = 'lighter';
+  // синее свечение телевизора
+  const tvx = 28.5 * T, tvy = 12.5 * T;
+  const tv = c.createRadialGradient(tvx, tvy, 20, tvx, tvy, 420); tv.addColorStop(0, 'rgba(90,140,255,0.28)'); tv.addColorStop(0.5, 'rgba(120,80,220,0.08)'); tv.addColorStop(1, 'rgba(90,140,255,0)');
+  c.fillStyle = tv; c.fillRect(tvx - 420, tvy - 420, 840, 840);
+  const tvf = c.createRadialGradient(tvx, floorY, 0, tvx, floorY, 260); tvf.addColorStop(0, 'rgba(120,150,255,0.18)'); tvf.addColorStop(1, 'rgba(120,150,255,0)');
+  c.fillStyle = tvf; c.fillRect(tvx - 260, floorY - 60, 520, 80);
+  // торшер у дивана
+  const lx = 15.5 * T;
+  c.globalCompositeOperation = 'source-over';
+  c.fillStyle = '#2b2622'; c.fillRect(lx - 2, 9 * T, 4, floorY - 9 * T); c.fillRect(lx - 14, floorY - 6, 28, 6);
+  c.fillStyle = '#c9a66b'; c.beginPath(); c.moveTo(lx - 24, 9 * T + 26); c.lineTo(lx + 24, 9 * T + 26); c.lineTo(lx + 14, 9 * T); c.lineTo(lx - 14, 9 * T); c.closePath(); c.fill();
+  c.globalCompositeOperation = 'lighter';
+  const lamp = c.createRadialGradient(lx, 9 * T + 20, 0, lx, 9 * T + 20, 300); lamp.addColorStop(0, 'rgba(255,200,120,0.30)'); lamp.addColorStop(0.4, 'rgba(255,180,100,0.10)'); lamp.addColorStop(1, 'rgba(255,180,100,0)');
+  c.fillStyle = lamp; c.fillRect(lx - 300, 9 * T - 280, 600, 600);
+  const lampF = c.createRadialGradient(lx, floorY, 0, lx, floorY, 220); lampF.addColorStop(0, 'rgba(255,190,120,0.20)'); lampF.addColorStop(1, 'rgba(255,190,120,0)');
+  c.fillStyle = lampF; c.fillRect(lx - 220, floorY - 60, 440, 80);
+  // свет из окна
+  const mw = c.createLinearGradient(0, 6 * T, 0, floorY); mw.addColorStop(0, 'rgba(150,170,255,0.09)'); mw.addColorStop(1, 'rgba(150,170,255,0.02)');
+  c.fillStyle = mw; c.beginPath(); c.moveTo(2 * T, 10 * T); c.lineTo(6 * T, 10 * T); c.lineTo(9 * T, floorY); c.lineTo(5 * T, floorY); c.closePath(); c.fill();
+  c.globalCompositeOperation = 'source-over';
+  // тени: под мебелью, у потолка и по углам
+  for (const f of L.furniture) {
+    const cx = (f.x0 + f.x1 + 1) * T / 2, rw = (f.x1 - f.x0 + 1) * T * 0.65;
+    const sh = c.createRadialGradient(cx, floorY, 0, cx, floorY, rw); sh.addColorStop(0, 'rgba(0,0,0,0.5)'); sh.addColorStop(1, 'rgba(0,0,0,0)');
+    c.fillStyle = sh; c.fillRect(cx - rw, floorY - 16, rw * 2, 24);
+  }
+  const ceil = c.createLinearGradient(0, 4 * T, 0, 4 * T + 100); ceil.addColorStop(0, 'rgba(0,0,0,0.5)'); ceil.addColorStop(1, 'rgba(0,0,0,0)');
+  c.fillStyle = ceil; c.fillRect(0, 4 * T, w, 100);
+  for (const side of [0, 1]) { const sg = c.createLinearGradient(side ? w - 180 : 0, 0, side ? w : 180, 0); sg.addColorStop(side ? 0 : 1, 'rgba(0,0,0,0)'); sg.addColorStop(side ? 1 : 0, 'rgba(0,0,0,0.5)'); c.fillStyle = sg; c.fillRect(side ? w - 180 : 0, 4 * T, 180, floorY - 4 * T); }
   scene.textures.addCanvas(key, cv);
   return [{ key, x: 0 }];
 }
@@ -140,7 +172,7 @@ Object.assign(GameScene.prototype, {
         v.vx = Math.abs(tx - vcx) > 180 ? v.face * 80 * sp : 0;
         if (v.t <= 0) {
           v.vx = 0;
-          if (v.dustCd <= 0 && v.hp < v.maxHp * 0.75 && v.hyper <= 0) { v.state = 'dust'; v.t = 1.5; v.dustHits = 0; this.timaSpeak('ВОЛШЕБНАЯ ПЫЛЬ!', 1.5); this.sfx('sparkle'); break; }
+          if (v.dustCd <= 0 && v.hp < v.maxHp * 0.75 && v.hyper <= 0) { v.state = 'dustDraw'; v.t = 2.2; v.dustHits = 0; this.timaSpeak('ЩАС-ЩАС, НАЧЕРЧУ…', 1.6); this.toastAll('Тима чертит круг для пыли — беги к нему и бей!'); break; }
           if (v.drinkCd <= 0 && v.hp < v.maxHp * 0.85 && Math.random() < 0.5) { v.state = 'drink'; v.t = 1.2; v.drinkCd = 14; this.timaSpeak('БУЛЬ-БУЛЬ…', 1.2); this.sfx('glug'); break; }
           const opts = ['beer', 'pad', 'ring', 'box', 'bankrupt'].filter((o) => o !== v.last && !(o === 'bankrupt' && (this.repoT > 0 || !phase2 && Math.random() < 0.5)));
           const pick = opts[Math.floor(Math.random() * opts.length)]; v.last = pick;
@@ -194,6 +226,11 @@ Object.assign(GameScene.prototype, {
         v.vx = 0;
         if (v.t <= 0) { v.hp = Math.min(v.maxHp, v.hp + 2); this.ui().bossBar(true, 'Тима Пиво', v.hp / v.maxHp); this.timaSpeak('БУЭЭЭ!', 1.0); this.sfx('burp'); v.state = 'recover'; v.t = 0.5; }
         break;
+      case 'dustDraw':
+        v.vx = 0;
+        if (Math.random() < 0.3) this.dustFx.explode(1, vcx + v.face * (26 + Math.random() * 44), v.y + v.h - 4);
+        if (v.t <= 0) { v.state = 'dust'; v.t = 1.3; this.timaSpeak('ВОЛШЕБНАЯ ПЫЛЬ!', 1.3); this.sfx('sparkle'); }
+        break;
       case 'dust':
         v.vx = 0;
         if (Math.random() < 0.6) this.dustFx.explode(1, vcx + v.face * 30 + (Math.random() - 0.5) * 30, v.y + 10 + Math.random() * 20);
@@ -211,7 +248,7 @@ Object.assign(GameScene.prototype, {
     v.hp -= 1; v.flash = 0.09; this.gainSilk(p); if (!p.remote) this.hitstop = 0.04; this.sfx('hit'); this.timaHits++;
     this.burst(9, clamp(p.x + 7 + p.face * 28, v.x, v.x + v.w), v.y + v.h / 2, 0xf4f1e6);
     if (v.state === 'drink') { v.state = 'recover'; v.t = 0.4; this.timaSpeak('ЭЙ, РАЗЛИЛ!', 1.0); this.foamAt(12, v.x + v.w / 2, v.y + 30); }
-    if (v.state === 'dust') {
+    if (v.state === 'dust' || v.state === 'dustDraw') {
       v.dustHits++;
       if (v.dustHits >= 3) { v.state = 'sneeze'; v.t = 1.6; v.dustCd = 14; this.timaSpeak('АПЧХИ!', 1.2); this.sfx('cough'); this.dustFx.explode(30, v.x + v.w / 2 + v.face * 30, v.y + 20); }
     }
@@ -296,18 +333,28 @@ Object.assign(GameScene.prototype, {
     }
     const open = v.sayT > 0;
     g.fillStyle(0x1a1410, 1); if (open) g.fillEllipse(hx + 10 * f, hy + 9, 7, 4 + Math.abs(Math.sin(now * 14)) * 3); else g.fillRect(Math.min(hx + 7 * f, hx + 13 * f), hy + 9, 6, 1.6);
+    // светящийся круг на полу: сначала чертит, потом встаёт в него
+    if (v.state === 'dustDraw' || v.state === 'dust') {
+      const rx = v.state === 'dust' ? cx : cx + f * 52, prog = v.state === 'dust' ? 1 : clamp(1 - v.t / 2.2, 0, 1);
+      const pulse = 0.6 + Math.sin(now * 10) * 0.25;
+      g.lineStyle(3, 0xffe38a, v.state === 'dust' ? pulse : 0.85);
+      g.beginPath(); g.arc(rx, fy - 3, 34, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * prog, false); g.strokePath();
+      g.lineStyle(1.5, 0xffb6f0, 0.7); g.strokeEllipse(rx, fy - 3, 52 * prog, 10 * prog);
+      if (v.state === 'dust') { g.fillStyle(0xffe38a, 0.12 + Math.sin(now * 8) * 0.05); g.fillRect(rx - 26, fy - 90, 52, 88); }
+    }
     // рука с бутылкой / приставкой / мешочком
     g.lineStyle(5, fl ? 0xffffff : 0x6f7f56, 1);
     const up = ['beerWind', 'ringWind', 'boxWind', 'bankWind', 'drink'].includes(v.state);
-    const ax = cx + f * (up ? 26 : 30), ay = fy - (up ? 78 : 42);
+    const draw = v.state === 'dustDraw';
+    const ax = cx + f * (draw ? 50 + Math.sin(now * 9) * 10 : up ? 26 : 30), ay = draw ? fy - 8 : fy - (up ? 78 : 42);
     g.lineBetween(cx + 18 * f, fy - 54, ax, ay);
     if (v.state === 'ringWind') {
       g.fillStyle(0x1e1e22, 1); g.fillRoundedRect(ax - 22, ay - 30, 44, 28, 5);
       g.lineStyle(3, 0xff3a2a, 0.5 + Math.abs(Math.sin(now * 16)) * 0.5); g.strokeCircle(ax, ay - 16, 8);
     } else if (v.state === 'boxWind') {
       g.fillStyle(0x1e1e22, 1); g.fillRoundedRect(ax - 18, ay - 24, 36, 22, 5); g.fillStyle(0x6bd36b, 1); g.fillCircle(ax + 10, ay - 13, 2);
-    } else if (v.state === 'dust') {
-      g.fillStyle(0xb98a52, 1); g.fillCircle(cx + 22 * f, fy - 70, 7); g.fillStyle(0xffe38a, 0.8); g.fillCircle(cx + 22 * f, fy - 76, 3);
+    } else if (v.state === 'dust' || draw) {
+      g.fillStyle(0xb98a52, 1); g.fillCircle(ax, ay, 7); g.fillStyle(0xffe38a, 0.9); g.fillCircle(ax, ay - 6, 3);
     } else if (v.state === 'bankWind') {
       g.fillStyle(0x6b3d14, 1); g.fillRoundedRect(ax - 14, ay - 10, 28, 18, 3); g.fillStyle(0x1a1410, 1); g.fillRect(ax - 10, ay - 4, 20, 3);
     } else {
