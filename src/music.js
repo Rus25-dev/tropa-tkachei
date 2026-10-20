@@ -47,7 +47,7 @@ const Music = {
   resume() { if (this.want && this.cur !== this.want) { const w = this.want; this.cur = null; this.play(w); } },
   tick() {
     const c = this.ctx(), tr = TRACKS[this.cur]; if (!c || !tr || c.state !== 'running') return;
-    const dt = 60 / tr.bpm / (tr.waltz ? 2 : 4);
+    const dt = 60 / (tr.bpm * (this.intensity || 1)) / (tr.waltz ? 2 : 4);
     while (this.nextT < c.currentTime + 0.15) {
       const cd = tr.chords[this.bar % tr.chords.length], ch = chordNotes(cd[0], cd[1]);
       for (const part of tr.parts) this.parts[part].call(this, this.step, ch, this.nextT, dt, tr);

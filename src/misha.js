@@ -57,13 +57,13 @@ Object.assign(GameScene.prototype, {
   },
   makeMisha() {
     if (this.misha && this.misha.g) this.misha.g.destroy();
-    const d = this.L.misha, hp = this.nPlayers === 2 ? 8 : 6;
-    this.misha = { x: d.x * T - 28, y: (d.y + 1) * T - 74, w: 56, h: 74, vx: 0, vy: 0, face: -1, hp, maxHp: hp, state: 'intro', t: 1.8,
-      flash: 0, last: '', turnT: 0, hitCd: 0, tdMarks: [Math.ceil(hp * 2 / 3), Math.ceil(hp / 3)], tdUsed: [], tdQueue: false, say: 'ЭЙ! ЭТО МОЙ РЮКЗАК!', sayT: 2.2, barShown: false, g: this.add.graphics().setDepth(4) };
+    const d = this.L.misha, hp = this.nPlayers === 2 ? 11 : 8;
+    this.misha = { x: d.x * T - 28, y: (d.y + 1) * T - 74, w: 56, h: 74, vx: 0, vy: 0, face: -1, hp, maxHp: hp, state: 'intro', t: 3.2,
+      flash: 0, last: '', turnT: 0, hitCd: 0, tdMarks: [Math.ceil(hp * 2 / 3), Math.ceil(hp / 3)], tdUsed: [], tdQueue: false, say: 'ЭЙ! ЭТО МОЙ РЮКЗАК!', sayT: 3.0, zipT: 0, barShown: false, g: this.add.graphics().setDepth(4) };
   },
   mishaBag(m) { const cx = m.x + m.w / 2; return { x: cx - 26 * m.face - 15, y: m.y + 12, w: 30, h: 40 }; },
   smokeAt(n, x, y) { this.smoke.explode(n, x, y); if (this.online === 'host') this.sendEv({ k: 'smoke', n, x: Math.round(x), y: Math.round(y) }); },
-  mishaSpeak(text, dur) { const m = this.misha; m.say = text; m.sayT = dur || 1.6; },
+  mishaSpeak(text, dur) { const m = this.misha; m.say = text; m.sayT = Math.max(dur || 1.6, 1.4 + text.length * 0.07); },
 
   // ----- бомбы игроков -----
   throwBomb(p) {
@@ -89,7 +89,11 @@ Object.assign(GameScene.prototype, {
       const bag = this.mishaBag(m), behind = (cx - (m.x + m.w / 2)) * m.face < 0;
       // падающая сверху бомба «залетает» в открытую молнию — зона над рюкзаком шире
       const mouth = pr.vy > 0 ? { x: bag.x - 8, y: bag.y - 26, w: bag.w + 16, h: bag.h + 26 } : bag;
-      if (behind && overlap(pr, mouth)) { pr.dead = true; this.mishaBagHit(pr); return; }
+      if (behind && overlap(pr, mouth)) {
+        pr.dead = true;
+        if (m.zipT > 0) { this.smokeAt(5, bag.x + 15, bag.y); this.sfx('clink'); if (m.sayT <= 0) this.mishaSpeak('ЗАКРЫТО!', 1.0); return; }
+        this.mishaBagHit(pr); return;
+      }
       if (overlap(pr, inset(m, 4))) {
         pr.dead = true; this.smokeAt(6, cx, cy); this.sfx('puff');
         if (Math.random() < 0.5) this.mishaSpeak(m.state === 'cough' ? 'МИМО!' : 'ХА, МИМО!', 1.1);
@@ -122,7 +126,7 @@ Object.assign(GameScene.prototype, {
     if (!m || p.atkHits.has(m) || ['dead', 'intro'].includes(m.state) || !overlap(box, m)) return false;
     p.atkHits.add(m); m.flash = 0.06;
     this.gainSilk(p); Snd.play('clink'); this.parts.setParticleTint(0xffffff); this.parts.explode(5, clamp(p.x + 7 + p.face * 26, m.x, m.x + m.w), m.y + m.h / 2);
-    if (!this._needleTip) { this._needleTip = true; this.ui().toast('Иглой Мишу не пробить. Дымовуху ему в рюкзак!'); }
+    if (!this._needleTip) { this._needleTip = true; this.ui().toast('Иглой Мишу не пробить. Дымовуху ему в рюкзак!', 5.5); }
     return true;
   },
 
@@ -130,6 +134,7 @@ Object.assign(GameScene.prototype, {
   stepMisha(dt) {
     const m = this.misha; if (!m) return;
     m.flash -= dt; m.hitCd -= dt; m.sayT -= dt;
+    if (m.zipT > 0) { m.zipT -= dt; if (m.zipT <= 0) { this.mishaSpeak('ФУХ, ЖАРКО… ОТКРОЮ', 1.6); this.sfx('puff'); } }
     if (!m.barShown && this.ui().ready) { m.barShown = true; this.ui().bossBar(true, 'Миша Додик', m.hp / m.maxHp); }
     if (m.state === 'dead') { m.t -= dt; m.vy = Math.min(m.vy + P.G * dt, P.MAXFALL); this.moveBody(m, dt); return; }
     const phase2 = m.hp <= m.maxHp / 2;
@@ -143,14 +148,24 @@ Object.assign(GameScene.prototype, {
         if (want !== m.face) { m.turnT += dt; if (m.turnT > (phase2 ? 0.32 : 0.5)) { m.face = want; m.turnT = 0; } } else m.turnT = 0;
         m.vx = Math.abs(tx - mcx) > 220 ? m.face * 70 : 0;
         if (m.t <= 0) {
-          const opts = ['letters', 'big', 'charge'].filter((o) => o !== m.last);
+          const late = m.tdUsed.length;
+          let opts = ['letters', 'big', 'charge'];
+          if (late >= 1) opts.push('dict', 'dict');
+          if (late >= 2 && m.zipT <= 0) opts.push('zip');
+          opts = opts.filter((o) => o !== m.last);
           const pick = opts[Math.floor(Math.random() * opts.length)]; m.last = pick; m.vx = 0;
           if (pick === 'letters') this.mishaWord(phase2);
           if (pick === 'big') { m.state = 'bigWind'; m.t = 0.6; this.mishaSpeak('ДЕТДОМ!', 1.2); }
           if (pick === 'charge') { m.state = 'chargeWind'; m.t = phase2 ? 0.45 : 0.6; m.face = want; this.mishaSpeak('С ДОРОГИ!', 1.0); }
+          if (pick === 'dict') { m.state = 'dictWind'; m.t = 0.8; this.mishaSpeak('ДИКТАНТ! ПИШЕМ!', 1.4); this.sfx('roar'); }
+          if (pick === 'zip') { m.zipT = 4.5; m.state = 'recover'; m.t = 0.5; this.mishaSpeak('ЗАКРЫЛ! ХА-ХА!', 1.6); this.sfx('gate'); this.toastAll('Рюкзак застёгнут — подожди, пока Мише станет жарко'); }
         }
         break;
       }
+      case 'dictWind':
+        m.vx = 0;
+        if (m.t <= 0) { this.mishaDictation(m.tdUsed.length >= 2 ? 2 : 1); m.state = 'recover'; m.t = 1.4; }
+        break;
       case 'word': m.vx = 0; if (m.t <= 0) { m.state = 'recover'; m.t = phase2 ? 0.45 : 0.7; } break;
       case 'bigWind':
         m.vx = 0;
@@ -190,6 +205,18 @@ Object.assign(GameScene.prototype, {
     for (let i = 0; i < word.length; i++) {
       this.projs.push({ kind: 'letter', ch: word[i], x: cx - ((word.length - 1) * step) / 2 + i * step - 11, y: m.y - 100, w: 22, h: 26,
         vx: 0, vy: 0, life: 4, delay: 0.5 + i * 0.13, launched: false, spd: phase2 ? 440 : 360, bounce: phase2 ? 1 : 0 });
+    }
+  },
+  // диктант: буквы падают стеной по всей ширине, в стене есть проём — найди его
+  mishaDictation(waves) {
+    const x0 = 2 * T, x1 = (this.L.W - 2) * T, step = 36, cols = Math.floor((x1 - x0) / step);
+    const word = 'ДИКТАНТПРОВЕРКАОШИБОКДВОЙКА';
+    for (let w = 0; w < waves; w++) {
+      const gap = 2 + Math.floor(Math.random() * (cols - 5));
+      for (let i = 0; i < cols; i++) {
+        if (i >= gap && i <= gap + 2) continue;
+        this.projs.push({ kind: 'rain', ch: word[(i + w * 5) % word.length], x: x0 + i * step, y: 4 * T + 6, w: 22, h: 26, vx: 0, vy: 330 + w * 40, life: 4, delay: 0.9 + w * 1.5 + i * 0.012 });
+      }
     }
   },
   stepLetter(pr, dt) {
@@ -236,9 +263,13 @@ Object.assign(GameScene.prototype, {
     g.fillStyle(fl ? 0xffffff : 0xe08a2c, 1); g.fillRoundedRect(bx, by, 30, 40, 7);
     g.fillStyle(fl ? 0xffffff : 0xa85f17, 1); g.fillRoundedRect(bx + 2, by + 22, 26, 14, 4);
     g.lineStyle(1.5, 0x6a3a0c, 1); g.strokeRoundedRect(bx + 2, by + 22, 26, 14, 4); g.lineBetween(bx + 8, by + 29, bx + 22, by + 29);
-    g.fillStyle(0x1a1410, 1); g.fillEllipse(bx + 15, by + 2, 24, 8); // открытая молния — цель
+    if (m.zipT > 0) { // застёгнут: молния и замок
+      g.lineStyle(2, 0x6a3a0c, 1); g.lineBetween(bx + 3, by + 3, bx + 27, by + 3);
+      for (let k = 0; k < 8; k++) g.lineBetween(bx + 4 + k * 3, by + 1, bx + 4 + k * 3, by + 5);
+      g.fillStyle(0xc9a227, 1); g.fillRoundedRect(bx + 11, by + 3, 8, 8, 2); g.lineStyle(1.5, 0xc9a227, 1); g.strokeCircle(bx + 15, by + 2, 3);
+    } else { g.fillStyle(0x1a1410, 1); g.fillEllipse(bx + 15, by + 2, 24, 8); } // открытая молния — цель
     const anyBombs = this.players.some((p) => p.bombs > 0);
-    if (anyBombs && !dead) { g.lineStyle(2, 0xffd47a, 0.35 + Math.sin(now * 5) * 0.25); g.strokeEllipse(bx + 15, by + 2, 30, 12); }
+    if (anyBombs && !dead && !(m.zipT > 0)) { g.lineStyle(2, 0xffd47a, 0.35 + Math.sin(now * 5) * 0.25); g.strokeEllipse(bx + 15, by + 2, 30, 12); }
     // тело-толстовка с сегментами
     g.fillStyle(fl ? 0xffffff : 0x4f5b78, 1); g.fillEllipse(cx + 2 * f, fy - 32 + hunch * 0.5, 52, 46);
     g.lineStyle(2, 0x3a4560, 1);
@@ -282,10 +313,12 @@ Object.assign(GameScene.prototype, {
   drawLetters(now) {
     let li = 0, bi = 0;
     for (const pr of this.projs) {
-      if (pr.kind === 'letter') {
+      if (pr.kind === 'letter' || pr.kind === 'rain') {
         let t = this.letterPool[li];
         if (!t) { t = this.add.text(0, 0, '', { fontFamily: '"Fira Sans", sans-serif', fontSize: '28px', fontStyle: '700', color: '#f4efe0', stroke: '#1a1410', strokeThickness: 5 }).setOrigin(0.5).setDepth(6.2); this.letterPool.push(t); }
-        const hover = pr.delay > 0;
+        const hover = pr.delay > 0, rain = pr.kind === 'rain';
+        if (rain) { t.setText(pr.ch).setPosition(pr.x + 11, pr.y + 13).setVisible(true).setRotation(0).setColor(hover ? '#ff9a7a' : '#f4efe0').setAlpha(hover ? 0.45 + Math.sin(now * 18) * 0.2 : 1); li++; continue; }
+        t.setAlpha(1);
         t.setText(pr.ch).setPosition(pr.x + 11, pr.y + 13 + (hover ? Math.sin(now * 8 + li) * 3 : 0)).setVisible(true)
           .setRotation(hover ? 0 : now * 9 + li).setColor(hover ? '#ffd47a' : '#f4efe0');
         li++;
@@ -361,7 +394,7 @@ Object.assign(GameScene.prototype, {
     const td = this.td, G = this.tdGeo();
     let lane = Math.floor(Math.random() * 3); if (lane === td.lane && Math.random() < 0.6) lane = (lane + 1 + Math.floor(Math.random() * 2)) % 3;
     td.lane = lane; td.mx = G.start; td.state = 'tele'; td.t = 1.1; td.round++;
-    td.say = ['ПОСТОРОНИСЬ!', 'Я ПРОЙДУ!', 'С ДОРОГИ!'][td.round % 3]; td.sayT = 1.0;
+    td.say = ['ПОСТОРОНИСЬ!', 'Я ПРОЙДУ!', 'С ДОРОГИ!'][td.round % 3]; td.sayT = 1.6;
   },
   tdMove(p, dt) {
     const G = this.tdGeo(), inp = p.inp || {}, r = 12;
@@ -390,13 +423,13 @@ Object.assign(GameScene.prototype, {
         const ln = G.lanes[td.lane];
         const blocker = this.players.find((p) => !p.downed && p.tdy > ln.y0 + 4 && p.tdy < ln.y1 - 4 && p.tdx - td.mx > 14 && p.tdx - td.mx < 46);
         if (blocker) {
-          td.blocks++; td.state = 'blocked'; td.t = 1.3; td.say = 'ПРОПУСТИТЕ!'; td.sayT = 1.3;
+          td.blocks++; td.state = 'blocked'; td.t = 1.3; td.say = 'ПРОПУСТИТЕ!'; td.sayT = 1.6;
           this.sfx('roar'); this.shake(220, 0.006);
-        } else if (td.mx >= G.goal) { td.state = 'through'; td.t = 1.3; td.say = 'ПРОШЁЛ! ХА!'; td.sayT = 1.3; this.sfx('win'); }
+        } else if (td.mx >= G.goal) { td.state = 'through'; td.t = 1.3; td.say = 'ПРОШЁЛ! ХА!'; td.sayT = 1.6; this.sfx('win'); }
         break;
       }
       case 'blocked':
-        if (td.t <= 0) { if (td.blocks >= td.need) { td.state = 'win'; td.t = 1.0; td.say = 'ВСЁ, ВСЁ, ПОНЯЛ…'; td.sayT = 1.0; } else this.tdPickLane(); }
+        if (td.t <= 0) { if (td.blocks >= td.need) { td.state = 'win'; td.t = 1.0; td.say = 'ВСЁ, ВСЁ, ПОНЯЛ…'; td.sayT = 1.6; } else this.tdPickLane(); }
         break;
       case 'through': if (td.t <= 0) this.tdEnd(false); break;
       case 'win': if (td.t <= 0) this.tdEnd(true); break;

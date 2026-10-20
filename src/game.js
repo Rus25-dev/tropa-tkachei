@@ -1,15 +1,15 @@
 // ===== ИГРА: «Тропа Ткачей» — кооперативная метроидвания =====
 let VW = 960; const VH = 540;
 // версия игры; номер сборки подставляет build.py
-const GAME_VERSION = '0.9';
+const GAME_VERSION = '1.0';
 const GAME_BUILD = '__BUILD__';
 const CHANGELOG = [
-  'Само предлагает обновиться, если вышла новая сборка',
-  'Миша: фаза «Пропустите!» — вид сверху и коридоры',
-  'Тима чертит круг перед пылью — успей подбежать',
-  'Фоновая музыка у меню, пещеры и каждого босса',
-  'Объёмные фоны: свет, туман, лампы, тени',
-  'Спрыгнуть с платформы: ↓ + прыжок',
+  'Боссы 2.0: у каждого 3 фазы, ярость и новые атаки',
+  'Корнематка: корни из-под земли, двойные прыжки',
+  'Миша: «Диктант!» и застёгнутый рюкзак',
+  'Владик: нотный стан и выпад смычком',
+  'Тима: коллекторы и падающие ачивки',
+  'Фразы и подсказки висят дольше и не перебивают друг друга',
 ];
 // ширина поля подстраивается под пропорции экрана: на вытянутых телефонах без чёрных полос
 function computeVW() {
@@ -28,11 +28,11 @@ const PAL = [
   { name: 'Ярь', tag: 'Ta', cloak: 0xd8862a, dark: 0x8a4f16, accent: 0xffd9a0, hex: '#ffc46e' },
 ];
 const MASK = 0xe8e2cf, INK = 0x10141a;
-const PERSIST_KINDS = new Set(['wave', 'rwave', 'pad', 'stamp', 'box', 'clef']);
-const SLASH_KINDS = new Set(['spore', 'letter', 'note', 'bottle']);
+const PERSIST_KINDS = new Set(['wave', 'rwave', 'pad', 'stamp', 'box', 'clef', 'rootspike', 'staff', 'collector', 'trophy']);
+const SLASH_KINDS = new Set(['spore', 'letter', 'note', 'bottle', 'rain', 'collector']);
 const STORY_KINDS = new Set(['spore', 'wave', 'rock']);
-const NET_KINDS = ['spore', 'wave', 'rock', 'letter', 'bigletter', 'bomb', 'clef', 'note', 'drip', 'bottle', 'pad', 'rwave', 'ringfx', 'box', 'stamp'];
-const NET_SIZES = [[12, 12], [24, 18], [16, 16], [22, 26], [56, 60], [12, 12], [28, 40], [14, 18], [8, 10], [10, 22], [26, 18], [24, 18], [0, 0], [36, 22], [80, 44]];
+const NET_KINDS = ['spore', 'wave', 'rock', 'letter', 'bigletter', 'bomb', 'clef', 'note', 'drip', 'bottle', 'pad', 'rwave', 'ringfx', 'box', 'stamp', 'rootspike', 'rain', 'staff', 'collector', 'trophy', 'staffghost'];
+const NET_SIZES = [[12, 12], [24, 18], [16, 16], [22, 26], [56, 60], [12, 12], [28, 40], [14, 18], [8, 10], [10, 22], [26, 18], [24, 18], [0, 0], [36, 22], [80, 44], [36, 70], [22, 26], [1344, 10], [22, 22], [30, 30], [1344, 0]];
 const BOSSES = [
   { id: 'misha', name: 'Миша Додик', about: 'Швыряется печатными буквами. Бей дымовыми бомбами в рюкзак.' },
   { id: 'vladik', name: 'Владик Скрипка', about: 'Кидает скрипичные ключи и мажет шторы слизью. Бей иглой.' },
@@ -511,8 +511,8 @@ class GameScene extends Phaser.Scene {
   makeBoss() {
     if (this.boss && this.boss.g) this.boss.g.destroy();
     if (!this.L.boss) { this.boss = { x: -9999, y: -9999, w: 1, h: 1, vx: 0, vy: 0, hp: 1, maxHp: 1, state: 'gone', t: 0, face: 1, flash: 0, g: this.add.graphics() }; return; }
-    const b = this.L.boss, hp = this.nPlayers === 2 ? 54 : 38;
-    this.boss = { x: b.x * T - 36, y: (b.y + 1) * T - 58, w: 72, h: 58, vx: 0, vy: 0, hp, maxHp: hp, state: 'sleep', t: 0, face: -1, flash: 0, last: '', air: 0, g: this.add.graphics().setDepth(4) };
+    const b = this.L.boss, hp = this.nPlayers === 2 ? 84 : 60;
+    this.boss = { x: b.x * T - 36, y: (b.y + 1) * T - 58, w: 72, h: 58, vx: 0, vy: 0, hp, maxHp: hp, phase: 1, state: 'sleep', t: 0, face: -1, jumps: 0, flash: 0, last: '', air: 0, g: this.add.graphics().setDepth(4) };
     if (this.bossDead) { this.boss.state = 'gone'; }
   }
   alivePlayers() { return this.players.filter((p) => !p.downed); }
@@ -553,6 +553,7 @@ class GameScene extends Phaser.Scene {
     }
     if (this.online) { this.netSmooth(dt); this.netTick(dt); }
     Music.play(this.musicTrack());
+    Music.intensity = 1 + 0.07 * (this.bossPhaseForMusic() - 1);
     this.render(dt);
     this.updateCamera(dt);
   }
@@ -700,9 +701,10 @@ class GameScene extends Phaser.Scene {
       if (local) { if (p.atkDir === 'd') pogo(); else if (p.atkDir === 'f') p.kbx = -p.face * 170; }
     }
     for (const pr of this.projs) if (SLASH_KINDS.has(pr.kind) && !pr.dead && overlap(box, pr)) {
+      if (pr.kind === 'collector') { if (auth) this.hitCollector(pr, p.face); else this.sendEv({ k: 'cut', kind: 'collector', x: Math.round(pr.x), y: Math.round(pr.y), d: p.face }); if (local && p.atkDir === 'd') pogo(); continue; }
       if (auth) {
         pr.dead = true;
-        if (pr.kind === 'letter') { this.paperAt(6, pr.x + 11, pr.y + 13); this.sfx('clink'); }
+        if (pr.kind === 'letter' || pr.kind === 'rain') { this.paperAt(6, pr.x + 11, pr.y + 13); this.sfx('clink'); }
         else if (pr.kind === 'spore') this.burst(6, pr.x + 6, pr.y + 6, 0xc7f08a);
         else { this.burst(6, pr.x + pr.w / 2, pr.y + pr.h / 2, 0xffd47a); this.sfx('clink'); }
       } else if (pr.kind !== 'spore') { pr.dead = true; this.sendEv({ k: 'cut', kind: pr.kind, x: Math.round(pr.x), y: Math.round(pr.y) }); }
@@ -889,19 +891,27 @@ class GameScene extends Phaser.Scene {
       b.vy = Math.min(b.vy + P.G * dt, P.MAXFALL); this.moveBody(b, dt); return;
     }
     if (b.state === 'dead') { b.t -= dt; if (b.t <= 0) { b.state = 'gone'; b.g.clear(); } return; }
-    const phase2 = b.hp <= b.maxHp / 2;
+    const phase2 = (b.phase || 1) >= 2, phase3 = (b.phase || 1) >= 3;
     const [tp] = this.nearestPlayer(b.x + b.w / 2, b.y + b.h / 2);
     const tx = tp ? tp.x + 7 : b.x;
     const faceT = () => { b.face = tx > b.x + b.w / 2 ? 1 : -1; };
     b.t -= dt;
     switch (b.state) {
-      case 'roar': b.vx = 0; if (b.t <= 0) { b.state = 'idle'; b.t = 0.6; } break;
+      case 'roar': b.vx = 0; if (b.t <= 0) { b.state = 'idle'; b.t = 1.0; } break;
+      case 'rage': b.vx = 0; if (b.t <= 0) { b.state = 'idle'; b.t = 0.3; } break;
+      case 'rootWind':
+        b.vx = 0; faceT();
+        if (Math.random() < 0.5) this.dust.explode(1, b.x + b.w / 2 + (Math.random() - 0.5) * 60, b.y + b.h);
+        if (b.t <= 0) { this.rootLine(tx, phase3); b.state = 'recover'; b.t = phase3 ? 0.6 : 0.9; }
+        break;
       case 'idle':
         b.vx = 0; faceT();
         if (b.t <= 0) {
-          const opts = ['leap', 'spores', 'charge'].filter((o) => o !== b.last);
+          const pool = ['leap', 'spores', 'charge']; if (phase2) pool.push('roots', 'roots');
+          const opts = pool.filter((o) => o !== b.last);
           const pick = opts[Math.floor(Math.random() * opts.length)]; b.last = pick;
-          if (pick === 'leap') { b.state = 'leapWind'; b.t = 0.38; }
+          if (pick === 'leap') { b.state = 'leapWind'; b.t = 0.38; b.jumps = phase3 ? 2 : 1; }
+          if (pick === 'roots') { b.state = 'rootWind'; b.t = 0.6; this.sfx('slam'); this.shake(500, 0.004); }
           if (pick === 'spores') { b.state = 'sporeWind'; b.t = 0.45; }
           if (pick === 'charge') { b.state = 'chargeWind'; b.t = phase2 ? 0.4 : 0.55; }
         }
@@ -916,13 +926,13 @@ class GameScene extends Phaser.Scene {
           b.vx = 0; this.shake(220, 0.012); this.sfx('slam');
           this.dustAt(14, b.x + b.w / 2, b.y + b.h);
           for (const d of [-1, 1]) this.projs.push({ kind: 'wave', x: b.x + b.w / 2 - 12 + d * 30, y: b.y + b.h - 18, w: 24, h: 18, vx: d * (phase2 ? 380 : 320), vy: 0, life: 2.4 });
-          b.state = 'recover'; b.t = phase2 ? 0.4 : 0.6;
+          if (--b.jumps > 0) { b.state = 'leapWind'; b.t = 0.22; } else { b.state = 'recover'; b.t = phase2 ? 0.4 : 0.6; }
         }
         break;
       case 'sporeWind':
         b.vx = 0; faceT();
         if (b.t <= 0) {
-          const n = phase2 ? 5 : 3; this.sfx('spit');
+          const n = phase3 ? 7 : phase2 ? 5 : 3; this.sfx('spit');
           for (let i = 0; i < n; i++) {
             const spread = (i - (n - 1) / 2);
             const dist = tx - (b.x + b.w / 2);
@@ -939,7 +949,7 @@ class GameScene extends Phaser.Scene {
         b.vx = b.face * (phase2 ? 460 : 400);
         break;
       case 'stun': b.vx = 0; if (b.t <= 0) { b.state = 'idle'; b.t = phase2 ? 0.35 : 0.6; } break;
-      case 'recover': b.vx = 0; if (b.t <= 0) { b.state = 'idle'; b.t = phase2 ? 0.35 : 0.6; } break;
+      case 'recover': b.vx = 0; if (b.t <= 0) { b.state = 'idle'; b.t = phase3 ? 0.25 : phase2 ? 0.35 : 0.6; } break;
     }
     b.vy = Math.min(b.vy + P.G * dt, P.MAXFALL);
     const was = b.state;
@@ -953,10 +963,21 @@ class GameScene extends Phaser.Scene {
   }
   damageBoss(p) {
     const b = this.boss;
+    if (b.state === 'rage') { Snd.play('clink'); return; }
     b.hp -= 1; b.flash = 0.09; this.gainSilk(p); if (!p.remote) this.hitstop = 0.04; this.sfx('hit');
     this.burst(10, clamp(p.x + 7 + p.face * 30, b.x, b.x + b.w), b.y + b.h / 2, 0xf4f1e6);
     this.ui().bossBar(true, 'Корнематка', b.hp / b.maxHp);
-    if (b.hp <= 0) this.killBoss();
+    if (b.hp <= 0) this.killBoss(); else this.checkPhase(b, 'Корнематка');
+  }
+  // корни из-под земли: цепочка шипов от босса к игроку и шип прямо под ним
+  rootLine(tx, phase3) {
+    const b = this.boss, fy = (this.L.boss.floorY || Math.floor((b.y + b.h) / T)) * T, ax0 = this.L.boss.arenaX0 * T + T, ax1 = this.L.boss.arenaX1 * T - T;
+    const bx = b.x + b.w / 2, dir = Math.sign(tx - bx) || b.face, xs = [];
+    for (let x = bx + dir * 60, i = 0; dir > 0 ? x < ax1 : x > ax0; x += dir * 52, i++) xs.push([x, 0.5 + i * 0.09]);
+    xs.push([tx, 0.75]);
+    if (phase3) for (let x = bx - dir * 60, i = 0; dir > 0 ? x > ax0 : x < ax1; x -= dir * 52, i++) xs.push([x, 0.8 + i * 0.09]);
+    const groundY = b.y + b.h;
+    for (const [x, delay] of xs) this.projs.push({ kind: 'rootspike', x: clamp(x, ax0, ax1) - 18, y: groundY - 70, w: 36, h: 70, vx: 0, vy: 0, life: 0.55, delay });
   }
   killBoss() {
     const b = this.boss; b.state = 'dead'; b.t = 1.4; this.bossDead = true;
@@ -994,6 +1015,8 @@ class GameScene extends Phaser.Scene {
       else if (pr.kind === 'note') this.stepNote(pr, dt);
       else if (pr.kind === 'drip') this.stepDrip(pr, dt);
       else if (pr.kind === 'ringfx') { this.stepTimaProj(pr, dt); continue; }
+      else if (pr.kind === 'staffghost') continue;
+      else if (this.stepExtraProj(pr, dt)) { /* новые снаряды боссов 2.0 */ }
       else if (this.tima) this.stepTimaProj(pr, dt);
       if (pr.dead) continue;
       for (const p of this.players) if (!p.remote && !p.downed && p.inv <= 0 && overlap(inset(p, 2), pr)) { this.hurtPlayer(p, 1, pr.x + pr.w / 2); if (!PERSIST_KINDS.has(pr.kind)) pr.dead = true; }
@@ -1048,7 +1071,7 @@ class GameScene extends Phaser.Scene {
       vl: vl ? [r(vl.x), r(vl.y), vl.face, vl.hp, vl.maxHp, vl.state, vl.flash > 0 ? 1 : 0, r10(vl.t), vl.sayT > 0 ? vl.say : '', this.curtains.map((c) => [r10(c.slime), Math.round(c.wet * 100) / 100])] : null,
       tm: tm ? [r(tm.x), r(tm.y), tm.face, tm.hp, tm.maxHp, tm.state, tm.flash > 0 ? 1 : 0, r10(tm.t), tm.sayT > 0 ? tm.say : '', r10(tm.hyper), this.repo ? 1 : 0, this.puddles.map((q) => [r(q.x), q.w, r(q.y), r10(q.t)])] : null,
       td: this.td ? [this.td.state, this.td.lane, r(this.td.mx), this.td.blocks, this.td.need, this.td.sayT > 0 ? this.td.say : ''] : null,
-      mi: mi ? [r(mi.x), r(mi.y), mi.face, mi.hp, mi.maxHp, mi.state, mi.flash > 0 ? 1 : 0, Math.round(mi.t * 100) / 100, mi.sayT > 0 ? mi.say : ''] : null,
+      mi: mi ? [r(mi.x), r(mi.y), mi.face, mi.hp, mi.maxHp, mi.state, mi.flash > 0 ? 1 : 0, Math.round(mi.t * 100) / 100, mi.sayT > 0 ? mi.say : '', r10(mi.zipT || 0)] : null,
       bd: this.beadsArr.map((d) => [r(d.x), r(d.y)]), bc: this.beads,
       g: this.gates.map((gt) => (gt.closed ? 1 : 0)), bD: this.bossDead ? 1 : 0, rs: [r(this.respawn.x), r(this.respawn.y)] };
   }
@@ -1104,6 +1127,7 @@ class GameScene extends Phaser.Scene {
       if (mm.tx == null || Math.abs(mm.x - M[0]) > 140) { mm.x = M[0]; mm.y = M[1]; }
       mm.tx = M[0]; mm.ty = M[1]; mm.face = M[2]; mm.hp = M[3]; mm.maxHp = M[4]; mm.state = M[5]; if (M[6]) mm.flash = 0.1; mm.t = M[7];
       if (M[8]) { mm.say = M[8]; mm.sayT = 0.2; }
+      mm.zipT = M[9] || 0;
       const showM = mm.state !== 'dead';
       if (showM !== !!this._mb) { this._mb = showM; this.ui().bossBar(showM, 'Миша Додик'); }
       if (showM) this.ui().bossBar(true, null, Math.max(0, mm.hp) / mm.maxHp);
@@ -1126,7 +1150,8 @@ class GameScene extends Phaser.Scene {
         if (this.auth()) {
           const kind = m.kind || 'letter';
           const q = this.projs.find((pr) => pr.kind === kind && !pr.dead && Math.abs(pr.x - m.x) < 40 && Math.abs(pr.y - m.y) < 40);
-          if (q) { q.dead = true; if (kind === 'letter') this.paperAt(6, q.x + 11, q.y + 13); else this.burst(6, q.x + q.w / 2, q.y + q.h / 2, 0xffd47a); this.sfx('clink'); }
+          if (q && kind === 'collector') { this.hitCollector(q, m.d || 1); break; }
+          if (q) { q.dead = true; if (kind === 'letter' || kind === 'rain') this.paperAt(6, q.x + 11, q.y + 13); else this.burst(6, q.x + q.w / 2, q.y + q.h / 2, 0xffd47a); this.sfx('clink'); }
         }
         break;
       case 'repo': if (!this.auth() && this.tima) this.setRepo(!!m.on); break;
@@ -1136,6 +1161,8 @@ class GameScene extends Phaser.Scene {
       case 'dust': this.dust.explode(m.n, m.x, m.y); break;
       case 'shake': this.cameras.main.shake(m.d, m.i); break;
       case 'toast': this.ui().toast(m.m); break;
+      case 'flash': this.cameras.main.flash(260, 255, 240, 220); break;
+      case 'kb': this.knockFrom(m.x); break;
       case 'silk': { const p = this.players[m.i]; if (p && !p.remote) p.silk = Math.min(P.SILK, p.silk + 1); break; }
       case 'bench':
         this.respawn = { x: m.x, y: m.y };
@@ -1176,7 +1203,9 @@ class GameScene extends Phaser.Scene {
         if (pr.kind === 'pad') continue;
         if (pr.kind === 'clef' || pr.kind === 'bottle') pr.rot = (pr.rot || 0) + dt * 10;
         if (pr.kind === 'spore') pr.vy += 700 * dt;
-        else if (['rock', 'bigletter', 'bomb', 'note', 'drip', 'bottle', 'box', 'stamp'].includes(pr.kind)) pr.vy = Math.min(pr.vy + 1100 * dt, 800);
+        if (pr.kind === 'rootspike' || pr.kind === 'staff' || pr.kind === 'staffghost') continue;
+        if (pr.kind === 'collector') { pr.vx = 0; pr.vy = 0; continue; }
+        else if (['rock', 'bigletter', 'bomb', 'note', 'drip', 'bottle', 'box', 'stamp', 'trophy'].includes(pr.kind)) pr.vy = Math.min(pr.vy + 1100 * dt, 800);
         pr.x += pr.vx * dt; pr.y += pr.vy * dt;
         if (pr.kind === 'wave' && Math.random() < 0.3) this.dust.explode(1, pr.x + pr.w / 2, pr.y + pr.h);
       }
@@ -1185,7 +1214,7 @@ class GameScene extends Phaser.Scene {
   guestProjHits() {
     for (const p of this.players) {
       if (p.remote || p.downed || p.inv > 0) continue;
-      for (const pr of this.projs) if (!pr.dead && !pr.delay && pr.kind !== 'bomb' && pr.kind !== 'ringfx' && overlap(inset(p, 2), pr)) { this.hurtPlayer(p, 1, pr.x + pr.w / 2); if (!PERSIST_KINDS.has(pr.kind)) pr.dead = true; break; }
+      for (const pr of this.projs) if (!pr.dead && !pr.delay && pr.kind !== 'bomb' && pr.kind !== 'ringfx' && pr.kind !== 'staffghost' && overlap(inset(p, 2), pr)) { this.hurtPlayer(p, 1, pr.x + pr.w / 2); if (!PERSIST_KINDS.has(pr.kind)) pr.dead = true; break; }
     }
     this.projs = this.projs.filter((q) => !q.dead);
   }
@@ -1278,6 +1307,7 @@ class GameScene extends Phaser.Scene {
     }
     if (this.vladik) this.drawVladikProjs(now);
     if (this.tima) { this.drawTimaProjs(now); this.drawStampLabels(); }
+    this.drawExtraProjs(now);
     // бусины
     for (const bd of this.beadsArr) {
       fx.fillStyle(0xffd47a, 0.25); fx.fillCircle(bd.x + 4, bd.y + 4, 7);
@@ -1537,11 +1567,25 @@ class UIScene extends Phaser.Scene {
   retry() { const d = { ...this.gs.startData }; this.ready = false; this.scene.stop('bg'); this.scene.start('game', d); }
   removePlayer(i) { if (this.names[i]) this.names[i].setVisible(false); }
   showPause(on) { if (this.ready) this.pause.setVisible(on); }
-  toast(msg) {
+  // очередь подсказок: каждая висит, пока её можно спокойно дочитать, новые не перебивают старые
+  toast(msg, hold) {
     if (!this.ready) return;
-    if (!msg) { this.toastTxt.setAlpha(0); return; }
-    this.toastTxt.setText(msg).setAlpha(1); this.tweens.killTweensOf(this.toastTxt);
-    this.tweens.add({ targets: this.toastTxt, alpha: 0, delay: 2600, duration: 600 });
+    if (!msg) { this.toastQ = []; this.toastBusy = false; this.tweens.killTweensOf(this.toastTxt); this.toastTxt.setAlpha(0); return; }
+    this.toastQ = this.toastQ || [];
+    if (this.toastQ.some((q) => q.msg === msg) || (this.toastBusy && this.toastCur === msg)) return;
+    this.toastQ.push({ msg, hold });
+    if (this.toastQ.length > 3) this.toastQ.shift();
+    if (!this.toastBusy) this.nextToast();
+  }
+  nextToast() {
+    const q = (this.toastQ || []).shift();
+    if (!q) { this.toastBusy = false; this.toastCur = ''; return; }
+    this.toastBusy = true; this.toastCur = q.msg;
+    const ms = (q.hold || clamp(2.2 + q.msg.length * 0.05, 3, 6)) * 1000 * (this.toastQ.length ? 0.8 : 1);
+    this.tweens.killTweensOf(this.toastTxt);
+    this.toastTxt.setText(q.msg).setAlpha(0);
+    this.tweens.add({ targets: this.toastTxt, alpha: 1, duration: 180 });
+    this.tweens.add({ targets: this.toastTxt, alpha: 0, delay: ms, duration: 450, onComplete: () => this.nextToast() });
   }
   areaTitle(name) {
     if (!this.ready) return;

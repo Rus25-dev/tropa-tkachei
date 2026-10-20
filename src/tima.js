@@ -138,14 +138,14 @@ Object.assign(GameScene.prototype, {
   },
   makeTima() {
     if (this.tima && this.tima.g) this.tima.g.destroy();
-    const d = this.L.tima, hp = this.nPlayers === 2 ? 46 : 34;
-    this.tima = { x: d.x * T - 30, y: (d.y + 1) * T - 80, w: 60, h: 80, vx: 0, vy: 0, face: -1, hp, maxHp: hp, state: 'intro', t: 2.0,
+    const d = this.L.tima, hp = this.nPlayers === 2 ? 70 : 50;
+    this.tima = { x: d.x * T - 30, y: (d.y + 1) * T - 80, w: 60, h: 80, vx: 0, vy: 0, face: -1, hp, maxHp: hp, phase: 1, state: 'intro', t: 3.2,
       flash: 0, last: '', say: 'ПИВКА ДЛЯ РЫВКА!', sayT: 2.2, sayCd: 0, barShown: false, air: 0, hyper: 0, dustCd: 6, dustHits: 0, drinkCd: 8,
       g: this.add.graphics().setDepth(4) };
     if (this.puddles) this.puddles = [];
     if (this.furnG) this.setRepo(false);
   },
-  timaSpeak(text, dur) { const v = this.tima; v.say = text; v.sayT = dur || 1.6; },
+  timaSpeak(text, dur) { const v = this.tima; v.say = text; v.sayT = Math.max(dur || 1.6, 1.4 + text.length * 0.07); },
   speedMul(p) {
     if (!this.puddles || !p.onGround) return 1;
     for (const q of this.puddles) if (p.x + p.w > q.x && p.x < q.x + q.w && Math.abs(p.y + p.h - q.y) < 6) return 0.5;
@@ -161,12 +161,29 @@ Object.assign(GameScene.prototype, {
     if (this.repoT > 0) { this.repoT -= dt; if (this.repoT <= 0) { this.setRepo(false); this.sendEv({ k: 'repo', on: 0 }); } }
     if (v.state === 'dead') { v.t -= dt; v.vy = Math.min(v.vy + P.G * dt, P.MAXFALL); this.moveBody(v, dt); return; }
     if (v.hyper > 0) { v.hyper -= dt; if (Math.random() < 0.5) this.dustFx.explode(1, v.x + Math.random() * v.w, v.y + Math.random() * v.h); }
-    const sp = v.hyper > 0 ? 1.55 : 1, phase2 = v.hp <= v.maxHp / 2;
+    const sp = v.hyper > 0 ? 1.55 : 1, phase2 = (v.phase || 1) >= 2, phase3 = (v.phase || 1) >= 3;
     const [tp] = this.nearestPlayer(v.x + v.w / 2, v.y + v.h / 2);
     const tx = tp ? tp.x + 7 : v.x + v.w / 2, vcx = v.x + v.w / 2;
     v.t -= dt * sp;
     switch (v.state) {
       case 'intro': v.vx = 0; if (v.t <= 0) { v.state = 'idle'; v.t = 0.8; } break;
+      case 'rage': v.vx = 0; if (v.t <= 0) { v.state = 'idle'; v.t = 0.3; } break;
+      case 'collWind':
+        v.vx = 0;
+        if (v.t <= 0) {
+          const n = phase3 ? 3 : 2, fl = this.L.floorY * T;
+          for (let i = 0; i < n; i++) { const left = i % 2 === 0; this.projs.push({ kind: 'collector', x: (left ? 2 + i : this.L.W - 3 - i) * T, y: fl - 22, w: 22, h: 22, vx: 0, vy: 0, life: 11, hp: 2, spd: phase3 ? 165 : 130, face: left ? 1 : -1 }); }
+          this.sfx('coin'); v.state = 'recover'; v.t = 0.8;
+        }
+        break;
+      case 'achWind':
+        v.vx = 0;
+        if (v.t <= 0) {
+          const targets = this.alivePlayers().length ? this.alivePlayers() : this.players;
+          for (let i = 0; i < 4; i++) { const p = targets[i % targets.length]; this.projs.push({ kind: 'trophy', x: clamp(p.x + 7 + (i - 1.5) * 90, 2 * T, (this.L.W - 3) * T) - 15, y: 4 * T + 8, w: 30, h: 30, vx: 0, vy: 0, life: 5, bounces: 1, delay: 0.7 + i * 0.25 }); }
+          this.sfx('sparkle'); v.state = 'recover'; v.t = 1.0;
+        }
+        break;
       case 'idle':
         v.face = tx > vcx ? 1 : -1;
         v.vx = Math.abs(tx - vcx) > 180 ? v.face * 80 * sp : 0;
@@ -174,13 +191,18 @@ Object.assign(GameScene.prototype, {
           v.vx = 0;
           if (v.dustCd <= 0 && v.hp < v.maxHp * 0.75 && v.hyper <= 0) { v.state = 'dustDraw'; v.t = 2.2; v.dustHits = 0; this.timaSpeak('ЩАС-ЩАС, НАЧЕРЧУ…', 1.6); this.toastAll('Тима чертит круг для пыли — беги к нему и бей!'); break; }
           if (v.drinkCd <= 0 && v.hp < v.maxHp * 0.85 && Math.random() < 0.5) { v.state = 'drink'; v.t = 1.2; v.drinkCd = 14; this.timaSpeak('БУЛЬ-БУЛЬ…', 1.2); this.sfx('glug'); break; }
-          const opts = ['beer', 'pad', 'ring', 'box', 'bankrupt'].filter((o) => o !== v.last && !(o === 'bankrupt' && (this.repoT > 0 || !phase2 && Math.random() < 0.5)));
+          const pool = ['beer', 'pad', 'ring', 'box', 'bankrupt'];
+          if (phase2 && !this.projs.some((q) => q.kind === 'collector')) pool.push('coll');
+          if (phase3) pool.push('ach', 'ach');
+          const opts = pool.filter((o) => o !== v.last && !(o === 'bankrupt' && (this.repoT > 0 || !phase2 && Math.random() < 0.5)));
           const pick = opts[Math.floor(Math.random() * opts.length)]; v.last = pick;
           if (pick === 'beer') { v.state = 'beerWind'; v.t = 0.5; this.timaSpeak('ЛОВИ ПИВКО!', 1.0); }
           if (pick === 'pad') { v.state = 'pad'; v.t = 2.0; this.timaSpeak('ИКС-БОКС!', 1.2); this.projs.push({ kind: 'pad', x: vcx, y: v.y + 30, w: 26, h: 18, vx: 0, vy: 0, life: 2.2, ang: v.face > 0 ? 0 : Math.PI, rad: 20, spin: v.face }); this.sfx('buzz'); }
           if (pick === 'ring') { v.state = 'ringWind'; v.t = 0.9; this.timaSpeak('КРАСНОЕ КОЛЬЦО!', 1.3); this.sfx('buzz'); }
           if (pick === 'box') { v.state = 'boxWind'; v.t = 0.5; this.timaSpeak('ДЕРЖИ ПРИСТАВКУ!', 1.1); }
           if (pick === 'bankrupt') { v.state = 'bankWind'; v.t = 0.8; this.timaSpeak('БАНКРОТСТВО!', 1.6); this.sfx('roar'); }
+          if (pick === 'coll') { v.state = 'collWind'; v.t = 0.8; this.timaSpeak('КОЛЛЕКТОРЫ, ФАС!', 1.5); }
+          if (pick === 'ach') { v.state = 'achWind'; v.t = 0.7; this.timaSpeak('АЧИВКА РАЗБЛОКИРОВАНА!', 1.6); }
         }
         break;
       case 'beerWind':
@@ -194,7 +216,7 @@ Object.assign(GameScene.prototype, {
           this.sfx('throw'); v.state = 'recover'; v.t = 0.6;
         }
         break;
-      case 'pad': v.vx = 0; if (v.t <= 0) { v.state = 'recover'; v.t = 0.4; } break;
+      case 'pad': v.vx = 0; if (v.t <= 0) { if (phase3 && v.last !== 'ringCombo') { v.last = 'ringCombo'; v.state = 'ringWind'; v.t = 0.55; this.timaSpeak('КОМБО! КОЛЬЦО!', 1.0); this.sfx('buzz'); } else { v.state = 'recover'; v.t = 0.4; } } break;
       case 'ringWind':
         v.vx = 0;
         if (v.t <= 0) {
@@ -234,7 +256,7 @@ Object.assign(GameScene.prototype, {
       case 'dust':
         v.vx = 0;
         if (Math.random() < 0.6) this.dustFx.explode(1, vcx + v.face * 30 + (Math.random() - 0.5) * 30, v.y + 10 + Math.random() * 20);
-        if (v.t <= 0) { v.hyper = 8; v.dustCd = 20; this.timaSpeak('Я БЫСТРЫЙ!', 1.2); this.sfx('sparkle'); this.toastAll('Тима разогнался: бегай от него 8 секунд'); v.state = 'idle'; v.t = 0.3; }
+        if (v.t <= 0) { v.hyper = phase3 ? 9 : 8; v.dustCd = phase3 ? 13 : 20; this.timaSpeak('Я БЫСТРЫЙ!', 1.2); this.sfx('sparkle'); this.toastAll('Тима разогнался: бегай от него 8 секунд'); v.state = 'idle'; v.t = 0.3; }
         break;
       case 'sneeze': v.vx = 0; if (v.t <= 0) { v.state = 'idle'; v.t = 0.5; } break;
       case 'recover': v.vx = 0; if (v.t <= 0) { v.state = 'idle'; v.t = (phase2 ? 0.45 : 0.7); } break;
@@ -245,6 +267,7 @@ Object.assign(GameScene.prototype, {
   bankruptSilk() { for (const p of this.players) if (!p.remote) p.silk = Math.floor(p.silk / 2); },
   damageTima(p) {
     const v = this.tima;
+    if (v.state === 'rage') { Snd.play('clink'); return; }
     v.hp -= 1; v.flash = 0.09; this.gainSilk(p); if (!p.remote) this.hitstop = 0.04; this.sfx('hit'); this.timaHits++;
     this.burst(9, clamp(p.x + 7 + p.face * 28, v.x, v.x + v.w), v.y + v.h / 2, 0xf4f1e6);
     if (v.state === 'drink') { v.state = 'recover'; v.t = 0.4; this.timaSpeak('ЭЙ, РАЗЛИЛ!', 1.0); this.foamAt(12, v.x + v.w / 2, v.y + 30); }
@@ -253,6 +276,7 @@ Object.assign(GameScene.prototype, {
       if (v.dustHits >= 3) { v.state = 'sneeze'; v.t = 1.6; v.dustCd = 14; this.timaSpeak('АПЧХИ!', 1.2); this.sfx('cough'); this.dustFx.explode(30, v.x + v.w / 2 + v.face * 30, v.y + 20); }
     }
     this.ui().bossBar(true, 'Тима Пиво', Math.max(0, v.hp) / v.maxHp);
+    if (this.checkPhase(v, 'Тима Пиво')) { this.timaSpeak(v.phase === 3 ? 'ВСЁ, Я ЗЛОЙ! ДОНАТ НА ВСЁ!' : 'ТЫ ЧЁ, РЕАЛЬНО?!', 2); v.hyper = 0; }
     if (v.sayCd <= 0 && Math.random() < 0.3 && v.state !== 'sneeze') { this.timaSpeak(TIMA_SAY_HIT[Math.floor(Math.random() * TIMA_SAY_HIT.length)], 1.0); v.sayCd = 2.5; }
     if (v.hp <= 0) this.timaDie();
   },

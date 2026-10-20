@@ -160,12 +160,12 @@ Object.assign(GameScene.prototype, {
   },
   makeVladik() {
     if (this.vladik && this.vladik.g) this.vladik.g.destroy();
-    const d = this.L.vladik, hp = this.nPlayers === 2 ? 42 : 30;
-    this.vladik = { x: d.x * T - 22, y: (d.y + 1) * T - 84, w: 44, h: 84, vx: 0, vy: 0, face: -1, hp, maxHp: hp, state: 'intro', t: 2.0,
+    const d = this.L.vladik, hp = this.nPlayers === 2 ? 62 : 44;
+    this.vladik = { x: d.x * T - 22, y: (d.y + 1) * T - 84, w: 44, h: 84, vx: 0, vy: 0, face: -1, hp, maxHp: hp, phase: 1, state: 'intro', t: 3.2,
       flash: 0, last: '', say: 'Я НЕ СКРИПКА!', sayT: 2.2, sayCd: 0, barShown: false, air: 0, target: null, g: this.add.graphics().setDepth(4) };
     if (this.curtains) for (const c of this.curtains) { c.slime = 0; c.wet = 0; }
   },
-  vladikSpeak(text, dur) { const v = this.vladik; v.say = text; v.sayT = dur || 1.6; },
+  vladikSpeak(text, dur) { const v = this.vladik; v.say = text; v.sayT = Math.max(dur || 1.6, 1.4 + text.length * 0.07); },
   curtainHazard(c) { return { x: c.x + 4, y: c.y, w: c.w - 8, h: c.h }; },
 
   stepVladik(dt) {
@@ -180,29 +180,45 @@ Object.assign(GameScene.prototype, {
       }
     }
     if (v.state === 'dead') { v.t -= dt; v.vy = Math.min(v.vy + P.G * dt, P.MAXFALL); this.moveBody(v, dt); return; }
-    const phase2 = v.hp <= v.maxHp / 2;
+    const phase2 = (v.phase || 1) >= 2, phase3 = (v.phase || 1) >= 3;
     const [tp] = this.nearestPlayer(v.x + v.w / 2, v.y + v.h / 2);
     const tx = tp ? tp.x + 7 : v.x + v.w / 2, vcx = v.x + v.w / 2;
     v.t -= dt;
     switch (v.state) {
       case 'intro': v.vx = 0; if (v.t <= 0) { v.state = 'idle'; v.t = 0.7; } break;
+      case 'rage': v.vx = 0; if (v.t <= 0) { v.state = 'idle'; v.t = 0.3; } break;
+      case 'staffWind':
+        v.vx = 0;
+        if (v.t <= 0) { this.vladikStaff(phase3); v.state = 'recover'; v.t = 1.5; }
+        break;
+      case 'lungeWind': v.vx = 0; v.face = tx > vcx ? 1 : -1; if (v.t <= 0) { v.state = 'lunge'; v.t = 0.34; this.sfx('dash'); } break;
+      case 'lunge':
+        v.vx = v.face * 760; if (Math.random() < 0.6) this.burst(1, v.x + v.w / 2 - v.face * 20, v.y + 40, 0xf4efe0);
+        if (v.t <= 0 || v.hitL || v.hitR) { v.state = 'recover'; v.t = 0.75; v.vx = 0; }
+        break;
       case 'idle':
         v.face = tx > vcx ? 1 : -1;
         v.vx = Math.abs(tx - vcx) > 160 ? v.face * 90 : 0;
+        // крещендо: в третьей фазе ноты падают с потолка
+        if (phase3 && Math.random() < dt * 1.4) this.projs.push({ kind: 'note', x: (2 + Math.random() * (this.L.W - 4)) * T, y: 4 * T + 10, w: 14, h: 18, vx: 0, vy: 60, life: 3 });
         if (v.t <= 0) {
           const slimed = this.curtains.filter((c) => c.slime > 0).length;
-          let opts = ['clef', 'leap', 'smear'].filter((o) => o !== v.last);
+          let opts = ['clef', 'leap', 'smear', 'lunge'];
+          if (phase2) opts.push('staff', 'staff');
+          opts = opts.filter((o) => o !== v.last);
           if (slimed >= 3) opts = opts.filter((o) => o !== 'smear');
           const pick = opts[Math.floor(Math.random() * opts.length)]; v.last = pick; v.vx = 0;
           if (pick === 'clef') { v.state = 'clefWind'; v.t = phase2 ? 0.35 : 0.5; }
           if (pick === 'leap') { v.state = 'leapWind'; v.t = 0.4; }
           if (pick === 'smear') this.vladikPickCurtain(phase2);
+          if (pick === 'staff') { v.state = 'staffWind'; v.t = 0.55; this.vladikSpeak('НОТНЫЙ СТАН! ПО ЛИНЕЕЧКАМ!', 1.6); this.sfx('violin'); }
+          if (pick === 'lunge') { v.state = 'lungeWind'; v.t = phase3 ? 0.38 : 0.5; this.vladikSpeak('ВЫПАД!', 1.0); }
         }
         break;
       case 'clefWind':
         v.vx = 0; v.face = tx > vcx ? 1 : -1;
         if (v.t <= 0) {
-          const n = phase2 ? 3 : 1; this.sfx('violin');
+          const n = phase3 ? 4 : phase2 ? 3 : 1; this.sfx('violin');
           for (let i = 0; i < n; i++) {
             const hy = v.y + 20 + i * 26 - (n > 1 ? 10 : 0);
             this.projs.push({ kind: 'clef', x: vcx + v.face * 24 - 14, y: hy, w: 28, h: 40, vx: v.face * (500 + i * 40), ax: -v.face * (680 + i * 40), vy: 0, life: 3.2, t0: i * 0.12, home: vcx, rot: 0 });
@@ -245,10 +261,19 @@ Object.assign(GameScene.prototype, {
         }
         break;
       }
-      case 'recover': v.vx = 0; if (v.t <= 0) { v.state = 'idle'; v.t = phase2 ? 0.35 : 0.6; } break;
+      case 'recover': v.vx = 0; if (v.t <= 0) { v.state = 'idle'; v.t = phase3 ? 0.25 : phase2 ? 0.35 : 0.6; } break;
     }
     v.vy = Math.min(v.vy + P.G * dt, P.MAXFALL);
     this.moveBody(v, dt);
+  },
+  // нотный стан: пять линий во всю ширину, часть загорается — стой на безопасной
+  vladikStaff(phase3) {
+    const fl = this.L.floorY * T, ys = [fl - 16, fl - 104, fl - 168, fl - 236, fl - 300];
+    const patterns = phase3 ? [[0, 2, 4], [1, 3], [0, 3, 4], [1, 2, 4]] : [[0, 2], [1, 3], [0, 4], [1, 4]];
+    const act = patterns[Math.floor(Math.random() * patterns.length)];
+    act.forEach((i) => this.projs.push({ kind: 'staff', x: T, y: ys[i] - 5, w: (this.L.W - 2) * T, h: 10, vx: 0, vy: 0, life: 0.55, delay: 1.0 }));
+    // бледные линии-подсказки на безопасных местах тоже рисуем — чтобы было видно весь стан
+    ys.forEach((y, i) => { if (!act.includes(i)) this.projs.push({ kind: 'staffghost', x: T, y: y - 5, w: (this.L.W - 2) * T, h: 0, vx: 0, vy: 0, life: 1.4 }); });
   },
   vladikPickCurtain(phase2) {
     const v = this.vladik, free = this.curtains.filter((c) => c.slime <= 0);
@@ -262,11 +287,12 @@ Object.assign(GameScene.prototype, {
   smokeAtSlime(c) { this.burst(10, c.x + c.w / 2, c.y + c.h * 0.6, 0x8fdc3a); },
   damageVladik(p) {
     const v = this.vladik;
+    if (v.state === 'rage') { Snd.play('clink'); return; }
     v.hp -= 1; v.flash = 0.09; this.gainSilk(p); if (!p.remote) this.hitstop = 0.04; this.sfx('hit'); this.needleHits++;
     this.burst(9, clamp(p.x + 7 + p.face * 26, v.x, v.x + v.w), v.y + v.h / 2, 0xf4f1e6);
     this.ui().bossBar(true, 'Владик Скрипка', Math.max(0, v.hp) / v.maxHp);
     if (v.sayCd <= 0 && Math.random() < 0.35) { this.vladikSpeak(VLADIK_SAY_HIT[Math.floor(Math.random() * VLADIK_SAY_HIT.length)], 1.2); v.sayCd = 2.5; }
-    if (v.hp === Math.floor(v.maxHp / 2)) { this.vladikSpeak('Я! НЕ! СКРИПКА!!!', 1.6); v.sayCd = 3; this.sfx('violin'); this.toastAll('Владик в ярости: ключи летят по три'); }
+    if (this.checkPhase(v, 'Владик Скрипка')) { this.vladikSpeak(v.phase === 3 ? 'КРЕЩЕНДО!!! Я НЕ СКРИПКА!' : 'Я! НЕ! СКРИПКА!!!', 2); v.sayCd = 3; this.sfx('violin'); }
     if (v.hp <= 0) this.vladikDie();
   },
   vladikDie() {

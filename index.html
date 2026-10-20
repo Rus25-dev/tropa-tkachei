@@ -653,7 +653,7 @@ const Music = {
   resume() { if (this.want && this.cur !== this.want) { const w = this.want; this.cur = null; this.play(w); } },
   tick() {
     const c = this.ctx(), tr = TRACKS[this.cur]; if (!c || !tr || c.state !== 'running') return;
-    const dt = 60 / tr.bpm / (tr.waltz ? 2 : 4);
+    const dt = 60 / (tr.bpm * (this.intensity || 1)) / (tr.waltz ? 2 : 4);
     while (this.nextT < c.currentTime + 0.15) {
       const cd = tr.chords[this.bar % tr.chords.length], ch = chordNotes(cd[0], cd[1]);
       for (const part of tr.parts) this.parts[part].call(this, this.step, ch, this.nextT, dt, tr);
@@ -1015,15 +1015,15 @@ const Lobby = {
 // ===== ИГРА: «Тропа Ткачей» — кооперативная метроидвания =====
 let VW = 960; const VH = 540;
 // версия игры; номер сборки подставляет build.py
-const GAME_VERSION = '0.9';
-const GAME_BUILD = '14 от 20.10.2026';
+const GAME_VERSION = '1.0';
+const GAME_BUILD = '261020.15';
 const CHANGELOG = [
-  'Само предлагает обновиться, если вышла новая сборка',
-  'Миша: фаза «Пропустите!» — вид сверху и коридоры',
-  'Тима чертит круг перед пылью — успей подбежать',
-  'Фоновая музыка у меню, пещеры и каждого босса',
-  'Объёмные фоны: свет, туман, лампы, тени',
-  'Спрыгнуть с платформы: ↓ + прыжок',
+  'Боссы 2.0: у каждого 3 фазы, ярость и новые атаки',
+  'Корнематка: корни из-под земли, двойные прыжки',
+  'Миша: «Диктант!» и застёгнутый рюкзак',
+  'Владик: нотный стан и выпад смычком',
+  'Тима: коллекторы и падающие ачивки',
+  'Фразы и подсказки висят дольше и не перебивают друг друга',
 ];
 // ширина поля подстраивается под пропорции экрана: на вытянутых телефонах без чёрных полос
 function computeVW() {
@@ -1042,11 +1042,11 @@ const PAL = [
   { name: 'Ярь', tag: 'Ta', cloak: 0xd8862a, dark: 0x8a4f16, accent: 0xffd9a0, hex: '#ffc46e' },
 ];
 const MASK = 0xe8e2cf, INK = 0x10141a;
-const PERSIST_KINDS = new Set(['wave', 'rwave', 'pad', 'stamp', 'box', 'clef']);
-const SLASH_KINDS = new Set(['spore', 'letter', 'note', 'bottle']);
+const PERSIST_KINDS = new Set(['wave', 'rwave', 'pad', 'stamp', 'box', 'clef', 'rootspike', 'staff', 'collector', 'trophy']);
+const SLASH_KINDS = new Set(['spore', 'letter', 'note', 'bottle', 'rain', 'collector']);
 const STORY_KINDS = new Set(['spore', 'wave', 'rock']);
-const NET_KINDS = ['spore', 'wave', 'rock', 'letter', 'bigletter', 'bomb', 'clef', 'note', 'drip', 'bottle', 'pad', 'rwave', 'ringfx', 'box', 'stamp'];
-const NET_SIZES = [[12, 12], [24, 18], [16, 16], [22, 26], [56, 60], [12, 12], [28, 40], [14, 18], [8, 10], [10, 22], [26, 18], [24, 18], [0, 0], [36, 22], [80, 44]];
+const NET_KINDS = ['spore', 'wave', 'rock', 'letter', 'bigletter', 'bomb', 'clef', 'note', 'drip', 'bottle', 'pad', 'rwave', 'ringfx', 'box', 'stamp', 'rootspike', 'rain', 'staff', 'collector', 'trophy', 'staffghost'];
+const NET_SIZES = [[12, 12], [24, 18], [16, 16], [22, 26], [56, 60], [12, 12], [28, 40], [14, 18], [8, 10], [10, 22], [26, 18], [24, 18], [0, 0], [36, 22], [80, 44], [36, 70], [22, 26], [1344, 10], [22, 22], [30, 30], [1344, 0]];
 const BOSSES = [
   { id: 'misha', name: 'Миша Додик', about: 'Швыряется печатными буквами. Бей дымовыми бомбами в рюкзак.' },
   { id: 'vladik', name: 'Владик Скрипка', about: 'Кидает скрипичные ключи и мажет шторы слизью. Бей иглой.' },
@@ -1525,8 +1525,8 @@ class GameScene extends Phaser.Scene {
   makeBoss() {
     if (this.boss && this.boss.g) this.boss.g.destroy();
     if (!this.L.boss) { this.boss = { x: -9999, y: -9999, w: 1, h: 1, vx: 0, vy: 0, hp: 1, maxHp: 1, state: 'gone', t: 0, face: 1, flash: 0, g: this.add.graphics() }; return; }
-    const b = this.L.boss, hp = this.nPlayers === 2 ? 54 : 38;
-    this.boss = { x: b.x * T - 36, y: (b.y + 1) * T - 58, w: 72, h: 58, vx: 0, vy: 0, hp, maxHp: hp, state: 'sleep', t: 0, face: -1, flash: 0, last: '', air: 0, g: this.add.graphics().setDepth(4) };
+    const b = this.L.boss, hp = this.nPlayers === 2 ? 84 : 60;
+    this.boss = { x: b.x * T - 36, y: (b.y + 1) * T - 58, w: 72, h: 58, vx: 0, vy: 0, hp, maxHp: hp, phase: 1, state: 'sleep', t: 0, face: -1, jumps: 0, flash: 0, last: '', air: 0, g: this.add.graphics().setDepth(4) };
     if (this.bossDead) { this.boss.state = 'gone'; }
   }
   alivePlayers() { return this.players.filter((p) => !p.downed); }
@@ -1567,6 +1567,7 @@ class GameScene extends Phaser.Scene {
     }
     if (this.online) { this.netSmooth(dt); this.netTick(dt); }
     Music.play(this.musicTrack());
+    Music.intensity = 1 + 0.07 * (this.bossPhaseForMusic() - 1);
     this.render(dt);
     this.updateCamera(dt);
   }
@@ -1714,9 +1715,10 @@ class GameScene extends Phaser.Scene {
       if (local) { if (p.atkDir === 'd') pogo(); else if (p.atkDir === 'f') p.kbx = -p.face * 170; }
     }
     for (const pr of this.projs) if (SLASH_KINDS.has(pr.kind) && !pr.dead && overlap(box, pr)) {
+      if (pr.kind === 'collector') { if (auth) this.hitCollector(pr, p.face); else this.sendEv({ k: 'cut', kind: 'collector', x: Math.round(pr.x), y: Math.round(pr.y), d: p.face }); if (local && p.atkDir === 'd') pogo(); continue; }
       if (auth) {
         pr.dead = true;
-        if (pr.kind === 'letter') { this.paperAt(6, pr.x + 11, pr.y + 13); this.sfx('clink'); }
+        if (pr.kind === 'letter' || pr.kind === 'rain') { this.paperAt(6, pr.x + 11, pr.y + 13); this.sfx('clink'); }
         else if (pr.kind === 'spore') this.burst(6, pr.x + 6, pr.y + 6, 0xc7f08a);
         else { this.burst(6, pr.x + pr.w / 2, pr.y + pr.h / 2, 0xffd47a); this.sfx('clink'); }
       } else if (pr.kind !== 'spore') { pr.dead = true; this.sendEv({ k: 'cut', kind: pr.kind, x: Math.round(pr.x), y: Math.round(pr.y) }); }
@@ -1903,19 +1905,27 @@ class GameScene extends Phaser.Scene {
       b.vy = Math.min(b.vy + P.G * dt, P.MAXFALL); this.moveBody(b, dt); return;
     }
     if (b.state === 'dead') { b.t -= dt; if (b.t <= 0) { b.state = 'gone'; b.g.clear(); } return; }
-    const phase2 = b.hp <= b.maxHp / 2;
+    const phase2 = (b.phase || 1) >= 2, phase3 = (b.phase || 1) >= 3;
     const [tp] = this.nearestPlayer(b.x + b.w / 2, b.y + b.h / 2);
     const tx = tp ? tp.x + 7 : b.x;
     const faceT = () => { b.face = tx > b.x + b.w / 2 ? 1 : -1; };
     b.t -= dt;
     switch (b.state) {
-      case 'roar': b.vx = 0; if (b.t <= 0) { b.state = 'idle'; b.t = 0.6; } break;
+      case 'roar': b.vx = 0; if (b.t <= 0) { b.state = 'idle'; b.t = 1.0; } break;
+      case 'rage': b.vx = 0; if (b.t <= 0) { b.state = 'idle'; b.t = 0.3; } break;
+      case 'rootWind':
+        b.vx = 0; faceT();
+        if (Math.random() < 0.5) this.dust.explode(1, b.x + b.w / 2 + (Math.random() - 0.5) * 60, b.y + b.h);
+        if (b.t <= 0) { this.rootLine(tx, phase3); b.state = 'recover'; b.t = phase3 ? 0.6 : 0.9; }
+        break;
       case 'idle':
         b.vx = 0; faceT();
         if (b.t <= 0) {
-          const opts = ['leap', 'spores', 'charge'].filter((o) => o !== b.last);
+          const pool = ['leap', 'spores', 'charge']; if (phase2) pool.push('roots', 'roots');
+          const opts = pool.filter((o) => o !== b.last);
           const pick = opts[Math.floor(Math.random() * opts.length)]; b.last = pick;
-          if (pick === 'leap') { b.state = 'leapWind'; b.t = 0.38; }
+          if (pick === 'leap') { b.state = 'leapWind'; b.t = 0.38; b.jumps = phase3 ? 2 : 1; }
+          if (pick === 'roots') { b.state = 'rootWind'; b.t = 0.6; this.sfx('slam'); this.shake(500, 0.004); }
           if (pick === 'spores') { b.state = 'sporeWind'; b.t = 0.45; }
           if (pick === 'charge') { b.state = 'chargeWind'; b.t = phase2 ? 0.4 : 0.55; }
         }
@@ -1930,13 +1940,13 @@ class GameScene extends Phaser.Scene {
           b.vx = 0; this.shake(220, 0.012); this.sfx('slam');
           this.dustAt(14, b.x + b.w / 2, b.y + b.h);
           for (const d of [-1, 1]) this.projs.push({ kind: 'wave', x: b.x + b.w / 2 - 12 + d * 30, y: b.y + b.h - 18, w: 24, h: 18, vx: d * (phase2 ? 380 : 320), vy: 0, life: 2.4 });
-          b.state = 'recover'; b.t = phase2 ? 0.4 : 0.6;
+          if (--b.jumps > 0) { b.state = 'leapWind'; b.t = 0.22; } else { b.state = 'recover'; b.t = phase2 ? 0.4 : 0.6; }
         }
         break;
       case 'sporeWind':
         b.vx = 0; faceT();
         if (b.t <= 0) {
-          const n = phase2 ? 5 : 3; this.sfx('spit');
+          const n = phase3 ? 7 : phase2 ? 5 : 3; this.sfx('spit');
           for (let i = 0; i < n; i++) {
             const spread = (i - (n - 1) / 2);
             const dist = tx - (b.x + b.w / 2);
@@ -1953,7 +1963,7 @@ class GameScene extends Phaser.Scene {
         b.vx = b.face * (phase2 ? 460 : 400);
         break;
       case 'stun': b.vx = 0; if (b.t <= 0) { b.state = 'idle'; b.t = phase2 ? 0.35 : 0.6; } break;
-      case 'recover': b.vx = 0; if (b.t <= 0) { b.state = 'idle'; b.t = phase2 ? 0.35 : 0.6; } break;
+      case 'recover': b.vx = 0; if (b.t <= 0) { b.state = 'idle'; b.t = phase3 ? 0.25 : phase2 ? 0.35 : 0.6; } break;
     }
     b.vy = Math.min(b.vy + P.G * dt, P.MAXFALL);
     const was = b.state;
@@ -1967,10 +1977,21 @@ class GameScene extends Phaser.Scene {
   }
   damageBoss(p) {
     const b = this.boss;
+    if (b.state === 'rage') { Snd.play('clink'); return; }
     b.hp -= 1; b.flash = 0.09; this.gainSilk(p); if (!p.remote) this.hitstop = 0.04; this.sfx('hit');
     this.burst(10, clamp(p.x + 7 + p.face * 30, b.x, b.x + b.w), b.y + b.h / 2, 0xf4f1e6);
     this.ui().bossBar(true, 'Корнематка', b.hp / b.maxHp);
-    if (b.hp <= 0) this.killBoss();
+    if (b.hp <= 0) this.killBoss(); else this.checkPhase(b, 'Корнематка');
+  }
+  // корни из-под земли: цепочка шипов от босса к игроку и шип прямо под ним
+  rootLine(tx, phase3) {
+    const b = this.boss, fy = (this.L.boss.floorY || Math.floor((b.y + b.h) / T)) * T, ax0 = this.L.boss.arenaX0 * T + T, ax1 = this.L.boss.arenaX1 * T - T;
+    const bx = b.x + b.w / 2, dir = Math.sign(tx - bx) || b.face, xs = [];
+    for (let x = bx + dir * 60, i = 0; dir > 0 ? x < ax1 : x > ax0; x += dir * 52, i++) xs.push([x, 0.5 + i * 0.09]);
+    xs.push([tx, 0.75]);
+    if (phase3) for (let x = bx - dir * 60, i = 0; dir > 0 ? x > ax0 : x < ax1; x -= dir * 52, i++) xs.push([x, 0.8 + i * 0.09]);
+    const groundY = b.y + b.h;
+    for (const [x, delay] of xs) this.projs.push({ kind: 'rootspike', x: clamp(x, ax0, ax1) - 18, y: groundY - 70, w: 36, h: 70, vx: 0, vy: 0, life: 0.55, delay });
   }
   killBoss() {
     const b = this.boss; b.state = 'dead'; b.t = 1.4; this.bossDead = true;
@@ -2008,6 +2029,8 @@ class GameScene extends Phaser.Scene {
       else if (pr.kind === 'note') this.stepNote(pr, dt);
       else if (pr.kind === 'drip') this.stepDrip(pr, dt);
       else if (pr.kind === 'ringfx') { this.stepTimaProj(pr, dt); continue; }
+      else if (pr.kind === 'staffghost') continue;
+      else if (this.stepExtraProj(pr, dt)) { /* новые снаряды боссов 2.0 */ }
       else if (this.tima) this.stepTimaProj(pr, dt);
       if (pr.dead) continue;
       for (const p of this.players) if (!p.remote && !p.downed && p.inv <= 0 && overlap(inset(p, 2), pr)) { this.hurtPlayer(p, 1, pr.x + pr.w / 2); if (!PERSIST_KINDS.has(pr.kind)) pr.dead = true; }
@@ -2062,7 +2085,7 @@ class GameScene extends Phaser.Scene {
       vl: vl ? [r(vl.x), r(vl.y), vl.face, vl.hp, vl.maxHp, vl.state, vl.flash > 0 ? 1 : 0, r10(vl.t), vl.sayT > 0 ? vl.say : '', this.curtains.map((c) => [r10(c.slime), Math.round(c.wet * 100) / 100])] : null,
       tm: tm ? [r(tm.x), r(tm.y), tm.face, tm.hp, tm.maxHp, tm.state, tm.flash > 0 ? 1 : 0, r10(tm.t), tm.sayT > 0 ? tm.say : '', r10(tm.hyper), this.repo ? 1 : 0, this.puddles.map((q) => [r(q.x), q.w, r(q.y), r10(q.t)])] : null,
       td: this.td ? [this.td.state, this.td.lane, r(this.td.mx), this.td.blocks, this.td.need, this.td.sayT > 0 ? this.td.say : ''] : null,
-      mi: mi ? [r(mi.x), r(mi.y), mi.face, mi.hp, mi.maxHp, mi.state, mi.flash > 0 ? 1 : 0, Math.round(mi.t * 100) / 100, mi.sayT > 0 ? mi.say : ''] : null,
+      mi: mi ? [r(mi.x), r(mi.y), mi.face, mi.hp, mi.maxHp, mi.state, mi.flash > 0 ? 1 : 0, Math.round(mi.t * 100) / 100, mi.sayT > 0 ? mi.say : '', r10(mi.zipT || 0)] : null,
       bd: this.beadsArr.map((d) => [r(d.x), r(d.y)]), bc: this.beads,
       g: this.gates.map((gt) => (gt.closed ? 1 : 0)), bD: this.bossDead ? 1 : 0, rs: [r(this.respawn.x), r(this.respawn.y)] };
   }
@@ -2118,6 +2141,7 @@ class GameScene extends Phaser.Scene {
       if (mm.tx == null || Math.abs(mm.x - M[0]) > 140) { mm.x = M[0]; mm.y = M[1]; }
       mm.tx = M[0]; mm.ty = M[1]; mm.face = M[2]; mm.hp = M[3]; mm.maxHp = M[4]; mm.state = M[5]; if (M[6]) mm.flash = 0.1; mm.t = M[7];
       if (M[8]) { mm.say = M[8]; mm.sayT = 0.2; }
+      mm.zipT = M[9] || 0;
       const showM = mm.state !== 'dead';
       if (showM !== !!this._mb) { this._mb = showM; this.ui().bossBar(showM, 'Миша Додик'); }
       if (showM) this.ui().bossBar(true, null, Math.max(0, mm.hp) / mm.maxHp);
@@ -2140,7 +2164,8 @@ class GameScene extends Phaser.Scene {
         if (this.auth()) {
           const kind = m.kind || 'letter';
           const q = this.projs.find((pr) => pr.kind === kind && !pr.dead && Math.abs(pr.x - m.x) < 40 && Math.abs(pr.y - m.y) < 40);
-          if (q) { q.dead = true; if (kind === 'letter') this.paperAt(6, q.x + 11, q.y + 13); else this.burst(6, q.x + q.w / 2, q.y + q.h / 2, 0xffd47a); this.sfx('clink'); }
+          if (q && kind === 'collector') { this.hitCollector(q, m.d || 1); break; }
+          if (q) { q.dead = true; if (kind === 'letter' || kind === 'rain') this.paperAt(6, q.x + 11, q.y + 13); else this.burst(6, q.x + q.w / 2, q.y + q.h / 2, 0xffd47a); this.sfx('clink'); }
         }
         break;
       case 'repo': if (!this.auth() && this.tima) this.setRepo(!!m.on); break;
@@ -2150,6 +2175,8 @@ class GameScene extends Phaser.Scene {
       case 'dust': this.dust.explode(m.n, m.x, m.y); break;
       case 'shake': this.cameras.main.shake(m.d, m.i); break;
       case 'toast': this.ui().toast(m.m); break;
+      case 'flash': this.cameras.main.flash(260, 255, 240, 220); break;
+      case 'kb': this.knockFrom(m.x); break;
       case 'silk': { const p = this.players[m.i]; if (p && !p.remote) p.silk = Math.min(P.SILK, p.silk + 1); break; }
       case 'bench':
         this.respawn = { x: m.x, y: m.y };
@@ -2190,7 +2217,9 @@ class GameScene extends Phaser.Scene {
         if (pr.kind === 'pad') continue;
         if (pr.kind === 'clef' || pr.kind === 'bottle') pr.rot = (pr.rot || 0) + dt * 10;
         if (pr.kind === 'spore') pr.vy += 700 * dt;
-        else if (['rock', 'bigletter', 'bomb', 'note', 'drip', 'bottle', 'box', 'stamp'].includes(pr.kind)) pr.vy = Math.min(pr.vy + 1100 * dt, 800);
+        if (pr.kind === 'rootspike' || pr.kind === 'staff' || pr.kind === 'staffghost') continue;
+        if (pr.kind === 'collector') { pr.vx = 0; pr.vy = 0; continue; }
+        else if (['rock', 'bigletter', 'bomb', 'note', 'drip', 'bottle', 'box', 'stamp', 'trophy'].includes(pr.kind)) pr.vy = Math.min(pr.vy + 1100 * dt, 800);
         pr.x += pr.vx * dt; pr.y += pr.vy * dt;
         if (pr.kind === 'wave' && Math.random() < 0.3) this.dust.explode(1, pr.x + pr.w / 2, pr.y + pr.h);
       }
@@ -2199,7 +2228,7 @@ class GameScene extends Phaser.Scene {
   guestProjHits() {
     for (const p of this.players) {
       if (p.remote || p.downed || p.inv > 0) continue;
-      for (const pr of this.projs) if (!pr.dead && !pr.delay && pr.kind !== 'bomb' && pr.kind !== 'ringfx' && overlap(inset(p, 2), pr)) { this.hurtPlayer(p, 1, pr.x + pr.w / 2); if (!PERSIST_KINDS.has(pr.kind)) pr.dead = true; break; }
+      for (const pr of this.projs) if (!pr.dead && !pr.delay && pr.kind !== 'bomb' && pr.kind !== 'ringfx' && pr.kind !== 'staffghost' && overlap(inset(p, 2), pr)) { this.hurtPlayer(p, 1, pr.x + pr.w / 2); if (!PERSIST_KINDS.has(pr.kind)) pr.dead = true; break; }
     }
     this.projs = this.projs.filter((q) => !q.dead);
   }
@@ -2292,6 +2321,7 @@ class GameScene extends Phaser.Scene {
     }
     if (this.vladik) this.drawVladikProjs(now);
     if (this.tima) { this.drawTimaProjs(now); this.drawStampLabels(); }
+    this.drawExtraProjs(now);
     // бусины
     for (const bd of this.beadsArr) {
       fx.fillStyle(0xffd47a, 0.25); fx.fillCircle(bd.x + 4, bd.y + 4, 7);
@@ -2551,11 +2581,25 @@ class UIScene extends Phaser.Scene {
   retry() { const d = { ...this.gs.startData }; this.ready = false; this.scene.stop('bg'); this.scene.start('game', d); }
   removePlayer(i) { if (this.names[i]) this.names[i].setVisible(false); }
   showPause(on) { if (this.ready) this.pause.setVisible(on); }
-  toast(msg) {
+  // очередь подсказок: каждая висит, пока её можно спокойно дочитать, новые не перебивают старые
+  toast(msg, hold) {
     if (!this.ready) return;
-    if (!msg) { this.toastTxt.setAlpha(0); return; }
-    this.toastTxt.setText(msg).setAlpha(1); this.tweens.killTweensOf(this.toastTxt);
-    this.tweens.add({ targets: this.toastTxt, alpha: 0, delay: 2600, duration: 600 });
+    if (!msg) { this.toastQ = []; this.toastBusy = false; this.tweens.killTweensOf(this.toastTxt); this.toastTxt.setAlpha(0); return; }
+    this.toastQ = this.toastQ || [];
+    if (this.toastQ.some((q) => q.msg === msg) || (this.toastBusy && this.toastCur === msg)) return;
+    this.toastQ.push({ msg, hold });
+    if (this.toastQ.length > 3) this.toastQ.shift();
+    if (!this.toastBusy) this.nextToast();
+  }
+  nextToast() {
+    const q = (this.toastQ || []).shift();
+    if (!q) { this.toastBusy = false; this.toastCur = ''; return; }
+    this.toastBusy = true; this.toastCur = q.msg;
+    const ms = (q.hold || clamp(2.2 + q.msg.length * 0.05, 3, 6)) * 1000 * (this.toastQ.length ? 0.8 : 1);
+    this.tweens.killTweensOf(this.toastTxt);
+    this.toastTxt.setText(q.msg).setAlpha(0);
+    this.tweens.add({ targets: this.toastTxt, alpha: 1, duration: 180 });
+    this.tweens.add({ targets: this.toastTxt, alpha: 0, delay: ms, duration: 450, onComplete: () => this.nextToast() });
   }
   areaTitle(name) {
     if (!this.ready) return;
@@ -2731,13 +2775,13 @@ Object.assign(GameScene.prototype, {
   },
   makeMisha() {
     if (this.misha && this.misha.g) this.misha.g.destroy();
-    const d = this.L.misha, hp = this.nPlayers === 2 ? 8 : 6;
-    this.misha = { x: d.x * T - 28, y: (d.y + 1) * T - 74, w: 56, h: 74, vx: 0, vy: 0, face: -1, hp, maxHp: hp, state: 'intro', t: 1.8,
-      flash: 0, last: '', turnT: 0, hitCd: 0, tdMarks: [Math.ceil(hp * 2 / 3), Math.ceil(hp / 3)], tdUsed: [], tdQueue: false, say: 'ЭЙ! ЭТО МОЙ РЮКЗАК!', sayT: 2.2, barShown: false, g: this.add.graphics().setDepth(4) };
+    const d = this.L.misha, hp = this.nPlayers === 2 ? 11 : 8;
+    this.misha = { x: d.x * T - 28, y: (d.y + 1) * T - 74, w: 56, h: 74, vx: 0, vy: 0, face: -1, hp, maxHp: hp, state: 'intro', t: 3.2,
+      flash: 0, last: '', turnT: 0, hitCd: 0, tdMarks: [Math.ceil(hp * 2 / 3), Math.ceil(hp / 3)], tdUsed: [], tdQueue: false, say: 'ЭЙ! ЭТО МОЙ РЮКЗАК!', sayT: 3.0, zipT: 0, barShown: false, g: this.add.graphics().setDepth(4) };
   },
   mishaBag(m) { const cx = m.x + m.w / 2; return { x: cx - 26 * m.face - 15, y: m.y + 12, w: 30, h: 40 }; },
   smokeAt(n, x, y) { this.smoke.explode(n, x, y); if (this.online === 'host') this.sendEv({ k: 'smoke', n, x: Math.round(x), y: Math.round(y) }); },
-  mishaSpeak(text, dur) { const m = this.misha; m.say = text; m.sayT = dur || 1.6; },
+  mishaSpeak(text, dur) { const m = this.misha; m.say = text; m.sayT = Math.max(dur || 1.6, 1.4 + text.length * 0.07); },
 
   // ----- бомбы игроков -----
   throwBomb(p) {
@@ -2763,7 +2807,11 @@ Object.assign(GameScene.prototype, {
       const bag = this.mishaBag(m), behind = (cx - (m.x + m.w / 2)) * m.face < 0;
       // падающая сверху бомба «залетает» в открытую молнию — зона над рюкзаком шире
       const mouth = pr.vy > 0 ? { x: bag.x - 8, y: bag.y - 26, w: bag.w + 16, h: bag.h + 26 } : bag;
-      if (behind && overlap(pr, mouth)) { pr.dead = true; this.mishaBagHit(pr); return; }
+      if (behind && overlap(pr, mouth)) {
+        pr.dead = true;
+        if (m.zipT > 0) { this.smokeAt(5, bag.x + 15, bag.y); this.sfx('clink'); if (m.sayT <= 0) this.mishaSpeak('ЗАКРЫТО!', 1.0); return; }
+        this.mishaBagHit(pr); return;
+      }
       if (overlap(pr, inset(m, 4))) {
         pr.dead = true; this.smokeAt(6, cx, cy); this.sfx('puff');
         if (Math.random() < 0.5) this.mishaSpeak(m.state === 'cough' ? 'МИМО!' : 'ХА, МИМО!', 1.1);
@@ -2796,7 +2844,7 @@ Object.assign(GameScene.prototype, {
     if (!m || p.atkHits.has(m) || ['dead', 'intro'].includes(m.state) || !overlap(box, m)) return false;
     p.atkHits.add(m); m.flash = 0.06;
     this.gainSilk(p); Snd.play('clink'); this.parts.setParticleTint(0xffffff); this.parts.explode(5, clamp(p.x + 7 + p.face * 26, m.x, m.x + m.w), m.y + m.h / 2);
-    if (!this._needleTip) { this._needleTip = true; this.ui().toast('Иглой Мишу не пробить. Дымовуху ему в рюкзак!'); }
+    if (!this._needleTip) { this._needleTip = true; this.ui().toast('Иглой Мишу не пробить. Дымовуху ему в рюкзак!', 5.5); }
     return true;
   },
 
@@ -2804,6 +2852,7 @@ Object.assign(GameScene.prototype, {
   stepMisha(dt) {
     const m = this.misha; if (!m) return;
     m.flash -= dt; m.hitCd -= dt; m.sayT -= dt;
+    if (m.zipT > 0) { m.zipT -= dt; if (m.zipT <= 0) { this.mishaSpeak('ФУХ, ЖАРКО… ОТКРОЮ', 1.6); this.sfx('puff'); } }
     if (!m.barShown && this.ui().ready) { m.barShown = true; this.ui().bossBar(true, 'Миша Додик', m.hp / m.maxHp); }
     if (m.state === 'dead') { m.t -= dt; m.vy = Math.min(m.vy + P.G * dt, P.MAXFALL); this.moveBody(m, dt); return; }
     const phase2 = m.hp <= m.maxHp / 2;
@@ -2817,14 +2866,24 @@ Object.assign(GameScene.prototype, {
         if (want !== m.face) { m.turnT += dt; if (m.turnT > (phase2 ? 0.32 : 0.5)) { m.face = want; m.turnT = 0; } } else m.turnT = 0;
         m.vx = Math.abs(tx - mcx) > 220 ? m.face * 70 : 0;
         if (m.t <= 0) {
-          const opts = ['letters', 'big', 'charge'].filter((o) => o !== m.last);
+          const late = m.tdUsed.length;
+          let opts = ['letters', 'big', 'charge'];
+          if (late >= 1) opts.push('dict', 'dict');
+          if (late >= 2 && m.zipT <= 0) opts.push('zip');
+          opts = opts.filter((o) => o !== m.last);
           const pick = opts[Math.floor(Math.random() * opts.length)]; m.last = pick; m.vx = 0;
           if (pick === 'letters') this.mishaWord(phase2);
           if (pick === 'big') { m.state = 'bigWind'; m.t = 0.6; this.mishaSpeak('ДЕТДОМ!', 1.2); }
           if (pick === 'charge') { m.state = 'chargeWind'; m.t = phase2 ? 0.45 : 0.6; m.face = want; this.mishaSpeak('С ДОРОГИ!', 1.0); }
+          if (pick === 'dict') { m.state = 'dictWind'; m.t = 0.8; this.mishaSpeak('ДИКТАНТ! ПИШЕМ!', 1.4); this.sfx('roar'); }
+          if (pick === 'zip') { m.zipT = 4.5; m.state = 'recover'; m.t = 0.5; this.mishaSpeak('ЗАКРЫЛ! ХА-ХА!', 1.6); this.sfx('gate'); this.toastAll('Рюкзак застёгнут — подожди, пока Мише станет жарко'); }
         }
         break;
       }
+      case 'dictWind':
+        m.vx = 0;
+        if (m.t <= 0) { this.mishaDictation(m.tdUsed.length >= 2 ? 2 : 1); m.state = 'recover'; m.t = 1.4; }
+        break;
       case 'word': m.vx = 0; if (m.t <= 0) { m.state = 'recover'; m.t = phase2 ? 0.45 : 0.7; } break;
       case 'bigWind':
         m.vx = 0;
@@ -2864,6 +2923,18 @@ Object.assign(GameScene.prototype, {
     for (let i = 0; i < word.length; i++) {
       this.projs.push({ kind: 'letter', ch: word[i], x: cx - ((word.length - 1) * step) / 2 + i * step - 11, y: m.y - 100, w: 22, h: 26,
         vx: 0, vy: 0, life: 4, delay: 0.5 + i * 0.13, launched: false, spd: phase2 ? 440 : 360, bounce: phase2 ? 1 : 0 });
+    }
+  },
+  // диктант: буквы падают стеной по всей ширине, в стене есть проём — найди его
+  mishaDictation(waves) {
+    const x0 = 2 * T, x1 = (this.L.W - 2) * T, step = 36, cols = Math.floor((x1 - x0) / step);
+    const word = 'ДИКТАНТПРОВЕРКАОШИБОКДВОЙКА';
+    for (let w = 0; w < waves; w++) {
+      const gap = 2 + Math.floor(Math.random() * (cols - 5));
+      for (let i = 0; i < cols; i++) {
+        if (i >= gap && i <= gap + 2) continue;
+        this.projs.push({ kind: 'rain', ch: word[(i + w * 5) % word.length], x: x0 + i * step, y: 4 * T + 6, w: 22, h: 26, vx: 0, vy: 330 + w * 40, life: 4, delay: 0.9 + w * 1.5 + i * 0.012 });
+      }
     }
   },
   stepLetter(pr, dt) {
@@ -2910,9 +2981,13 @@ Object.assign(GameScene.prototype, {
     g.fillStyle(fl ? 0xffffff : 0xe08a2c, 1); g.fillRoundedRect(bx, by, 30, 40, 7);
     g.fillStyle(fl ? 0xffffff : 0xa85f17, 1); g.fillRoundedRect(bx + 2, by + 22, 26, 14, 4);
     g.lineStyle(1.5, 0x6a3a0c, 1); g.strokeRoundedRect(bx + 2, by + 22, 26, 14, 4); g.lineBetween(bx + 8, by + 29, bx + 22, by + 29);
-    g.fillStyle(0x1a1410, 1); g.fillEllipse(bx + 15, by + 2, 24, 8); // открытая молния — цель
+    if (m.zipT > 0) { // застёгнут: молния и замок
+      g.lineStyle(2, 0x6a3a0c, 1); g.lineBetween(bx + 3, by + 3, bx + 27, by + 3);
+      for (let k = 0; k < 8; k++) g.lineBetween(bx + 4 + k * 3, by + 1, bx + 4 + k * 3, by + 5);
+      g.fillStyle(0xc9a227, 1); g.fillRoundedRect(bx + 11, by + 3, 8, 8, 2); g.lineStyle(1.5, 0xc9a227, 1); g.strokeCircle(bx + 15, by + 2, 3);
+    } else { g.fillStyle(0x1a1410, 1); g.fillEllipse(bx + 15, by + 2, 24, 8); } // открытая молния — цель
     const anyBombs = this.players.some((p) => p.bombs > 0);
-    if (anyBombs && !dead) { g.lineStyle(2, 0xffd47a, 0.35 + Math.sin(now * 5) * 0.25); g.strokeEllipse(bx + 15, by + 2, 30, 12); }
+    if (anyBombs && !dead && !(m.zipT > 0)) { g.lineStyle(2, 0xffd47a, 0.35 + Math.sin(now * 5) * 0.25); g.strokeEllipse(bx + 15, by + 2, 30, 12); }
     // тело-толстовка с сегментами
     g.fillStyle(fl ? 0xffffff : 0x4f5b78, 1); g.fillEllipse(cx + 2 * f, fy - 32 + hunch * 0.5, 52, 46);
     g.lineStyle(2, 0x3a4560, 1);
@@ -2956,10 +3031,12 @@ Object.assign(GameScene.prototype, {
   drawLetters(now) {
     let li = 0, bi = 0;
     for (const pr of this.projs) {
-      if (pr.kind === 'letter') {
+      if (pr.kind === 'letter' || pr.kind === 'rain') {
         let t = this.letterPool[li];
         if (!t) { t = this.add.text(0, 0, '', { fontFamily: '"Fira Sans", sans-serif', fontSize: '28px', fontStyle: '700', color: '#f4efe0', stroke: '#1a1410', strokeThickness: 5 }).setOrigin(0.5).setDepth(6.2); this.letterPool.push(t); }
-        const hover = pr.delay > 0;
+        const hover = pr.delay > 0, rain = pr.kind === 'rain';
+        if (rain) { t.setText(pr.ch).setPosition(pr.x + 11, pr.y + 13).setVisible(true).setRotation(0).setColor(hover ? '#ff9a7a' : '#f4efe0').setAlpha(hover ? 0.45 + Math.sin(now * 18) * 0.2 : 1); li++; continue; }
+        t.setAlpha(1);
         t.setText(pr.ch).setPosition(pr.x + 11, pr.y + 13 + (hover ? Math.sin(now * 8 + li) * 3 : 0)).setVisible(true)
           .setRotation(hover ? 0 : now * 9 + li).setColor(hover ? '#ffd47a' : '#f4efe0');
         li++;
@@ -3035,7 +3112,7 @@ Object.assign(GameScene.prototype, {
     const td = this.td, G = this.tdGeo();
     let lane = Math.floor(Math.random() * 3); if (lane === td.lane && Math.random() < 0.6) lane = (lane + 1 + Math.floor(Math.random() * 2)) % 3;
     td.lane = lane; td.mx = G.start; td.state = 'tele'; td.t = 1.1; td.round++;
-    td.say = ['ПОСТОРОНИСЬ!', 'Я ПРОЙДУ!', 'С ДОРОГИ!'][td.round % 3]; td.sayT = 1.0;
+    td.say = ['ПОСТОРОНИСЬ!', 'Я ПРОЙДУ!', 'С ДОРОГИ!'][td.round % 3]; td.sayT = 1.6;
   },
   tdMove(p, dt) {
     const G = this.tdGeo(), inp = p.inp || {}, r = 12;
@@ -3064,13 +3141,13 @@ Object.assign(GameScene.prototype, {
         const ln = G.lanes[td.lane];
         const blocker = this.players.find((p) => !p.downed && p.tdy > ln.y0 + 4 && p.tdy < ln.y1 - 4 && p.tdx - td.mx > 14 && p.tdx - td.mx < 46);
         if (blocker) {
-          td.blocks++; td.state = 'blocked'; td.t = 1.3; td.say = 'ПРОПУСТИТЕ!'; td.sayT = 1.3;
+          td.blocks++; td.state = 'blocked'; td.t = 1.3; td.say = 'ПРОПУСТИТЕ!'; td.sayT = 1.6;
           this.sfx('roar'); this.shake(220, 0.006);
-        } else if (td.mx >= G.goal) { td.state = 'through'; td.t = 1.3; td.say = 'ПРОШЁЛ! ХА!'; td.sayT = 1.3; this.sfx('win'); }
+        } else if (td.mx >= G.goal) { td.state = 'through'; td.t = 1.3; td.say = 'ПРОШЁЛ! ХА!'; td.sayT = 1.6; this.sfx('win'); }
         break;
       }
       case 'blocked':
-        if (td.t <= 0) { if (td.blocks >= td.need) { td.state = 'win'; td.t = 1.0; td.say = 'ВСЁ, ВСЁ, ПОНЯЛ…'; td.sayT = 1.0; } else this.tdPickLane(); }
+        if (td.t <= 0) { if (td.blocks >= td.need) { td.state = 'win'; td.t = 1.0; td.say = 'ВСЁ, ВСЁ, ПОНЯЛ…'; td.sayT = 1.6; } else this.tdPickLane(); }
         break;
       case 'through': if (td.t <= 0) this.tdEnd(false); break;
       case 'win': if (td.t <= 0) this.tdEnd(true); break;
@@ -3240,12 +3317,12 @@ Object.assign(GameScene.prototype, {
   },
   makeVladik() {
     if (this.vladik && this.vladik.g) this.vladik.g.destroy();
-    const d = this.L.vladik, hp = this.nPlayers === 2 ? 42 : 30;
-    this.vladik = { x: d.x * T - 22, y: (d.y + 1) * T - 84, w: 44, h: 84, vx: 0, vy: 0, face: -1, hp, maxHp: hp, state: 'intro', t: 2.0,
+    const d = this.L.vladik, hp = this.nPlayers === 2 ? 62 : 44;
+    this.vladik = { x: d.x * T - 22, y: (d.y + 1) * T - 84, w: 44, h: 84, vx: 0, vy: 0, face: -1, hp, maxHp: hp, phase: 1, state: 'intro', t: 3.2,
       flash: 0, last: '', say: 'Я НЕ СКРИПКА!', sayT: 2.2, sayCd: 0, barShown: false, air: 0, target: null, g: this.add.graphics().setDepth(4) };
     if (this.curtains) for (const c of this.curtains) { c.slime = 0; c.wet = 0; }
   },
-  vladikSpeak(text, dur) { const v = this.vladik; v.say = text; v.sayT = dur || 1.6; },
+  vladikSpeak(text, dur) { const v = this.vladik; v.say = text; v.sayT = Math.max(dur || 1.6, 1.4 + text.length * 0.07); },
   curtainHazard(c) { return { x: c.x + 4, y: c.y, w: c.w - 8, h: c.h }; },
 
   stepVladik(dt) {
@@ -3260,29 +3337,45 @@ Object.assign(GameScene.prototype, {
       }
     }
     if (v.state === 'dead') { v.t -= dt; v.vy = Math.min(v.vy + P.G * dt, P.MAXFALL); this.moveBody(v, dt); return; }
-    const phase2 = v.hp <= v.maxHp / 2;
+    const phase2 = (v.phase || 1) >= 2, phase3 = (v.phase || 1) >= 3;
     const [tp] = this.nearestPlayer(v.x + v.w / 2, v.y + v.h / 2);
     const tx = tp ? tp.x + 7 : v.x + v.w / 2, vcx = v.x + v.w / 2;
     v.t -= dt;
     switch (v.state) {
       case 'intro': v.vx = 0; if (v.t <= 0) { v.state = 'idle'; v.t = 0.7; } break;
+      case 'rage': v.vx = 0; if (v.t <= 0) { v.state = 'idle'; v.t = 0.3; } break;
+      case 'staffWind':
+        v.vx = 0;
+        if (v.t <= 0) { this.vladikStaff(phase3); v.state = 'recover'; v.t = 1.5; }
+        break;
+      case 'lungeWind': v.vx = 0; v.face = tx > vcx ? 1 : -1; if (v.t <= 0) { v.state = 'lunge'; v.t = 0.34; this.sfx('dash'); } break;
+      case 'lunge':
+        v.vx = v.face * 760; if (Math.random() < 0.6) this.burst(1, v.x + v.w / 2 - v.face * 20, v.y + 40, 0xf4efe0);
+        if (v.t <= 0 || v.hitL || v.hitR) { v.state = 'recover'; v.t = 0.75; v.vx = 0; }
+        break;
       case 'idle':
         v.face = tx > vcx ? 1 : -1;
         v.vx = Math.abs(tx - vcx) > 160 ? v.face * 90 : 0;
+        // крещендо: в третьей фазе ноты падают с потолка
+        if (phase3 && Math.random() < dt * 1.4) this.projs.push({ kind: 'note', x: (2 + Math.random() * (this.L.W - 4)) * T, y: 4 * T + 10, w: 14, h: 18, vx: 0, vy: 60, life: 3 });
         if (v.t <= 0) {
           const slimed = this.curtains.filter((c) => c.slime > 0).length;
-          let opts = ['clef', 'leap', 'smear'].filter((o) => o !== v.last);
+          let opts = ['clef', 'leap', 'smear', 'lunge'];
+          if (phase2) opts.push('staff', 'staff');
+          opts = opts.filter((o) => o !== v.last);
           if (slimed >= 3) opts = opts.filter((o) => o !== 'smear');
           const pick = opts[Math.floor(Math.random() * opts.length)]; v.last = pick; v.vx = 0;
           if (pick === 'clef') { v.state = 'clefWind'; v.t = phase2 ? 0.35 : 0.5; }
           if (pick === 'leap') { v.state = 'leapWind'; v.t = 0.4; }
           if (pick === 'smear') this.vladikPickCurtain(phase2);
+          if (pick === 'staff') { v.state = 'staffWind'; v.t = 0.55; this.vladikSpeak('НОТНЫЙ СТАН! ПО ЛИНЕЕЧКАМ!', 1.6); this.sfx('violin'); }
+          if (pick === 'lunge') { v.state = 'lungeWind'; v.t = phase3 ? 0.38 : 0.5; this.vladikSpeak('ВЫПАД!', 1.0); }
         }
         break;
       case 'clefWind':
         v.vx = 0; v.face = tx > vcx ? 1 : -1;
         if (v.t <= 0) {
-          const n = phase2 ? 3 : 1; this.sfx('violin');
+          const n = phase3 ? 4 : phase2 ? 3 : 1; this.sfx('violin');
           for (let i = 0; i < n; i++) {
             const hy = v.y + 20 + i * 26 - (n > 1 ? 10 : 0);
             this.projs.push({ kind: 'clef', x: vcx + v.face * 24 - 14, y: hy, w: 28, h: 40, vx: v.face * (500 + i * 40), ax: -v.face * (680 + i * 40), vy: 0, life: 3.2, t0: i * 0.12, home: vcx, rot: 0 });
@@ -3325,10 +3418,19 @@ Object.assign(GameScene.prototype, {
         }
         break;
       }
-      case 'recover': v.vx = 0; if (v.t <= 0) { v.state = 'idle'; v.t = phase2 ? 0.35 : 0.6; } break;
+      case 'recover': v.vx = 0; if (v.t <= 0) { v.state = 'idle'; v.t = phase3 ? 0.25 : phase2 ? 0.35 : 0.6; } break;
     }
     v.vy = Math.min(v.vy + P.G * dt, P.MAXFALL);
     this.moveBody(v, dt);
+  },
+  // нотный стан: пять линий во всю ширину, часть загорается — стой на безопасной
+  vladikStaff(phase3) {
+    const fl = this.L.floorY * T, ys = [fl - 16, fl - 104, fl - 168, fl - 236, fl - 300];
+    const patterns = phase3 ? [[0, 2, 4], [1, 3], [0, 3, 4], [1, 2, 4]] : [[0, 2], [1, 3], [0, 4], [1, 4]];
+    const act = patterns[Math.floor(Math.random() * patterns.length)];
+    act.forEach((i) => this.projs.push({ kind: 'staff', x: T, y: ys[i] - 5, w: (this.L.W - 2) * T, h: 10, vx: 0, vy: 0, life: 0.55, delay: 1.0 }));
+    // бледные линии-подсказки на безопасных местах тоже рисуем — чтобы было видно весь стан
+    ys.forEach((y, i) => { if (!act.includes(i)) this.projs.push({ kind: 'staffghost', x: T, y: y - 5, w: (this.L.W - 2) * T, h: 0, vx: 0, vy: 0, life: 1.4 }); });
   },
   vladikPickCurtain(phase2) {
     const v = this.vladik, free = this.curtains.filter((c) => c.slime <= 0);
@@ -3342,11 +3444,12 @@ Object.assign(GameScene.prototype, {
   smokeAtSlime(c) { this.burst(10, c.x + c.w / 2, c.y + c.h * 0.6, 0x8fdc3a); },
   damageVladik(p) {
     const v = this.vladik;
+    if (v.state === 'rage') { Snd.play('clink'); return; }
     v.hp -= 1; v.flash = 0.09; this.gainSilk(p); if (!p.remote) this.hitstop = 0.04; this.sfx('hit'); this.needleHits++;
     this.burst(9, clamp(p.x + 7 + p.face * 26, v.x, v.x + v.w), v.y + v.h / 2, 0xf4f1e6);
     this.ui().bossBar(true, 'Владик Скрипка', Math.max(0, v.hp) / v.maxHp);
     if (v.sayCd <= 0 && Math.random() < 0.35) { this.vladikSpeak(VLADIK_SAY_HIT[Math.floor(Math.random() * VLADIK_SAY_HIT.length)], 1.2); v.sayCd = 2.5; }
-    if (v.hp === Math.floor(v.maxHp / 2)) { this.vladikSpeak('Я! НЕ! СКРИПКА!!!', 1.6); v.sayCd = 3; this.sfx('violin'); this.toastAll('Владик в ярости: ключи летят по три'); }
+    if (this.checkPhase(v, 'Владик Скрипка')) { this.vladikSpeak(v.phase === 3 ? 'КРЕЩЕНДО!!! Я НЕ СКРИПКА!' : 'Я! НЕ! СКРИПКА!!!', 2); v.sayCd = 3; this.sfx('violin'); }
     if (v.hp <= 0) this.vladikDie();
   },
   vladikDie() {
@@ -3603,14 +3706,14 @@ Object.assign(GameScene.prototype, {
   },
   makeTima() {
     if (this.tima && this.tima.g) this.tima.g.destroy();
-    const d = this.L.tima, hp = this.nPlayers === 2 ? 46 : 34;
-    this.tima = { x: d.x * T - 30, y: (d.y + 1) * T - 80, w: 60, h: 80, vx: 0, vy: 0, face: -1, hp, maxHp: hp, state: 'intro', t: 2.0,
+    const d = this.L.tima, hp = this.nPlayers === 2 ? 70 : 50;
+    this.tima = { x: d.x * T - 30, y: (d.y + 1) * T - 80, w: 60, h: 80, vx: 0, vy: 0, face: -1, hp, maxHp: hp, phase: 1, state: 'intro', t: 3.2,
       flash: 0, last: '', say: 'ПИВКА ДЛЯ РЫВКА!', sayT: 2.2, sayCd: 0, barShown: false, air: 0, hyper: 0, dustCd: 6, dustHits: 0, drinkCd: 8,
       g: this.add.graphics().setDepth(4) };
     if (this.puddles) this.puddles = [];
     if (this.furnG) this.setRepo(false);
   },
-  timaSpeak(text, dur) { const v = this.tima; v.say = text; v.sayT = dur || 1.6; },
+  timaSpeak(text, dur) { const v = this.tima; v.say = text; v.sayT = Math.max(dur || 1.6, 1.4 + text.length * 0.07); },
   speedMul(p) {
     if (!this.puddles || !p.onGround) return 1;
     for (const q of this.puddles) if (p.x + p.w > q.x && p.x < q.x + q.w && Math.abs(p.y + p.h - q.y) < 6) return 0.5;
@@ -3626,12 +3729,29 @@ Object.assign(GameScene.prototype, {
     if (this.repoT > 0) { this.repoT -= dt; if (this.repoT <= 0) { this.setRepo(false); this.sendEv({ k: 'repo', on: 0 }); } }
     if (v.state === 'dead') { v.t -= dt; v.vy = Math.min(v.vy + P.G * dt, P.MAXFALL); this.moveBody(v, dt); return; }
     if (v.hyper > 0) { v.hyper -= dt; if (Math.random() < 0.5) this.dustFx.explode(1, v.x + Math.random() * v.w, v.y + Math.random() * v.h); }
-    const sp = v.hyper > 0 ? 1.55 : 1, phase2 = v.hp <= v.maxHp / 2;
+    const sp = v.hyper > 0 ? 1.55 : 1, phase2 = (v.phase || 1) >= 2, phase3 = (v.phase || 1) >= 3;
     const [tp] = this.nearestPlayer(v.x + v.w / 2, v.y + v.h / 2);
     const tx = tp ? tp.x + 7 : v.x + v.w / 2, vcx = v.x + v.w / 2;
     v.t -= dt * sp;
     switch (v.state) {
       case 'intro': v.vx = 0; if (v.t <= 0) { v.state = 'idle'; v.t = 0.8; } break;
+      case 'rage': v.vx = 0; if (v.t <= 0) { v.state = 'idle'; v.t = 0.3; } break;
+      case 'collWind':
+        v.vx = 0;
+        if (v.t <= 0) {
+          const n = phase3 ? 3 : 2, fl = this.L.floorY * T;
+          for (let i = 0; i < n; i++) { const left = i % 2 === 0; this.projs.push({ kind: 'collector', x: (left ? 2 + i : this.L.W - 3 - i) * T, y: fl - 22, w: 22, h: 22, vx: 0, vy: 0, life: 11, hp: 2, spd: phase3 ? 165 : 130, face: left ? 1 : -1 }); }
+          this.sfx('coin'); v.state = 'recover'; v.t = 0.8;
+        }
+        break;
+      case 'achWind':
+        v.vx = 0;
+        if (v.t <= 0) {
+          const targets = this.alivePlayers().length ? this.alivePlayers() : this.players;
+          for (let i = 0; i < 4; i++) { const p = targets[i % targets.length]; this.projs.push({ kind: 'trophy', x: clamp(p.x + 7 + (i - 1.5) * 90, 2 * T, (this.L.W - 3) * T) - 15, y: 4 * T + 8, w: 30, h: 30, vx: 0, vy: 0, life: 5, bounces: 1, delay: 0.7 + i * 0.25 }); }
+          this.sfx('sparkle'); v.state = 'recover'; v.t = 1.0;
+        }
+        break;
       case 'idle':
         v.face = tx > vcx ? 1 : -1;
         v.vx = Math.abs(tx - vcx) > 180 ? v.face * 80 * sp : 0;
@@ -3639,13 +3759,18 @@ Object.assign(GameScene.prototype, {
           v.vx = 0;
           if (v.dustCd <= 0 && v.hp < v.maxHp * 0.75 && v.hyper <= 0) { v.state = 'dustDraw'; v.t = 2.2; v.dustHits = 0; this.timaSpeak('ЩАС-ЩАС, НАЧЕРЧУ…', 1.6); this.toastAll('Тима чертит круг для пыли — беги к нему и бей!'); break; }
           if (v.drinkCd <= 0 && v.hp < v.maxHp * 0.85 && Math.random() < 0.5) { v.state = 'drink'; v.t = 1.2; v.drinkCd = 14; this.timaSpeak('БУЛЬ-БУЛЬ…', 1.2); this.sfx('glug'); break; }
-          const opts = ['beer', 'pad', 'ring', 'box', 'bankrupt'].filter((o) => o !== v.last && !(o === 'bankrupt' && (this.repoT > 0 || !phase2 && Math.random() < 0.5)));
+          const pool = ['beer', 'pad', 'ring', 'box', 'bankrupt'];
+          if (phase2 && !this.projs.some((q) => q.kind === 'collector')) pool.push('coll');
+          if (phase3) pool.push('ach', 'ach');
+          const opts = pool.filter((o) => o !== v.last && !(o === 'bankrupt' && (this.repoT > 0 || !phase2 && Math.random() < 0.5)));
           const pick = opts[Math.floor(Math.random() * opts.length)]; v.last = pick;
           if (pick === 'beer') { v.state = 'beerWind'; v.t = 0.5; this.timaSpeak('ЛОВИ ПИВКО!', 1.0); }
           if (pick === 'pad') { v.state = 'pad'; v.t = 2.0; this.timaSpeak('ИКС-БОКС!', 1.2); this.projs.push({ kind: 'pad', x: vcx, y: v.y + 30, w: 26, h: 18, vx: 0, vy: 0, life: 2.2, ang: v.face > 0 ? 0 : Math.PI, rad: 20, spin: v.face }); this.sfx('buzz'); }
           if (pick === 'ring') { v.state = 'ringWind'; v.t = 0.9; this.timaSpeak('КРАСНОЕ КОЛЬЦО!', 1.3); this.sfx('buzz'); }
           if (pick === 'box') { v.state = 'boxWind'; v.t = 0.5; this.timaSpeak('ДЕРЖИ ПРИСТАВКУ!', 1.1); }
           if (pick === 'bankrupt') { v.state = 'bankWind'; v.t = 0.8; this.timaSpeak('БАНКРОТСТВО!', 1.6); this.sfx('roar'); }
+          if (pick === 'coll') { v.state = 'collWind'; v.t = 0.8; this.timaSpeak('КОЛЛЕКТОРЫ, ФАС!', 1.5); }
+          if (pick === 'ach') { v.state = 'achWind'; v.t = 0.7; this.timaSpeak('АЧИВКА РАЗБЛОКИРОВАНА!', 1.6); }
         }
         break;
       case 'beerWind':
@@ -3659,7 +3784,7 @@ Object.assign(GameScene.prototype, {
           this.sfx('throw'); v.state = 'recover'; v.t = 0.6;
         }
         break;
-      case 'pad': v.vx = 0; if (v.t <= 0) { v.state = 'recover'; v.t = 0.4; } break;
+      case 'pad': v.vx = 0; if (v.t <= 0) { if (phase3 && v.last !== 'ringCombo') { v.last = 'ringCombo'; v.state = 'ringWind'; v.t = 0.55; this.timaSpeak('КОМБО! КОЛЬЦО!', 1.0); this.sfx('buzz'); } else { v.state = 'recover'; v.t = 0.4; } } break;
       case 'ringWind':
         v.vx = 0;
         if (v.t <= 0) {
@@ -3699,7 +3824,7 @@ Object.assign(GameScene.prototype, {
       case 'dust':
         v.vx = 0;
         if (Math.random() < 0.6) this.dustFx.explode(1, vcx + v.face * 30 + (Math.random() - 0.5) * 30, v.y + 10 + Math.random() * 20);
-        if (v.t <= 0) { v.hyper = 8; v.dustCd = 20; this.timaSpeak('Я БЫСТРЫЙ!', 1.2); this.sfx('sparkle'); this.toastAll('Тима разогнался: бегай от него 8 секунд'); v.state = 'idle'; v.t = 0.3; }
+        if (v.t <= 0) { v.hyper = phase3 ? 9 : 8; v.dustCd = phase3 ? 13 : 20; this.timaSpeak('Я БЫСТРЫЙ!', 1.2); this.sfx('sparkle'); this.toastAll('Тима разогнался: бегай от него 8 секунд'); v.state = 'idle'; v.t = 0.3; }
         break;
       case 'sneeze': v.vx = 0; if (v.t <= 0) { v.state = 'idle'; v.t = 0.5; } break;
       case 'recover': v.vx = 0; if (v.t <= 0) { v.state = 'idle'; v.t = (phase2 ? 0.45 : 0.7); } break;
@@ -3710,6 +3835,7 @@ Object.assign(GameScene.prototype, {
   bankruptSilk() { for (const p of this.players) if (!p.remote) p.silk = Math.floor(p.silk / 2); },
   damageTima(p) {
     const v = this.tima;
+    if (v.state === 'rage') { Snd.play('clink'); return; }
     v.hp -= 1; v.flash = 0.09; this.gainSilk(p); if (!p.remote) this.hitstop = 0.04; this.sfx('hit'); this.timaHits++;
     this.burst(9, clamp(p.x + 7 + p.face * 28, v.x, v.x + v.w), v.y + v.h / 2, 0xf4f1e6);
     if (v.state === 'drink') { v.state = 'recover'; v.t = 0.4; this.timaSpeak('ЭЙ, РАЗЛИЛ!', 1.0); this.foamAt(12, v.x + v.w / 2, v.y + 30); }
@@ -3718,6 +3844,7 @@ Object.assign(GameScene.prototype, {
       if (v.dustHits >= 3) { v.state = 'sneeze'; v.t = 1.6; v.dustCd = 14; this.timaSpeak('АПЧХИ!', 1.2); this.sfx('cough'); this.dustFx.explode(30, v.x + v.w / 2 + v.face * 30, v.y + 20); }
     }
     this.ui().bossBar(true, 'Тима Пиво', Math.max(0, v.hp) / v.maxHp);
+    if (this.checkPhase(v, 'Тима Пиво')) { this.timaSpeak(v.phase === 3 ? 'ВСЁ, Я ЗЛОЙ! ДОНАТ НА ВСЁ!' : 'ТЫ ЧЁ, РЕАЛЬНО?!', 2); v.hyper = 0; }
     if (v.sayCd <= 0 && Math.random() < 0.3 && v.state !== 'sneeze') { this.timaSpeak(TIMA_SAY_HIT[Math.floor(Math.random() * TIMA_SAY_HIT.length)], 1.0); v.sayCd = 2.5; }
     if (v.hp <= 0) this.timaDie();
   },
@@ -3878,6 +4005,121 @@ Object.assign(GameScene.prototype, {
       t.setPosition(pr.x + 40, pr.y + 17).setAlpha(pr.delay > 0 ? 0.4 : 1).setVisible(true); i++;
     }
     for (let k = i; k < this.stampPool.length; k++) this.stampPool[k].setVisible(false);
+  },
+});
+
+// ===== БОССЫ 2.0: три фазы, переходы, новые атаки и снаряды =====
+const PHASE_LINES = {
+  'Корнематка': { 2: 'споры чаще, корни из-под земли', 3: 'двойные прыжки и волны корней' },
+  'Владик Скрипка': { 2: 'нотный стан и выпады смычком', 3: 'крещендо: ноты падают с потолка' },
+  'Тима Пиво': { 2: 'коллекторы выходят на охоту', 3: 'ачивки падают сверху, комбо приставкой' },
+};
+
+Object.assign(GameScene.prototype, {
+  phaseOf(b) { const f = b.hp / b.maxHp; return f <= 0.3 ? 3 : f <= 0.6 ? 2 : 1; },
+  // вызывается после урона: если перешли порог — рёв, неуязвимость, отталкивание
+  checkPhase(b, name) {
+    const ph = this.phaseOf(b);
+    if (b.hp > 0 && ph > (b.phase || 1)) { b.phase = ph; this.phaseShift(b, name, ph); return true; }
+    return false;
+  },
+  phaseShift(b, name, ph) {
+    b.state = 'rage'; b.t = 1.3; b.vx = 0;
+    this.sfx('roar'); this.shake(700, 0.012); this.flashAll();
+    const cx = Math.round(b.x + b.w / 2);
+    this.knockFrom(cx); this.sendEv({ k: 'kb', x: cx });
+    for (const pr of this.projs) if (pr.kind !== 'bomb') pr.dead = true;
+    const line = PHASE_LINES[name] && PHASE_LINES[name][ph];
+    this.toastAll(`${name} — фаза ${ph}${line ? ': ' + line : ''}`);
+  },
+  knockFrom(cx) {
+    for (const p of this.players) if (!p.remote && !p.downed) { const d = Math.sign(p.x + 7 - cx) || 1; p.kbx = d * 430; p.vy = -380; p.hurtT = 0.22; p.inv = Math.max(p.inv, 0.6); }
+  },
+  flashAll() { this.cameras.main.flash(260, 255, 240, 220); if (this.online === 'host') this.sendEv({ k: 'flash' }); },
+  bossPhaseForMusic() {
+    const b = this.testBoss() || (this.boss && !['sleep', 'gone', 'dead'].includes(this.boss.state) ? this.boss : null);
+    return b && b.maxHp ? this.phaseOf(b) : 1;
+  },
+
+  // ----- новые снаряды -----
+  stepExtraProj(pr, dt) {
+    switch (pr.kind) {
+      case 'rain':
+        pr.y += pr.vy * dt;
+        if (this.isSolid(Math.floor((pr.x + 11) / T), Math.floor((pr.y + 26) / T))) { pr.dead = true; if (this.paper) this.paperAt(5, pr.x + 11, pr.y + 20); }
+        return true;
+      case 'collector': {
+        pr.hitCd = (pr.hitCd || 0) - dt;
+        const [tp] = this.nearestPlayer(pr.x + 11, pr.y + 11);
+        if (pr.kbT > 0) pr.kbT -= dt;
+        else if (tp) { const d = Math.sign(tp.x + 7 - (pr.x + 11)) || 1; pr.face = d; pr.vx += (d * pr.spd - pr.vx) * Math.min(1, dt * 6); }
+        pr.vy = Math.min(pr.vy + P.G * dt, P.MAXFALL);
+        this.moveBody(pr, dt);
+        if ((pr.hitL || pr.hitR) && pr.onGround) pr.vy = -420;
+        return true;
+      }
+      case 'trophy':
+        pr.vy = Math.min(pr.vy + 1100 * dt, 820); pr.x += pr.vx * dt; pr.y += pr.vy * dt;
+        if (this.isSolid(Math.floor((pr.x + 15) / T), Math.floor((pr.y + 30) / T)) && pr.vy > 0) {
+          pr.y = Math.floor((pr.y + 30) / T) * T - 30; this.dustAt(8, pr.x + 15, pr.y + 30); this.sfx('glass');
+          if (pr.bounces-- > 0) { pr.vy = -320; pr.vx = (Math.random() - 0.5) * 300; } else pr.dead = true;
+        }
+        return true;
+      case 'rootspike': case 'staff': case 'staffghost': return true; // неподвижны: живут свой срок после предупреждения
+    }
+    return false;
+  },
+  hitCollector(pr, dir) {
+    if ((pr.hitCd || 0) > 0) return;
+    pr.hitCd = 0.22; pr.hp--; pr.flash = 0.1; pr.kbT = 0.18; pr.vx = dir * 300; pr.vy = -240; this.sfx('hit');
+    if (pr.hp <= 0) { pr.dead = true; this.sfx('coin'); this.burst(12, pr.x + 11, pr.y + 11, 0xffd47a); }
+  },
+  drawExtraProjs(now) {
+    const fx = this.fx, fb = this.fxBack;
+    for (const pr of this.projs) {
+      if (pr.kind === 'rootspike') {
+        const fy = pr.y + pr.h;
+        if (pr.delay > 0) {
+          fb.fillStyle(0x3b2a1c, 0.8); fb.fillEllipse(pr.x + 18, fy - 2, 46, 10);
+          fb.lineStyle(2, 0x8a5a2c, 0.6 + Math.sin(now * 30) * 0.3);
+          for (let i = 0; i < 4; i++) fb.lineBetween(pr.x + 18, fy - 2, pr.x + 18 + Math.cos(i * 1.6) * 20, fy - 2 + Math.sin(i * 1.6) * 4);
+        } else {
+          const k = Math.min(1, (0.55 - pr.life) / 0.08 + 0.2), hh = pr.h * k;
+          fx.fillStyle(0x4a3220, 1); fx.fillTriangle(pr.x + 2, fy, pr.x + 34, fy, pr.x + 18, fy - hh);
+          fx.fillStyle(0x7a5434, 1); fx.fillTriangle(pr.x + 6, fy, pr.x + 18, fy, pr.x + 18, fy - hh);
+          fx.fillStyle(0x3b7448, 1); fx.fillTriangle(pr.x + 10, fy - hh * 0.4, pr.x + 4, fy - hh * 0.55, pr.x + 12, fy - hh * 0.48);
+        }
+      } else if (pr.kind === 'staff') {
+        const y = pr.y + 5;
+        if (pr.delay > 0) {
+          fx.lineStyle(3, 0xff9a7a, 0.4 + Math.sin(now * 16) * 0.2); fx.lineBetween(pr.x, y, pr.x + pr.w, y);
+          fx.fillStyle(0xf4efe0, 0.35); for (let x = pr.x + 40; x < pr.x + pr.w; x += 120) fx.fillEllipse(x, y, 7, 5);
+        } else {
+          fx.lineStyle(10, 0xffd47a, 0.25); fx.lineBetween(pr.x, y, pr.x + pr.w, y);
+          fx.lineStyle(4, 0xfff6d8, 0.95); fx.lineBetween(pr.x, y, pr.x + pr.w, y);
+          fx.fillStyle(0xffd47a, 1); for (let x = pr.x + 40 + ((now * 300) % 120); x < pr.x + pr.w; x += 120) { fx.fillEllipse(x, y, 9, 7); fx.fillRect(x + 3, y - 14, 2, 14); }
+        }
+      } else if (pr.kind === 'staffghost') {
+        fx.lineStyle(1, 0xf4efe0, 0.12); fx.lineBetween(pr.x, pr.y + 5, pr.x + pr.w, pr.y + 5);
+      } else if (pr.kind === 'collector') {
+        const x = pr.x + 11, fy = pr.y + 22, f = pr.face || 1, fl = pr.flash > 0;
+        if (pr.flash > 0) pr.flash -= 1 / 60;
+        fx.lineStyle(2, 0x15161c, 1); const leg = Math.sin(now * 20 + x) * 2; fx.lineBetween(x - 4, fy - 6, x - 4 + leg, fy); fx.lineBetween(x + 4, fy - 6, x + 4 - leg, fy);
+        fx.fillStyle(fl ? 0xffffff : 0x2c2f38, 1); fx.fillEllipse(x, fy - 11, 20, 16);
+        fx.fillStyle(0xf4efe0, 1); fx.fillTriangle(x + 2 * f, fy - 18, x + 8 * f, fy - 18, x + 5 * f, fy - 10);
+        fx.fillStyle(0xd23a2a, 1); fx.fillRect(x + 4 * f - 1, fy - 17, 2, 6);
+        fx.fillStyle(fl ? 0xffffff : 0x3a3f48, 1); fx.fillCircle(x + 6 * f, fy - 22, 6);
+        fx.fillStyle(0xffd47a, 1); fx.fillCircle(x + 8 * f, fy - 23, 1.6);
+        fx.fillStyle(0x6b3d14, 1); fx.fillRect(x - 13 * f - 4, fy - 9, 8, 7);
+      } else if (pr.kind === 'trophy') {
+        const x = pr.x + 15, y = pr.y;
+        if (pr.delay > 0) { fx.fillStyle(0xffd47a, 0.35 + Math.sin(now * 20) * 0.15); fx.fillEllipse(x, this.L.floorY * T - 2, 40, 10); continue; }
+        fx.fillStyle(0xffd47a, 1); fx.fillRect(x - 10, y + 24, 20, 6); fx.fillRect(x - 3, y + 16, 6, 9);
+        fx.fillStyle(0xf2c14e, 1); fx.beginPath(); fx.arc(x, y + 6, 12, 0, Math.PI, false); fx.closePath(); fx.fillPath(); fx.fillRect(x - 12, y, 24, 7);
+        fx.lineStyle(2, 0xffd47a, 1); fx.strokeCircle(x - 13, y + 7, 4); fx.strokeCircle(x + 13, y + 7, 4);
+        fx.fillStyle(0xfff6d8, 0.9); fx.fillCircle(x - 4, y + 4, 2);
+      }
+    }
   },
 });
 
