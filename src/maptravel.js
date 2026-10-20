@@ -195,7 +195,7 @@ const MapTravel = {
     createO.call(this);
     this.mapC = null;
     const hint = Touch.enabled ? 'Кнопка ▤ рядом с паузой — карта' : 'M (вдвоём за одним экраном — Tab) — карта и быстрые переходы между скамьями';
-    this.pause.add(this.add.text(VW / 2, VH - 26, hint, { fontFamily: '"Fira Sans", sans-serif', fontSize: '13px', color: '#6f9586' }).setOrigin(0.5));
+    this.pause.add(this.mapHint = this.add.text(VW / 2, VH - 26, hint, { fontFamily: '"Fira Sans", sans-serif', fontSize: '13px', color: '#6f9586' }).setOrigin(0.5));
   };
 }
 Object.assign(UIScene.prototype, {

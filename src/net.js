@@ -57,6 +57,8 @@ const Lobby = {
     $('lb-code').addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') this.doJoin($('lb-code').value); });
     $('lb-code').addEventListener('keyup', (e) => e.stopPropagation());
     $('lb-back').onclick = () => this.hide(true);
+    // Esc закрывает лобби, как окно настроек (фокус может быть и вне окна — слушаем документ)
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !this.el.hidden) { e.preventDefault(); e.stopPropagation(); this.hide(true); } }, true);
     $('lb-copy').onclick = () => {
       const t = $('lb-link').textContent;
       const ok = () => { $('lb-copy').textContent = 'Скопировано'; setTimeout(() => ($('lb-copy').textContent = 'Копировать ссылку'), 1600); };

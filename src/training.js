@@ -100,7 +100,7 @@ Training.load();
     this.trHud = this.add.text(VW - 16, 96, '', { fontFamily: F, fontSize: '13px', color: '#ffd47a', align: 'right', lineSpacing: 3, backgroundColor: 'rgba(6,14,12,0.6)', padding: { x: 8, y: 5 } }).setOrigin(1, 0);
     this.trTele = this.add.text(VW / 2, 458, '', { fontFamily: F, fontSize: '15px', color: '#ffd47a' }).setOrigin(0.5);
     this.trKeys = this.add.text(VW / 2, 482, 'Тренировка: здоровье бесконечное, рекорды не пишутся.  Y — сбросить босса', { fontFamily: F, fontSize: '12px', color: '#8fb8a8' }).setOrigin(0.5);
-    const btn = this.add.text(VW / 2, 512, 'Сброс босса (Y)', { fontFamily: D, fontSize: '21px', color: '#cfe8dc', fontStyle: '700', backgroundColor: 'rgba(20,48,41,0.9)', padding: { x: 14, y: 5 } }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    const btn = this.trBtn = this.add.text(VW / 2, 512, 'Сброс босса (Y)', { fontFamily: D, fontSize: '21px', color: '#cfe8dc', fontStyle: '700', backgroundColor: 'rgba(20,48,41,0.9)', padding: { x: 14, y: 5 } }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     btn.on('pointerover', () => btn.setColor('#ffd47a')); btn.on('pointerout', () => btn.setColor('#cfe8dc')); btn.on('pointerdown', () => Training.reset(gs));
     this.pause.add([this.trTele, this.trKeys, btn]);
     const upd = () => {

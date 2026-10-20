@@ -93,6 +93,9 @@
   #update button.primary { background: var(--moss); border-color: var(--moss); color: #08130f; }
   /* сенсорное управление */
   html.touch, html.touch body { touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; overscroll-behavior: none; }
+  /* поля ввода (код комнаты, имя для таблицы друзей): на iOS при user-select: none в них нельзя печатать */
+  input, textarea, [contenteditable] { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; touch-action: manipulation; }
+  html.touch .sr-ov input, html.touch .sr-ov textarea { font-size: 16px; } /* меньше 16 px — iOS приближает страницу при фокусе */
   #touch { position: fixed; left: 0; top: var(--app-top, 0px); width: var(--app-w, 100vw); height: var(--app-h, 100vh); z-index: 3; pointer-events: none; }
   #touch.padmode .t-zone, #touch.padmode .t-btns, #touch.padmode .t-hint { display: none; }
   #touch .t-zone { position: absolute; left: 0; top: 18%; bottom: 0; width: 46%; pointer-events: auto; touch-action: none; }
@@ -112,6 +115,8 @@
   html.lefty #touch .t-btn { right: auto !important; }
   html.lefty #touch .t-jump { left: 0; } html.lefty #touch .t-atk { left: 100px; } html.lefty #touch .t-dash { left: 6px; }
   html.lefty #touch .t-heal { left: 98px; } html.lefty #touch .t-bomb { left: 166px; }
+  #touch .t-btn.dim:not(.on) { opacity: min(var(--bop, 1), 0.2); } /* кнопка перекрывает рюкзак Миши — становится почти прозрачной */
+  #touch .t-btn { transition: opacity 0.15s; }
   #touch .t-btn.on { background: rgba(159,240,200,0.4); border-color: var(--glow); transform: scale(0.94); }
   #touch .t-jump { right: 0; bottom: 0; width: 88px; height: 88px; border-color: rgba(159,240,200,0.65); }
   #touch .t-atk { right: 100px; bottom: 10px; width: 76px; height: 76px; border-color: rgba(255,212,122,0.6); }
