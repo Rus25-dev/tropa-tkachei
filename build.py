@@ -31,6 +31,7 @@ parts = [
     "movement2.js",
     "loadoutui.js",
     "speedrun.js",
+    "uifix.js",
     # новые модули добавляй строкой выше (по одному на строку — меньше конфликтов слияния)
     "update.js",
 ]
