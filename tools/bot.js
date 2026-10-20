@@ -4,7 +4,7 @@
 // Бой идёт с одной жизнью: оборвалась нить — поражение. Время считается от конца вступления босса.
 // Нужны: phaser@3.90.0 и playwright-core (путь в NODE_PATH) и Chromium (PLAYWRIGHT_BROWSERS_PATH или CHROME).
 // Мозг бота — tools/botbrain.js (предсказание снарядов, поиск безопасного пути, отбив, всполох, казнь, бомбы Миши, вид сверху).
-// Параметры: --html=путь (другая сборка), --max=секунд (лимит боя, по умолчанию 240), --seed=число.
+// Параметры: --html=путь (другая сборка), --max=секунд (лимит боя, по умолчанию 240), --seed=число (зерно и мозга бота, и ГСЧ игры: прогон воспроизводим).
 const path = require('path'), fs = require('fs'), os = require('os');
 const { chromium } = require('playwright-core');
 const argv = process.argv.slice(2), pos = argv.filter((a) => !a.startsWith('--')), flag = (n, d) => { const a = argv.find((x) => x.startsWith('--' + n + '=')); return a ? a.split('=')[1] : d; };
@@ -20,7 +20,7 @@ const brainSrc = fs.readFileSync(path.join(__dirname, 'botbrain.js'), 'utf8');
 async function fightInPage({ boss, skill, players, seed, maxSec, trace }) {
   const g = window.__game;
   g.scene.stop('menu');
-  g.scene.start('game', boss === 'korne' ? { players, mode: 'story' } : { players, mode: 'bosstest', boss });
+  g.scene.start('game', boss === 'korne' ? { players, mode: 'story', seed } : { players, mode: 'bosstest', boss, seed }); // seed — зерно ГСЧ игры: тот же --seed даёт тот же бой
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   let sc;
   for (let i = 0; i < 200; i++) { await sleep(50); sc = g.scene.getScene('game'); if (sc && sc.players && sc.boss && sc.ui() && sc.ui().ready) break; }

@@ -276,7 +276,16 @@ class BGScene extends Phaser.Scene {
 // ---------- ИГРОВАЯ СЦЕНА ----------
 class GameScene extends Phaser.Scene {
   constructor() { super('game'); }
-  init(data) { this.startData = data; this.mode = data.mode || 'story'; this.bossKind = data.boss || 'misha'; this.nPlayers = data.players || 1; this.online = data.online || null; this.localIdx = data.online === 'guest' ? 1 : 0; Campaign.init(this, data); }
+  init(data) { this.startData = data; this.mode = data.mode || 'story'; this.bossKind = data.boss || 'misha'; this.nPlayers = data.players || 1; this.online = data.online || null; this.localIdx = data.online === 'guest' ? 1 : 0;
+    // зерно: из данных запуска; в онлайн-коопе гость берёт зерно хоста (Net.seed из сообщения 'start'); иначе случайное
+    this.seed = (data.seed != null ? data.seed : data.online && Net.seed != null ? Net.seed : newSeed()) >>> 0;
+    Campaign.init(this, data); }
+  // независимые потоки ГСЧ: порядок вызовов в одной подсистеме не сдвигает остальные
+  initRng() {
+    this._rngs = {}; this.rng = mulberry32(this.seed);
+    this.rngFor = (name) => this._rngs[name] || (this._rngs[name] = mulberry32(rngSeedFor(this.seed, name)));
+    this.rBoss = this.rngFor('boss'); this.rLoot = this.rngFor('loot'); this.rEnemy = this.rngFor('enemy');
+  }
   auth() { return this.online !== 'guest'; }
   sendEv(o) { if (this.online) Net.send({ t: 'ev', ...o }); }
   sfx(n) { if (this.quiet) return; Snd.play(n); if (this.online === 'host') this.sendEv({ k: 'snd', n }); }
@@ -286,6 +295,7 @@ class GameScene extends Phaser.Scene {
   toastAll(m) { this.ui().toast(m); this.sendEv({ k: 'toast', m }); }
 
   create() {
+    this.initRng();
     genBackgrounds(this);
     this.scene.launch('bg'); this.scene.launch('ui');
     // состояние «вида сверху» Миши не должно переходить в новую игру (повтор боя, выход в меню)
@@ -535,7 +545,7 @@ class GameScene extends Phaser.Scene {
   spawnEnemies() {
     for (const e of this.enemies) e.g.destroy();
     this.enemies = this.L.enemies.flatMap((d) => {
-      const base = { type: d.type, vx: 0, vy: 0, face: -1, flash: 0, kbT: 0, kbx: 0, kby: 0, dead: false, t: Math.random() * 6, g: this.add.graphics().setDepth(4) };
+      const base = { type: d.type, vx: 0, vy: 0, face: -1, flash: 0, kbT: 0, kbx: 0, kby: 0, dead: false, t: this.rEnemy() * 6, g: this.add.graphics().setDepth(4) };
       const fx = d.x * T + 16, fy = (d.y + 1) * T;
       const n2 = this.spawnEnemy2(d, base); if (n2) return n2; // новые враги (enemies2.js)
       if (d.type === 'crawler') return { ...base, w: 26, h: 16, x: fx - 13, y: fy - 16, hp: 3, vx: -45, beads: 3 };
@@ -800,7 +810,7 @@ class GameScene extends Phaser.Scene {
     this.dropBeads(e.x + e.w / 2, e.y + e.h / 2, e.beads);
   }
   dropBeads(x, y, n) {
-    for (let i = 0; i < n; i++) this.beadsArr.push({ x: x - 4, y: y - 4, w: 8, h: 8, vx: (Math.random() - 0.5) * 260, vy: -200 - Math.random() * 260, t: 0 });
+    for (let i = 0; i < n; i++) this.beadsArr.push({ x: x - 4, y: y - 4, w: 8, h: 8, vx: (this.rLoot() - 0.5) * 260, vy: -200 - this.rLoot() * 260, t: 0 });
   }
   hurtPlayer(p, dmg, srcX, spike) {
     if (p.inv > 0 || p.downed) return;
@@ -989,7 +999,7 @@ class GameScene extends Phaser.Scene {
         if (b.t <= 0) {
           const pool = ['leap', 'spores', 'charge']; if (phase2) pool.push('roots', 'roots');
           const opts = pool.filter((o) => o !== b.last);
-          const pick = opts[Math.floor(Math.random() * opts.length)]; b.last = pick;
+          const pick = opts[Math.floor(this.rBoss() * opts.length)]; b.last = pick;
           if (pick === 'leap') { b.state = 'leapWind'; b.t = 0.38; b.jumps = phase3 ? 2 : 1; }
           if (pick === 'roots') { b.state = 'rootWind'; b.t = 0.6; this.sfx('slam'); this.shake(500, 0.004); }
           if (pick === 'spores') { b.state = 'sporeWind'; b.t = 0.45; }
@@ -1038,7 +1048,7 @@ class GameScene extends Phaser.Scene {
       b.state = 'stun'; b.t = 1.0; this.shake(260, 0.014); this.sfx('slam');
       const ax0 = this.L.boss.arenaX0, ax1 = this.L.boss.arenaX1;
       const n = phase2 ? 5 : 3;
-      for (let i = 0; i < n; i++) this.projs.push({ kind: 'rock', x: (ax0 + 2 + Math.random() * (ax1 - ax0 - 4)) * T, y: 19 * T, w: 16, h: 16, vx: 0, vy: 0, life: 3, delay: i * 0.18 });
+      for (let i = 0; i < n; i++) this.projs.push({ kind: 'rock', x: (ax0 + 2 + this.rBoss() * (ax1 - ax0 - 4)) * T, y: 19 * T, w: 16, h: 16, vx: 0, vy: 0, life: 3, delay: i * 0.18 });
     }
   }
   damageBoss(p) {
@@ -1337,9 +1347,9 @@ class GameScene extends Phaser.Scene {
   // гость вернулся по тому же коду, пока хост доигрывает в одиночку: перезапускаем сцену в паре (прогресс главы берём из снимка)
   rejoinGuest() {
     if (this.online || this.rejoining) return; this.rejoining = true;
-    const d = { ...this.startData, players: 2, online: 'host' };
+    const d = { ...this.startData, players: 2, online: 'host', seed: this.seed };
     if (this.camp) d.camp = Campaign.snap(this);
-    Net.send({ t: 'start', mode: d.mode, boss: d.boss, camp: d.camp || null });
+    Net.send({ t: 'start', mode: d.mode, boss: d.boss, camp: d.camp || null, seed: this.seed });
     this.ui().toast('Напарник вернулся!');
     this.time.delayedCall(400, () => { this.rejoining = false; this.ui().ready = false; this.scene.stop('bg'); this.scene.start('game', d); });
   }

@@ -331,6 +331,28 @@ function buildLevel() {
 }
 
 
+// Сидируемый ГСЧ (mulberry32): одно зерно + один ввод = один и тот же исход. Нужен для гонок и воспроизводимых тестов.
+// В логике (решения боссов и врагов, разброс снарядов, выпадение бусин) вместо Math.random зови this.rBoss() / this.rEnemy() / this.rLoot() / this.rng().
+// Частицы, тряска, звук и реплики остаются на Math.random: на исход они не влияют.
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a = (a + 0x6D2B79F5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+// Зерно потока: хэш (зерно, имя) — независимые потоки не сдвигают друг друга.
+function rngSeedFor(seed, name) {
+  let h = (seed >>> 0) ^ 0x9E3779B9;
+  for (let i = 0; i < name.length; i++) h = Math.imul(h ^ name.charCodeAt(i), 0x01000193) >>> 0;
+  h = Math.imul(h ^ (h >>> 16), 0x85EBCA6B) >>> 0;
+  return (h ^ (h >>> 13)) >>> 0;
+}
+function newSeed() { return (Math.random() * 4294967296) >>> 0; }
+
 // ===== ПРОЦЕДУРНАЯ ГРАФИКА: тайлы, фон, виньетка =====
 function rng(seed) {
   let s = seed >>> 0;
@@ -1077,7 +1099,8 @@ const Lobby = {
         if (this.mode === 'race') { Speedrun.raceOpen('host'); return; }
         const mode = this.mode || 'story', boss = this.boss || 'misha';
         const camp = mode === 'story' ? Campaign.resume() : null;
-        setTimeout(() => { Net.send({ t: 'start', mode, boss, camp }); this.start('host', mode, boss, camp); }, 400);
+        Net.seed = newSeed(); // зерно ГСЧ выбирает хост и шлёт гостю в стартовом сообщении
+        setTimeout(() => { Net.send({ t: 'start', mode, boss, camp, seed: Net.seed }); this.start('host', mode, boss, camp); }, 400);
       } else if (ev === 'error') this.status(Net.errText(d), 'err');
     });
   },
@@ -1091,7 +1114,7 @@ const Lobby = {
   },
   route(m) {
     if (m && m.t === 'race') { Speedrun.onNet(m); return; }
-    if (m && m.t === 'start' && Net.role === 'guest') { this.start('guest', m.mode, m.boss, m.camp); return; }
+    if (m && m.t === 'start' && Net.role === 'guest') { Net.seed = m.seed != null ? m.seed >>> 0 : null; this.start('guest', m.mode, m.boss, m.camp); return; }
     const gs = window.__game && window.__game.scene.getScene('game');
     if (gs && gs.sys.isActive() && gs.onNet) gs.onNet(m);
   },
@@ -1106,7 +1129,7 @@ const Lobby = {
 let VW = 960; const VH = 540;
 // версия игры; номер сборки подставляет build.py
 const GAME_VERSION = '1.6';
-const GAME_BUILD = '261020.1604';
+const GAME_BUILD = '261020.1613';
 const CHANGELOG = [
   'Снаряжение: 5 видов оружия, заряженный удар, 4 инструмента (клавиша E), 9 оберегов, яд и ожог; экран на скамье',
   'Хват за уступ и планер; Миша: иглой бьётся в первых двух фазах, в третьей — только бомбы',
@@ -1380,7 +1403,16 @@ class BGScene extends Phaser.Scene {
 // ---------- ИГРОВАЯ СЦЕНА ----------
 class GameScene extends Phaser.Scene {
   constructor() { super('game'); }
-  init(data) { this.startData = data; this.mode = data.mode || 'story'; this.bossKind = data.boss || 'misha'; this.nPlayers = data.players || 1; this.online = data.online || null; this.localIdx = data.online === 'guest' ? 1 : 0; Campaign.init(this, data); }
+  init(data) { this.startData = data; this.mode = data.mode || 'story'; this.bossKind = data.boss || 'misha'; this.nPlayers = data.players || 1; this.online = data.online || null; this.localIdx = data.online === 'guest' ? 1 : 0;
+    // зерно: из данных запуска; в онлайн-коопе гость берёт зерно хоста (Net.seed из сообщения 'start'); иначе случайное
+    this.seed = (data.seed != null ? data.seed : data.online && Net.seed != null ? Net.seed : newSeed()) >>> 0;
+    Campaign.init(this, data); }
+  // независимые потоки ГСЧ: порядок вызовов в одной подсистеме не сдвигает остальные
+  initRng() {
+    this._rngs = {}; this.rng = mulberry32(this.seed);
+    this.rngFor = (name) => this._rngs[name] || (this._rngs[name] = mulberry32(rngSeedFor(this.seed, name)));
+    this.rBoss = this.rngFor('boss'); this.rLoot = this.rngFor('loot'); this.rEnemy = this.rngFor('enemy');
+  }
   auth() { return this.online !== 'guest'; }
   sendEv(o) { if (this.online) Net.send({ t: 'ev', ...o }); }
   sfx(n) { if (this.quiet) return; Snd.play(n); if (this.online === 'host') this.sendEv({ k: 'snd', n }); }
@@ -1390,6 +1422,7 @@ class GameScene extends Phaser.Scene {
   toastAll(m) { this.ui().toast(m); this.sendEv({ k: 'toast', m }); }
 
   create() {
+    this.initRng();
     genBackgrounds(this);
     this.scene.launch('bg'); this.scene.launch('ui');
     // состояние «вида сверху» Миши не должно переходить в новую игру (повтор боя, выход в меню)
@@ -1639,7 +1672,7 @@ class GameScene extends Phaser.Scene {
   spawnEnemies() {
     for (const e of this.enemies) e.g.destroy();
     this.enemies = this.L.enemies.flatMap((d) => {
-      const base = { type: d.type, vx: 0, vy: 0, face: -1, flash: 0, kbT: 0, kbx: 0, kby: 0, dead: false, t: Math.random() * 6, g: this.add.graphics().setDepth(4) };
+      const base = { type: d.type, vx: 0, vy: 0, face: -1, flash: 0, kbT: 0, kbx: 0, kby: 0, dead: false, t: this.rEnemy() * 6, g: this.add.graphics().setDepth(4) };
       const fx = d.x * T + 16, fy = (d.y + 1) * T;
       const n2 = this.spawnEnemy2(d, base); if (n2) return n2; // новые враги (enemies2.js)
       if (d.type === 'crawler') return { ...base, w: 26, h: 16, x: fx - 13, y: fy - 16, hp: 3, vx: -45, beads: 3 };
@@ -1904,7 +1937,7 @@ class GameScene extends Phaser.Scene {
     this.dropBeads(e.x + e.w / 2, e.y + e.h / 2, e.beads);
   }
   dropBeads(x, y, n) {
-    for (let i = 0; i < n; i++) this.beadsArr.push({ x: x - 4, y: y - 4, w: 8, h: 8, vx: (Math.random() - 0.5) * 260, vy: -200 - Math.random() * 260, t: 0 });
+    for (let i = 0; i < n; i++) this.beadsArr.push({ x: x - 4, y: y - 4, w: 8, h: 8, vx: (this.rLoot() - 0.5) * 260, vy: -200 - this.rLoot() * 260, t: 0 });
   }
   hurtPlayer(p, dmg, srcX, spike) {
     if (p.inv > 0 || p.downed) return;
@@ -2093,7 +2126,7 @@ class GameScene extends Phaser.Scene {
         if (b.t <= 0) {
           const pool = ['leap', 'spores', 'charge']; if (phase2) pool.push('roots', 'roots');
           const opts = pool.filter((o) => o !== b.last);
-          const pick = opts[Math.floor(Math.random() * opts.length)]; b.last = pick;
+          const pick = opts[Math.floor(this.rBoss() * opts.length)]; b.last = pick;
           if (pick === 'leap') { b.state = 'leapWind'; b.t = 0.38; b.jumps = phase3 ? 2 : 1; }
           if (pick === 'roots') { b.state = 'rootWind'; b.t = 0.6; this.sfx('slam'); this.shake(500, 0.004); }
           if (pick === 'spores') { b.state = 'sporeWind'; b.t = 0.45; }
@@ -2142,7 +2175,7 @@ class GameScene extends Phaser.Scene {
       b.state = 'stun'; b.t = 1.0; this.shake(260, 0.014); this.sfx('slam');
       const ax0 = this.L.boss.arenaX0, ax1 = this.L.boss.arenaX1;
       const n = phase2 ? 5 : 3;
-      for (let i = 0; i < n; i++) this.projs.push({ kind: 'rock', x: (ax0 + 2 + Math.random() * (ax1 - ax0 - 4)) * T, y: 19 * T, w: 16, h: 16, vx: 0, vy: 0, life: 3, delay: i * 0.18 });
+      for (let i = 0; i < n; i++) this.projs.push({ kind: 'rock', x: (ax0 + 2 + this.rBoss() * (ax1 - ax0 - 4)) * T, y: 19 * T, w: 16, h: 16, vx: 0, vy: 0, life: 3, delay: i * 0.18 });
     }
   }
   damageBoss(p) {
@@ -2441,9 +2474,9 @@ class GameScene extends Phaser.Scene {
   // гость вернулся по тому же коду, пока хост доигрывает в одиночку: перезапускаем сцену в паре (прогресс главы берём из снимка)
   rejoinGuest() {
     if (this.online || this.rejoining) return; this.rejoining = true;
-    const d = { ...this.startData, players: 2, online: 'host' };
+    const d = { ...this.startData, players: 2, online: 'host', seed: this.seed };
     if (this.camp) d.camp = Campaign.snap(this);
-    Net.send({ t: 'start', mode: d.mode, boss: d.boss, camp: d.camp || null });
+    Net.send({ t: 'start', mode: d.mode, boss: d.boss, camp: d.camp || null, seed: this.seed });
     this.ui().toast('Напарник вернулся!');
     this.time.delayedCall(400, () => { this.rejoining = false; this.ui().ready = false; this.scene.stop('bg'); this.scene.start('game', d); });
   }
@@ -3111,7 +3144,7 @@ Object.assign(GameScene.prototype, {
           if (late >= 1) opts.push('roller');
           if (late >= 2) opts.push('roller', 'roller');
           opts = opts.filter((o) => o !== m.last);
-          const pick = opts[Math.floor(Math.random() * opts.length)]; m.last = pick; m.vx = 0;
+          const pick = opts[Math.floor(this.rBoss() * opts.length)]; m.last = pick; m.vx = 0;
           if (pick === 'letters') this.mishaWord(phase2);
           if (pick === 'big') { m.state = 'bigWind'; m.t = 0.6; this.mishaSpeak('ДЕТДОМ!', 1.2); }
           if (pick === 'charge') { m.state = 'chargeWind'; m.t = phase2 ? 0.35 : 0.5; m.face = want; this.mishaSpeak('С ДОРОГИ!', 1.0); }
@@ -3134,7 +3167,7 @@ Object.assign(GameScene.prototype, {
         m.vx = 0;
         if (m.t <= 0) { this.mishaDictation(m.tdUsed.length >= 2 ? 3 : m.tdUsed.length >= 1 ? 2 : 1); m.state = 'recover'; m.t = 1.4; }
         break;
-      case 'word': m.vx = 0; if (m.t <= 0) { if (phase2 && Math.random() < 0.45) this.mishaWord(phase2); else { m.state = 'recover'; m.t = phase2 ? 0.45 : 0.7; } } break; // во второй половине боя иногда сразу второе слово
+      case 'word': m.vx = 0; if (m.t <= 0) { if (phase2 && this.rBoss() < 0.45) this.mishaWord(phase2); else { m.state = 'recover'; m.t = phase2 ? 0.45 : 0.7; } } break; // во второй половине боя иногда сразу второе слово
       case 'bigWind':
         m.vx = 0;
         if (m.t <= 0) {
@@ -3143,7 +3176,7 @@ Object.assign(GameScene.prototype, {
           for (let i = 0; i < n; i++) {
             const p = targets[i % targets.length], off = n === 1 ? 0 : (i - 1) * 110;
             const x = clamp(p.x + 7 + off, 2 * T, (this.L.W - 2) * T) - 28;
-            this.projs.push({ kind: 'bigletter', ch: MISHA_BIG[Math.floor(Math.random() * MISHA_BIG.length)], x, y: 7 * T, w: 56, h: 60, vx: 0, vy: 0, life: 3, delay: 0.75 + i * 0.15 });
+            this.projs.push({ kind: 'bigletter', ch: MISHA_BIG[Math.floor(this.rBoss() * MISHA_BIG.length)], x, y: 7 * T, w: 56, h: 60, vx: 0, vy: 0, life: 3, delay: 0.75 + i * 0.15 });
           }
           m.state = 'recover'; m.t = phase2 ? 0.8 : 1.1;
         }
@@ -3165,7 +3198,7 @@ Object.assign(GameScene.prototype, {
     }
   },
   mishaWord(phase2) {
-    const m = this.misha, word = MISHA_WORDS[Math.floor(Math.random() * MISHA_WORDS.length)];
+    const m = this.misha, word = MISHA_WORDS[Math.floor(this.rBoss() * MISHA_WORDS.length)];
     m.state = 'word'; m.t = 0.5 + word.length * 0.13 + 0.25;
     this.mishaSpeak(word + '!', m.t);
     const step = 26, half = ((word.length - 1) * step) / 2 + 14;
@@ -3180,7 +3213,7 @@ Object.assign(GameScene.prototype, {
     const x0 = 2 * T, x1 = (this.L.W - 2) * T, step = 36, cols = Math.floor((x1 - x0) / step);
     const word = 'ДИКТАНТПРОВЕРКАОШИБОКДВОЙКА';
     for (let w = 0; w < waves; w++) {
-      const gap = 2 + Math.floor(Math.random() * (cols - 5));
+      const gap = 2 + Math.floor(this.rBoss() * (cols - 5));
       for (let i = 0; i < cols; i++) {
         if (i >= gap && i <= gap + 2) continue;
         this.projs.push({ kind: 'rain', ch: word[(i + w * 5) % word.length], x: x0 + i * step, y: 4 * T + 6, w: 22, h: 26, vx: 0, vy: 330 + w * 40, life: 4, delay: 0.9 + w * 1.5 + i * 0.012 });
@@ -3360,7 +3393,7 @@ Object.assign(GameScene.prototype, {
   },
   tdPickLane() {
     const td = this.td, G = this.tdGeo();
-    let lane = Math.floor(Math.random() * 3); if (lane === td.lane && Math.random() < 0.6) lane = (lane + 1 + Math.floor(Math.random() * 2)) % 3;
+    let lane = Math.floor(this.rBoss() * 3); if (lane === td.lane && this.rBoss() < 0.6) lane = (lane + 1 + Math.floor(this.rBoss() * 2)) % 3;
     td.lane = lane; td.mx = G.start; td.state = 'tele'; td.t = 1.1; td.round++; td.fe = false;
     td.say = ['ПОСТОРОНИСЬ!', 'Я ПРОЙДУ!', 'С ДОРОГИ!'][td.round % 3]; td.sayT = 1.6;
   },
@@ -3396,7 +3429,7 @@ Object.assign(GameScene.prototype, {
         } else if (td.mx >= G.goal) { td.state = 'through'; td.t = 1.3; td.say = 'ПРОШЁЛ! ХА!'; td.sayT = 1.6; this.sfx('win'); }
         else if (td.feint && !td.fe && td.mx > G.x0 + (G.x1 - G.x0) * 0.42) {
           // второй «Пропустите!»: на полпути Миша передумывает и перескакивает в другой коридор
-          td.fe = true; td.lane = td.lane === 0 ? 1 : td.lane === 2 ? 1 : (Math.random() < 0.5 ? 0 : 2); td.state = 'feint'; td.t = 0.9; // всегда в соседний коридор: двери рядом
+          td.fe = true; td.lane = td.lane === 0 ? 1 : td.lane === 2 ? 1 : (this.rBoss() < 0.5 ? 0 : 2); td.state = 'feint'; td.t = 0.9; // всегда в соседний коридор: двери рядом
           td.say = 'А НЕТ, ТУДА!'; td.sayT = 1.2; this.sfx('roar');
         }
         break;
@@ -3589,7 +3622,7 @@ Object.assign(GameScene.prototype, {
     for (const c of this.curtains) {
       if (c.slime > 0) {
         c.slime -= dt; c.drip -= dt;
-        if (c.drip <= 0) { c.drip = 0.8 + Math.random() * 0.6; this.projs.push({ kind: 'drip', x: c.x + 8 + Math.random() * (c.w - 22), y: c.y + c.h - 8, w: 8, h: 10, vx: 0, vy: 40, life: 2 }); }
+        if (c.drip <= 0) { c.drip = 0.8 + this.rBoss() * 0.6; this.projs.push({ kind: 'drip', x: c.x + 8 + this.rBoss() * (c.w - 22), y: c.y + c.h - 8, w: 8, h: 10, vx: 0, vy: 40, life: 2 }); }
       }
     }
     if (v.state === 'dead') { v.t -= dt; v.vy = Math.min(v.vy + P.G * dt, P.MAXFALL); this.moveBody(v, dt); return; }
@@ -3623,7 +3656,7 @@ Object.assign(GameScene.prototype, {
         v.face = tx > vcx ? 1 : -1;
         v.vx = Math.abs(tx - vcx) > 160 ? v.face * 90 : 0;
         // крещендо: в третьей фазе ноты падают с потолка
-        if (phase3 && Math.random() < dt * 1.4) this.projs.push({ kind: 'note', x: (2 + Math.random() * (this.L.W - 4)) * T, y: 4 * T + 10, w: 14, h: 18, vx: 0, vy: 60, life: 3 });
+        if (phase3 && this.rBoss() < dt * 1.4) this.projs.push({ kind: 'note', x: (2 + this.rBoss() * (this.L.W - 4)) * T, y: 4 * T + 10, w: 14, h: 18, vx: 0, vy: 60, life: 3 });
         if (v.t <= 0) {
           const slimed = this.curtains.filter((c) => c.slime > 0).length;
           let opts = ['clef', 'leap', 'smear', 'lunge'];
@@ -3631,7 +3664,7 @@ Object.assign(GameScene.prototype, {
           if (phase3) opts.push('echo', 'echo');
           opts = opts.filter((o) => o !== v.last);
           if (slimed >= 3) opts = opts.filter((o) => o !== 'smear');
-          const pick = opts[Math.floor(Math.random() * opts.length)]; v.last = pick; v.vx = 0;
+          const pick = opts[Math.floor(this.rBoss() * opts.length)]; v.last = pick; v.vx = 0;
           if (pick === 'clef') { v.state = 'clefWind'; v.t = phase2 ? 0.35 : 0.5; }
           if (pick === 'leap') { v.state = 'leapWind'; v.t = 0.4; }
           if (pick === 'smear') this.vladikPickCurtain(phase2);
@@ -3695,7 +3728,7 @@ Object.assign(GameScene.prototype, {
   vladikStaff(phase3) {
     const fl = this.L.floorY * T, ys = [fl - 16, fl - 104, fl - 168, fl - 236, fl - 300];
     const patterns = phase3 ? [[0, 2, 4], [1, 3], [0, 3, 4], [1, 2, 4]] : [[0, 2], [1, 3], [0, 4], [1, 4]];
-    const act = patterns[Math.floor(Math.random() * patterns.length)];
+    const act = patterns[Math.floor(this.rBoss() * patterns.length)];
     act.forEach((i) => this.projs.push({ kind: 'staff', x: T, y: ys[i] - 5, w: (this.L.W - 2) * T, h: 10, vx: 0, vy: 0, life: 0.55, delay: 1.0 }));
     // бледные линии-подсказки на безопасных местах тоже рисуем — чтобы было видно весь стан
     ys.forEach((y, i) => { if (!act.includes(i)) this.projs.push({ kind: 'staffghost', x: T, y: y - 5, w: (this.L.W - 2) * T, h: 0, vx: 0, vy: 0, life: 1.4 }); });
@@ -4024,7 +4057,7 @@ Object.assign(GameScene.prototype, {
       case 'lagWind':
         v.vx = 0;
         if (v.t <= 0) {
-          const targets = this.alivePlayers().length ? this.alivePlayers() : this.players, p = targets[Math.floor(Math.random() * targets.length)];
+          const targets = this.alivePlayers().length ? this.alivePlayers() : this.players, p = targets[Math.floor(this.rBoss() * targets.length)];
           v.lagX = clamp(p.x + 7, 2 * T + 30, (this.L.W - 2) * T - 30);
           this.projs.push({ kind: 'mark', x: v.lagX, y: this.L.floorY * T, w: 0, h: 0, vx: 0, vy: 0, life: 1.3 });
           this.sfx('sparkle'); v.state = 'lagGone'; v.t = 1.1; v.y = -500; v.vy = 0;
@@ -4050,12 +4083,12 @@ Object.assign(GameScene.prototype, {
         if (v.t <= 0) {
           v.vx = 0;
           if (v.dustCd <= 0 && v.hp < v.maxHp * 0.75 && v.hyper <= 0) { v.state = 'dustDraw'; v.t = 2.2; v.dustHits = 0; this.timaSpeak('ЩАС-ЩАС, НАЧЕРЧУ…', 1.6); this.toastAll('Тима чертит круг для пыли — беги к нему и бей!'); break; }
-          if (v.drinkCd <= 0 && v.hp < v.maxHp * 0.85 && Math.random() < 0.5) { v.state = 'drink'; v.t = 1.2; v.drinkCd = 14; this.timaSpeak('БУЛЬ-БУЛЬ…', 1.2); this.sfx('glug'); break; }
+          if (v.drinkCd <= 0 && v.hp < v.maxHp * 0.85 && this.rBoss() < 0.5) { v.state = 'drink'; v.t = 1.2; v.drinkCd = 14; this.timaSpeak('БУЛЬ-БУЛЬ…', 1.2); this.sfx('glug'); break; }
           const pool = ['beer', 'pad', 'ring', 'ring', 'box', 'bankrupt'];
           if (phase2 && !this.projs.some((q) => q.kind === 'collector')) pool.push('coll');
           if (phase3) pool.push('ach', 'ach', 'lag', 'lag');
-          const opts = pool.filter((o) => o !== v.last && !(o === 'bankrupt' && (this.repoT > 0 || !phase2 && Math.random() < 0.5)));
-          const pick = opts[Math.floor(Math.random() * opts.length)]; v.last = pick;
+          const opts = pool.filter((o) => o !== v.last && !(o === 'bankrupt' && (this.repoT > 0 || !phase2 && this.rBoss() < 0.5)));
+          const pick = opts[Math.floor(this.rBoss() * opts.length)]; v.last = pick;
           if (pick === 'beer') { v.state = 'beerWind'; v.t = 0.5; this.timaSpeak('ЛОВИ ПИВКО!', 1.0); }
           if (pick === 'pad') { v.state = 'pad'; v.t = 2.0; this.timaSpeak('ИКС-БОКС!', 1.2); this.projs.push({ kind: 'pad', x: vcx, y: v.y + 30, w: 26, h: 18, vx: 0, vy: 0, life: 2.2, ang: v.face > 0 ? 0 : Math.PI, rad: 20, spin: v.face }); this.sfx('buzz'); }
           if (pick === 'ring') { v.state = 'ringWind'; v.t = 0.9; this.timaSpeak('КРАСНОЕ КОЛЬЦО!', 1.3); this.sfx('buzz'); }
@@ -4373,7 +4406,7 @@ Object.assign(GameScene.prototype, {
         pr.vy = Math.min(pr.vy + 1100 * dt, 820); pr.x += pr.vx * dt; pr.y += pr.vy * dt;
         if (this.isSolid(Math.floor((pr.x + 15) / T), Math.floor((pr.y + 30) / T)) && pr.vy > 0) {
           pr.y = Math.floor((pr.y + 30) / T) * T - 30; this.dustAt(8, pr.x + 15, pr.y + 30); this.sfx('glass');
-          if (pr.bounces-- > 0) { pr.vy = -320; pr.vx = (Math.random() - 0.5) * 300; } else pr.dead = true;
+          if (pr.bounces-- > 0) { pr.vy = -320; pr.vx = (this.rBoss() - 0.5) * 300; } else pr.dead = true;
         }
         return true;
       case 'echo': // призрак Владика: бежит вдоль пола и исчезает за дальней стеной
@@ -4691,7 +4724,7 @@ Object.assign(GameScene.prototype, {
   // ----- появление: вызывается из spawnEnemies; вернёт врага, массив врагов или null -----
   spawnEnemy2(d, base) {
     const fx = d.x * T + 16, fy = (d.y + 1) * T;
-    const mk = (o) => ({ ...base, e2: true, st: 0, cd: 0.6 + Math.random(), ...o });
+    const mk = (o) => ({ ...base, e2: true, st: 0, cd: 0.6 + this.rEnemy(), ...o });
     switch (d.type) {
       case 'spitter': return mk({ w: 22, h: 20, x: fx - 11, y: fy - 20, hp: 3, beads: 4, state: 'idle', hx: fx, face: -1 });
       case 'shell': return mk({ w: 44, h: 28, x: fx - 22, y: fy - 28, hp: 8, beads: 10, state: 'walk', armorT: 0, heavyBody: true });
@@ -4771,7 +4804,7 @@ Object.assign(GameScene.prototype, {
         e.vx = 0;
         if (!tp || d > 480) { // дежурит возле места
           if (Math.abs(e.x - e.hx) > 50) e.face = e.x < e.hx ? 1 : -1;
-          else if (e.hitL || e.hitR || this.ledgeAhead(e) || Math.random() < dt * 0.3) e.face = -e.face;
+          else if (e.hitL || e.hitR || this.ledgeAhead(e) || this.rEnemy() < dt * 0.3) e.face = -e.face;
           e.vx = e.face * 28; if (this.ledgeAhead(e)) { e.face = -e.face; e.vx = 0; }
         } else {
           e.face = dx > 0 ? 1 : -1;

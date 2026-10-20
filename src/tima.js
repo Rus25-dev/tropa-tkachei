@@ -180,7 +180,7 @@ Object.assign(GameScene.prototype, {
       case 'lagWind':
         v.vx = 0;
         if (v.t <= 0) {
-          const targets = this.alivePlayers().length ? this.alivePlayers() : this.players, p = targets[Math.floor(Math.random() * targets.length)];
+          const targets = this.alivePlayers().length ? this.alivePlayers() : this.players, p = targets[Math.floor(this.rBoss() * targets.length)];
           v.lagX = clamp(p.x + 7, 2 * T + 30, (this.L.W - 2) * T - 30);
           this.projs.push({ kind: 'mark', x: v.lagX, y: this.L.floorY * T, w: 0, h: 0, vx: 0, vy: 0, life: 1.3 });
           this.sfx('sparkle'); v.state = 'lagGone'; v.t = 1.1; v.y = -500; v.vy = 0;
@@ -206,12 +206,12 @@ Object.assign(GameScene.prototype, {
         if (v.t <= 0) {
           v.vx = 0;
           if (v.dustCd <= 0 && v.hp < v.maxHp * 0.75 && v.hyper <= 0) { v.state = 'dustDraw'; v.t = 2.2; v.dustHits = 0; this.timaSpeak('ЩАС-ЩАС, НАЧЕРЧУ…', 1.6); this.toastAll('Тима чертит круг для пыли — беги к нему и бей!'); break; }
-          if (v.drinkCd <= 0 && v.hp < v.maxHp * 0.85 && Math.random() < 0.5) { v.state = 'drink'; v.t = 1.2; v.drinkCd = 14; this.timaSpeak('БУЛЬ-БУЛЬ…', 1.2); this.sfx('glug'); break; }
+          if (v.drinkCd <= 0 && v.hp < v.maxHp * 0.85 && this.rBoss() < 0.5) { v.state = 'drink'; v.t = 1.2; v.drinkCd = 14; this.timaSpeak('БУЛЬ-БУЛЬ…', 1.2); this.sfx('glug'); break; }
           const pool = ['beer', 'pad', 'ring', 'ring', 'box', 'bankrupt'];
           if (phase2 && !this.projs.some((q) => q.kind === 'collector')) pool.push('coll');
           if (phase3) pool.push('ach', 'ach', 'lag', 'lag');
-          const opts = pool.filter((o) => o !== v.last && !(o === 'bankrupt' && (this.repoT > 0 || !phase2 && Math.random() < 0.5)));
-          const pick = opts[Math.floor(Math.random() * opts.length)]; v.last = pick;
+          const opts = pool.filter((o) => o !== v.last && !(o === 'bankrupt' && (this.repoT > 0 || !phase2 && this.rBoss() < 0.5)));
+          const pick = opts[Math.floor(this.rBoss() * opts.length)]; v.last = pick;
           if (pick === 'beer') { v.state = 'beerWind'; v.t = 0.5; this.timaSpeak('ЛОВИ ПИВКО!', 1.0); }
           if (pick === 'pad') { v.state = 'pad'; v.t = 2.0; this.timaSpeak('ИКС-БОКС!', 1.2); this.projs.push({ kind: 'pad', x: vcx, y: v.y + 30, w: 26, h: 18, vx: 0, vy: 0, life: 2.2, ang: v.face > 0 ? 0 : Math.PI, rad: 20, spin: v.face }); this.sfx('buzz'); }
           if (pick === 'ring') { v.state = 'ringWind'; v.t = 0.9; this.timaSpeak('КРАСНОЕ КОЛЬЦО!', 1.3); this.sfx('buzz'); }

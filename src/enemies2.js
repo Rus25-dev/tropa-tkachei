@@ -15,7 +15,7 @@ Object.assign(GameScene.prototype, {
   // ----- появление: вызывается из spawnEnemies; вернёт врага, массив врагов или null -----
   spawnEnemy2(d, base) {
     const fx = d.x * T + 16, fy = (d.y + 1) * T;
-    const mk = (o) => ({ ...base, e2: true, st: 0, cd: 0.6 + Math.random(), ...o });
+    const mk = (o) => ({ ...base, e2: true, st: 0, cd: 0.6 + this.rEnemy(), ...o });
     switch (d.type) {
       case 'spitter': return mk({ w: 22, h: 20, x: fx - 11, y: fy - 20, hp: 3, beads: 4, state: 'idle', hx: fx, face: -1 });
       case 'shell': return mk({ w: 44, h: 28, x: fx - 22, y: fy - 28, hp: 8, beads: 10, state: 'walk', armorT: 0, heavyBody: true });
@@ -95,7 +95,7 @@ Object.assign(GameScene.prototype, {
         e.vx = 0;
         if (!tp || d > 480) { // дежурит возле места
           if (Math.abs(e.x - e.hx) > 50) e.face = e.x < e.hx ? 1 : -1;
-          else if (e.hitL || e.hitR || this.ledgeAhead(e) || Math.random() < dt * 0.3) e.face = -e.face;
+          else if (e.hitL || e.hitR || this.ledgeAhead(e) || this.rEnemy() < dt * 0.3) e.face = -e.face;
           e.vx = e.face * 28; if (this.ledgeAhead(e)) { e.face = -e.face; e.vx = 0; }
         } else {
           e.face = dx > 0 ? 1 : -1;

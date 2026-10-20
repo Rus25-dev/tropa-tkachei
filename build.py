@@ -4,6 +4,7 @@ import os
 SRC = os.path.join(os.path.dirname(__file__), 'src')
 parts = [
     "level.js",
+    "rng.js",
     "art.js",
     "sound.js",
     "music.js",

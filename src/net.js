@@ -105,7 +105,8 @@ const Lobby = {
         if (this.mode === 'race') { Speedrun.raceOpen('host'); return; }
         const mode = this.mode || 'story', boss = this.boss || 'misha';
         const camp = mode === 'story' ? Campaign.resume() : null;
-        setTimeout(() => { Net.send({ t: 'start', mode, boss, camp }); this.start('host', mode, boss, camp); }, 400);
+        Net.seed = newSeed(); // зерно ГСЧ выбирает хост и шлёт гостю в стартовом сообщении
+        setTimeout(() => { Net.send({ t: 'start', mode, boss, camp, seed: Net.seed }); this.start('host', mode, boss, camp); }, 400);
       } else if (ev === 'error') this.status(Net.errText(d), 'err');
     });
   },
@@ -119,7 +120,7 @@ const Lobby = {
   },
   route(m) {
     if (m && m.t === 'race') { Speedrun.onNet(m); return; }
-    if (m && m.t === 'start' && Net.role === 'guest') { this.start('guest', m.mode, m.boss, m.camp); return; }
+    if (m && m.t === 'start' && Net.role === 'guest') { Net.seed = m.seed != null ? m.seed >>> 0 : null; this.start('guest', m.mode, m.boss, m.camp); return; }
     const gs = window.__game && window.__game.scene.getScene('game');
     if (gs && gs.sys.isActive() && gs.onNet) gs.onNet(m);
   },
