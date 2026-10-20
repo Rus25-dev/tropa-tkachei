@@ -75,7 +75,8 @@ const phaserSrc = fs.readFileSync(require.resolve('phaser/dist/phaser.min.js'), 
     console.log('ошибок:', errs, 'провалов:', res.fails.length);
     await browser.close(); process.exit(errs || res.fails.length ? 1 : 0);
   }
-  const out = await page.evaluate(({ mode, N }) => new Promise((resolve) => {
+  const out = await page.evaluate(({ mode, N, weapon }) => new Promise((resolve) => {
+    if (weapon) localStorage.setItem('tt_loadout', JSON.stringify({ weapon, tool: '', charms: [], have: { weapons: ['needle'], tools: [], charms: [] } })); // WEAPON=mace и т.п.: проверка оружия
     const g = window.__game; g.scene.stop('menu');
     g.scene.start('game', mode === 'story' ? { players: 1, mode: 'story' } : { players: 1, mode: 'bosstest', boss: mode });
     setTimeout(() => {
@@ -85,7 +86,7 @@ const phaserSrc = fs.readFileSync(require.resolve('phaser/dist/phaser.min.js'), 
       const run = () => {
         for (let n = 0; n < 60 && f < N; n++, f++) {
           const k = Math.floor(f / 25) % 8;
-          sc._i = { right: f % 400 < 300, left: f % 400 >= 300, jump: f % 37 < 12, atk: f % 11 === 0, dash: f % 90 === 0, heal: f % 53 === 0, up: f % 130 < 20, down: false, bomb: f % 70 === 0 };
+          sc._i = { right: f % 400 < 300, left: f % 400 >= 300, jump: f % 37 < 12, atk: f % 11 === 0 || (weapon && f % 300 > 200 && f % 300 < 290), dash: f % 90 === 0, heal: f % 53 === 0, up: f % 130 < 20, down: false, bomb: f % 70 === 0 };
           sc.update(f * 16.667, 16.667); maxX = Math.max(maxX, sc.players[0].x);
         }
         if (f >= N) return resolve({ rec: localStorage.getItem('tt_records'), f, maxX: Math.round(maxX), hp: sc.players[0].hp, abil: sc.abil });
@@ -93,7 +94,7 @@ const phaserSrc = fs.readFileSync(require.resolve('phaser/dist/phaser.min.js'), 
       };
       run();
     }, 800);
-  }), { mode, N });
+  }), { mode, N, weapon: process.env.WEAPON || '' });
   console.log(JSON.stringify(out), 'ошибок:', errs);
   await browser.close(); process.exit(errs ? 1 : 0);
 })();

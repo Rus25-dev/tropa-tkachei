@@ -1,9 +1,11 @@
 // ===== ИГРА: «Тропа Ткачей» — кооперативная метроидвания =====
 let VW = 960; const VH = 540;
 // версия игры; номер сборки подставляет build.py
-const GAME_VERSION = '1.5';
+const GAME_VERSION = '1.6';
 const GAME_BUILD = '__BUILD__';
 const CHANGELOG = [
+  'Снаряжение: 5 видов оружия, заряженный удар, 4 инструмента (клавиша E), 9 оберегов, яд и ожог; экран на скамье',
+  'Хват за уступ и планер; Миша: иглой бьётся в первых двух фазах, в третьей — только бомбы',
   'Геймпады: DualSense, Xbox и Steam Deck — удобная раскладка, вибрация, сенсорные кнопки прячутся',
   'Спидран (клавиша 6): «Тропа целиком» и «Босс-раш», таймер RTA/IGT, сплиты с дельтой к рекорду, код результата и таблица друзей',
   'Гонка 1×1 по сети: оба проходят один забег в своей игре, видят прогресс и призрака соперника',
@@ -1364,6 +1366,7 @@ class GameScene extends Phaser.Scene {
     // удары
     for (const p of this.players) {
       if (p.downed || p.atkT <= 0) continue;
+      if (this.drawSwing && this.drawSwing(p, fx)) continue; // weapons.js: дуга удара своего оружия
       const k = p.atkT / P.ATK_T, cx = p.x + p.w / 2, cy = p.y + p.h / 2 - 2;
       const th = p.atkDir === 'f' ? (p.face > 0 ? 0 : Math.PI) : p.atkDir === 'u' ? -Math.PI / 2 : Math.PI / 2;
       const ux = Math.cos(th), uy = Math.sin(th);
@@ -1459,7 +1462,8 @@ class GameScene extends Phaser.Scene {
     this.drawPlayerFx(p, g);
     drawWeaver(g, 0, 0, p.face, p.pal, a, 1);
     p.tag.setPosition(cx + p.face * 0.5, fy + (-12.5 - a.bob * 0.5) * sy).setScale(sx, sy).setAlpha(blink ? 0.35 : 1);
-    if (p.atkT <= 0 && !p.sit) {
+    if (this.drawWeaponBody && this.drawWeaponBody(p, g, a, now)) { /* weapons.js: клинок и свечение заряда */ }
+    else if (p.atkT <= 0 && !p.sit) {
       const f = p.face;
       g.lineStyle(1.8, 0xcfd6dc, 1); g.lineBetween(-6 * f, -10 - a.bob, -13 * f, -25 - a.bob);
       g.lineStyle(1, p.pal.accent, 0.9); g.strokeCircle(-13 * f, -26 - a.bob, 2);
