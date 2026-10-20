@@ -112,7 +112,7 @@ Object.assign(GameScene.prototype, {
   mishaDie() {
     const m = this.misha; m.state = 'dead'; m.t = 2.6; m.vx = 0; this.bossDead = true;
     for (const pr of this.projs) if (pr.kind !== 'bomb') pr.dead = true;
-    this.mishaSpeak('ЛАДНО, ЛАДНО! СДАЮСЬ!', 2.4); this.sfx('roar'); this.shake(900, 0.008);
+    this.mishaSpeak('ЭТО СДЕЛАЛ ТАМИК!', 2.6); this.sfx('roar'); this.shake(900, 0.008);
     for (let i = 0; i < 8; i++) this.time.delayedCall(i * 160, () => { const b = this.mishaBag(m); this.smokeAt(22, b.x + 15 + (Math.random() - 0.5) * 40, b.y + Math.random() * 30); });
     this.time.delayedCall(2700, () => { this.ui().bossBar(false); this.win(); });
   },

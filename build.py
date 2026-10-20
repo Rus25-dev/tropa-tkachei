@@ -5,6 +5,9 @@ SRC = os.path.join(os.path.dirname(__file__), 'src')
 parts = ["level.js", "art.js", "sound.js", "touch.js", "net.js", "game.js", "misha.js", "vladik.js", "tima.js"]
 code = "\n".join(open(os.path.join(SRC, f), encoding='utf-8').read() for f in parts)
 code = code.replace("if (typeof module !== 'undefined') module.exports = { buildLevel, T, EMPTY, SOLID, PLAT, SPIKE };", "")
+import os as _os, datetime as _dt
+BUILD = _os.environ.get("BUILD") or _dt.datetime.utcnow().strftime("%y%m%d.%H%M")
+code = code.replace("__BUILD__", BUILD)
 html = open(os.path.join(SRC, 'shell.html'), encoding='utf-8').read().replace("/*__CODE__*/", code)
 page = ('<!doctype html>\n<html lang="ru">\n<head>\n<meta charset="utf-8">\n'
         '<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">\n'

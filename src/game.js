@@ -1,5 +1,14 @@
 // ===== ИГРА: «Тропа Ткачей» — кооперативная метроидвания =====
 let VW = 960; const VH = 540;
+// версия игры; номер сборки подставляет build.py
+const GAME_VERSION = '0.7';
+const GAME_BUILD = '__BUILD__';
+const CHANGELOG = [
+  'Игра с телефона: стик, кнопки, полный экран, iPhone 13–17',
+  'Новые боссы: Владик Скрипка и Тима Пиво',
+  'Босс-тест: Миша Додик, дымовухи и рюкзак',
+  'Онлайн-кооп по коду комнаты, работает с серым IP',
+];
 // ширина поля подстраивается под пропорции экрана: на вытянутых телефонах без чёрных полос
 function computeVW() {
   const bx = Layout.box(), w = bx.w || window.innerWidth || 960, h = bx.h || window.innerHeight || 540;
@@ -81,6 +90,10 @@ class MenuScene extends Phaser.Scene {
     this.add.text(VW / 2, 488, ctl.join('\n'), { fontFamily: '"Fira Sans", sans-serif', fontSize: '12px', color: '#86a89a', align: 'center', lineSpacing: 7 }).setOrigin(0.5);
 
     const k = this.input.keyboard;
+    // версия, сборка и что нового
+    const vF = '"Fira Sans", sans-serif';
+    this.add.text(14, 10, `Версия ${GAME_VERSION} · сборка ${GAME_BUILD}`, { fontFamily: vF, fontSize: '12px', fontStyle: '600', color: '#9fc4b4' });
+    this.add.text(14, 28, 'Что нового:\n' + CHANGELOG.map((l) => '· ' + l).join('\n'), { fontFamily: vF, fontSize: '10.5px', color: '#7fa596', lineSpacing: 3, wordWrap: { width: Math.max(170, Math.min(230, VW / 2 - 300)) } });
     // выбор для босс-теста
     this.pick = this.add.container(0, 0).setVisible(false).setDepth(10);
     const pg = this.add.graphics(); pg.fillStyle(0x030807, 0.9); pg.fillRect(0, 0, VW, VH);
@@ -1151,7 +1164,7 @@ class GameScene extends Phaser.Scene {
     const pts = this.alivePlayers().length ? this.alivePlayers() : this.players;
     let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
     for (const p of pts) { x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x + p.w); y0 = Math.min(y0, p.y); y1 = Math.max(y1, p.y + p.h); }
-    const mi = this.testBoss(), withBoss = mi && mi.state !== 'dead';
+    const mi = this.testBoss(), withBoss = mi && (mi.state !== 'dead' || mi.t > 0.3);
     if (withBoss) { x0 = Math.min(x0, mi.x - 20); x1 = Math.max(x1, mi.x + mi.w + 20); y0 = Math.min(y0, mi.y - 40); }
     let tx = (x0 + x1) / 2, ty = (y0 + y1) / 2 - 30;
     if (pts.length === 1 && !withBoss) tx += pts[0].face * 50;
