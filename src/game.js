@@ -34,58 +34,93 @@ class MenuScene extends Phaser.Scene {
     this.add.image(0, 0, 'vignette').setOrigin(0);
 
     const glow = this.add.graphics();
-    glow.fillStyle(0x9ff0c8, 0.06); for (let r = 140; r > 10; r -= 14) glow.fillCircle(VW / 2, 190, r);
+    glow.fillStyle(0x9ff0c8, 0.06); for (let r = 140; r > 10; r -= 14) glow.fillCircle(VW / 2, 160, r);
     this.hero = this.add.graphics();
 
-    this.add.text(VW / 2, 120, 'ТРОПА ТКАЧЕЙ', { fontFamily: '"Cormorant SC", Georgia, serif', fontSize: '64px', color: '#e8e2cf', fontStyle: '700' }).setOrigin(0.5).setShadow(0, 0, '#9ff0c8', 18, false, true);
-    this.add.text(VW / 2, 166, 'Глава I · Мшистая Глубь', { fontFamily: '"Fira Sans", sans-serif', fontSize: '17px', color: '#8fb8a8' }).setOrigin(0.5);
+    this.add.text(VW / 2, 92, 'ТРОПА ТКАЧЕЙ', { fontFamily: '"Cormorant SC", Georgia, serif', fontSize: '64px', color: '#e8e2cf', fontStyle: '700' }).setOrigin(0.5).setShadow(0, 0, '#9ff0c8', 18, false, true);
+    this.add.text(VW / 2, 136, 'Глава I · Мшистая Глубь', { fontFamily: '"Fira Sans", sans-serif', fontSize: '17px', color: '#8fb8a8' }).setOrigin(0.5);
 
     const mkBtn = (y, label, sub, n) => {
       const t = this.add.text(VW / 2, y, label, { fontFamily: '"Cormorant SC", Georgia, serif', fontSize: '32px', color: '#cfe8dc', fontStyle: '600' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-      const s = this.add.text(VW / 2, y + 26, sub, { fontFamily: '"Fira Sans", sans-serif', fontSize: '13px', color: '#6f9586' }).setOrigin(0.5);
+      const s = this.add.text(VW / 2, y + 24, sub, { fontFamily: '"Fira Sans", sans-serif', fontSize: '13px', color: '#6f9586' }).setOrigin(0.5);
       t.on('pointerover', () => t.setColor('#ffd47a')); t.on('pointerout', () => t.setColor('#cfe8dc'));
-      t.on('pointerdown', () => (n === 3 ? this.openLobby() : this.go(n)));
+      t.on('pointerdown', () => (n === 3 ? this.openLobby() : n === 4 ? this.openPick() : this.go(n)));
       return [t, s];
     };
-    mkBtn(268, '1 · Один ткач', 'клавиша 1 · геймпад A', 1);
-    mkBtn(326, '2 · Двое за одним компьютером', 'клавиша 2 · геймпад Y', 2);
-    mkBtn(384, '3 · Вдвоём по сети', 'клавиша 3 · комната с кодом, работает и с серым IP', 3);
+    mkBtn(250, '1 · Один ткач', 'клавиша 1 · геймпад A', 1);
+    mkBtn(301, '2 · Двое за одним компьютером', 'клавиша 2 · геймпад Y', 2);
+    mkBtn(352, '3 · Вдвоём по сети', 'клавиша 3 · комната с кодом, работает и с серым IP', 3);
+    mkBtn(403, '4 · Босс-тест: Миша Додик', 'клавиша 4 · геймпад X · сразу в бой', 4);
 
     const ctl = [
-      'Игрок 1:  A D W S — ходить   Пробел — прыжок   F — удар   G — рывок   Q — лечение',
-      'Игрок 2:  стрелки   Num1 или / — прыжок   Num2 или . — удар   Num3 или , — рывок   Num0 или M — лечение',
-      'В одиночку можно и так: стрелки + Z X C V.   Геймпад: A прыжок, X удар, B/RB рывок, Y лечение.   Esc — пауза',
+      'Игрок 1:  A D W S — ходить   Пробел — прыжок   F — удар   G — рывок   Q — лечение   R — дымовуха',
+      'Игрок 2:  стрелки   Num1 или / — прыжок   Num2 или . — удар   Num3 или , — рывок   Num0 или M — лечение   Num4 или N — дымовуха',
+      'В одиночку можно и так: стрелки + Z X C V B.   Геймпад: A прыжок, X удар, B/RB рывок, Y лечение, LB дымовуха.   Esc — пауза',
     ];
-    this.add.text(VW / 2, 478, ctl.join('\n'), { fontFamily: '"Fira Sans", sans-serif', fontSize: '12.5px', color: '#86a89a', align: 'center', lineSpacing: 7 }).setOrigin(0.5);
+    this.add.text(VW / 2, 488, ctl.join('\n'), { fontFamily: '"Fira Sans", sans-serif', fontSize: '12px', color: '#86a89a', align: 'center', lineSpacing: 7 }).setOrigin(0.5);
 
     const k = this.input.keyboard;
-    k.on('keydown', (e) => { Snd.init(); if (e.key === '1') this.go(1); if (e.key === '2') this.go(2); if (e.key === '3') this.openLobby(); });
+    // выбор для босс-теста
+    this.pick = this.add.container(0, 0).setVisible(false).setDepth(10);
+    const pg = this.add.graphics(); pg.fillStyle(0x030807, 0.9); pg.fillRect(0, 0, VW, VH);
+    const D = '"Cormorant SC", Georgia, serif', F = '"Fira Sans", sans-serif';
+    const pt = this.add.text(VW / 2, 120, 'Босс-тест · Миша Додик', { fontFamily: D, fontSize: '44px', color: '#e8e2cf', fontStyle: '700' }).setOrigin(0.5);
+    const ps = this.add.text(VW / 2, 168, 'Он швыряется печатными буквами и бережёт рюкзак. Закиньте туда дымовые бомбы.', { fontFamily: F, fontSize: '14px', color: '#8fb8a8' }).setOrigin(0.5);
+    const mkPick = (y, label, fn) => {
+      const t = this.add.text(VW / 2, y, label, { fontFamily: D, fontSize: '30px', color: '#cfe8dc', fontStyle: '600' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+      t.on('pointerover', () => t.setColor('#ffd47a')); t.on('pointerout', () => t.setColor('#cfe8dc')); t.on('pointerdown', fn);
+      return t;
+    };
+    const p1 = mkPick(250, '1 · В одиночку', () => this.go(1, 'bosstest'));
+    const p2 = mkPick(305, '2 · Вдвоём за одним компьютером', () => this.go(2, 'bosstest'));
+    const p3 = mkPick(360, '3 · Вдвоём по сети', () => this.openLobby('bosstest'));
+    const pb = mkPick(440, '← Назад (Esc)', () => this.closePick()); pb.setFontSize(22);
+    this.pick.add([pg, pt, ps, p1, p2, p3, pb]);
+    k.on('keydown', (e) => {
+      Snd.init();
+      if (this.pick.visible) {
+        if (e.key === '1') this.go(1, 'bosstest'); if (e.key === '2') this.go(2, 'bosstest'); if (e.key === '3') this.openLobby('bosstest');
+        if (e.key === 'Escape') this.closePick();
+        return;
+      }
+      if (e.key === '1') this.go(1); if (e.key === '2') this.go(2); if (e.key === '3') this.openLobby(); if (e.key === '4') this.openPick();
+    });
     if (Lobby.room) this.time.delayedCall(300, () => this.openLobby());
     this.input.on('pointerdown', () => Snd.init());
     this.t = 0;
   }
-  openLobby() { if (this.leaving) return; this.leaving = true; Snd.init(); Lobby.show(); }
-  goOnline(role) {
+  openPick() { if (this.leaving) return; Snd.init(); this.pick.setVisible(true); this.pickT = 0.3; }
+  closePick() { this.pick.setVisible(false); }
+  openLobby(mode) { if (this.leaving) return; this.leaving = true; Snd.init(); Lobby.mode = mode || 'story'; Lobby.show(); }
+  goOnline(role, mode) {
     Snd.play('bench'); this.cameras.main.fadeOut(450, 3, 8, 7);
-    this.time.delayedCall(460, () => this.scene.start('game', { players: 2, online: role }));
+    this.time.delayedCall(460, () => this.scene.start('game', { players: 2, online: role, mode: mode || 'story' }));
   }
-  go(n) {
+  go(n, mode) {
     if (this.leaving) return; this.leaving = true; Snd.init(); Snd.play('bench');
     this.cameras.main.fadeOut(450, 3, 8, 7);
-    this.time.delayedCall(460, () => this.scene.start('game', { players: n }));
+    this.time.delayedCall(460, () => this.scene.start('game', { players: n, mode: mode || 'story' }));
   }
   update(time, delta) {
     this.t += delta / 1000;
     this.mid.tilePositionX += delta * 0.01;
     const pads = this.input.gamepad ? this.input.gamepad.gamepads.filter(Boolean) : [];
+    this.pickT = (this.pickT || 0) - delta / 1000;
     for (const pad of pads) {
-      if (pad.buttons[0] && pad.buttons[0].pressed) this.go(1);
-      if (pad.buttons[3] && pad.buttons[3].pressed) this.go(2);
+      const b = (n) => !!(pad.buttons[n] && pad.buttons[n].pressed);
+      if (this.pick.visible) {
+        if (this.pickT > 0) continue;
+        if (b(0)) this.go(1, 'bosstest'); if (b(3)) this.go(2, 'bosstest'); if (b(1)) this.closePick();
+        continue;
+      }
+      if (b(0)) this.go(1);
+      if (b(3)) this.go(2);
+      if (b(2)) this.openPick();
     }
     // два ткача на заставке
     const g = this.hero; g.clear();
     for (let i = 0; i < 2; i++) {
-      const x = VW / 2 + (i ? 26 : -26), y = 246 + Math.sin(this.t * 2 + i) * 3;
+      const x = VW / 2 + (i ? 26 : -26), y = 214 + Math.sin(this.t * 2 + i) * 3;
       drawWeaver(g, x, y, i ? -1 : 1, PAL[i], { bob: 0, leg: 0, sway: Math.sin(this.t * 1.6 + i) * 1.5, lift: 0 }, 1.6);
     }
   }
@@ -136,7 +171,7 @@ class BGScene extends Phaser.Scene {
 // ---------- ИГРОВАЯ СЦЕНА ----------
 class GameScene extends Phaser.Scene {
   constructor() { super('game'); }
-  init(data) { this.nPlayers = data.players || 1; this.online = data.online || null; this.localIdx = data.online === 'guest' ? 1 : 0; }
+  init(data) { this.startData = data; this.mode = data.mode || 'story'; this.nPlayers = data.players || 1; this.online = data.online || null; this.localIdx = data.online === 'guest' ? 1 : 0; }
   auth() { return this.online !== 'guest'; }
   sendEv(o) { if (this.online) Net.send({ t: 'ev', ...o }); }
   sfx(n) { Snd.play(n); if (this.online === 'host') this.sendEv({ k: 'snd', n }); }
@@ -149,7 +184,8 @@ class GameScene extends Phaser.Scene {
     genBackgrounds(this);
     this.scene.launch('bg'); this.scene.launch('ui');
     this.enemies = []; this.boss = null;
-    this.L = buildLevel();
+    this.L = this.mode === 'bosstest' ? buildMishaArena() : buildLevel();
+    this.misha = null; this.crates = null;
     const L = this.L;
     this.grid = L.grid;
     // карта
@@ -183,12 +219,12 @@ class GameScene extends Phaser.Scene {
       return { x: bx, y: by, prompt };
     });
     // выход
-    this.exitR = { x: L.exit.x * T - 4, y: (L.exit.y - 2) * T, w: 40, h: 3 * T };
+    this.exitR = L.exit ? { x: L.exit.x * T - 4, y: (L.exit.y - 2) * T, w: 40, h: 3 * T } : null;
     this.exitG = this.add.graphics().setDepth(1.5);
 
     // ворота
-    this.gates = [L.gateIn, L.gateOut].map((gd, i) => ({ ...gd, closed: false, g: this.add.graphics().setDepth(3), anim: 0, lockedUntilBoss: i === 1 }));
-    this.setGate(this.gates[1], true);
+    this.gates = (L.gates || [L.gateIn, L.gateOut]).filter(Boolean).map((gd, i) => ({ ...gd, closed: false, g: this.add.graphics().setDepth(3), anim: 0, lockedUntilBoss: i === 1 }));
+    if (this.gates[1]) this.setGate(this.gates[1], true);
 
     // слои рисования
     this.fx = this.add.graphics().setDepth(6);
@@ -208,8 +244,9 @@ class GameScene extends Phaser.Scene {
 
     // враги, босс
     this.enemies = []; this.spawnEnemies();
-    this.bossDead = false; this.makeBoss();
+    this.bossDead = this.mode === 'bosstest'; this.makeBoss();
     this.projs = []; this.beadsArr = [];
+    if (this.mode === 'bosstest') this.setupMishaArena();
     this.beads = 0; this.deaths = 0; this.timeSec = 0;
 
     // ввод
@@ -239,12 +276,12 @@ class GameScene extends Phaser.Scene {
     const k = this.input.keyboard, K = KC();
     const add = (arr) => arr.map((c) => k.addKey(c));
     const set = (m) => { const o = {}; for (const n in m) o[n] = add(m[n]); return o; };
-    this.kb1 = set({ left: [K.A], right: [K.D], up: [K.W], down: [K.S], jump: [K.SPACE], atk: [K.F], dash: [K.G], heal: [K.Q] });
-    this.kbArrows = set({ left: [K.LEFT], right: [K.RIGHT], up: [K.UP], down: [K.DOWN], jump: [K.Z], atk: [K.X], dash: [K.C], heal: [K.V] });
-    this.kb2 = set({ left: [K.LEFT], right: [K.RIGHT], up: [K.UP], down: [K.DOWN], jump: [K.NUMPAD_ONE, K.FORWARD_SLASH], atk: [K.NUMPAD_TWO, K.PERIOD], dash: [K.NUMPAD_THREE, K.COMMA], heal: [K.NUMPAD_ZERO, K.M] });
+    this.kb1 = set({ left: [K.A], right: [K.D], up: [K.W], down: [K.S], jump: [K.SPACE], atk: [K.F], dash: [K.G], heal: [K.Q], bomb: [K.R] });
+    this.kbArrows = set({ left: [K.LEFT], right: [K.RIGHT], up: [K.UP], down: [K.DOWN], jump: [K.Z], atk: [K.X], dash: [K.C], heal: [K.V], bomb: [K.B] });
+    this.kb2 = set({ left: [K.LEFT], right: [K.RIGHT], up: [K.UP], down: [K.DOWN], jump: [K.NUMPAD_ONE, K.FORWARD_SLASH], atk: [K.NUMPAD_TWO, K.PERIOD], dash: [K.NUMPAD_THREE, K.COMMA], heal: [K.NUMPAD_ZERO, K.M], bomb: [K.NUMPAD_FOUR, K.N] });
   }
   rawInput(i) {
-    const out = { left: false, right: false, up: false, down: false, jump: false, atk: false, dash: false, heal: false };
+    const out = { left: false, right: false, up: false, down: false, jump: false, atk: false, dash: false, heal: false, bomb: false };
     const solo = this.nPlayers === 1 || !!this.online;
     if (this.online && i !== this.localIdx) return out;
     const sets = solo ? [this.kb1, this.kbArrows] : (i === 0 ? [this.kb1] : [this.kb2]);
@@ -259,7 +296,7 @@ class GameScene extends Phaser.Scene {
       const ax = pad.axes[0] ? pad.axes[0].getValue() : 0, ay = pad.axes[1] ? pad.axes[1].getValue() : 0;
       out.left ||= pad.left || ax < -0.4; out.right ||= pad.right || ax > 0.4;
       out.up ||= pad.up || ay < -0.5; out.down ||= pad.down || ay > 0.5;
-      out.jump ||= b(0); out.atk ||= b(2); out.dash ||= b(1) || b(5) || b(7); out.heal ||= b(3);
+      out.jump ||= b(0); out.atk ||= b(2); out.dash ||= b(1) || b(5) || b(7); out.heal ||= b(3); out.bomb ||= b(4) || b(6);
       if (b(9) && !this._startHeld) this.togglePause();
       this._startHeld = b(9);
     }
@@ -322,7 +359,7 @@ class GameScene extends Phaser.Scene {
       i, pal: PAL[i], x: x - 7, y: y - 26, w: 14, h: 26, vx: 0, vy: 0, face: 1, onGround: false,
       coyote: 0, jumpBuf: 0, jumpCut: true, dashT: 0, dashCd: 0, canDash: true, atkT: 0, atkCd: 0, atkDir: 'f', atkHits: null, pogoed: false,
       hp: 5, maxHp: 5, silk: 0, inv: 0, hurtT: 0, kbx: 0, downed: false, reviveT: 0, safeX: x - 7, safeY: y - 26, groundT: 0,
-      wallDir: 0, wjLock: 0, healT: 0, landT: 0, sit: false, prev: {}, inp: {}, trail: [],
+      wallDir: 0, wjLock: 0, healT: 0, landT: 0, sit: false, prev: {}, inp: {}, trail: [], bombs: this.L.crates ? 3 : 0, bombCd: 0,
       g: this.add.graphics().setDepth(5),
     };
   }
@@ -338,6 +375,7 @@ class GameScene extends Phaser.Scene {
   }
   makeBoss() {
     if (this.boss && this.boss.g) this.boss.g.destroy();
+    if (!this.L.boss) { this.boss = { x: -9999, y: -9999, w: 1, h: 1, vx: 0, vy: 0, hp: 1, maxHp: 1, state: 'gone', t: 0, face: 1, flash: 0, g: this.add.graphics() }; return; }
     const b = this.L.boss, hp = this.nPlayers === 2 ? 54 : 38;
     this.boss = { x: b.x * T - 36, y: (b.y + 1) * T - 58, w: 72, h: 58, vx: 0, vy: 0, hp, maxHp: hp, state: 'sleep', t: 0, face: -1, flash: 0, last: '', air: 0, g: this.add.graphics().setDepth(4) };
     if (this.bossDead) { this.boss.state = 'gone'; }
@@ -357,7 +395,7 @@ class GameScene extends Phaser.Scene {
     for (const p of this.players) {
       if (p.remote) continue;
       const r = this.rawInput(p.i), pr = p.prev, pd = p.pend || (p.pend = {});
-      pd.jumpP ||= r.jump && !pr.jump; pd.atkP ||= r.atk && !pr.atk; pd.dashP ||= r.dash && !pr.dash; pd.healP ||= r.heal && !pr.heal; pd.upP ||= r.up && !pr.up;
+      pd.jumpP ||= r.jump && !pr.jump; pd.atkP ||= r.atk && !pr.atk; pd.dashP ||= r.dash && !pr.dash; pd.healP ||= r.heal && !pr.heal; pd.upP ||= r.up && !pr.up; pd.bombP ||= r.bomb && !pr.bomb;
       p.raw = r; p.prev = r;
     }
     if (!this.paused && !this.wiping && !this.won) {
@@ -369,7 +407,7 @@ class GameScene extends Phaser.Scene {
           for (const p of this.players) {
             if (p.remote) { p.inp = { up: p.netUp }; continue; }
             if (first) { p.inp = { ...p.raw, ...p.pend }; p.pend = {}; }
-            else p.inp = { ...p.raw, jumpP: false, atkP: false, dashP: false, healP: false, upP: false };
+            else p.inp = { ...p.raw, jumpP: false, atkP: false, dashP: false, healP: false, upP: false, bombP: false };
           }
           this.step(STEP); this.acc -= STEP; first = false;
           if (this.hitstop > 0 || this.wiping) { this.acc = 0; break; }
@@ -389,6 +427,7 @@ class GameScene extends Phaser.Scene {
     if (auth) {
       for (const e of this.enemies) if (!e.dead) this.stepEnemy(e, dt);
       this.stepBoss(dt);
+      if (this.misha) this.stepMisha(dt);
       this.stepProjs(dt);
       this.stepBeads(dt);
     } else this.guestProjHits();
@@ -401,14 +440,16 @@ class GameScene extends Phaser.Scene {
       for (const e of this.enemies) if (!e.dead && overlap(pr, inset(e, 2))) { this.hurtPlayer(p, 1, e.x + e.w / 2); break; }
       const b = this.boss;
       if (p.inv <= 0 && (b.state !== 'sleep' && b.state !== 'dead' && b.state !== 'gone') && overlap(pr, inset(b, 8))) this.hurtPlayer(p, 1, b.x + b.w / 2);
+      const m = this.misha;
+      if (m && p.inv <= 0 && !['dead', 'intro', 'cough'].includes(m.state) && overlap(pr, inset(m, 8))) this.hurtPlayer(p, 1, m.x + m.w / 2);
     }
     // выход
-    if (auth && this.bossDead && !this.won && this.players.some((p) => !p.downed && overlap(p, this.exitR))) this.win();
+    if (auth && this.exitR && this.bossDead && !this.won && this.players.some((p) => !p.downed && overlap(p, this.exitR))) this.win();
   }
 
   stepPlayer(p, dt) {
     const inp = p.inp;
-    p.inv -= dt; p.hurtT -= dt; p.dashCd -= dt; p.atkCd -= dt; p.atkT -= dt; p.wjLock -= dt; p.healT -= dt; p.coyote -= dt; p.jumpBuf -= dt; p.landT -= dt;
+    p.inv -= dt; p.hurtT -= dt; p.dashCd -= dt; p.bombCd -= dt; p.atkCd -= dt; p.atkT -= dt; p.wjLock -= dt; p.healT -= dt; p.coyote -= dt; p.jumpBuf -= dt; p.landT -= dt;
     if (p.downed) { p.vx *= 0.9; p.vy = Math.min(p.vy + P.G * dt, P.MAXFALL); this.moveBody(p, dt); return; }
     if (inp.jumpP) p.jumpBuf = P.BUF;
     const dir = (inp.right ? 1 : 0) - (inp.left ? 1 : 0);
@@ -453,6 +494,7 @@ class GameScene extends Phaser.Scene {
         p.atkT = P.ATK_T; p.atkCd = P.ATK_CD; p.atkHits = new Set(); p.pogoed = false; p.seq = (p.seq || 0) + 1;
         Snd.play('slash');
       }
+      if (inp.bombP) this.throwBomb(p);
       if (inp.healP) {
         if (p.silk >= P.SILK && p.hp < p.maxHp) {
           p.hp = Math.min(p.maxHp, p.hp + 3); p.silk = 0; p.healT = 0.6; Snd.play('heal');
@@ -461,6 +503,7 @@ class GameScene extends Phaser.Scene {
       }
     }
     this.moveBody(p, dt);
+    if (this.crates) this.refillBombs(p);
     if (p.onGround) {
       p.coyote = P.COYOTE; p.canDash = true;
       if (!wasGround) { p.landT = 0.1; this.dust.explode(4, p.x + 7, p.y + 26); Snd.play('land'); }
@@ -502,8 +545,10 @@ class GameScene extends Phaser.Scene {
       if (auth) this.damageBoss(p); else { b.flash = 0.09; this.hitstop = 0.04; Snd.play('hit'); }
       if (local) { if (p.atkDir === 'd') pogo(); else if (p.atkDir === 'f') p.kbx = -p.face * 170; }
     }
-    for (const pr of this.projs) if (pr.kind === 'spore' && !pr.dead && overlap(box, pr)) {
-      if (auth) { pr.dead = true; this.burst(6, pr.x + 6, pr.y + 6, 0xc7f08a); }
+    if (this.misha && this.mishaNeedle(p, box) && local) { if (p.atkDir === 'd') pogo(); else if (p.atkDir === 'f') p.kbx = -p.face * 190; }
+    for (const pr of this.projs) if ((pr.kind === 'spore' || pr.kind === 'letter') && !pr.dead && overlap(box, pr)) {
+      if (auth) { pr.dead = true; if (pr.kind === 'letter') { this.paperAt(6, pr.x + 11, pr.y + 13); this.sfx('clink'); } else this.burst(6, pr.x + 6, pr.y + 6, 0xc7f08a); }
+      else if (pr.kind === 'letter') { pr.dead = true; this.sendEv({ k: 'cut', x: Math.round(pr.x), y: Math.round(pr.y) }); }
       if (local && p.atkDir === 'd') pogo();
     }
     if (local && p.atkDir === 'd' && !p.pogoed && this.rectHitsTile(box, SPIKE, 0.7)) { pogo(); this.parts.setParticleTint(0xffffff); this.parts.explode(5, box.x + 18, box.y + 30); }
@@ -551,14 +596,15 @@ class GameScene extends Phaser.Scene {
   respawnAll() {
     this.spawnEnemies();
     for (const pr of this.projs) pr.dead = true;
-    if (!this.bossDead) { this.makeBoss(); this.setGate(this.gates[0], false); this.ui().bossBar(false); }
+    if (!this.bossDead) { this.makeBoss(); if (this.gates[0]) this.setGate(this.gates[0], false); this.ui().bossBar(false); }
+    if (this.misha && this.misha.state !== 'dead') { this.makeMisha(); this.ui().bossBar(false); }
     this.sendEv({ k: 'respawn', x: this.respawn.x, y: this.respawn.y });
     this.respawnLocal();
   }
   respawnLocal() {
     this.players.forEach((p) => {
       if (p.remote) return;
-      Object.assign(p, { x: this.respawn.x - 7 + p.i * 24, y: this.respawn.y - 26, vx: 0, vy: 0, kbx: 0, hp: p.maxHp, downed: false, inv: 1, hurtT: 0, dashT: 0, atkT: 0, sit: false, reviveT: 0 });
+      Object.assign(p, { x: this.respawn.x - 7 + p.i * 24, y: this.respawn.y - 26, vx: 0, vy: 0, kbx: 0, hp: p.maxHp, downed: false, inv: 1, hurtT: 0, dashT: 0, atkT: 0, sit: false, reviveT: 0, bombs: this.L.crates ? 3 : 0 });
       p.safeX = p.x; p.safeY = p.y;
     });
     this.camX = this.respawn.x; this.camY = this.respawn.y - 80;
@@ -777,7 +823,9 @@ class GameScene extends Phaser.Scene {
       } else if (pr.kind === 'rock') {
         pr.vy = Math.min(pr.vy + 1100 * dt, 800); pr.y += pr.vy * dt;
         if (this.isSolid(Math.floor((pr.x + 8) / T), Math.floor((pr.y + 16) / T))) { pr.dead = true; this.dustAt(8, pr.x + 8, pr.y + 16); }
-      }
+      } else if (pr.kind === 'letter') this.stepLetter(pr, dt);
+      else if (pr.kind === 'bigletter') this.stepBigLetter(pr, dt);
+      else if (pr.kind === 'bomb') { this.stepBomb(pr, dt); continue; }
       if (pr.dead) continue;
       for (const p of this.players) if (!p.remote && !p.downed && p.inv <= 0 && overlap(inset(p, 2), pr)) { this.hurtPlayer(p, 1, pr.x + pr.w / 2); if (pr.kind !== 'wave') pr.dead = true; }
     }
@@ -804,6 +852,7 @@ class GameScene extends Phaser.Scene {
   win() {
     this.won = true; Snd.play('win');
     const s = { time: this.timeSec, beads: this.beads, deaths: this.deaths, players: this.nPlayers };
+    if (this.mode === 'bosstest') { s.title = 'Миша Додик повержен'; s.bag = this.bagHits; }
     this.sendEv({ k: 'win', s });
     this.ui().victory(s);
   }
@@ -813,16 +862,17 @@ class GameScene extends Phaser.Scene {
     const r = (v) => Math.round(v * 10) / 10, f2 = (v) => Math.round(Math.max(0, v) * 100) / 100;
     return { t: 'p', i: p.i, x: r(p.x), y: r(p.y), vx: Math.round(p.vx), vy: Math.round(p.vy), f: p.face, g: p.onGround ? 1 : 0,
       d: f2(p.dashT), s: p.sit ? 1 : 0, h: f2(p.healT), l: f2(p.landT), hp: p.hp, mh: p.maxHp, sk: p.silk, dn: p.downed ? 1 : 0,
-      iv: f2(p.inv), u: p.raw && p.raw.up ? 1 : 0, rv: f2(p.reviveT), sq: p.seq || 0, ad: p.atkDir };
+      iv: f2(p.inv), u: p.raw && p.raw.up ? 1 : 0, rv: f2(p.reviveT), sq: p.seq || 0, ad: p.atkDir, bm: p.bombs };
   }
   packSnap() {
     const r = Math.round, b = this.boss;
     const st = (e) => (e.state === 'wind' || e.state === 'charge') ? 1 : e.state === 'stun' ? 2 : 0;
-    const kc = { spore: 0, wave: 1, rock: 2 };
+    const kc = { spore: 0, wave: 1, rock: 2, letter: 3, bigletter: 4, bomb: 5 }, mi = this.misha;
     return { t: 's',
       e: this.enemies.map((e) => [r(e.x), r(e.y), e.face, e.dead ? 1 : 0, e.flash > 0 ? 1 : 0, st(e)]),
       b: [r(b.x), r(b.y), b.face, b.hp, b.maxHp, b.state, b.flash > 0 ? 1 : 0, Math.round(b.t * 100) / 100],
-      pr: this.projs.map((q) => [kc[q.kind], r(q.x), r(q.y), r(q.vx), r(q.vy), q.delay > 0 ? 1 : 0]),
+      pr: this.projs.map((q) => [kc[q.kind], r(q.x), r(q.y), r(q.vx), r(q.vy), q.delay > 0 ? 1 : 0, q.ch || '']),
+      mi: mi ? [r(mi.x), r(mi.y), mi.face, mi.hp, mi.maxHp, mi.state, mi.flash > 0 ? 1 : 0, Math.round(mi.t * 100) / 100, mi.sayT > 0 ? mi.say : ''] : null,
       bd: this.beadsArr.map((d) => [r(d.x), r(d.y)]), bc: this.beads,
       g: this.gates.map((gt) => (gt.closed ? 1 : 0)), bD: this.bossDead ? 1 : 0, rs: [r(this.respawn.x), r(this.respawn.y)] };
   }
@@ -831,7 +881,7 @@ class GameScene extends Phaser.Scene {
     if (m.t === 'p') {
       const p = this.players[m.i]; if (!p || !p.remote) return;
       Object.assign(p, { tx: m.x, ty: m.y, vx: m.vx, vy: m.vy, face: m.f, onGround: !!m.g, dashT: m.d, sit: !!m.s, healT: m.h, landT: m.l,
-        hp: m.hp, maxHp: m.mh, silk: m.sk, downed: !!m.dn, inv: m.iv, netUp: !!m.u, reviveT: m.rv, netT: 0 });
+        hp: m.hp, maxHp: m.mh, silk: m.sk, downed: !!m.dn, inv: m.iv, netUp: !!m.u, reviveT: m.rv, netT: 0, bombs: m.bm || 0 });
       p.inp = { up: p.netUp };
       if (m.sq !== p.lastSeq) { p.lastSeq = m.sq; p.atkT = P.ATK_T; p.atkHits = new Set(); p.atkDir = m.ad; p.pogoed = true; }
     } else if (m.t === 's' && this.online === 'guest') this.applySnap(m);
@@ -852,8 +902,17 @@ class GameScene extends Phaser.Scene {
     const b = this.boss, B = m.b;
     if (b.tx == null || Math.abs(b.x - B[0]) > 140) { b.x = B[0]; b.y = B[1]; }
     b.tx = B[0]; b.ty = B[1]; b.face = B[2]; b.hp = B[3]; b.maxHp = B[4]; b.state = B[5]; if (B[6]) b.flash = 0.09; b.t = B[7];
-    const sz = [[12, 12], [24, 18], [16, 16]], kinds = ['spore', 'wave', 'rock'];
-    this.projs = m.pr.map((a) => ({ kind: kinds[a[0]], x: a[1], y: a[2], vx: a[3], vy: a[4], delay: a[5] ? 1 : 0, w: sz[a[0]][0], h: sz[a[0]][1], life: 1 }));
+    const sz = [[12, 12], [24, 18], [16, 16], [22, 26], [56, 60], [12, 12]], kinds = ['spore', 'wave', 'rock', 'letter', 'bigletter', 'bomb'];
+    this.projs = m.pr.map((a) => ({ kind: kinds[a[0]], x: a[1], y: a[2], vx: a[3], vy: a[4], delay: a[5] ? 1 : 0, ch: a[6], w: sz[a[0]][0], h: sz[a[0]][1], life: 1 }));
+    if (m.mi && this.misha) {
+      const M = m.mi, mm = this.misha;
+      if (mm.tx == null || Math.abs(mm.x - M[0]) > 140) { mm.x = M[0]; mm.y = M[1]; }
+      mm.tx = M[0]; mm.ty = M[1]; mm.face = M[2]; mm.hp = M[3]; mm.maxHp = M[4]; mm.state = M[5]; if (M[6]) mm.flash = 0.1; mm.t = M[7];
+      if (M[8]) { mm.say = M[8]; mm.sayT = 0.2; }
+      const showM = mm.state !== 'dead';
+      if (showM !== !!this._mb) { this._mb = showM; this.ui().bossBar(showM, 'Миша Додик'); }
+      if (showM) this.ui().bossBar(true, null, Math.max(0, mm.hp) / mm.maxHp);
+    }
     this.beadsArr = m.bd.map((a) => ({ x: a[0], y: a[1], w: 8, h: 8 }));
     this.beads = m.bc;
     m.g.forEach((c, i) => { if (this.gates[i] && this.gates[i].closed !== !!c) this.setGate(this.gates[i], !!c); });
@@ -865,6 +924,15 @@ class GameScene extends Phaser.Scene {
   onEv(m) {
     switch (m.k) {
       case 'snd': Snd.play(m.n); break;
+      case 'smoke': if (this.smoke) this.smoke.explode(m.n, m.x, m.y); break;
+      case 'paper': if (this.paper) this.paper.explode(m.n, m.x, m.y); break;
+      case 'bomb': if (this.auth() && this.L.crates) this.projs.push({ kind: 'bomb', ...m.b, w: 12, h: 12, life: 3, owner: m.i }); break;
+      case 'cut':
+        if (this.auth()) {
+          const q = this.projs.find((pr) => pr.kind === 'letter' && !pr.dead && Math.abs(pr.x - m.x) < 40 && Math.abs(pr.y - m.y) < 40);
+          if (q) { q.dead = true; this.paperAt(6, q.x + 11, q.y + 13); this.sfx('clink'); }
+        }
+        break;
       case 'burst': this.parts.setParticleTint(m.c); this.parts.explode(m.n, m.x, m.y); break;
       case 'dust': this.dust.explode(m.n, m.x, m.y); break;
       case 'shake': this.cameras.main.shake(m.d, m.i); break;
@@ -902,9 +970,11 @@ class GameScene extends Phaser.Scene {
       const k2 = 1 - Math.exp(-dt * 14);
       for (const e of this.enemies) if (!e.dead && e.tx != null) { e.x += (e.tx - e.x) * k2; e.y += (e.ty - e.y) * k2; e.flash -= dt; }
       const b = this.boss; if (b.tx != null) { b.x += (b.tx - b.x) * k2; b.y += (b.ty - b.y) * k2; b.flash -= dt; }
+      const mm = this.misha; if (mm && mm.tx != null) { mm.x += (mm.tx - mm.x) * k2; mm.y += (mm.ty - mm.y) * k2; mm.flash -= dt; mm.sayT -= dt; }
       for (const pr of this.projs) {
         if (pr.delay) continue;
-        if (pr.kind === 'spore') pr.vy += 700 * dt; else if (pr.kind === 'rock') pr.vy = Math.min(pr.vy + 1100 * dt, 800);
+        if (pr.kind === 'spore') pr.vy += 700 * dt;
+        else if (pr.kind === 'rock' || pr.kind === 'bigletter' || pr.kind === 'bomb') pr.vy = Math.min(pr.vy + 1100 * dt, 800);
         pr.x += pr.vx * dt; pr.y += pr.vy * dt;
         if (pr.kind === 'wave' && Math.random() < 0.3) this.dust.explode(1, pr.x + pr.w / 2, pr.y + pr.h);
       }
@@ -913,7 +983,7 @@ class GameScene extends Phaser.Scene {
   guestProjHits() {
     for (const p of this.players) {
       if (p.remote || p.downed || p.inv > 0) continue;
-      for (const pr of this.projs) if (!pr.dead && !pr.delay && overlap(inset(p, 2), pr)) { this.hurtPlayer(p, 1, pr.x + pr.w / 2); if (pr.kind !== 'wave') pr.dead = true; break; }
+      for (const pr of this.projs) if (!pr.dead && !pr.delay && pr.kind !== 'bomb' && overlap(inset(p, 2), pr)) { this.hurtPlayer(p, 1, pr.x + pr.w / 2); if (pr.kind !== 'wave') pr.dead = true; break; }
     }
     this.projs = this.projs.filter((q) => !q.dead);
   }
@@ -944,9 +1014,12 @@ class GameScene extends Phaser.Scene {
     const pts = this.alivePlayers().length ? this.alivePlayers() : this.players;
     let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
     for (const p of pts) { x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x + p.w); y0 = Math.min(y0, p.y); y1 = Math.max(y1, p.y + p.h); }
+    const mi = this.misha, withBoss = mi && mi.state !== 'dead';
+    if (withBoss) { x0 = Math.min(x0, mi.x - 20); x1 = Math.max(x1, mi.x + mi.w + 20); y0 = Math.min(y0, mi.y - 40); }
     let tx = (x0 + x1) / 2, ty = (y0 + y1) / 2 - 30;
-    if (pts.length === 1) tx += pts[0].face * 50;
-    const zt = clamp(Math.min(VW / (x1 - x0 + 520), VH / (y1 - y0 + 300)), 0.66, 1.18);
+    if (pts.length === 1 && !withBoss) tx += pts[0].face * 50;
+    const zmin = Math.max(0.66, VW / (this.L.W * T), VH / (this.L.H * T));
+    const zt = clamp(Math.min(VW / (x1 - x0 + 520), VH / (y1 - y0 + 300)), zmin, 1.18);
     const k = 1 - Math.exp(-dt * 5);
     this.camX += (tx - this.camX) * k; this.camY += (ty - this.camY) * k;
     this.zoom += (zt - this.zoom) * (1 - Math.exp(-dt * 3));
@@ -969,6 +1042,7 @@ class GameScene extends Phaser.Scene {
     for (const p of this.players) this.drawPlayer(p, now);
     for (const e of this.enemies) if (!e.dead) this.drawEnemy(e, now);
     this.drawBoss(now);
+    if (this.misha) { this.drawMisha(now); this.drawLetters(now); }
     // удары
     for (const p of this.players) {
       if (p.downed || p.atkT <= 0) continue;
@@ -982,6 +1056,7 @@ class GameScene extends Phaser.Scene {
     }
     // снаряды
     for (const pr of this.projs) {
+      if (pr.kind === 'letter' || pr.kind === 'bigletter' || pr.kind === 'bomb') continue;
       if (pr.delay > 0) {
         fx.fillStyle(0x8fae9c, 0.5); fx.fillTriangle(pr.x + 2, 19 * T, pr.x + 14, 19 * T, pr.x + 8, 19 * T + 8); continue;
       }
@@ -1017,6 +1092,7 @@ class GameScene extends Phaser.Scene {
     }
     // выход
     const eg = this.exitG; eg.clear();
+    if (!this.exitR) return;
     const ex = this.exitR.x + 20, ey = this.exitR.y + this.exitR.h;
     eg.lineStyle(4, 0x2a4636, 1); eg.beginPath(); eg.arc(ex, ey - 40, 30, Math.PI, 0, false); eg.strokePath();
     eg.lineBetween(ex - 30, ey - 40, ex - 30, ey); eg.lineBetween(ex + 30, ey - 40, ex + 30, ey);
@@ -1157,8 +1233,8 @@ class UIScene extends Phaser.Scene {
     const pb = this.add.graphics(); pb.fillStyle(0x030807, 0.82); pb.fillRect(0, 0, VW, VH);
     const pt = this.add.text(VW / 2, 150, 'Пауза', { fontFamily: D, fontSize: '52px', color: '#e8e2cf', fontStyle: '700' }).setOrigin(0.5);
     const pc = this.add.text(VW / 2, 300, [
-      'Игрок 1:  A D W S · Пробел — прыжок · F — удар · G — рывок · Q — лечение',
-      'Игрок 2:  стрелки · Num1 или / — прыжок · Num2 или . — удар · Num3 или , — рывок · Num0 или M — лечение',
+      'Игрок 1:  A D W S · Пробел — прыжок · F — удар · G — рывок · Q — лечение · R — дымовуха',
+      'Игрок 2:  стрелки · Num1 или / — прыжок · Num2 или . — удар · Num3 или , — рывок · Num0 или M — лечение · Num4 или N — дымовуха',
       '', 'Удар вверх: держи ↑ + удар.  Удар вниз в прыжке: ↓ + удар — отскок от колючек и врагов.',
       'Прыжок от стены: прижмись к стене в падении и прыгни.',
       'Лечение: когда катушка нити полна, восстанавливает 3 бутона.',
@@ -1171,9 +1247,11 @@ class UIScene extends Phaser.Scene {
     this.t = 0;
     this.input.keyboard.on('keydown-ENTER', () => { if (this.gs.won) this.restart(); });
     this.input.keyboard.on('keydown-SPACE', () => { if (this.gs.won) this.restart(); });
+    this.input.keyboard.on('keydown-R', () => { if (this.gs.won && !this.gs.online) this.retry(); });
     this.ready = true;
   }
   restart() { this.ready = false; Net.onClose = null; Net.close(); this.scene.stop('bg'); this.scene.stop('game'); this.scene.start('menu'); }
+  retry() { const d = { ...this.gs.startData }; this.ready = false; this.scene.stop('bg'); this.scene.start('game', d); }
   removePlayer(i) { if (this.names[i]) this.names[i].setVisible(false); }
   showPause(on) { if (this.ready) this.pause.setVisible(on); }
   toast(msg) {
@@ -1184,7 +1262,7 @@ class UIScene extends Phaser.Scene {
   }
   areaTitle(name) {
     if (!this.ready) return;
-    this.area.setText(name); this.areaSub.setText('Мшистая Глубь');
+    this.area.setText(name); this.areaSub.setText(this.gs.L.region || 'Мшистая Глубь');
     this.tweens.killTweensOf([this.area, this.areaSub]);
     this.area.setAlpha(0); this.areaSub.setAlpha(0);
     this.tweens.add({ targets: [this.area, this.areaSub], alpha: 1, duration: 700, yoyo: true, hold: 1800 });
@@ -1194,9 +1272,11 @@ class UIScene extends Phaser.Scene {
     const D = '"Cormorant SC", Georgia, serif', F = '"Fira Sans", sans-serif';
     const bg = this.add.graphics(); bg.fillStyle(0x030807, 0.88); bg.fillRect(0, 0, VW, VH);
     const m = Math.floor(s.time / 60), sec = Math.floor(s.time % 60).toString().padStart(2, '0');
-    const t1 = this.add.text(VW / 2, 160, 'Глава I пройдена', { fontFamily: D, fontSize: '56px', color: '#e8e2cf', fontStyle: '700' }).setOrigin(0.5).setShadow(0, 0, '#9ff0c8', 16, false, true);
-    const t2 = this.add.text(VW / 2, 260, `Время: ${m}:${sec}\nБусин собрано: ${s.beads}\nОбрывов нити: ${s.deaths}\nТкачей: ${s.players}`, { fontFamily: F, fontSize: '18px', color: '#b9d4c8', align: 'center', lineSpacing: 8 }).setOrigin(0.5, 0);
-    const t3 = this.add.text(VW / 2, 440, 'Enter — в главное меню', { fontFamily: F, fontSize: '15px', color: '#ffe3a3' }).setOrigin(0.5);
+    const t1 = this.add.text(VW / 2, 160, s.title || 'Глава I пройдена', { fontFamily: D, fontSize: '56px', color: '#e8e2cf', fontStyle: '700' }).setOrigin(0.5).setShadow(0, 0, '#9ff0c8', 16, false, true);
+    const lines = s.bag != null ? `Время боя: ${m}:${sec}\nДымовух в рюкзаке: ${s.bag}\nОбрывов нити: ${s.deaths}\nТкачей: ${s.players}`
+      : `Время: ${m}:${sec}\nБусин собрано: ${s.beads}\nОбрывов нити: ${s.deaths}\nТкачей: ${s.players}`;
+    const t2 = this.add.text(VW / 2, 260, lines, { fontFamily: F, fontSize: '18px', color: '#b9d4c8', align: 'center', lineSpacing: 8 }).setOrigin(0.5, 0);
+    const t3 = this.add.text(VW / 2, 440, this.gs.online ? 'Enter — в главное меню' : 'Enter — в главное меню   ·   R — ещё раз', { fontFamily: F, fontSize: '15px', color: '#ffe3a3' }).setOrigin(0.5);
     this.win.add([bg, t1, t2, t3]); this.win.setVisible(true).setAlpha(0);
     this.tweens.add({ targets: this.win, alpha: 1, duration: 900 });
   }
@@ -1223,6 +1303,12 @@ class UIScene extends Phaser.Scene {
         else { g.lineStyle(1.5, 0x4a5a52, 1); g.strokeEllipse(hx, hy, 12, 16); }
       }
       this.names[i].setText(p.downed ? `${p.pal.name} · в коконе` : p.pal.name);
+      // дымовухи
+      if (gs.L.crates) for (let k = 0; k < 3; k++) {
+        const bx = sx + dir * (40 + k * 18), by = 78;
+        if (k < p.bombs) { g.fillStyle(0x3a3f45, 1); g.fillCircle(bx, by, 6); g.fillStyle(0xffd47a, 1); g.fillCircle(bx + 3, by - 7, 2); }
+        else { g.lineStyle(1.5, 0x4a5a52, 1); g.strokeCircle(bx, by, 6); }
+      }
     });
     // бусины
     g.fillStyle(0xffd47a, 0.25); g.fillCircle(26, VH - 24, 10); g.fillStyle(0xffe3a3, 1); g.fillCircle(26, VH - 24, 5);

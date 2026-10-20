@@ -46,6 +46,12 @@ const Snd = {
       case 'bench': this.tone('sine', 523, 523, 0.25, 0.1); this.tone('sine', 784, 784, 0.4, 0.07); break;
       case 'revive': this.tone('sine', 330, 990, 0.5, 0.14); break;
       case 'gate': this.hiss(0.5, 0.2, 220, 0.7); break;
+      case 'clink': this.tone('square', 1500, 1100, 0.06, 0.05); this.tone('triangle', 2400, 2000, 0.08, 0.04); break;
+      case 'throw': this.hiss(0.1, 0.08, 1500, 1); this.tone('sine', 300, 500, 0.08, 0.05); break;
+      case 'puff': this.hiss(0.45, 0.22, 500, 0.4); break;
+      case 'cough': [0, 160, 320].forEach((d) => setTimeout(() => { this.hiss(0.12, 0.2, 900, 1.5); this.tone('sawtooth', 180, 120, 0.1, 0.06); }, d)); break;
+      case 'pickup': this.tone('sine', 660, 990, 0.12, 0.1); break;
+      case 'letter': this.tone('triangle', 900 + Math.random() * 300, 500, 0.08, 0.04); this.hiss(0.06, 0.05, 3000, 2); break;
       case 'win': [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => this.tone('triangle', f, f, 0.5, 0.12), i * 140)); break;
     }
   },

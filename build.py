@@ -2,7 +2,7 @@
 # Запуск: python build.py
 import os
 SRC = os.path.join(os.path.dirname(__file__), 'src')
-parts = ["level.js", "art.js", "sound.js", "net.js", "game.js"]
+parts = ["level.js", "art.js", "sound.js", "net.js", "game.js", "misha.js"]
 code = "\n".join(open(os.path.join(SRC, f), encoding='utf-8').read() for f in parts)
 code = code.replace("if (typeof module !== 'undefined') module.exports = { buildLevel, T, EMPTY, SOLID, PLAT, SPIKE };", "")
 html = open(os.path.join(SRC, 'shell.html'), encoding='utf-8').read().replace("/*__CODE__*/", code)

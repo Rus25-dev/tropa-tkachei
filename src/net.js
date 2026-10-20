@@ -68,6 +68,7 @@ const Lobby = {
   },
   selectLink() { const r = document.createRange(); r.selectNodeContents(document.getElementById('lb-link')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); },
   show() {
+    document.getElementById('lb-title').textContent = this.mode === 'bosstest' ? 'Босс-тест по сети' : 'Вдвоём по сети';
     this.el.hidden = false; this.status(''); document.getElementById('lb-hostbox').hidden = true;
     if (this.room) { document.getElementById('lb-code').value = this.room; const r = this.room; this.room = null; this.doJoin(r); }
   },
@@ -86,7 +87,8 @@ const Lobby = {
         this.status('Ждём напарника. Отправьте ему код или ссылку.', 'wait');
       } else if (ev === 'connected') {
         this.status('Напарник подключился!', 'ok');
-        setTimeout(() => { Net.send({ t: 'start' }); this.start('host'); }, 400);
+        const mode = this.mode || 'story';
+        setTimeout(() => { Net.send({ t: 'start', mode }); this.start('host', mode); }, 400);
       } else if (ev === 'error') this.status(Net.errText(d), 'err');
     });
   },
@@ -99,13 +101,13 @@ const Lobby = {
     });
   },
   route(m) {
-    if (m && m.t === 'start' && Net.role === 'guest') { this.start('guest'); return; }
+    if (m && m.t === 'start' && Net.role === 'guest') { this.start('guest', m.mode); return; }
     const gs = window.__game && window.__game.scene.getScene('game');
     if (gs && gs.sys.isActive() && gs.onNet) gs.onNet(m);
   },
-  start(role) {
+  start(role, mode) {
     this.hide(false);
     const menu = window.__game.scene.getScene('menu');
-    if (menu && menu.sys.isActive()) menu.goOnline(role);
+    if (menu && menu.sys.isActive()) menu.goOnline(role, mode);
   },
 };
