@@ -59,7 +59,8 @@ const Campaign = {
     return c ? `Глава ${c.roman} · ${c.name}` : 'Глава I · Мшистая Глубь';
   },
   saveName(gs, area) { const c = CHAPTERS[gs.camp ? gs.camp.ch : 1]; return `Гл. ${c.roman} · ${area}`; },
-  canSave(gs) { return gs.mode === 'story' && gs.online !== 'guest'; },
+  // арена главы идёт в режиме 'bosstest', но это часть кампании: победа должна сохраняться (кроме спидрана)
+  canSave(gs) { return gs.online !== 'guest' && !gs.sr && (gs.mode === 'story' || (gs.mode === 'bosstest' && !!gs.camp && gs.camp.st === 'arena')); },
 
   // ----- хуки GameScene -----
   init(gs, data) {
@@ -250,7 +251,7 @@ Object.assign(UIScene.prototype, {
     else if (guest) items.push(this.add.text(VW / 2, 478, hint, { fontFamily: F, fontSize: '15px', color: '#ffe3a3' }).setOrigin(0.5));
     Touch.show(false);
     this.campWinS = k;
-    this.win.add(items); this.win.setVisible(true).setAlpha(0);
+    this.win.add(items); this.win.setVisible(true).setAlpha(0); this.winAt = performance.now();
     this.tweens.add({ targets: this.win, alpha: 1, duration: 900 });
   },
 

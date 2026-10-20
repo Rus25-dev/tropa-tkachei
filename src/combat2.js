@@ -49,7 +49,7 @@ Object.assign(GameScene.prototype, {
     this.items = this.items.filter((it) => !it.got);
   },
   drawItems(now) {
-    if (!this.itemG) this.itemG = this.add.graphics().setDepth(2.5);
+    if (!this.itemG || !this.itemG.scene) this.itemG = this.add.graphics().setDepth(2.5);
     const g = this.itemG; g.clear();
     for (const it of this.items || []) {
       const bob = Math.sin(now * 2.4) * 4;

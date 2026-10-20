@@ -1086,7 +1086,7 @@ const Lobby = {
 let VW = 960; const VH = 540;
 // версия игры; номер сборки подставляет build.py
 const GAME_VERSION = '1.6';
-const GAME_BUILD = '261020.1505';
+const GAME_BUILD = '261020.1527';
 const CHANGELOG = [
   'Снаряжение: 5 видов оружия, заряженный удар, 4 инструмента (клавиша E), 9 оберегов, яд и ожог; экран на скамье',
   'Хват за уступ и планер; Миша: иглой бьётся в первых двух фазах, в третьей — только бомбы',
@@ -1245,7 +1245,7 @@ class MenuScene extends Phaser.Scene {
       if (e.key === '1') this.go(1); if (e.key === '2') this.go(2); if (e.key === '3') this.openLobby(); if (e.key === '4') this.openPick(); if (e.key === '5') this.openSettings(); if (e.key === '6') this.openSpeedrun();
     });
     if (Lobby.room) this.time.delayedCall(300, () => this.openLobby());
-    Music.setDuck(1); Music.play('menu');
+    Music.setDuck(1); Music.intensity = 1; Music.play('menu');
     this.input.on('pointerdown', () => Snd.init());
     this.t = 0;
   }
@@ -1372,6 +1372,9 @@ class GameScene extends Phaser.Scene {
   create() {
     genBackgrounds(this);
     this.scene.launch('bg'); this.scene.launch('ui');
+    // состояние «вида сверху» Миши не должно переходить в новую игру (повтор боя, выход в меню)
+    this.td = null; this.tdFlip = false; this.cameras.main.setRotation(0);
+    this.events.once('shutdown', () => { this.td = null; this.tdFlip = false; Music.intensity = 1; });
     this.enemies = []; this.boss = null;
     const arenas = { misha: buildMishaArena, vladik: buildVladikArena, tima: buildTimaArena };
     this.L = Campaign.level(this) || (this.mode === 'bosstest' ? (arenas[this.bossKind] || buildMishaArena)() : buildLevel());
@@ -1699,11 +1702,11 @@ class GameScene extends Phaser.Scene {
       const pr = inset(p, 2);
       for (const e of this.enemies) if (!e.dead && overlap(pr, inset(e, 2))) { this.hurtPlayer(p, 1, e.x + e.w / 2); break; }
       const b = this.boss;
-      if (p.inv <= 0 && (b.state !== 'sleep' && b.state !== 'dead' && b.state !== 'gone') && overlap(pr, inset(b, 8))) this.hurtPlayer(p, HEAVY_STATES.has(b.state) ? 2 : 1, b.x + b.w / 2);
+      if (p.inv <= 0 && !(b.stagger > 0) && (b.state !== 'sleep' && b.state !== 'dead' && b.state !== 'gone') && overlap(pr, inset(b, 8))) this.hurtPlayer(p, HEAVY_STATES.has(b.state) ? 2 : 1, b.x + b.w / 2);
       const m = this.misha;
       if (m && p.inv <= 0 && !['dead', 'intro', 'cough'].includes(m.state) && overlap(pr, inset(m, 8))) this.hurtPlayer(p, HEAVY_STATES.has(m.state) ? 2 : 1, m.x + m.w / 2);
       const vb = this.vladik || this.tima;
-      if (vb && p.inv <= 0 && !['dead', 'intro'].includes(vb.state) && overlap(pr, inset(vb, 8))) this.hurtPlayer(p, HEAVY_STATES.has(vb.state) ? 2 : 1, vb.x + vb.w / 2);
+      if (vb && p.inv <= 0 && !(vb.stagger > 0) && !['dead', 'intro'].includes(vb.state) && overlap(pr, inset(vb, 8))) this.hurtPlayer(p, HEAVY_STATES.has(vb.state) ? 2 : 1, vb.x + vb.w / 2);
       if (this.curtains && p.inv <= 0) for (const c of this.curtains) if (c.slime > 0 && overlap(pr, this.curtainHazard(c))) { this.hurtPlayer(p, 1, c.x + c.w / 2); break; }
     }
     // выход
@@ -2694,11 +2697,16 @@ class UIScene extends Phaser.Scene {
     this.tdLayer = this.add.container(0, 0, [this.tdG, ...this.tdTags, this.tdSay, this.tdInfo, this.tdTitle]).setVisible(false);
     this.children.sendToBack(this.tdLayer); // под всем интерфейсом: здоровье, подсказки, пауза видны поверх
     this.t = 0;
-    this.input.keyboard.on('keydown-ENTER', () => { if (this.gs.won) this.winEnter(); });
-    this.input.keyboard.on('keydown-SPACE', () => { if (this.gs.won) this.winEnter(); });
-    this.input.keyboard.on('keydown-R', () => { if (this.gs.won && !this.gs.online) this.retry(); });
+    // клавиши экрана победы: только когда он уже показан, не от удержания (Пробел — прыжок) и не раньше чем через 0,8 с;
+    // «ещё раз» — на N: R в боях с Мишей — дымовуха
+    this.winAt = 0; this.campWinS = null;
+    const winKey = (e) => this.gs.won && this.winShown() && !(e && e.repeat) && performance.now() - this.winAt > 800;
+    this.input.keyboard.on('keydown-ENTER', (e) => { if (winKey(e)) this.winEnter(); });
+    this.input.keyboard.on('keydown-SPACE', (e) => { if (winKey(e)) this.winEnter(); });
+    this.input.keyboard.on('keydown-N', (e) => { if (winKey(e) && !this.gs.online) this.retry(); });
     this.ready = true;
   }
+  winShown() { return !!this.win && this.win.visible; }
   winEnter() { this.restart(); }
   restart() { this.ready = false; Net.onClose = null; Net.close(); this.scene.stop('bg'); this.scene.stop('game'); this.scene.start('menu'); }
   openSettings() { this.pause.setVisible(false); Settings.show(() => { if (this.ready) this.pause.setVisible(true); }); }
@@ -2788,7 +2796,7 @@ class UIScene extends Phaser.Scene {
       : s.hits != null ? `Время боя: ${m}:${sec}\nУдаров иглой: ${s.hits}\nОбрывов нити: ${s.deaths}\nТкачей: ${s.players}`
       : `Время: ${m}:${sec}\nБусин собрано: ${s.beads}\nОбрывов нити: ${s.deaths}\nТкачей: ${s.players}`;
     const t2 = this.add.text(VW / 2, 260, lines, { fontFamily: F, fontSize: '18px', color: '#b9d4c8', align: 'center', lineSpacing: 8 }).setOrigin(0.5, 0);
-    const t3 = this.add.text(VW / 2, 440, this.gs.online ? 'Enter — в главное меню' : 'Enter — в главное меню   ·   R — ещё раз', { fontFamily: F, fontSize: '15px', color: '#ffe3a3' }).setOrigin(0.5);
+    const t3 = this.add.text(VW / 2, 440, this.gs.online ? 'Enter — в главное меню' : 'Enter — в главное меню   ·   N — ещё раз', { fontFamily: F, fontSize: '15px', color: '#ffe3a3' }).setOrigin(0.5);
     Touch.show(false);
     const btn = (x, label, fn) => {
       const t = this.add.text(x, 392, label, { fontFamily: D, fontSize: '26px', color: '#cfe8dc', fontStyle: '700', backgroundColor: 'rgba(20,48,41,0.9)', padding: { x: 16, y: 7 } })
@@ -2799,7 +2807,7 @@ class UIScene extends Phaser.Scene {
     const extra = this.gs.online ? [btn(VW / 2, 'В главное меню', () => this.restart())]
       : [btn(VW / 2 - 130, 'В главное меню', () => this.restart()), btn(VW / 2 + 130, 'Ещё раз', () => this.retry())];
     if (Touch.enabled) t3.setVisible(false);
-    this.win.add([bg, t1, t2, t3, ...extra]); this.win.setVisible(true).setAlpha(0);
+    this.win.add([bg, t1, t2, t3, ...extra]); this.win.setVisible(true).setAlpha(0); this.winAt = performance.now();
     this.tweens.add({ targets: this.win, alpha: 1, duration: 900 });
   }
   update(time, delta) {
@@ -3016,7 +3024,7 @@ Object.assign(GameScene.prototype, {
     if (!this.mishaArmored(m)) { if (this.auth()) this.mishaNeedleHit(p, m); else { m.flash = 0.08; Snd.play('hit'); } return true; }
     // третья фаза: рюкзак застёгнут на все замки — иглой не пробить
     m.flash = 0.06;
-    this.gainSilk(p); Snd.play('clink'); this.parts.setParticleTint(0xffffff); this.parts.explode(5, clamp(p.x + 7 + p.face * 26, m.x, m.x + m.w), m.y + m.h / 2);
+    this.gainSilk(p, true); Snd.play('clink'); this.parts.setParticleTint(0xffffff); this.parts.explode(5, clamp(p.x + 7 + p.face * 26, m.x, m.x + m.w), m.y + m.h / 2);
     if (!this._needleTip) { this._needleTip = true; this.ui().toast('Последняя фаза: иглой Мишу не пробить. Дымовуху ему в рюкзак!', 5.5); }
     return true;
   },
@@ -3027,7 +3035,7 @@ Object.assign(GameScene.prototype, {
     if (['dead', 'intro'].includes(m.state)) return;
     const W = this.wdef ? this.wdef(p) : null, floor = m.tdMarks[1];
     const d = 0.25 * (W && W.dmg ? W.dmg : 1) * (p.heavy ? 2 : 1);
-    m.hp = Math.max(floor, m.hp - d); m.flash = 0.1; this.gainSilk(p); if (!p.remote) this.hitstop = 0.04;
+    m.hp = Math.max(floor, m.hp - d); m.flash = 0.1; this.gainSilk(p, true); if (!p.remote) this.hitstop = 0.04;
     this.sfx('hit'); this.parts.setParticleTint(0xf4f1e6); this.parts.explode(8, clamp(p.x + 7 + p.face * 26, m.x, m.x + m.w), m.y + m.h / 2);
     this.ui().bossBar(true, 'Миша Додик', Math.max(0, m.hp) / m.maxHp);
     let queued = false;
@@ -4595,7 +4603,7 @@ Object.assign(GameScene.prototype, {
     this.items = this.items.filter((it) => !it.got);
   },
   drawItems(now) {
-    if (!this.itemG) this.itemG = this.add.graphics().setDepth(2.5);
+    if (!this.itemG || !this.itemG.scene) this.itemG = this.add.graphics().setDepth(2.5);
     const g = this.itemG; g.clear();
     for (const it of this.items || []) {
       const bob = Math.sin(now * 2.4) * 4;
@@ -5095,7 +5103,8 @@ const Campaign = {
     return c ? `Глава ${c.roman} · ${c.name}` : 'Глава I · Мшистая Глубь';
   },
   saveName(gs, area) { const c = CHAPTERS[gs.camp ? gs.camp.ch : 1]; return `Гл. ${c.roman} · ${area}`; },
-  canSave(gs) { return gs.mode === 'story' && gs.online !== 'guest'; },
+  // арена главы идёт в режиме 'bosstest', но это часть кампании: победа должна сохраняться (кроме спидрана)
+  canSave(gs) { return gs.online !== 'guest' && !gs.sr && (gs.mode === 'story' || (gs.mode === 'bosstest' && !!gs.camp && gs.camp.st === 'arena')); },
 
   // ----- хуки GameScene -----
   init(gs, data) {
@@ -5286,7 +5295,7 @@ Object.assign(UIScene.prototype, {
     else if (guest) items.push(this.add.text(VW / 2, 478, hint, { fontFamily: F, fontSize: '15px', color: '#ffe3a3' }).setOrigin(0.5));
     Touch.show(false);
     this.campWinS = k;
-    this.win.add(items); this.win.setVisible(true).setAlpha(0);
+    this.win.add(items); this.win.setVisible(true).setAlpha(0); this.winAt = performance.now();
     this.tweens.add({ targets: this.win, alpha: 1, duration: 900 });
   },
 
@@ -8575,9 +8584,9 @@ Object.assign(Speedrun, {
       const cp = btn(cx - 190, by, 'Скопировать результат', () => Speedrun.copy(line, (ok) => { cp.setText(ok ? 'Скопировано!' : 'Выделите и скопируйте строку выше'); setTimeout(() => cp.setText('Скопировать результат'), 2200); }));
     }
     btn(cx + (line ? 190 : -120), by, 'Таблица друзей', () => Speedrun.friendsOpen(res));
-    if (!Speedrun.race) btn(cx - 130, by + 52, 'Ещё раз (R)', () => this.retry());
+    if (!Speedrun.race) btn(cx - 130, by + 52, 'Ещё раз (N)', () => this.retry());
     btn(cx + (Speedrun.race ? 0 : 130), by + 52, 'В главное меню', () => this.restart());
-    this.win.add(items); this.win.setVisible(true).setAlpha(0);
+    this.win.add(items); this.win.setVisible(true).setAlpha(0); this.winAt = performance.now();
     this.tweens.add({ targets: this.win, alpha: 1, duration: 700 });
     this.srBanner = null; Speedrun.resUpdate(this);
   };

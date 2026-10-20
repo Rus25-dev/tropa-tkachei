@@ -612,9 +612,9 @@ Object.assign(Speedrun, {
       const cp = btn(cx - 190, by, 'Скопировать результат', () => Speedrun.copy(line, (ok) => { cp.setText(ok ? 'Скопировано!' : 'Выделите и скопируйте строку выше'); setTimeout(() => cp.setText('Скопировать результат'), 2200); }));
     }
     btn(cx + (line ? 190 : -120), by, 'Таблица друзей', () => Speedrun.friendsOpen(res));
-    if (!Speedrun.race) btn(cx - 130, by + 52, 'Ещё раз (R)', () => this.retry());
+    if (!Speedrun.race) btn(cx - 130, by + 52, 'Ещё раз (N)', () => this.retry());
     btn(cx + (Speedrun.race ? 0 : 130), by + 52, 'В главное меню', () => this.restart());
-    this.win.add(items); this.win.setVisible(true).setAlpha(0);
+    this.win.add(items); this.win.setVisible(true).setAlpha(0); this.winAt = performance.now();
     this.tweens.add({ targets: this.win, alpha: 1, duration: 700 });
     this.srBanner = null; Speedrun.resUpdate(this);
   };

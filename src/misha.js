@@ -128,7 +128,7 @@ Object.assign(GameScene.prototype, {
     if (!this.mishaArmored(m)) { if (this.auth()) this.mishaNeedleHit(p, m); else { m.flash = 0.08; Snd.play('hit'); } return true; }
     // третья фаза: рюкзак застёгнут на все замки — иглой не пробить
     m.flash = 0.06;
-    this.gainSilk(p); Snd.play('clink'); this.parts.setParticleTint(0xffffff); this.parts.explode(5, clamp(p.x + 7 + p.face * 26, m.x, m.x + m.w), m.y + m.h / 2);
+    this.gainSilk(p, true); Snd.play('clink'); this.parts.setParticleTint(0xffffff); this.parts.explode(5, clamp(p.x + 7 + p.face * 26, m.x, m.x + m.w), m.y + m.h / 2);
     if (!this._needleTip) { this._needleTip = true; this.ui().toast('Последняя фаза: иглой Мишу не пробить. Дымовуху ему в рюкзак!', 5.5); }
     return true;
   },
@@ -139,7 +139,7 @@ Object.assign(GameScene.prototype, {
     if (['dead', 'intro'].includes(m.state)) return;
     const W = this.wdef ? this.wdef(p) : null, floor = m.tdMarks[1];
     const d = 0.25 * (W && W.dmg ? W.dmg : 1) * (p.heavy ? 2 : 1);
-    m.hp = Math.max(floor, m.hp - d); m.flash = 0.1; this.gainSilk(p); if (!p.remote) this.hitstop = 0.04;
+    m.hp = Math.max(floor, m.hp - d); m.flash = 0.1; this.gainSilk(p, true); if (!p.remote) this.hitstop = 0.04;
     this.sfx('hit'); this.parts.setParticleTint(0xf4f1e6); this.parts.explode(8, clamp(p.x + 7 + p.face * 26, m.x, m.x + m.w), m.y + m.h / 2);
     this.ui().bossBar(true, 'Миша Додик', Math.max(0, m.hp) / m.maxHp);
     let queued = false;
