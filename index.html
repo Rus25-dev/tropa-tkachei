@@ -614,6 +614,17 @@ const Snd = {
       case 'coin': [0, 90].forEach((d, i) => setTimeout(() => this.tone('square', i ? 1320 : 990, i ? 1320 : 990, 0.12, 0.05), d)); break;
       case 'sparkle': for (let i = 0; i < 5; i++) setTimeout(() => this.tone('sine', 1500 + Math.random() * 1500, 2500, 0.1, 0.04), i * 60); break;
       case 'buzz': this.tone('square', 120, 120, 0.35, 0.05); this.tone('square', 123, 123, 0.35, 0.05); break;
+      // удары по боссам: у каждого свой тембр, у оглушённого и у финишера — свои
+      case 'hitWood': this.tone('triangle', 190, 60, 0.14, 0.26); this.tone('square', 95, 50, 0.1, 0.1); this.hiss(0.07, 0.16, 700, 1.2); break;
+      case 'hitString': this.tone('sawtooth', 540, 330, 0.17, 0.11); this.tone('triangle', 810, 610, 0.13, 0.08); this.hiss(0.04, 0.1, 2600, 2); break;
+      case 'hitDull': this.tone('sine', 150, 55, 0.2, 0.32); this.hiss(0.06, 0.14, 340, 0.8); break;
+      case 'hitCrit': this.tone('triangle', 320, 90, 0.15, 0.26); this.tone('square', 1250, 700, 0.1, 0.08); this.hiss(0.06, 0.2, 1900, 1.5); break;
+      case 'hitHeavy': this.tone('triangle', 140, 45, 0.24, 0.32); this.tone('sawtooth', 230, 100, 0.15, 0.1); this.hiss(0.12, 0.26, 520, 0.8); break;
+      case 'stagger': this.hiss(0.28, 0.3, 300, 0.7); this.tone('sine', 85, 32, 0.5, 0.34); this.tone('square', 960, 380, 0.14, 0.08); this.tone('triangle', 1400, 1400, 0.3, 0.05); break;
+      case 'exec': this.hiss(0.35, 0.34, 1400, 0.7); this.tone('sawtooth', 700, 120, 0.3, 0.16); this.tone('sine', 70, 28, 0.6, 0.4); setTimeout(() => { this.tone('triangle', 1760, 1760, 0.4, 0.09); this.tone('triangle', 2349, 2349, 0.5, 0.06); }, 110); break;
+      case 'bossdie': this.tone('sawtooth', 220, 30, 1.6, 0.2); this.hiss(1.4, 0.2, 200, 0.5); this.tone('sine', 60, 25, 1.8, 0.4); [0, 300, 600].forEach((d, i) => setTimeout(() => this.tone('triangle', 880 - i * 200, 440 - i * 100, 0.6, 0.06), d + 500)); break;
+      case 'bag': this.tone('sine', 120, 60, 0.16, 0.28); this.hiss(0.12, 0.2, 420, 0.7); break;
+      case 'parry': this.tone('square', 1900, 1500, 0.07, 0.06); this.tone('triangle', 2800, 2300, 0.14, 0.06); this.tone('sine', 1400, 1400, 0.2, 0.05); break;
       case 'win': [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => this.tone('triangle', f, f, 0.5, 0.12), i * 140)); break;
     }
   },
@@ -1032,11 +1043,15 @@ const Lobby = {
 let VW = 960; const VH = 540;
 // версия игры; номер сборки подставляет build.py
 const GAME_VERSION = '1.2';
-const GAME_BUILD = '261020.1243';
+const GAME_BUILD = '261020.1248';
 const CHANGELOG = [
   'Кампания: после Корнематки — Глава II (Миша), III (Владик), IV (Тима) с коридорами перед аренами',
   'Прогресс по главам сохраняется на скамьях; «Продолжить» возвращает в нужную главу',
   'Лавка у скамьи (↓ на скамье): маски здоровья, острая игла, лёгкая катушка за бусины',
+  'Казнь: оглушил босса — подойди и ударь вверх или вниз: добивающий удар, бонус нити',
+  'Шкала стойкости над боссом, разные звуки ударов по каждому боссу, замедление и вспышка на смерть босса',
+  'Новое в третьей фазе: эхо Владика, «лаги» Тимы, печатный валик Миши',
+  'Нитяной всполох больше не копит нить на своих же ударах; боссы стали выносливее и честнее',
   'Бой: третий удар подряд — тяжёлый финишер (шире, бьёт дважды)',
   'Рывок сквозь атаку — идеальный уворот: без урона, +2 нити',
   'Босса можно оглушить серией ударов: замирает и получает двойной урон',
@@ -1058,18 +1073,21 @@ const P = {
   G: 1500, RUN: 230, JUMP: 700, CUT: 0.45, MAXFALL: 720, COYOTE: 0.1, BUF: 0.13,
   DASH: 540, DASHT: 0.17, DASHCD: 0.45, WSLIDE: 110, WJX: 290, WJY: 600, WJLOCK: 0.16,
   POGO: 540, ATK_T: 0.12, ATK_CD: 0.26, INV: 1.0, HURT: 0.22, SILK: 9,
-  BURST: 4, PARRY_T: 0.2, PARRY_CD: 0.65, APEX_VY: 90, APEX_G: 0.55, ATKBUF: 0.14, DASHBUF: 0.12, CORNER: 7,
+  BURST: 4, HEAL: 2, HEAL_T: 1.1, PARRY_T: 0.2, PARRY_CD: 0.65, APEX_VY: 90, APEX_G: 0.55, ATKBUF: 0.14, DASHBUF: 0.12, CORNER: 7,
 };
 const PAL = [
   { name: 'Ива', tag: 'Di', cloak: 0x2f9a8a, dark: 0x1b5c53, accent: 0x9ff0dc, hex: '#8fe8d2' },
   { name: 'Ярь', tag: 'Ta', cloak: 0xd8862a, dark: 0x8a4f16, accent: 0xffd9a0, hex: '#ffc46e' },
 ];
 const MASK = 0xe8e2cf, INK = 0x10141a;
-const PERSIST_KINDS = new Set(['wave', 'rwave', 'pad', 'stamp', 'box', 'clef', 'rootspike', 'staff', 'collector', 'trophy']);
+const PERSIST_KINDS = new Set(['wave', 'rwave', 'pad', 'stamp', 'box', 'clef', 'rootspike', 'staff', 'collector', 'trophy', 'echo', 'roller']);
+// тяжёлые удары боссов отнимают 2 бутона: у них длинный телеграф, и их можно красиво избежать
+const HEAVY_KINDS = new Set(['rwave', 'wave', 'rootspike', 'stamp', 'trophy', 'bigletter', 'roller', 'echo', 'box']);
+const HEAVY_STATES = new Set(['charge', 'lunge', 'leap', 'lagFall']);
 const SLASH_KINDS = new Set(['spore', 'letter', 'note', 'bottle', 'rain', 'collector']);
 const STORY_KINDS = new Set(['spore', 'wave', 'rock']);
-const NET_KINDS = ['spore', 'wave', 'rock', 'letter', 'bigletter', 'bomb', 'clef', 'note', 'drip', 'bottle', 'pad', 'rwave', 'ringfx', 'box', 'stamp', 'rootspike', 'rain', 'staff', 'collector', 'trophy', 'staffghost'];
-const NET_SIZES = [[12, 12], [24, 18], [16, 16], [22, 26], [56, 60], [12, 12], [28, 40], [14, 18], [8, 10], [10, 22], [26, 18], [24, 18], [0, 0], [36, 22], [80, 44], [36, 70], [22, 26], [1344, 10], [22, 22], [30, 30], [1344, 0]];
+const NET_KINDS = ['spore', 'wave', 'rock', 'letter', 'bigletter', 'bomb', 'clef', 'note', 'drip', 'bottle', 'pad', 'rwave', 'ringfx', 'box', 'stamp', 'rootspike', 'rain', 'staff', 'collector', 'trophy', 'staffghost', 'echo', 'roller', 'mark'];
+const NET_SIZES = [[12, 12], [24, 18], [16, 16], [22, 26], [56, 60], [12, 12], [28, 40], [14, 18], [8, 10], [10, 22], [26, 18], [24, 18], [0, 0], [36, 22], [80, 44], [36, 70], [22, 26], [1344, 10], [22, 22], [30, 30], [1344, 0], [40, 84], [46, 52], [0, 0]];
 const BOSSES = [
   { id: 'misha', name: 'Миша Додик', about: 'Швыряется печатными буквами. Бей дымовыми бомбами в рюкзак.' },
   { id: 'vladik', name: 'Владик Скрипка', about: 'Кидает скрипичные ключи и мажет шторы слизью. Бей иглой.' },
@@ -1294,8 +1312,8 @@ class GameScene extends Phaser.Scene {
   init(data) { this.startData = data; this.mode = data.mode || 'story'; this.bossKind = data.boss || 'misha'; this.nPlayers = data.players || 1; this.online = data.online || null; this.localIdx = data.online === 'guest' ? 1 : 0; Campaign.init(this, data); }
   auth() { return this.online !== 'guest'; }
   sendEv(o) { if (this.online) Net.send({ t: 'ev', ...o }); }
-  sfx(n) { Snd.play(n); if (this.online === 'host') this.sendEv({ k: 'snd', n }); }
-  burst(n, x, y, c) { this.parts.setParticleTint(c); this.parts.explode(n, x, y); if (this.online === 'host') this.sendEv({ k: 'burst', n, x: Math.round(x), y: Math.round(y), c }); }
+  sfx(n) { if (this.quiet) return; Snd.play(n); if (this.online === 'host') this.sendEv({ k: 'snd', n }); }
+  burst(n, x, y, c) { if (this.quiet) return; this.parts.setParticleTint(c); this.parts.explode(n, x, y); if (this.online === 'host') this.sendEv({ k: 'burst', n, x: Math.round(x), y: Math.round(y), c }); }
   dustAt(n, x, y) { this.dust.explode(n, x, y); if (this.online === 'host') this.sendEv({ k: 'dust', n, x: Math.round(x), y: Math.round(y) }); }
   shake(d, i) { this.cameras.main.shake(d, i); if (this.online === 'host') this.sendEv({ k: 'shake', d, i }); }
   toastAll(m) { this.ui().toast(m); this.sendEv({ k: 'toast', m }); }
@@ -1564,7 +1582,7 @@ class GameScene extends Phaser.Scene {
   makeBoss() {
     if (this.boss && this.boss.g) this.boss.g.destroy();
     if (!this.L.boss) { this.boss = { x: -9999, y: -9999, w: 1, h: 1, vx: 0, vy: 0, hp: 1, maxHp: 1, state: 'gone', t: 0, face: 1, flash: 0, g: this.add.graphics() }; return; }
-    const b = this.L.boss, hp = this.nPlayers === 2 ? 126 : 90;
+    const b = this.L.boss, hp = BAL.hp.boss[this.nPlayers === 2 ? 1 : 0];
     this.boss = { x: b.x * T - 36, y: (b.y + 1) * T - 58, w: 72, h: 58, vx: 0, vy: 0, hp, maxHp: hp, phase: 1, state: 'sleep', t: 0, face: -1, jumps: 0, flash: 0, last: '', air: 0, g: this.add.graphics().setDepth(4) };
     if (this.bossDead) { this.boss.state = 'gone'; }
   }
@@ -1577,7 +1595,10 @@ class GameScene extends Phaser.Scene {
 
   // ----- основной цикл -----
   update(time, delta) {
-    const dt = Math.min(delta, 100) / 1000;
+    const rdt = Math.min(delta, 100) / 1000;
+    let dt = rdt;
+    // замедление времени на смерть босса: сначала почти стоп, потом плавно разгоняемся
+    if (this.slowT > 0) { this.slowT -= rdt; const k = Math.max(0, this.slowT) / this.slowDur; dt = rdt * (k > 0.35 ? 0.22 : 0.22 + 0.78 * (1 - k / 0.35)); }
     this.animT += dt;
     // ввод с фронтами нажатий
     for (const p of this.players) {
@@ -1634,11 +1655,11 @@ class GameScene extends Phaser.Scene {
       const pr = inset(p, 2);
       for (const e of this.enemies) if (!e.dead && overlap(pr, inset(e, 2))) { this.hurtPlayer(p, 1, e.x + e.w / 2); break; }
       const b = this.boss;
-      if (p.inv <= 0 && (b.state !== 'sleep' && b.state !== 'dead' && b.state !== 'gone') && overlap(pr, inset(b, 8))) this.hurtPlayer(p, 1, b.x + b.w / 2);
+      if (p.inv <= 0 && (b.state !== 'sleep' && b.state !== 'dead' && b.state !== 'gone') && overlap(pr, inset(b, 8))) this.hurtPlayer(p, HEAVY_STATES.has(b.state) ? 2 : 1, b.x + b.w / 2);
       const m = this.misha;
-      if (m && p.inv <= 0 && !['dead', 'intro', 'cough'].includes(m.state) && overlap(pr, inset(m, 8))) this.hurtPlayer(p, 1, m.x + m.w / 2);
+      if (m && p.inv <= 0 && !['dead', 'intro', 'cough'].includes(m.state) && overlap(pr, inset(m, 8))) this.hurtPlayer(p, HEAVY_STATES.has(m.state) ? 2 : 1, m.x + m.w / 2);
       const vb = this.vladik || this.tima;
-      if (vb && p.inv <= 0 && !['dead', 'intro'].includes(vb.state) && overlap(pr, inset(vb, 8))) this.hurtPlayer(p, 1, vb.x + vb.w / 2);
+      if (vb && p.inv <= 0 && !['dead', 'intro'].includes(vb.state) && overlap(pr, inset(vb, 8))) this.hurtPlayer(p, HEAVY_STATES.has(vb.state) ? 2 : 1, vb.x + vb.w / 2);
       if (this.curtains && p.inv <= 0) for (const c of this.curtains) if (c.slime > 0 && overlap(pr, this.curtainHazard(c))) { this.hurtPlayer(p, 1, c.x + c.w / 2); break; }
     }
     // выход
@@ -1647,12 +1668,22 @@ class GameScene extends Phaser.Scene {
 
   stepPlayer(p, dt) {
     const inp = p.inp;
-    p.inv -= dt; p.hurtT -= dt; p.dashCd -= dt; p.bombCd -= dt; p.atkCd -= dt; p.atkT -= dt; p.wjLock -= dt; p.healT -= dt; p.coyote -= dt; p.jumpBuf -= dt; p.landT -= dt; p.atkBuf = (p.atkBuf || 0) - dt; p.comboT = (p.comboT || 0) - dt; p.parryT = (p.parryT || 0) - dt; p.parryCd = (p.parryCd || 0) - dt; p.dashBuf = (p.dashBuf || 0) - dt;
+    p.inv -= dt; p.hurtT -= dt; p.dashCd -= dt; p.bombCd -= dt; p.atkCd -= dt; p.atkT -= dt; p.wjLock -= dt; p.healT -= dt; p.coyote -= dt; p.jumpBuf -= dt; p.landT -= dt; p.atkBuf = (p.atkBuf || 0) - dt; p.comboT = (p.comboT || 0) - dt; p.parryT = (p.parryT || 0) - dt; p.parryCd = (p.parryCd || 0) - dt; p.dashBuf = (p.dashBuf || 0) - dt; p.execT = (p.execT || 0) - dt;
     if (p.downed) { p.vx *= 0.9; p.vy = Math.min(p.vy + P.G * dt, P.MAXFALL); this.moveBody(p, dt); return; }
     if (inp.jumpP) p.jumpBuf = P.BUF;
     if (inp.atkP) p.atkBuf = P.ATKBUF;
     if (inp.dashP) p.dashBuf = P.DASHBUF;
     const dir = (inp.right ? 1 : 0) - (inp.left ? 1 : 0);
+    // лечение занимает время: герой стоит на месте, любой урон прерывает его (нить потеряна)
+    if (p.healCh > 0) {
+      p.healCh -= dt; p.healT = p.healCh; p.vx = 0; p.vy = Math.min(p.vy + P.G * dt, P.MAXFALL); this.moveBody(p, dt);
+      if (Math.random() < 0.3) this.parts.explode(1, p.x + 7 + (Math.random() - 0.5) * 16, p.y + 24);
+      if (p.healCh <= 0) {
+        p.hp = Math.min(p.maxHp, p.hp + P.HEAL); p.healCh = 0; p.healT = 0.3; Snd.play('heal');
+        this.parts.setParticleTint(p.pal.accent); this.parts.explode(18, p.x + 7, p.y + 12);
+      }
+      return;
+    }
     if (p.sit) {
       const dn = !!inp.down, dnP = dn && !p.dnPrev; p.dnPrev = dn;
       if (dir || inp.jumpP || inp.atkP || inp.dashP) p.sit = false;
@@ -1699,7 +1730,9 @@ class GameScene extends Phaser.Scene {
         p.dashT = P.DASHT; p.dashCd = P.DASHCD; if (!p.onGround) p.canDash = false; p.vy = 0; p.atkT = 0;
         Snd.play('dash');
       }
-      if (p.atkBuf > 0 && p.atkCd <= 0) {
+      if (p.atkBuf > 0 && p.atkCd <= 0 && (inp.up || inp.down) && this.tryExecute(p, inp.up ? 'u' : 'd')) {
+        p.atkBuf = 0; // казнь оглушённого босса: удар вверх/вниз рядом с ним
+      } else if (p.atkBuf > 0 && p.atkCd <= 0) {
         p.atkBuf = 0;
         p.atkDir = inp.up ? 'u' : (inp.down && !p.onGround ? 'd' : 'f');
         // комбо: третий удар подряд (в пределах 0.6 с) — тяжёлый финишер: шире, бьёт дважды, но дольше восстанавливается
@@ -1712,8 +1745,8 @@ class GameScene extends Phaser.Scene {
       if (inp.healP) {
         if (inp.up && p.silk >= P.BURST) this.silkBurst(p);
         else if (p.silk >= P.SILK && p.hp < p.maxHp) {
-          p.hp = Math.min(p.maxHp, p.hp + 3); p.silk = 0; p.healT = 0.6; Snd.play('heal');
-          this.parts.explode(18, p.x + 7, p.y + 12); this.parts.setParticleTint(p.pal.accent);
+          p.silk = 0; p.healCh = P.HEAL_T; p.healT = P.HEAL_T; p.atkT = 0; Snd.play('bench');
+          this.parts.setParticleTint(p.pal.accent); this.parts.explode(10, p.x + 7, p.y + 12);
         } else if (p.parryCd <= 0) { p.parryT = P.PARRY_T; p.parryCd = P.PARRY_CD; Snd.play('slash'); }
       }
     }
@@ -1782,7 +1815,8 @@ class GameScene extends Phaser.Scene {
     }
     if (local && p.atkDir === 'd' && !p.pogoed && this.rectHitsTile(box, SPIKE, 0.7)) { pogo(); this.parts.setParticleTint(0xffffff); this.parts.explode(5, box.x + 18, box.y + 30); }
   }
-  gainSilk(p) { if (p.remote) this.sendEv({ k: 'silk', i: p.i }); else p.silk = Math.min(P.SILK, p.silk + 1); }
+  // по боссу нить копится не с каждого удара (BAL.silkEvery): иначе лечения хватало бы на любой бой
+  gainSilk(p, boss) { if (p.noSilkGain) return; if (boss && ((p.bossHits = (p.bossHits || 0) + 1) % BAL.silkEvery)) return; if (p.remote) this.sendEv({ k: 'silk', i: p.i }); else p.silk = Math.min(P.SILK, p.silk + 1); }
   damageEnemy(e, p) {
     if (e.e2 && this.e2Blocked(e, p)) return; // броня панциря, засадник под землёй
     e.hp -= 1 + Campaign.needleBonus(this); e.flash = 0.1; this.gainSilk(p); if (!p.remote) this.hitstop = 0.045; this.sfx('hit');
@@ -1808,7 +1842,7 @@ class GameScene extends Phaser.Scene {
       Snd.play('clink'); this.parts.setParticleTint(p.pal.accent); this.parts.explode(14, p.x + 7, p.y + 13);
       return;
     }
-    p.hp -= dmg; p.inv = P.INV; if (!p.remote) Touch.buzz(45); p.hurtT = P.HURT; p.dashT = 0; p.sit = false; p.atkT = 0;
+    p.hp -= dmg; p.inv = P.INV; if (!p.remote) Touch.buzz(45); p.hurtT = P.HURT; p.dashT = 0; p.sit = false; p.atkT = 0; p.healCh = 0; p.healT = 0;
     p.vy = spike ? 0 : -320; p.kbx = srcX == null ? 0 : ((p.x + 7 < srcX) ? -1 : 1) * 260;
     this.hitstop = 0.09; this.cameras.main.shake(160, 0.008); Snd.play('hurt');
     this.parts.setParticleTint(0xffffff); this.parts.explode(10, p.x + 7, p.y + 13);
@@ -1843,7 +1877,7 @@ class GameScene extends Phaser.Scene {
   respawnLocal() {
     this.players.forEach((p) => {
       if (p.remote) return;
-      Object.assign(p, { x: this.respawn.x - 7 + p.i * 24, y: this.respawn.y - 26, vx: 0, vy: 0, kbx: 0, hp: p.maxHp, downed: false, inv: 1, hurtT: 0, dashT: 0, atkT: 0, sit: false, reviveT: 0, bombs: this.L.crates ? 3 : 0 });
+      Object.assign(p, { x: this.respawn.x - 7 + p.i * 24, y: this.respawn.y - 26, vx: 0, vy: 0, kbx: 0, hp: p.maxHp, downed: false, inv: 1, hurtT: 0, dashT: 0, atkT: 0, sit: false, reviveT: 0, healCh: 0, healT: 0, bombs: this.L.crates ? 3 : 0 });
       p.safeX = p.x; p.safeY = p.y;
     });
     this.camX = this.respawn.x; this.camY = this.respawn.y - 80;
@@ -1983,7 +2017,7 @@ class GameScene extends Phaser.Scene {
         if (b.t <= 0) { this.rootLine(tx, phase3); b.state = 'recover'; b.t = phase3 ? 0.6 : 0.9; }
         break;
       case 'idle':
-        b.vx = 0; faceT();
+        b.vx = 0; faceT(); b.t -= dt * BAL.pace.boss;
         if (b.t <= 0) {
           const pool = ['leap', 'spores', 'charge']; if (phase2) pool.push('roots', 'roots');
           const opts = pool.filter((o) => o !== b.last);
@@ -2027,7 +2061,7 @@ class GameScene extends Phaser.Scene {
         b.vx = b.face * (phase2 ? 460 : 400);
         break;
       case 'stun': b.vx = 0; if (b.t <= 0) { b.state = 'idle'; b.t = phase2 ? 0.35 : 0.6; } break;
-      case 'recover': b.vx = 0; if (b.t <= 0) { b.state = 'idle'; b.t = phase3 ? 0.25 : phase2 ? 0.35 : 0.6; } break;
+      case 'recover': b.vx = 0; b.t -= dt * BAL.pace.boss; if (b.t <= 0) { b.state = 'idle'; b.t = phase3 ? 0.25 : phase2 ? 0.35 : 0.6; } break;
     }
     b.vy = Math.min(b.vy + P.G * dt, P.MAXFALL);
     const was = b.state;
@@ -2042,7 +2076,7 @@ class GameScene extends Phaser.Scene {
   damageBoss(p) {
     const b = this.boss;
     if (b.state === 'rage') { Snd.play('clink'); return; }
-    b.hp -= 1; b.flash = 0.09; this.gainSilk(p); if (!p.remote) this.hitstop = 0.04; this.sfx('hit');
+    b.hp -= 1; b.flash = 0.09; this.gainSilk(p, true); if (!p.remote) this.hitstop = 0.04; this.sfx(this.bossHitSnd('boss', p));
     this.burst(10, clamp(p.x + 7 + p.face * 30, b.x, b.x + b.w), b.y + b.h / 2, 0xf4f1e6);
     this.ui().bossBar(true, 'Корнематка', b.hp / b.maxHp);
     if (b.hp <= 0) this.killBoss(); else this.checkPhase(b, 'Корнематка');
@@ -2060,7 +2094,7 @@ class GameScene extends Phaser.Scene {
   killBoss() {
     const b = this.boss; b.state = 'dead'; b.t = 1.4; this.bossDead = true;
     for (const pr of this.projs) pr.dead = true;
-    this.sfx('roar'); this.shake(1200, 0.01); this.hitstop = 0.25;
+    this.sfx('roar'); this.shake(1200, 0.01); this.hitstop = 0.25; this.bossDeathFx(b);
     for (let i = 0; i < 6; i++) this.time.delayedCall(i * 180, () => this.burst(24, b.x + Math.random() * b.w, b.y + Math.random() * b.h, i % 2 ? 0xffd47a : 0x9ff0c8));
     this.time.delayedCall(1300, () => {
       this.dropBeads(b.x + b.w / 2, b.y + b.h / 2, 30);
@@ -2093,11 +2127,11 @@ class GameScene extends Phaser.Scene {
       else if (pr.kind === 'note') this.stepNote(pr, dt);
       else if (pr.kind === 'drip') this.stepDrip(pr, dt);
       else if (pr.kind === 'ringfx') { this.stepTimaProj(pr, dt); continue; }
-      else if (pr.kind === 'staffghost') continue;
+      else if (pr.kind === 'staffghost' || pr.kind === 'mark') continue;
       else if (this.stepExtraProj(pr, dt)) { /* новые снаряды боссов 2.0 */ }
       else if (this.tima) this.stepTimaProj(pr, dt);
       if (pr.dead) continue;
-      for (const p of this.players) if (!p.remote && !p.downed && p.inv <= 0 && overlap(inset(p, 2), pr)) { this.hurtPlayer(p, 1, pr.x + pr.w / 2); if (!PERSIST_KINDS.has(pr.kind)) pr.dead = true; }
+      for (const p of this.players) if (!p.remote && !p.downed && p.inv <= 0 && overlap(inset(p, 2), pr)) { this.hurtPlayer(p, HEAVY_KINDS.has(pr.kind) ? 2 : 1, pr.x + pr.w / 2); if (!PERSIST_KINDS.has(pr.kind)) pr.dead = true; }
     }
     this.projs = this.projs.filter((pr) => !pr.dead);
   }
@@ -2146,10 +2180,10 @@ class GameScene extends Phaser.Scene {
     const mi = this.misha, vl = this.vladik, tm = this.tima, r10 = (x) => Math.round(x * 10) / 10;
     return { t: 's',
       e: this.enemies.map((e) => [r(e.x), r(e.y), e.face, e.dead ? 1 : 0, e.flash > 0 ? 1 : 0, st(e), this.packEnemy2(e)]),
-      b: [r(b.x), r(b.y), b.face, b.hp, b.maxHp, b.state, b.flash > 0 ? 1 : 0, Math.round(b.t * 100) / 100],
+      b: [r(b.x), r(b.y), b.face, b.hp, b.maxHp, b.state, b.flash > 0 ? 1 : 0, Math.round(b.t * 100) / 100, this.packPoise(b)],
       pr: this.projs.map((q) => [NET_KINDS.indexOf(q.kind), r(q.x), r(q.y), r(q.vx), r(q.vy), q.delay > 0 ? 1 : 0, q.ch || (q.kind === 'ringfx' ? r(q.r) : '')]),
-      vl: vl ? [r(vl.x), r(vl.y), vl.face, vl.hp, vl.maxHp, vl.state, vl.flash > 0 ? 1 : 0, r10(vl.t), vl.sayT > 0 ? vl.say : '', this.curtains.map((c) => [r10(c.slime), Math.round(c.wet * 100) / 100])] : null,
-      tm: tm ? [r(tm.x), r(tm.y), tm.face, tm.hp, tm.maxHp, tm.state, tm.flash > 0 ? 1 : 0, r10(tm.t), tm.sayT > 0 ? tm.say : '', r10(tm.hyper), this.repo ? 1 : 0, this.puddles.map((q) => [r(q.x), q.w, r(q.y), r10(q.t)])] : null,
+      vl: vl ? [r(vl.x), r(vl.y), vl.face, vl.hp, vl.maxHp, vl.state, vl.flash > 0 ? 1 : 0, r10(vl.t), vl.sayT > 0 ? vl.say : '', this.curtains.map((c) => [r10(c.slime), Math.round(c.wet * 100) / 100]), this.packPoise(vl)] : null,
+      tm: tm ? [r(tm.x), r(tm.y), tm.face, tm.hp, tm.maxHp, tm.state, tm.flash > 0 ? 1 : 0, r10(tm.t), tm.sayT > 0 ? tm.say : '', r10(tm.hyper), this.repo ? 1 : 0, this.puddles.map((q) => [r(q.x), q.w, r(q.y), r10(q.t)]), this.packPoise(tm)] : null,
       td: this.td ? [this.td.state, this.td.lane, r(this.td.mx), this.td.blocks, this.td.need, this.td.sayT > 0 ? this.td.say : ''] : null,
       mi: mi ? [r(mi.x), r(mi.y), mi.face, mi.hp, mi.maxHp, mi.state, mi.flash > 0 ? 1 : 0, Math.round(mi.t * 100) / 100, mi.sayT > 0 ? mi.say : '', r10(mi.zipT || 0)] : null,
       bd: this.beadsArr.map((d) => [r(d.x), r(d.y)]), bc: this.beads,
@@ -2182,7 +2216,7 @@ class GameScene extends Phaser.Scene {
     });
     const b = this.boss, B = m.b;
     if (b.tx == null || Math.abs(b.x - B[0]) > 140) { b.x = B[0]; b.y = B[1]; }
-    b.tx = B[0]; b.ty = B[1]; b.face = B[2]; b.hp = B[3]; b.maxHp = B[4]; b.state = B[5]; if (B[6]) b.flash = 0.09; b.t = B[7];
+    b.tx = B[0]; b.ty = B[1]; b.face = B[2]; b.hp = B[3]; b.maxHp = B[4]; b.state = B[5]; if (B[6]) b.flash = 0.09; b.t = B[7]; this.unpackPoise(b, B[8]);
     const old = this.projs;
     this.projs = m.pr.map((a, i) => {
       const q = { kind: NET_KINDS[a[0]], x: a[1], y: a[2], vx: a[3], vy: a[4], delay: a[5] ? 1 : 0, ch: a[6], w: NET_SIZES[a[0]][0], h: NET_SIZES[a[0]][1], life: 1 };
@@ -2190,16 +2224,17 @@ class GameScene extends Phaser.Scene {
       q.rot = old[i] && old[i].kind === q.kind ? old[i].rot || 0 : 0;
       return q;
     });
-    const syncBoss = (bb, A, name, flagKey) => {
-      if (bb.tx == null || Math.abs(bb.x - A[0]) > 140) { bb.x = A[0]; bb.y = A[1]; }
+    const syncBoss = (bb, A, name, flagKey, pzIdx) => {
+      if (bb.tx == null || Math.abs(bb.x - A[0]) > 140 || Math.abs(bb.y - A[1]) > 220) { bb.x = A[0]; bb.y = A[1]; }
+      this.unpackPoise(bb, A[pzIdx]);
       bb.tx = A[0]; bb.ty = A[1]; bb.face = A[2]; bb.hp = A[3]; bb.maxHp = A[4]; bb.state = A[5]; if (A[6]) bb.flash = 0.09; bb.t = A[7];
       if (A[8]) { bb.say = A[8]; bb.sayT = 0.2; }
       const show = bb.state !== 'dead';
       if (show !== !!this[flagKey]) { this[flagKey] = show; this.ui().bossBar(show, name); }
       if (show) this.ui().bossBar(true, null, Math.max(0, bb.hp) / bb.maxHp);
     };
-    if (m.vl && this.vladik) { syncBoss(this.vladik, m.vl, 'Владик Скрипка', '_vb'); m.vl[9].forEach((c, i) => { if (this.curtains[i]) { this.curtains[i].slime = c[0]; this.curtains[i].wet = c[1]; } }); }
-    if (m.tm && this.tima) { syncBoss(this.tima, m.tm, 'Тима Пиво', '_tb'); this.tima.hyper = m.tm[9]; this.setRepo(!!m.tm[10]); this.puddles = m.tm[11].map((q) => ({ x: q[0], w: q[1], y: q[2], t: q[3] })); }
+    if (m.vl && this.vladik) { syncBoss(this.vladik, m.vl, 'Владик Скрипка', '_vb', 10); m.vl[9].forEach((c, i) => { if (this.curtains[i]) { this.curtains[i].slime = c[0]; this.curtains[i].wet = c[1]; } }); }
+    if (m.tm && this.tima) { syncBoss(this.tima, m.tm, 'Тима Пиво', '_tb', 12); this.tima.hyper = m.tm[9]; this.setRepo(!!m.tm[10]); this.puddles = m.tm[11].map((q) => ({ x: q[0], w: q[1], y: q[2], t: q[3] })); }
     if (m.td && !this.td) this.tdBegin(true);
     if (!m.td && this.td) this.tdEnd(false, true);
     if (m.td && this.td) { const d = m.td; Object.assign(this.td, { state: d[0], lane: d[1], mx: d[2], blocks: d[3], need: d[4] }); if (d[5]) { this.td.say = d[5]; this.td.sayT = 0.2; } }
@@ -2244,6 +2279,9 @@ class GameScene extends Phaser.Scene {
       case 'shake': this.cameras.main.shake(m.d, m.i); break;
       case 'toast': this.ui().toast(m.m); break;
       case 'flash': this.cameras.main.flash(260, 255, 240, 220); break;
+      case 'deathfx': this.deathFxLocal(); break;
+      case 'execfx': { const q = this.players[m.i]; if (q && q.remote) { q.execT = 0.4; q.execDir = m.d; } this.execFxLocal(m.x, m.y, m.d); break; }
+      case 'exec': if (this.auth()) { const q = this.players[m.i], kit = q && this.execKit(m.key); if (q && kit) this.execBoss(q, kit, m.d); } break;
       case 'kb': this.knockFrom(m.x); break;
       case 'silk': { const p = this.players[m.i]; if (p && !p.remote) p.silk = Math.min(P.SILK, p.silk + 1); break; }
       case 'bench':
@@ -2271,7 +2309,7 @@ class GameScene extends Phaser.Scene {
       const ex = Math.min(p.netT, 0.12), tx = p.tx + p.vx * ex, ty = p.ty + (p.onGround ? 0 : p.vy * ex);
       if (Math.abs(tx - p.x) > 160 || Math.abs(ty - p.y) > 160) { p.x = tx; p.y = ty; } else { p.x += (tx - p.x) * k; p.y += (ty - p.y) * k; }
       if (p.dashT > 0) { p.dashT -= dt; p.trail.push({ x: p.x + 7, y: p.y + 26, a: 1, f: p.face }); }
-      p.inv -= dt; p.healT -= dt; p.landT -= dt;
+      p.inv -= dt; p.healT -= dt; p.landT -= dt; p.execT = (p.execT || 0) - dt;
       for (const tr of p.trail) tr.a -= dt * 5;
       p.trail = p.trail.filter((tr) => tr.a > 0);
     }
@@ -2297,7 +2335,7 @@ class GameScene extends Phaser.Scene {
   guestProjHits() {
     for (const p of this.players) {
       if (p.remote || p.downed || p.inv > 0) continue;
-      for (const pr of this.projs) if (!pr.dead && !pr.delay && pr.kind !== 'bomb' && pr.kind !== 'ringfx' && pr.kind !== 'staffghost' && overlap(inset(p, 2), pr)) { this.hurtPlayer(p, 1, pr.x + pr.w / 2); if (!PERSIST_KINDS.has(pr.kind)) pr.dead = true; break; }
+      for (const pr of this.projs) if (!pr.dead && !pr.delay && pr.kind !== 'bomb' && pr.kind !== 'ringfx' && pr.kind !== 'staffghost' && pr.kind !== 'mark' && overlap(inset(p, 2), pr)) { this.hurtPlayer(p, HEAVY_KINDS.has(pr.kind) ? 2 : 1, pr.x + pr.w / 2); if (!PERSIST_KINDS.has(pr.kind)) pr.dead = true; break; }
     }
     this.projs = this.projs.filter((q) => !q.dead);
   }
@@ -2392,6 +2430,7 @@ class GameScene extends Phaser.Scene {
     if (this.vladik) this.drawVladikProjs(now);
     if (this.tima) { this.drawTimaProjs(now); this.drawStampLabels(); }
     this.drawExtraProjs(now);
+    this.drawPoiseBars(now);
     // бусины
     for (const bd of this.beadsArr) {
       fx.fillStyle(0xffd47a, 0.25); fx.fillCircle(bd.x + 4, bd.y + 4, 7);
@@ -2562,7 +2601,8 @@ class UIScene extends Phaser.Scene {
       'Игрок 2:  стрелки · Num1 или / — прыжок · Num2 или . — удар · Num3 или , — рывок · Num0 или M — лечение · Num4 или N — дымовуха',
       '', 'Удар вверх: держи ↑ + удар.  Удар вниз в прыжке: ↓ + удар — отскок от колючек и врагов.',
       'Прыжок от стены: прижмись к стене в падении и прыгни.  Спрыгнуть с платформы: ↓ + прыжок.',
-      'Лечение: когда катушка нити полна, восстанавливает 3 бутона.',
+      'Оглушённого босса (полоска над ним) можно казнить: подойди и ударь вверх или вниз.  Отбив: кнопка лечения (без ↑) в миг удара врага, если лечиться нельзя.',
+      'Лечение: когда катушка нити полна, 1.1 с стоишь на месте и восстанавливаешь 2 бутона; урон прерывает лечение.',
       'Отбив: кнопка нити (Q), когда нить не полна, — окно 0.2 с, отбивает удар и снаряды.  Всполох: ↑ + нить (от 4 нити).',
       'Комбо: третий удар подряд — тяжёлый.  Рывок сквозь удар — идеальный уворот (+2 нити).  Серия ударов оглушает босса.',
       'Напарник в коконе: подойди и держи ↑ одну секунду.  Скамья (↑) лечит и оживляет.',
@@ -2571,7 +2611,8 @@ class UIScene extends Phaser.Scene {
     if (Touch.enabled) pc.setText([
       'Стик слева — идти. Вверх + удар — удар вверх, в прыжке вниз + удар — отскок.',
       'Прыжок от стены: прижмись стиком к стене в падении и жми «Прыжок».  Спрыгнуть с платформы: стик вниз + «Прыжок».',
-      'Лечение: когда катушка нити полна, восстанавливает 3 бутона.',
+      'Оглушённого босса (полоска над ним) можно казнить: подойди и ударь вверх или вниз (стик).',
+      'Лечение: когда катушка нити полна, стоишь 1.1 с и восстанавливаешь 2 бутона; урон прерывает лечение.',
       'Отбив: кнопка нити (Q), когда нить не полна, — окно 0.2 с, отбивает удар и снаряды.  Всполох: ↑ + нить (от 4 нити).',
       'Комбо: третий удар подряд — тяжёлый.  Рывок сквозь удар — идеальный уворот (+2 нити).  Серия ударов оглушает босса.',
       'Напарник в коконе: подойди и держи стик вверх одну секунду.  Скамья: стик вверх.',
@@ -2624,7 +2665,7 @@ class UIScene extends Phaser.Scene {
     g.fillStyle(0x2a2620, 1); g.fillRect(G.x0, G.lanes[0].y0, G.x1 - G.x0, G.lanes[2].y1 - G.lanes[0].y0);
     G.lanes.forEach((ln, i) => {
       for (let x = G.x0; x < G.x1; x += 32) { g.fillStyle((x / 32 + i) % 2 ? 0x312c25 : 0x2a2620, 1); g.fillRect(x, ln.y0, 32, ln.y1 - ln.y0); }
-      if (i === td.lane && (td.state === 'tele' || td.state === 'walk')) { g.fillStyle(0xff6a4a, td.state === 'tele' ? 0.18 + Math.sin(now * 14) * 0.08 : 0.07); g.fillRect(G.x0, ln.y0, G.x1 - G.x0, ln.y1 - ln.y0); }
+      if (i === td.lane && (td.state === 'tele' || td.state === 'walk' || td.state === 'feint')) { g.fillStyle(0xff6a4a, td.state === 'tele' ? 0.18 + Math.sin(now * 14) * 0.08 : td.state === 'feint' ? 0.3 + Math.sin(now * 26) * 0.12 : 0.07); g.fillRect(G.x0, ln.y0, G.x1 - G.x0, ln.y1 - ln.y0); }
     });
     for (const w of G.walls) { g.fillStyle(0x5a6a62, 1); g.fillRect(w.x, w.y, w.w, w.h); g.fillStyle(0x7f9087, 1); g.fillRect(w.x, w.y, w.w, 3); }
     // старт и выход
@@ -2852,7 +2893,7 @@ Object.assign(GameScene.prototype, {
   },
   makeMisha() {
     if (this.misha && this.misha.g) this.misha.g.destroy();
-    const d = this.L.misha, hp = this.nPlayers === 2 ? 11 : 8;
+    const d = this.L.misha, hp = BAL.hp.misha[this.nPlayers === 2 ? 1 : 0];
     this.misha = { x: d.x * T - 28, y: (d.y + 1) * T - 74, w: 56, h: 74, vx: 0, vy: 0, face: -1, hp, maxHp: hp, state: 'intro', t: 3.2,
       flash: 0, last: '', turnT: 0, hitCd: 0, tdMarks: [Math.ceil(hp * 2 / 3), Math.ceil(hp / 3)], tdUsed: [], tdQueue: false, say: 'ЭЙ! ЭТО МОЙ РЮКЗАК!', sayT: 3.0, zipT: 0, barShown: false, g: this.add.graphics().setDepth(4) };
   },
@@ -2901,7 +2942,7 @@ Object.assign(GameScene.prototype, {
     const m = this.misha, bag = this.mishaBag(m);
     if (m.hitCd > 0) { this.smokeAt(6, bag.x + 15, bag.y); this.sfx('puff'); return; }
     m.hp -= 1; m.flash = 0.12; m.hitCd = 0.9; this.bagHits++;
-    this.smokeAt(26, bag.x + 15, bag.y + 4); this.sfx('puff'); this.sfx('cough'); this.shake(180, 0.008); this.hitstop = 0.06;
+    this.smokeAt(26, bag.x + 15, bag.y + 4); this.sfx('bag'); this.sfx('puff'); this.sfx('cough'); this.shake(180, 0.008); this.hitstop = 0.06;
     this.ui().bossBar(true, 'Миша Додик', Math.max(0, m.hp) / m.maxHp);
     if (m.hp <= 0) { this.mishaDie(); return; }
     m.state = 'cough'; m.t = 1.5; m.vx = 0;
@@ -2910,11 +2951,11 @@ Object.assign(GameScene.prototype, {
     if (m.hp === Math.floor(m.maxHp / 2)) this.toastAll('Миша злится: буквы летят быстрее');
   },
   mishaDie() {
-    const m = this.misha; m.state = 'dead'; m.t = 2.6; m.vx = 0; this.bossDead = true;
+    const m = this.misha; m.state = 'dead'; m.t = 2.6; m.vx = 0; this.bossDead = true; this.bossDeathFx();
     for (const pr of this.projs) if (pr.kind !== 'bomb') pr.dead = true;
     this.mishaSpeak('ЭТО СДЕЛАЛ ТАМИК!', 2.6); this.sfx('roar'); this.shake(900, 0.008);
     for (let i = 0; i < 8; i++) this.time.delayedCall(i * 160, () => { const b = this.mishaBag(m); this.smokeAt(22, b.x + 15 + (Math.random() - 0.5) * 40, b.y + Math.random() * 30); });
-    this.time.delayedCall(2700, () => { this.ui().bossBar(false); this.win(); });
+    this.time.delayedCall(3300, () => { this.ui().bossBar(false); this.win(); });
   },
   mishaNeedle(p, box) {
     const m = this.misha;
@@ -2940,6 +2981,7 @@ Object.assign(GameScene.prototype, {
     switch (m.state) {
       case 'intro': m.vx = 0; if (m.t <= 0) { m.state = 'idle'; m.t = 0.8; } break;
       case 'idle': {
+        m.t -= dt * BAL.pace.misha;
         if (want !== m.face) { m.turnT += dt; if (m.turnT > (phase2 ? 0.32 : 0.5)) { m.face = want; m.turnT = 0; } } else m.turnT = 0;
         m.vx = Math.abs(tx - mcx) > 220 ? m.face * 70 : 0;
         if (m.t <= 0) {
@@ -2947,26 +2989,38 @@ Object.assign(GameScene.prototype, {
           let opts = ['letters', 'big', 'charge'];
           if (late >= 1) opts.push('dict', 'dict');
           if (late >= 2 && m.zipT <= 0) opts.push('zip');
+          if (late >= 1) opts.push('roller');
+          if (late >= 2) opts.push('roller', 'roller');
           opts = opts.filter((o) => o !== m.last);
           const pick = opts[Math.floor(Math.random() * opts.length)]; m.last = pick; m.vx = 0;
           if (pick === 'letters') this.mishaWord(phase2);
           if (pick === 'big') { m.state = 'bigWind'; m.t = 0.6; this.mishaSpeak('ДЕТДОМ!', 1.2); }
-          if (pick === 'charge') { m.state = 'chargeWind'; m.t = phase2 ? 0.45 : 0.6; m.face = want; this.mishaSpeak('С ДОРОГИ!', 1.0); }
+          if (pick === 'charge') { m.state = 'chargeWind'; m.t = phase2 ? 0.35 : 0.5; m.face = want; this.mishaSpeak('С ДОРОГИ!', 1.0); }
           if (pick === 'dict') { m.state = 'dictWind'; m.t = 0.8; this.mishaSpeak('ДИКТАНТ! ПИШЕМ!', 1.4); this.sfx('roar'); }
+          if (pick === 'roller') { m.state = 'rollWind'; m.t = 0.8; this.mishaSpeak('ПЕЧАТЬ! ВАЛИК!', 1.5); this.sfx('gate'); }
           if (pick === 'zip') { m.zipT = 4.5; m.state = 'recover'; m.t = 0.5; this.mishaSpeak('ЗАКРЫЛ! ХА-ХА!', 1.6); this.sfx('gate'); this.toastAll('Рюкзак застёгнут — подожди, пока Мише станет жарко'); }
         }
         break;
       }
+      // печатный валик (последняя треть боя): катится от стены за спиной героя через всю арену и обратно
+      case 'rollWind':
+        m.vx = 0;
+        if (m.t <= 0) {
+          const side = tx > mcx ? 1 : -1, W = this.L.W;
+          this.projs.push({ kind: 'roller', x: side > 0 ? (W - 1) * T - 46 : T, y: this.L.floorY * T - 52 || 18 * T - 52, w: 46, h: 52, vx: -side * 330, vy: 0, life: 9, delay: 1.0, rev: 0 });
+          this.sfx('slam'); m.state = 'recover'; m.t = 1.2;
+        }
+        break;
       case 'dictWind':
         m.vx = 0;
-        if (m.t <= 0) { this.mishaDictation(m.tdUsed.length >= 2 ? 2 : 1); m.state = 'recover'; m.t = 1.4; }
+        if (m.t <= 0) { this.mishaDictation(m.tdUsed.length >= 2 ? 3 : m.tdUsed.length >= 1 ? 2 : 1); m.state = 'recover'; m.t = 1.4; }
         break;
-      case 'word': m.vx = 0; if (m.t <= 0) { m.state = 'recover'; m.t = phase2 ? 0.45 : 0.7; } break;
+      case 'word': m.vx = 0; if (m.t <= 0) { if (phase2 && Math.random() < 0.45) this.mishaWord(phase2); else { m.state = 'recover'; m.t = phase2 ? 0.45 : 0.7; } } break; // во второй половине боя иногда сразу второе слово
       case 'bigWind':
         m.vx = 0;
         if (m.t <= 0) {
           const targets = this.alivePlayers().length ? this.alivePlayers() : this.players;
-          const n = phase2 ? 3 : 1;
+          const n = phase2 ? 3 : 2;
           for (let i = 0; i < n; i++) {
             const p = targets[i % targets.length], off = n === 1 ? 0 : (i - 1) * 110;
             const x = clamp(p.x + 7 + off, 2 * T, (this.L.W - 2) * T) - 28;
@@ -2976,12 +3030,12 @@ Object.assign(GameScene.prototype, {
         }
         break;
       case 'chargeWind': m.vx = 0; if (m.t <= 0) { m.state = 'charge'; this.sfx('roar'); } break;
-      case 'charge': m.vx = m.face * (phase2 ? 500 : 420); break;
+      case 'charge': m.vx = m.face * (phase2 ? 520 : 450); break;
       case 'cough': m.vx = 0; if (Math.random() < 0.25) { const b = this.mishaBag(m); this.smokeAt(1, b.x + 15, b.y); }
         if (m.t <= 0) { m.state = 'idle'; m.t = phase2 ? 0.4 : 0.7; if (m.tdQueue) { m.tdQueue = false; this.tdBegin(); } }
         break;
       case 'stun': m.vx = 0; if (m.t <= 0) { m.state = 'idle'; m.t = 0.5; } break;
-      case 'recover': m.vx = 0; if (m.t <= 0) { m.state = 'idle'; m.t = phase2 ? 0.35 : 0.65; } break;
+      case 'recover': m.vx = 0; m.t -= dt * BAL.pace.misha; if (m.t <= 0) { m.state = 'idle'; m.t = phase2 ? 0.35 : 0.65; } break;
     }
     m.vy = Math.min(m.vy + P.G * dt, P.MAXFALL);
     const was = m.state;
@@ -2999,7 +3053,7 @@ Object.assign(GameScene.prototype, {
     const cx = clamp(m.x + m.w / 2, T + half + 6, (this.L.W - 1) * T - half - 6);
     for (let i = 0; i < word.length; i++) {
       this.projs.push({ kind: 'letter', ch: word[i], x: cx - ((word.length - 1) * step) / 2 + i * step - 11, y: m.y - 100, w: 22, h: 26,
-        vx: 0, vy: 0, life: 4, delay: 0.5 + i * 0.13, launched: false, spd: phase2 ? 440 : 360, bounce: phase2 ? 1 : 0 });
+        vx: 0, vy: 0, life: 4, delay: 0.42 + i * 0.1, launched: false, spd: phase2 ? 500 : 410, bounce: phase2 ? 1 : 0 });
     }
   },
   // диктант: буквы падают стеной по всей ширине, в стене есть проём — найди его
@@ -3045,7 +3099,7 @@ Object.assign(GameScene.prototype, {
     const m = this.misha, g = m.g; g.clear();
     const f = m.face, fl = m.flash > 0, dead = m.state === 'dead';
     g.setAlpha(dead ? clamp(m.t / 1.2, 0, 1) : 1);
-    let shake = 0; if (['chargeWind', 'bigWind'].includes(m.state)) shake = Math.sin(now * 70) * 2;
+    let shake = 0; if (['chargeWind', 'bigWind', 'rollWind'].includes(m.state)) shake = Math.sin(now * 70) * 2;
     const cx = m.x + m.w / 2 + shake, fy = m.y + m.h;
     const walk = Math.abs(m.vx) > 5, legA = walk ? Math.sin(now * (m.state === 'charge' ? 26 : 10)) * 5 : 0;
     const cough = m.state === 'cough', hunch = cough ? 5 : m.state === 'charge' ? 3 : 0;
@@ -3155,7 +3209,7 @@ Object.assign(GameScene.prototype, {
   tdBegin(fromNet) {
     if (this.td) return;
     const G = this.tdGeo(), m = this.misha;
-    this.td = { state: 'intro', t: 1.0, lane: 1, mx: G.start, blocks: 0, need: this.nPlayers === 2 ? 4 : 3, round: 0, say: '', sayT: 0 };
+    this.td = { state: 'intro', t: 1.0, lane: 1, mx: G.start, blocks: 0, need: this.nPlayers === 2 ? 4 : 3, round: 0, say: '', sayT: 0, feint: !!m && m.tdUsed.length >= 2, fe: false };
     const spots = [[G.x1 - 150, G.lanes[0].y0 + 52], [G.x1 - 150, G.lanes[2].y0 + 52]];
     this.players.forEach((p, i) => {
       if (p.remote) return;
@@ -3188,7 +3242,7 @@ Object.assign(GameScene.prototype, {
   tdPickLane() {
     const td = this.td, G = this.tdGeo();
     let lane = Math.floor(Math.random() * 3); if (lane === td.lane && Math.random() < 0.6) lane = (lane + 1 + Math.floor(Math.random() * 2)) % 3;
-    td.lane = lane; td.mx = G.start; td.state = 'tele'; td.t = 1.1; td.round++;
+    td.lane = lane; td.mx = G.start; td.state = 'tele'; td.t = 1.1; td.round++; td.fe = false;
     td.say = ['ПОСТОРОНИСЬ!', 'Я ПРОЙДУ!', 'С ДОРОГИ!'][td.round % 3]; td.sayT = 1.6;
   },
   tdMove(p, dt) {
@@ -3221,8 +3275,14 @@ Object.assign(GameScene.prototype, {
           td.blocks++; td.state = 'blocked'; td.t = 1.3; td.say = 'ПРОПУСТИТЕ!'; td.sayT = 1.6;
           this.sfx('roar'); this.shake(220, 0.006);
         } else if (td.mx >= G.goal) { td.state = 'through'; td.t = 1.3; td.say = 'ПРОШЁЛ! ХА!'; td.sayT = 1.6; this.sfx('win'); }
+        else if (td.feint && !td.fe && td.mx > G.x0 + (G.x1 - G.x0) * 0.42) {
+          // второй «Пропустите!»: на полпути Миша передумывает и перескакивает в другой коридор
+          td.fe = true; td.lane = td.lane === 0 ? 1 : td.lane === 2 ? 1 : (Math.random() < 0.5 ? 0 : 2); td.state = 'feint'; td.t = 0.9; // всегда в соседний коридор: двери рядом
+          td.say = 'А НЕТ, ТУДА!'; td.sayT = 1.2; this.sfx('roar');
+        }
         break;
       }
+      case 'feint': if (td.t <= 0) td.state = 'walk'; break;
       case 'blocked':
         if (td.t <= 0) { if (td.blocks >= td.need) { td.state = 'win'; td.t = 1.0; td.say = 'ВСЁ, ВСЁ, ПОНЯЛ…'; td.sayT = 1.6; } else this.tdPickLane(); }
         break;
@@ -3394,7 +3454,7 @@ Object.assign(GameScene.prototype, {
   },
   makeVladik() {
     if (this.vladik && this.vladik.g) this.vladik.g.destroy();
-    const d = this.L.vladik, hp = this.nPlayers === 2 ? 98 : 70;
+    const d = this.L.vladik, hp = BAL.hp.vladik[this.nPlayers === 2 ? 1 : 0];
     this.vladik = { x: d.x * T - 22, y: (d.y + 1) * T - 84, w: 44, h: 84, vx: 0, vy: 0, face: -1, hp, maxHp: hp, phase: 1, state: 'intro', t: 3.2,
       flash: 0, last: '', say: 'Я НЕ СКРИПКА!', sayT: 2.2, sayCd: 0, barShown: false, air: 0, target: null, g: this.add.graphics().setDepth(4) };
     if (this.curtains) for (const c of this.curtains) { c.slime = 0; c.wet = 0; }
@@ -3421,6 +3481,15 @@ Object.assign(GameScene.prototype, {
     switch (v.state) {
       case 'intro': v.vx = 0; if (v.t <= 0) { v.state = 'idle'; v.t = 0.7; } break;
       case 'rage': v.vx = 0; if (v.t <= 0) { v.state = 'idle'; v.t = 0.3; } break;
+      // эхо (третья фаза): призрак Владика мчится от стены за спиной героя, а сам Владик делает выпад
+      case 'echoWind':
+        v.vx = 0; v.face = tx > vcx ? 1 : -1;
+        if (v.t <= 0) {
+          const side = tx > vcx ? 1 : -1, wallX = side > 0 ? (this.L.W - 1) * T - 40 : T;
+          this.projs.push({ kind: 'echo', x: wallX, y: this.L.floorY * T - 84, w: 40, h: 84, vx: -side * 600, vy: 0, life: 4, delay: 0.6 });
+          this.sfx('violin'); v.state = 'lungeWind'; v.t = 0.4; v.face = side;
+        }
+        break;
       case 'staffWind':
         v.vx = 0;
         if (v.t <= 0) { this.vladikStaff(phase3); v.state = 'recover'; v.t = 1.5; }
@@ -3431,6 +3500,7 @@ Object.assign(GameScene.prototype, {
         if (v.t <= 0 || v.hitL || v.hitR) { v.state = 'recover'; v.t = 0.75; v.vx = 0; }
         break;
       case 'idle':
+        v.t -= dt * BAL.pace.vladik;
         v.face = tx > vcx ? 1 : -1;
         v.vx = Math.abs(tx - vcx) > 160 ? v.face * 90 : 0;
         // крещендо: в третьей фазе ноты падают с потолка
@@ -3439,6 +3509,7 @@ Object.assign(GameScene.prototype, {
           const slimed = this.curtains.filter((c) => c.slime > 0).length;
           let opts = ['clef', 'leap', 'smear', 'lunge'];
           if (phase2) opts.push('staff', 'staff');
+          if (phase3) opts.push('echo', 'echo');
           opts = opts.filter((o) => o !== v.last);
           if (slimed >= 3) opts = opts.filter((o) => o !== 'smear');
           const pick = opts[Math.floor(Math.random() * opts.length)]; v.last = pick; v.vx = 0;
@@ -3446,6 +3517,7 @@ Object.assign(GameScene.prototype, {
           if (pick === 'leap') { v.state = 'leapWind'; v.t = 0.4; }
           if (pick === 'smear') this.vladikPickCurtain(phase2);
           if (pick === 'staff') { v.state = 'staffWind'; v.t = 0.55; this.vladikSpeak('НОТНЫЙ СТАН! ПО ЛИНЕЕЧКАМ!', 1.6); this.sfx('violin'); }
+          if (pick === 'echo') { v.state = 'echoWind'; v.t = 0.7; this.vladikSpeak('ЭХО! ДУЭТОМ!', 1.5); this.sfx('violin'); }
           if (pick === 'lunge') { v.state = 'lungeWind'; v.t = phase3 ? 0.38 : 0.5; this.vladikSpeak('ВЫПАД!', 1.0); }
         }
         break;
@@ -3495,7 +3567,7 @@ Object.assign(GameScene.prototype, {
         }
         break;
       }
-      case 'recover': v.vx = 0; if (v.t <= 0) { v.state = 'idle'; v.t = phase3 ? 0.25 : phase2 ? 0.35 : 0.6; } break;
+      case 'recover': v.vx = 0; v.t -= dt * BAL.pace.vladik; if (v.t <= 0) { v.state = 'idle'; v.t = phase3 ? 0.25 : phase2 ? 0.35 : 0.6; } break;
     }
     v.vy = Math.min(v.vy + P.G * dt, P.MAXFALL);
     this.moveBody(v, dt);
@@ -3522,7 +3594,7 @@ Object.assign(GameScene.prototype, {
   damageVladik(p) {
     const v = this.vladik;
     if (v.state === 'rage') { Snd.play('clink'); return; }
-    v.hp -= 1; v.flash = 0.09; this.gainSilk(p); if (!p.remote) this.hitstop = 0.04; this.sfx('hit'); this.needleHits++;
+    v.hp -= 1; v.flash = 0.09; this.gainSilk(p, true); if (!p.remote) this.hitstop = 0.04; this.sfx(this.bossHitSnd('vladik', p)); this.needleHits++;
     this.burst(9, clamp(p.x + 7 + p.face * 26, v.x, v.x + v.w), v.y + v.h / 2, 0xf4f1e6);
     this.ui().bossBar(true, 'Владик Скрипка', Math.max(0, v.hp) / v.maxHp);
     if (v.sayCd <= 0 && Math.random() < 0.35) { this.vladikSpeak(VLADIK_SAY_HIT[Math.floor(Math.random() * VLADIK_SAY_HIT.length)], 1.2); v.sayCd = 2.5; }
@@ -3530,12 +3602,12 @@ Object.assign(GameScene.prototype, {
     if (v.hp <= 0) this.vladikDie();
   },
   vladikDie() {
-    const v = this.vladik; v.state = 'dead'; v.t = 2.6; v.vx = 0; this.bossDead = true;
+    const v = this.vladik; v.state = 'dead'; v.t = 2.6; v.vx = 0; this.bossDead = true; this.bossDeathFx();
     for (const pr of this.projs) pr.dead = true;
     for (const c of this.curtains) c.slime = Math.min(c.slime, 1);
     this.vladikSpeak('ЛАДНО… Я СКРИПКА…', 2.4); this.sfx('violin'); this.shake(700, 0.008);
     for (let i = 0; i < 6; i++) this.time.delayedCall(i * 170, () => this.burst(18, v.x + Math.random() * v.w, v.y + Math.random() * v.h, i % 2 ? 0xffd47a : 0xf4efe0));
-    this.time.delayedCall(2700, () => { this.ui().bossBar(false); this.win(); });
+    this.time.delayedCall(3300, () => { this.ui().bossBar(false); this.win(); });
   },
   stepClef(pr, dt) {
     if (pr.t0 > 0) { pr.t0 -= dt; return; }
@@ -3588,7 +3660,7 @@ Object.assign(GameScene.prototype, {
     const v = this.vladik, g = v.g; g.clear();
     const f = v.face, fl = v.flash > 0, dead = v.state === 'dead';
     g.setAlpha(dead ? clamp(v.t / 1.2, 0, 1) : 1);
-    const shake = ['clefWind', 'leapWind'].includes(v.state) ? Math.sin(now * 70) * 1.5 : 0;
+    const shake = ['clefWind', 'leapWind', 'echoWind'].includes(v.state) ? Math.sin(now * 70) * 1.5 : 0;
     const cx = v.x + v.w / 2 + shake, fy = v.y + v.h;
     const walk = Math.abs(v.vx) > 5, legA = walk ? Math.sin(now * 14) * 5 : 0;
     const squat = v.state === 'leapWind' ? 6 : 0;
@@ -3632,7 +3704,15 @@ Object.assign(GameScene.prototype, {
     const fx = this.fx;
     for (const pr of this.projs) {
       if (pr.kind === 'clef') { if (pr.t0 > 0) continue; drawClef(fx, pr.x + 14, pr.y + 20, 1.05, pr.rot, 0xf4efe0); }
-      else if (pr.kind === 'note') {
+      else if (pr.kind === 'echo') {
+        const warn = pr.delay > 0, a = warn ? 0.22 + Math.sin(now * 24) * 0.1 : 0.7, f = pr.vx > 0 ? 1 : -1, cx = pr.x + 20, fy = pr.y + 84;
+        if (!warn) for (let i = 1; i <= 4; i++) { fx.fillStyle(0xf4efe0, a * 0.2 / i); fx.fillEllipse(cx - f * i * 24, fy - 40, 30, 70); }
+        fx.fillStyle(0xe8d9b0, a); fx.fillEllipse(cx, fy - 22, 36, 30); fx.fillEllipse(cx, fy - 46, 28, 26);
+        fx.fillStyle(0xc0712f, a * 0.8); fx.fillEllipse(cx - 4, fy - 24, 12, 16);
+        fx.fillStyle(0xd9b98f, a); fx.fillCircle(cx + 3 * f, fy - 72, 12);
+        fx.lineStyle(2, 0xf4efe0, a); fx.lineBetween(cx + 10 * f, fy - 50, cx + 32 * f, fy - 34);
+        if (warn) { fx.fillStyle(0xff9a7a, 0.55 + Math.sin(now * 20) * 0.2); for (let k = 0; k < 4; k++) { const ax = cx + f * (46 + k * 30); fx.fillTriangle(ax, fy - 6, ax - f * 12, fy - 14, ax - f * 12, fy + 2); } }
+      } else if (pr.kind === 'note') {
         const x = pr.x + 7, y = pr.y + 14;
         fx.fillStyle(0x1a1410, 1); fx.fillEllipse(x, y, 13, 10); fx.fillStyle(0xffd47a, 1); fx.fillEllipse(x, y, 10, 7.5);
         fx.fillStyle(0xffd47a, 1); fx.fillRect(x + 3.5, y - 16, 2.2, 16); fx.fillTriangle(x + 5.5, y - 16, x + 12, y - 9, x + 5.5, y - 11);
@@ -3783,7 +3863,7 @@ Object.assign(GameScene.prototype, {
   },
   makeTima() {
     if (this.tima && this.tima.g) this.tima.g.destroy();
-    const d = this.L.tima, hp = this.nPlayers === 2 ? 110 : 78;
+    const d = this.L.tima, hp = BAL.hp.tima[this.nPlayers === 2 ? 1 : 0];
     this.tima = { x: d.x * T - 30, y: (d.y + 1) * T - 80, w: 60, h: 80, vx: 0, vy: 0, face: -1, hp, maxHp: hp, phase: 1, state: 'intro', t: 3.2,
       flash: 0, last: '', say: 'ПИВКА ДЛЯ РЫВКА!', sayT: 2.2, sayCd: 0, barShown: false, air: 0, hyper: 0, dustCd: 6, dustHits: 0, drinkCd: 8,
       g: this.add.graphics().setDepth(4) };
@@ -3821,6 +3901,21 @@ Object.assign(GameScene.prototype, {
           this.sfx('coin'); v.state = 'recover'; v.t = 0.8;
         }
         break;
+      // «лаги» (третья фаза): Тима пропадает, на полу вспыхивает метка, и он падает с потолка ровно на неё
+      case 'lagWind':
+        v.vx = 0;
+        if (v.t <= 0) {
+          const targets = this.alivePlayers().length ? this.alivePlayers() : this.players, p = targets[Math.floor(Math.random() * targets.length)];
+          v.lagX = clamp(p.x + 7, 2 * T + 30, (this.L.W - 2) * T - 30);
+          this.projs.push({ kind: 'mark', x: v.lagX, y: this.L.floorY * T, w: 0, h: 0, vx: 0, vy: 0, life: 1.3 });
+          this.sfx('sparkle'); v.state = 'lagGone'; v.t = 1.1; v.y = -500; v.vy = 0;
+        }
+        break;
+      case 'lagGone':
+        v.vx = 0; v.vy = 0;
+        if (v.t <= 0) { v.x = v.lagX - v.w / 2; v.y = 4 * T + 6; v.vy = 260; v.state = 'lagFall'; this.sfx('throw'); }
+        break;
+      case 'lagFall': v.vx = 0; break;
       case 'achWind':
         v.vx = 0;
         if (v.t <= 0) {
@@ -3830,15 +3925,16 @@ Object.assign(GameScene.prototype, {
         }
         break;
       case 'idle':
+        v.t -= dt * sp * BAL.pace.tima;
         v.face = tx > vcx ? 1 : -1;
         v.vx = Math.abs(tx - vcx) > 180 ? v.face * 80 * sp : 0;
         if (v.t <= 0) {
           v.vx = 0;
           if (v.dustCd <= 0 && v.hp < v.maxHp * 0.75 && v.hyper <= 0) { v.state = 'dustDraw'; v.t = 2.2; v.dustHits = 0; this.timaSpeak('ЩАС-ЩАС, НАЧЕРЧУ…', 1.6); this.toastAll('Тима чертит круг для пыли — беги к нему и бей!'); break; }
           if (v.drinkCd <= 0 && v.hp < v.maxHp * 0.85 && Math.random() < 0.5) { v.state = 'drink'; v.t = 1.2; v.drinkCd = 14; this.timaSpeak('БУЛЬ-БУЛЬ…', 1.2); this.sfx('glug'); break; }
-          const pool = ['beer', 'pad', 'ring', 'box', 'bankrupt'];
+          const pool = ['beer', 'pad', 'ring', 'ring', 'box', 'bankrupt'];
           if (phase2 && !this.projs.some((q) => q.kind === 'collector')) pool.push('coll');
-          if (phase3) pool.push('ach', 'ach');
+          if (phase3) pool.push('ach', 'ach', 'lag', 'lag');
           const opts = pool.filter((o) => o !== v.last && !(o === 'bankrupt' && (this.repoT > 0 || !phase2 && Math.random() < 0.5)));
           const pick = opts[Math.floor(Math.random() * opts.length)]; v.last = pick;
           if (pick === 'beer') { v.state = 'beerWind'; v.t = 0.5; this.timaSpeak('ЛОВИ ПИВКО!', 1.0); }
@@ -3847,6 +3943,7 @@ Object.assign(GameScene.prototype, {
           if (pick === 'box') { v.state = 'boxWind'; v.t = 0.5; this.timaSpeak('ДЕРЖИ ПРИСТАВКУ!', 1.1); }
           if (pick === 'bankrupt') { v.state = 'bankWind'; v.t = 0.8; this.timaSpeak('БАНКРОТСТВО!', 1.6); this.sfx('roar'); }
           if (pick === 'coll') { v.state = 'collWind'; v.t = 0.8; this.timaSpeak('КОЛЛЕКТОРЫ, ФАС!', 1.5); }
+          if (pick === 'lag') { v.state = 'lagWind'; v.t = 0.6; this.timaSpeak('ЛАГАЕТ!!', 1.3); this.sfx('buzz'); }
           if (pick === 'ach') { v.state = 'achWind'; v.t = 0.7; this.timaSpeak('АЧИВКА РАЗБЛОКИРОВАНА!', 1.6); }
         }
         break;
@@ -3867,8 +3964,9 @@ Object.assign(GameScene.prototype, {
         if (v.t <= 0) {
           const cy = v.y + v.h - 18;
           this.projs.push({ kind: 'ringfx', x: vcx, y: v.y + 24, w: 0, h: 0, vx: 0, vy: 0, life: 0.9, r: 10 });
-          for (const d of [-1, 1]) this.projs.push({ kind: 'rwave', x: vcx - 12 + d * 26, y: cy, w: 24, h: 18, vx: d * (phase2 ? 420 : 360) * Math.min(sp, 1.25), vy: 0, life: 2.6 });
-          this.shake(260, 0.012); this.sfx('slam'); v.state = 'recover'; v.t = 0.7;
+          for (const d of [-1, 1]) this.projs.push({ kind: 'rwave', x: vcx - 12 + d * 26, y: cy, w: 24, h: 18, vx: d * (phase2 ? 520 : 450) * Math.min(sp, 1.25), vy: 0, life: 2.6 });
+          this.shake(260, 0.012); this.sfx('slam');
+          if (phase2 && !v.ring2) { v.ring2 = true; v.state = 'ringWind'; v.t = 0.5; } else { v.ring2 = false; v.state = 'recover'; v.t = 0.7; } // во второй фазе кольцо бьёт дважды подряд
         }
         break;
       case 'boxWind':
@@ -3904,16 +4002,25 @@ Object.assign(GameScene.prototype, {
         if (v.t <= 0) { v.hyper = phase3 ? 9 : 8; v.dustCd = phase3 ? 13 : 20; this.timaSpeak('Я БЫСТРЫЙ!', 1.2); this.sfx('sparkle'); this.toastAll('Тима разогнался: бегай от него 8 секунд'); v.state = 'idle'; v.t = 0.3; }
         break;
       case 'sneeze': v.vx = 0; if (v.t <= 0) { v.state = 'idle'; v.t = 0.5; } break;
-      case 'recover': v.vx = 0; if (v.t <= 0) { v.state = 'idle'; v.t = (phase2 ? 0.45 : 0.7); } break;
+      case 'recover': v.vx = 0; v.t -= dt * sp * BAL.pace.tima; if (v.t <= 0) { v.state = 'idle'; v.t = (phase2 ? 0.45 : 0.7); } break;
     }
-    v.vy = Math.min(v.vy + P.G * dt, P.MAXFALL);
-    this.moveBody(v, dt);
+    if (v.state !== 'lagGone') {
+      v.vy = Math.min(v.vy + P.G * dt, P.MAXFALL);
+      this.moveBody(v, dt);
+    }
+    if (v.state === 'lagFall' && v.onGround) {
+      const vcx2 = v.x + v.w / 2, cy = v.y + v.h - 18;
+      this.shake(340, 0.016); this.sfx('slam'); this.dustAt(18, vcx2, v.y + v.h);
+      this.projs.push({ kind: 'ringfx', x: vcx2, y: v.y + 24, w: 0, h: 0, vx: 0, vy: 0, life: 0.9, r: 10 });
+      for (const d of [-1, 1]) this.projs.push({ kind: 'rwave', x: vcx2 - 12 + d * 34, y: cy, w: 24, h: 18, vx: d * 400, vy: 0, life: 2.6 });
+      v.state = 'recover'; v.t = 1.2; this.timaSpeak('ЛАГ… ПРОШЁЛ', 1.1);
+    }
   },
   bankruptSilk() { for (const p of this.players) if (!p.remote) p.silk = Math.floor(p.silk / 2); },
   damageTima(p) {
     const v = this.tima;
     if (v.state === 'rage') { Snd.play('clink'); return; }
-    v.hp -= 1; v.flash = 0.09; this.gainSilk(p); if (!p.remote) this.hitstop = 0.04; this.sfx('hit'); this.timaHits++;
+    v.hp -= 1; v.flash = 0.09; this.gainSilk(p, true); if (!p.remote) this.hitstop = 0.04; this.sfx(this.bossHitSnd('tima', p)); this.timaHits++;
     this.burst(9, clamp(p.x + 7 + p.face * 28, v.x, v.x + v.w), v.y + v.h / 2, 0xf4f1e6);
     if (v.state === 'drink') { v.state = 'recover'; v.t = 0.4; this.timaSpeak('ЭЙ, РАЗЛИЛ!', 1.0); this.foamAt(12, v.x + v.w / 2, v.y + 30); }
     if (v.state === 'dust' || v.state === 'dustDraw') {
@@ -3926,12 +4033,12 @@ Object.assign(GameScene.prototype, {
     if (v.hp <= 0) this.timaDie();
   },
   timaDie() {
-    const v = this.tima; v.state = 'dead'; v.t = 2.6; v.vx = 0; v.hyper = 0; this.bossDead = true;
+    const v = this.tima; v.state = 'dead'; v.t = 2.6; v.vx = 0; v.hyper = 0; this.bossDead = true; this.bossDeathFx();
     for (const pr of this.projs) pr.dead = true;
     this.setRepo(false); this.repoT = 0; this.sendEv({ k: 'repo', on: 0 });
     this.timaSpeak('ВСЁ… Я СПАТЬ…', 2.4); this.sfx('burp'); this.shake(600, 0.008);
     for (let i = 0; i < 6; i++) this.time.delayedCall(i * 170, () => this.foamAt(18, v.x + Math.random() * v.w, v.y + Math.random() * v.h));
-    this.time.delayedCall(2700, () => { this.ui().bossBar(false); this.win(); });
+    this.time.delayedCall(3300, () => { this.ui().bossBar(false); this.win(); });
   },
   foamAt(n, x, y) { this.foam.explode(n, x, y); if (this.online === 'host') this.sendEv({ k: 'foam', n, x: Math.round(x), y: Math.round(y) }); },
   stepTimaProj(pr, dt) {
@@ -3972,9 +4079,10 @@ Object.assign(GameScene.prototype, {
 
   drawTima(now) {
     const v = this.tima, g = v.g; g.clear();
+    if (v.y < -50) { this.tSay.setVisible(false); return; } // в «лаге»: Тима пропал
     const f = v.face, fl = v.flash > 0, dead = v.state === 'dead', hyper = v.hyper > 0;
-    g.setAlpha(dead ? clamp(v.t / 1.2, 0, 1) : 1);
-    const shake = ['beerWind', 'ringWind', 'boxWind', 'bankWind'].includes(v.state) ? Math.sin(now * 70) * 1.5 : 0;
+    g.setAlpha(dead ? clamp(v.t / 1.2, 0, 1) : v.state === 'lagWind' ? 0.35 + Math.abs(Math.sin(now * 30)) * 0.6 : 1);
+    const shake = ['beerWind', 'ringWind', 'boxWind', 'bankWind'].includes(v.state) ? Math.sin(now * 70) * 1.5 : v.state === 'lagWind' ? Math.sin(now * 90) * 4 : 0;
     const cx = v.x + v.w / 2 + shake, fy = v.y + v.h;
     if (hyper) { g.fillStyle(0xffe38a, 0.12 + Math.sin(now * 12) * 0.05); g.fillEllipse(cx, fy - 40, 100, 110); }
     const walk = Math.abs(v.vx) > 5, legA = walk ? Math.sin(now * (hyper ? 24 : 12)) * 5 : 0;
@@ -4086,6 +4194,13 @@ Object.assign(GameScene.prototype, {
 });
 
 // ===== БОССЫ 2.0: три фазы, переходы, новые атаки и снаряды =====
+// БАЛАНС. Подбирался ИИ-тестером (tools/bot.js table): мастерство 0.6 — 30–50 % побед, 0.95 — 70–90 %, бой 60–120 с.
+// hp: [один игрок, двое]; pace — во сколько раз быстрее проходят паузы «ожидание» и «восстановление» (окна уязвимости короче).
+const BAL = {
+  hp: { boss: [330, 460], vladik: [480, 672], tima: [520, 728], misha: [14, 20] },
+  pace: { boss: 1.8, vladik: 1.1, tima: 3.2, misha: 3.2 },
+  silkEvery: 2, // нить копится с каждого N-го удара по боссу
+};
 const PHASE_LINES = {
   'Корнематка': { 2: 'споры чаще, корни из-под земли', 3: 'двойные прыжки и волны корней' },
   'Владик Скрипка': { 2: 'нотный стан и выпады смычком', 3: 'крещендо: ноты падают с потолка' },
@@ -4142,7 +4257,19 @@ Object.assign(GameScene.prototype, {
           if (pr.bounces-- > 0) { pr.vy = -320; pr.vx = (Math.random() - 0.5) * 300; } else pr.dead = true;
         }
         return true;
-      case 'rootspike': case 'staff': case 'staffghost': return true; // неподвижны: живут свой срок после предупреждения
+      case 'echo': // призрак Владика: бежит вдоль пола и исчезает за дальней стеной
+        pr.x += pr.vx * dt;
+        if ((pr.vx < 0 && pr.x < T - 60) || (pr.vx > 0 && pr.x + pr.w > (this.L.W - 1) * T + 60)) pr.dead = true;
+        return true;
+      case 'roller': // печатный валик Миши: до дальней стены и обратно, потом гаснет
+        pr.x += pr.vx * dt;
+        if ((pr.x < T && pr.vx < 0) || (pr.x + pr.w > (this.L.W - 1) * T && pr.vx > 0)) {
+          pr.vx = -pr.vx; pr.x = clamp(pr.x, T, (this.L.W - 1) * T - pr.w); pr.rev = (pr.rev || 0) + 1; this.shake(160, 0.006); this.sfx('slam');
+          if (pr.rev >= 2) pr.dead = true;
+        }
+        if (Math.random() < 0.4) this.dust.explode(1, pr.x + pr.w / 2, pr.y + pr.h);
+        return true;
+      case 'rootspike': case 'staff': case 'staffghost': case 'mark': return true; // неподвижны: живут свой срок после предупреждения
     }
     return false;
   },
@@ -4176,6 +4303,18 @@ Object.assign(GameScene.prototype, {
           fx.lineStyle(4, 0xfff6d8, 0.95); fx.lineBetween(pr.x, y, pr.x + pr.w, y);
           fx.fillStyle(0xffd47a, 1); for (let x = pr.x + 40 + ((now * 300) % 120); x < pr.x + pr.w; x += 120) { fx.fillEllipse(x, y, 9, 7); fx.fillRect(x + 3, y - 14, 2, 14); }
         }
+      } else if (pr.kind === 'mark') { // метка падения: сужающееся кольцо на полу
+        const fy = this.L.floorY * T, k = Math.max(0, pr.life / 1.3), r = 24 + 40 * k;
+        fb.fillStyle(0xff5a4a, 0.28 + Math.sin(now * 22) * 0.12); fb.fillEllipse(pr.x, fy - 2, r * 2, 14);
+        fb.lineStyle(3, 0xffd47a, 0.9); fb.strokeEllipse(pr.x, fy - 2, r * 2, 14);
+        fb.lineStyle(1.5, 0xff9a7a, 0.4 + Math.sin(now * 22) * 0.2); fb.lineBetween(pr.x, fy - 2, pr.x, 4 * T);
+      } else if (pr.kind === 'roller') {
+        const warn = pr.delay > 0, a = warn ? 0.3 + Math.sin(now * 20) * 0.12 : 1, cx = pr.x + 23, cy = pr.y + 26, f = pr.vx > 0 ? 1 : -1;
+        fx.fillStyle(0x23262e, a); fx.fillRoundedRect(pr.x, pr.y, 46, 52, 14);
+        fx.fillStyle(0x3a4560, a); fx.fillRoundedRect(pr.x + 4, pr.y + 4, 38, 44, 11);
+        fx.fillStyle(0xf4efe0, a * 0.8); for (let i = 0; i < 4; i++) fx.fillRect(pr.x + 10 + i * 8 - ((pr.x * 0.4) % 8), pr.y + 10, 3, 32);
+        fx.lineStyle(3, 0xc9a227, a); fx.strokeCircle(cx, cy, 6);
+        if (warn) { fx.fillStyle(0xff9a7a, 0.5 + Math.sin(now * 20) * 0.2); for (let k = 0; k < 4; k++) { const ax = cx + f * (46 + k * 30); fx.fillTriangle(ax, cy + 20, ax - f * 12, cy + 12, ax - f * 12, cy + 28); } }
       } else if (pr.kind === 'staffghost') {
         fx.lineStyle(1, 0xf4efe0, 0.12); fx.lineBetween(pr.x, pr.y + 5, pr.x + pr.w, pr.y + 5);
       } else if (pr.kind === 'collector') {
@@ -4202,23 +4341,27 @@ Object.assign(GameScene.prototype, {
 
 // ===== ОГЛУШЕНИЕ (стойкость): серия ударов выбивает босса из равновесия =====
 // Копится по 1 за удар и спадает, если не бить. Заполнилась — босс замирает на 1.6 с и получает двойной урон.
-const POISE_MAX = { 1: 6, 2: 7, 3: 8 };
+const POISE_MAX = { 1: 7, 2: 8, 3: 9 };
+const STAGGER_T = 1.5;        // сколько босс стоит оглушённым
+const EXEC_FRAC = 0.06;       // казнь снимает столько от полного здоровья босса
+const KITS = [{ key: 'boss', name: 'Корнематка' }, { key: 'vladik', name: 'Владик Скрипка' }, { key: 'tima', name: 'Тима Пиво' }];
+const RAW = {};              // исходные функции урона (без двойного урона и стойкости) — для казни
 (function () {
   const proto = GameScene.prototype;
   proto.poiseAdd = function (b, n) {
     if (!b || b.poiseImmune > 0 || b.stagger > 0 || ['sleep', 'dead', 'gone', 'intro', 'rage'].includes(b.state)) return;
     b.poise = (b.poise || 0) + n; b.poiseT = 0;
     if (b.poise >= POISE_MAX[b.phase || 1]) {
-      b.poise = 0; b.stagger = 1.6; b.flash = 0.1;
-      this.sfx('slam'); this.shake(200, 0.01); this.hitstop = 0.1;
+      b.poise = 0; b.stagger = STAGGER_T; b.executed = false; b.flash = 0.1;
+      this.sfx('stagger'); this.shake(200, 0.01); this.hitstop = 0.1;
       this.burst(24, b.x + b.w / 2, b.y + 10, 0xffd47a);
-      this.toastAll('Оглушён! Бей!');
+      this.toastAll(this._execHint ? 'Оглушён! Бей!' : 'Оглушён! Подойди и ударь вверх или вниз — казнь'); this._execHint = true;
       for (const pr of this.projs) if (pr.kind === 'spore' || pr.kind === 'letter') pr.dead = true;
     }
   };
   const bossOf = (sc, key) => (key === 'boss' ? sc.boss : sc[key]);
   for (const [stepFn, dmgFn, key, name] of [['stepBoss', 'damageBoss', 'boss', 'Корнематка'], ['stepVladik', 'damageVladik', 'vladik', 'Владик Скрипка'], ['stepTima', 'damageTima', 'tima', 'Тима Пиво']]) {
-    const step = proto[stepFn], dmg = proto[dmgFn];
+    const step = proto[stepFn], dmg = proto[dmgFn]; RAW[key] = dmg;
     proto[stepFn] = function (dt) {
       const b = bossOf(this, key);
       if (b && b.stagger > 0) {
@@ -4246,6 +4389,86 @@ const POISE_MAX = { 1: 6, 2: 7, 3: 8 };
       this.poiseAdd(b, 1);
     };
   }
+
+  // ----- звуки удара, шкала стойкости, казнь, смерть босса -----
+  const bossOfKey = (sc, key) => (key === 'boss' ? sc.boss : sc[key]);
+  proto.bossHitSnd = function (key, p) {
+    const b = bossOfKey(this, key);
+    if (b && b.stagger > 0) return 'hitCrit';
+    if (p && p.heavy) return 'hitHeavy';
+    return { boss: 'hitWood', vladik: 'hitString', tima: 'hitDull' }[key] || 'hit';
+  };
+  proto.packPoise = function (b) { return [Math.round((b.stagger || 0) * 100) / 100, b.poise || 0, b.phase || 1, b.executed ? 1 : 0]; };
+  proto.unpackPoise = function (b, a) { if (!a) return; b.stagger = a[0]; b.poise = a[1]; b.phase = a[2]; b.executed = !!a[3]; };
+  proto.execKit = function (key) { return KITS.find((k) => k.key === key); };
+  proto.execTarget = function (p) {
+    for (const kit of KITS) {
+      const b = bossOfKey(this, kit.key);
+      if (!b || !(b.stagger > 0.2) || b.executed || ['dead', 'gone', 'sleep', 'intro'].includes(b.state)) continue;
+      if (Math.abs(b.x + b.w / 2 - (p.x + 7)) < b.w / 2 + 74 && p.y + 26 > b.y - 24 && p.y < b.y + b.h) return kit;
+    }
+    return null;
+  };
+  // казнь: удар вверх или вниз рядом с оглушённым боссом (вызывает игрок, который бьёт)
+  proto.tryExecute = function (p, dir) {
+    const kit = this.execTarget(p); if (!kit) return false;
+    const b = bossOfKey(this, kit.key);
+    p.face = Math.sign(b.x + b.w / 2 - (p.x + 7)) || p.face;
+    p.execT = 0.42; p.execDir = dir; p.atkCd = 0.6; p.atkT = 0; p.dashT = 0; p.comboT = 0; p.inv = Math.max(p.inv, 0.55); p.kbx = 0;
+    p.vx = 0; p.vy = dir === 'u' ? -320 : -140; p.canDash = true;
+    if (this.auth()) this.execBoss(p, kit, dir); else this.sendEv({ k: 'exec', i: p.i, key: kit.key, d: dir });
+    return true;
+  };
+  proto.execBoss = function (p, kit, dir) {
+    const b = bossOfKey(this, kit.key);
+    if (!b || !(b.stagger > 0.15) || b.executed || ['dead', 'gone'].includes(b.state)) return;
+    b.executed = true;
+    const n = Math.max(4, Math.round(b.maxHp * EXEC_FRAC)), cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+    if (p.remote) { p.execT = 0.42; p.execDir = dir; }
+    this.sendEv({ k: 'execfx', i: p.i, d: dir, x: Math.round(cx), y: Math.round(cy) });
+    this.execFxLocal(cx, cy, dir);
+    this.sfx('exec'); this.shake(420, 0.018); this.hitstop = 0.22;
+    // урон без шума: n ударов исходной функцией, нить за них не копится — вместо этого фиксированный бонус
+    this.quiet = true; p.noSilkGain = true;
+    for (let i = 0; i < n && b.hp > 0 && !['dead', 'gone', 'rage'].includes(b.state); i++) RAW[kit.key].call(this, p);
+    this.quiet = false; p.noSilkGain = false;
+    if (p.remote) { for (let i = 0; i < 3; i++) this.sendEv({ k: 'silk', i: p.i }); } else p.silk = Math.min(P.SILK, p.silk + 3);
+    if (b.hp > 0) { b.stagger = Math.min(b.stagger, 0.4); b.poise = 0; b.poiseImmune = 6; }
+  };
+  proto.execFxLocal = function (x, y, dir) {
+    this.parts.setParticleTint(0xffd47a); this.parts.explode(34, x, y);
+    this.parts.setParticleTint(0xffffff); this.parts.explode(18, x, y);
+    this.cameras.main.flash(140, 255, 245, 215);
+    const t = this.add.text(x, y - 52, 'КАЗНЬ!', { fontFamily: '"Cormorant SC", Georgia, serif', fontSize: '34px', fontStyle: '700', color: '#ffe3a3', stroke: '#1a1410', strokeThickness: 6 }).setOrigin(0.5).setDepth(8.8);
+    this.tweens.add({ targets: t, y: y - 104, alpha: 0, scale: 1.4, duration: 900, ease: 'Cubic.easeOut', onComplete: () => t.destroy() });
+  };
+  // смерть босса: замедление времени и белая вспышка
+  proto.bossDeathFx = function () { this.deathFxLocal(); this.sendEv({ k: 'deathfx' }); };
+  proto.deathFxLocal = function () {
+    this.slowDur = 1.7; this.slowT = 1.7;
+    this.cameras.main.flash(700, 255, 250, 235);
+    Snd.play('bossdie');
+  };
+  // тонкая шкала стойкости над боссом: видна, только пока стойкость копится или босс оглушён
+  proto.drawPoiseBars = function (now) {
+    const fx = this.fx;
+    for (const [b, dy, w] of [[this.boss, -24, 76], [this.vladik, -28, 70], [this.tima, -13, 70]]) {
+      if (!b || ['dead', 'gone', 'sleep', 'intro'].includes(b.state) || b.y < -50) continue;
+      const pz = b.poise || 0, sg = b.stagger || 0;
+      if (pz <= 0 && sg <= 0) continue;
+      const mx = POISE_MAX[b.phase || 1], x = b.x + b.w / 2 - w / 2, y = b.y + dy, h = 6;
+      fx.fillStyle(0x0b0f0e, 0.7); fx.fillRoundedRect(x - 2, y - 2, w + 4, h + 4, 3);
+      if (sg > 0) {
+        const pulse = 0.65 + Math.sin(now * 22) * 0.35;
+        fx.fillStyle(0xff6a4a, pulse); fx.fillRect(x, y, w * Math.min(1, sg / STAGGER_T), h);
+        fx.lineStyle(1.5, 0xffd47a, pulse); fx.strokeRoundedRect(x - 2, y - 2, w + 4, h + 4, 3);
+      } else {
+        const f = Math.min(1, pz / mx);
+        fx.fillStyle(f > 0.7 ? 0xffa23c : 0xffd47a, 1); fx.fillRect(x, y, w * f, h);
+        fx.lineStyle(1, 0x0b0f0e, 0.8); for (let i = 1; i < mx; i++) fx.lineBetween(x + (w * i) / mx, y, x + (w * i) / mx, y + h);
+      }
+    }
+  };
 })();
 
 // ===== БОЙ 2: отбив, нитяной всполох, предметы-способности =====
@@ -4255,7 +4478,7 @@ Object.assign(GameScene.prototype, {
     p.inv = 0.5; p.parryT = 0; p.parryCd = 0.15;
     if (!p.remote) { p.silk = Math.min(P.SILK, p.silk + 1); this.hitstop = 0.1; }
     const cx = p.x + 7, cy = p.y + 13;
-    Snd.play('clink'); this.cameras.main.flash(90, 255, 255, 255);
+    Snd.play('parry'); this.cameras.main.flash(90, 255, 255, 255);
     this.parts.setParticleTint(0xffffff); this.parts.explode(18, cx + p.face * 10, cy);
     for (const pr of this.projs) if (!pr.dead && pr.kind !== 'bomb' && Math.hypot(pr.x - cx, pr.y - cy) < 110) { pr.dead = true; this.burst(5, pr.x, pr.y, 0xffffff); }
     for (const e of this.enemies) if (!e.dead && Math.hypot(e.x + e.w / 2 - cx, e.y + e.h / 2 - cy) < 100) { e.kbT = 0.2; e.kbx = Math.sign(e.x - cx) * 300; e.kby = -120; e.flash = 0.1; if (e.state === 'charge') { e.state = 'stun'; e.st = 0.8; } }
@@ -4272,13 +4495,14 @@ Object.assign(GameScene.prototype, {
     this.silkBurstHit(p, cx, cy);
   },
   silkBurstHit(p, cx, cy) {
-    const R = 120;
+    const R = 120; p.noSilkGain = true; // всполох нить не копит: иначе он оплачивал бы сам себя
     for (const pr of this.projs) if (!pr.dead && pr.kind !== 'bomb' && Math.hypot(pr.x - cx, pr.y - cy) < R) pr.dead = true;
     for (const e of this.enemies) if (!e.dead && Math.hypot(e.x + e.w / 2 - cx, e.y + e.h / 2 - cy) < R) { this.damageEnemy(e, p); if (!e.dead) this.damageEnemy(e, p); }
     for (const [b, fn] of [[this.boss, 'damageBoss'], [this.vladik, 'damageVladik'], [this.tima, 'damageTima']]) {
       if (!b || ['dead', 'gone', 'sleep', 'intro'].includes(b.state)) continue;
       if (Math.hypot(b.x + b.w / 2 - cx, b.y + b.h / 2 - cy) < R + b.w / 2) { for (let i = 0; i < 3 && !['dead', 'gone'].includes(b.state); i++) this[fn](p); }
     }
+    p.noSilkGain = false;
   },
   // ----- предметы-способности на карте -----
   initItems() {
@@ -4308,6 +4532,11 @@ Object.assign(GameScene.prototype, {
   },
   drawPlayerFx(p, g) {
     if (p.parryT > 0) { g.lineStyle(2.5, 0xffffff, 0.9); g.strokeCircle(0, -14, 20 + (P.PARRY_T - p.parryT) * 50); }
+    if (p.execT > 0) { // казнь: огромный росчерк вверх или вниз
+      const k = p.execT / 0.42, up = p.execDir === 'u', dy = up ? -1 : 1, f = p.face;
+      g.lineStyle(7, 0xfff6d8, k); g.beginPath(); g.arc(f * 8, -14 + dy * 6, 50 + (1 - k) * 22, up ? -Math.PI * 0.95 : Math.PI * 0.05, up ? -Math.PI * 0.05 : Math.PI * 0.95, false); g.strokePath();
+      g.lineStyle(3, p.pal.accent, k); g.beginPath(); g.arc(f * 8, -14 + dy * 6, 62 + (1 - k) * 22, up ? -Math.PI * 0.9 : Math.PI * 0.1, up ? -Math.PI * 0.1 : Math.PI * 0.9, false); g.strokePath();
+    }
     if (p.burstFx > 0) { const r = 120 * (1 - p.burstFx / 0.35); g.lineStyle(3, p.pal.accent, p.burstFx / 0.35); g.strokeCircle(0, -14, r); p.burstFx -= 0.016; }
   },
 });

@@ -138,7 +138,7 @@ Object.assign(GameScene.prototype, {
   },
   makeTima() {
     if (this.tima && this.tima.g) this.tima.g.destroy();
-    const d = this.L.tima, hp = this.nPlayers === 2 ? 110 : 78;
+    const d = this.L.tima, hp = BAL.hp.tima[this.nPlayers === 2 ? 1 : 0];
     this.tima = { x: d.x * T - 30, y: (d.y + 1) * T - 80, w: 60, h: 80, vx: 0, vy: 0, face: -1, hp, maxHp: hp, phase: 1, state: 'intro', t: 3.2,
       flash: 0, last: '', say: 'ПИВКА ДЛЯ РЫВКА!', sayT: 2.2, sayCd: 0, barShown: false, air: 0, hyper: 0, dustCd: 6, dustHits: 0, drinkCd: 8,
       g: this.add.graphics().setDepth(4) };
@@ -176,6 +176,21 @@ Object.assign(GameScene.prototype, {
           this.sfx('coin'); v.state = 'recover'; v.t = 0.8;
         }
         break;
+      // «лаги» (третья фаза): Тима пропадает, на полу вспыхивает метка, и он падает с потолка ровно на неё
+      case 'lagWind':
+        v.vx = 0;
+        if (v.t <= 0) {
+          const targets = this.alivePlayers().length ? this.alivePlayers() : this.players, p = targets[Math.floor(Math.random() * targets.length)];
+          v.lagX = clamp(p.x + 7, 2 * T + 30, (this.L.W - 2) * T - 30);
+          this.projs.push({ kind: 'mark', x: v.lagX, y: this.L.floorY * T, w: 0, h: 0, vx: 0, vy: 0, life: 1.3 });
+          this.sfx('sparkle'); v.state = 'lagGone'; v.t = 1.1; v.y = -500; v.vy = 0;
+        }
+        break;
+      case 'lagGone':
+        v.vx = 0; v.vy = 0;
+        if (v.t <= 0) { v.x = v.lagX - v.w / 2; v.y = 4 * T + 6; v.vy = 260; v.state = 'lagFall'; this.sfx('throw'); }
+        break;
+      case 'lagFall': v.vx = 0; break;
       case 'achWind':
         v.vx = 0;
         if (v.t <= 0) {
@@ -185,15 +200,16 @@ Object.assign(GameScene.prototype, {
         }
         break;
       case 'idle':
+        v.t -= dt * sp * BAL.pace.tima;
         v.face = tx > vcx ? 1 : -1;
         v.vx = Math.abs(tx - vcx) > 180 ? v.face * 80 * sp : 0;
         if (v.t <= 0) {
           v.vx = 0;
           if (v.dustCd <= 0 && v.hp < v.maxHp * 0.75 && v.hyper <= 0) { v.state = 'dustDraw'; v.t = 2.2; v.dustHits = 0; this.timaSpeak('ЩАС-ЩАС, НАЧЕРЧУ…', 1.6); this.toastAll('Тима чертит круг для пыли — беги к нему и бей!'); break; }
           if (v.drinkCd <= 0 && v.hp < v.maxHp * 0.85 && Math.random() < 0.5) { v.state = 'drink'; v.t = 1.2; v.drinkCd = 14; this.timaSpeak('БУЛЬ-БУЛЬ…', 1.2); this.sfx('glug'); break; }
-          const pool = ['beer', 'pad', 'ring', 'box', 'bankrupt'];
+          const pool = ['beer', 'pad', 'ring', 'ring', 'box', 'bankrupt'];
           if (phase2 && !this.projs.some((q) => q.kind === 'collector')) pool.push('coll');
-          if (phase3) pool.push('ach', 'ach');
+          if (phase3) pool.push('ach', 'ach', 'lag', 'lag');
           const opts = pool.filter((o) => o !== v.last && !(o === 'bankrupt' && (this.repoT > 0 || !phase2 && Math.random() < 0.5)));
           const pick = opts[Math.floor(Math.random() * opts.length)]; v.last = pick;
           if (pick === 'beer') { v.state = 'beerWind'; v.t = 0.5; this.timaSpeak('ЛОВИ ПИВКО!', 1.0); }
@@ -202,6 +218,7 @@ Object.assign(GameScene.prototype, {
           if (pick === 'box') { v.state = 'boxWind'; v.t = 0.5; this.timaSpeak('ДЕРЖИ ПРИСТАВКУ!', 1.1); }
           if (pick === 'bankrupt') { v.state = 'bankWind'; v.t = 0.8; this.timaSpeak('БАНКРОТСТВО!', 1.6); this.sfx('roar'); }
           if (pick === 'coll') { v.state = 'collWind'; v.t = 0.8; this.timaSpeak('КОЛЛЕКТОРЫ, ФАС!', 1.5); }
+          if (pick === 'lag') { v.state = 'lagWind'; v.t = 0.6; this.timaSpeak('ЛАГАЕТ!!', 1.3); this.sfx('buzz'); }
           if (pick === 'ach') { v.state = 'achWind'; v.t = 0.7; this.timaSpeak('АЧИВКА РАЗБЛОКИРОВАНА!', 1.6); }
         }
         break;
@@ -222,8 +239,9 @@ Object.assign(GameScene.prototype, {
         if (v.t <= 0) {
           const cy = v.y + v.h - 18;
           this.projs.push({ kind: 'ringfx', x: vcx, y: v.y + 24, w: 0, h: 0, vx: 0, vy: 0, life: 0.9, r: 10 });
-          for (const d of [-1, 1]) this.projs.push({ kind: 'rwave', x: vcx - 12 + d * 26, y: cy, w: 24, h: 18, vx: d * (phase2 ? 420 : 360) * Math.min(sp, 1.25), vy: 0, life: 2.6 });
-          this.shake(260, 0.012); this.sfx('slam'); v.state = 'recover'; v.t = 0.7;
+          for (const d of [-1, 1]) this.projs.push({ kind: 'rwave', x: vcx - 12 + d * 26, y: cy, w: 24, h: 18, vx: d * (phase2 ? 520 : 450) * Math.min(sp, 1.25), vy: 0, life: 2.6 });
+          this.shake(260, 0.012); this.sfx('slam');
+          if (phase2 && !v.ring2) { v.ring2 = true; v.state = 'ringWind'; v.t = 0.5; } else { v.ring2 = false; v.state = 'recover'; v.t = 0.7; } // во второй фазе кольцо бьёт дважды подряд
         }
         break;
       case 'boxWind':
@@ -259,16 +277,25 @@ Object.assign(GameScene.prototype, {
         if (v.t <= 0) { v.hyper = phase3 ? 9 : 8; v.dustCd = phase3 ? 13 : 20; this.timaSpeak('Я БЫСТРЫЙ!', 1.2); this.sfx('sparkle'); this.toastAll('Тима разогнался: бегай от него 8 секунд'); v.state = 'idle'; v.t = 0.3; }
         break;
       case 'sneeze': v.vx = 0; if (v.t <= 0) { v.state = 'idle'; v.t = 0.5; } break;
-      case 'recover': v.vx = 0; if (v.t <= 0) { v.state = 'idle'; v.t = (phase2 ? 0.45 : 0.7); } break;
+      case 'recover': v.vx = 0; v.t -= dt * sp * BAL.pace.tima; if (v.t <= 0) { v.state = 'idle'; v.t = (phase2 ? 0.45 : 0.7); } break;
     }
-    v.vy = Math.min(v.vy + P.G * dt, P.MAXFALL);
-    this.moveBody(v, dt);
+    if (v.state !== 'lagGone') {
+      v.vy = Math.min(v.vy + P.G * dt, P.MAXFALL);
+      this.moveBody(v, dt);
+    }
+    if (v.state === 'lagFall' && v.onGround) {
+      const vcx2 = v.x + v.w / 2, cy = v.y + v.h - 18;
+      this.shake(340, 0.016); this.sfx('slam'); this.dustAt(18, vcx2, v.y + v.h);
+      this.projs.push({ kind: 'ringfx', x: vcx2, y: v.y + 24, w: 0, h: 0, vx: 0, vy: 0, life: 0.9, r: 10 });
+      for (const d of [-1, 1]) this.projs.push({ kind: 'rwave', x: vcx2 - 12 + d * 34, y: cy, w: 24, h: 18, vx: d * 400, vy: 0, life: 2.6 });
+      v.state = 'recover'; v.t = 1.2; this.timaSpeak('ЛАГ… ПРОШЁЛ', 1.1);
+    }
   },
   bankruptSilk() { for (const p of this.players) if (!p.remote) p.silk = Math.floor(p.silk / 2); },
   damageTima(p) {
     const v = this.tima;
     if (v.state === 'rage') { Snd.play('clink'); return; }
-    v.hp -= 1; v.flash = 0.09; this.gainSilk(p); if (!p.remote) this.hitstop = 0.04; this.sfx('hit'); this.timaHits++;
+    v.hp -= 1; v.flash = 0.09; this.gainSilk(p, true); if (!p.remote) this.hitstop = 0.04; this.sfx(this.bossHitSnd('tima', p)); this.timaHits++;
     this.burst(9, clamp(p.x + 7 + p.face * 28, v.x, v.x + v.w), v.y + v.h / 2, 0xf4f1e6);
     if (v.state === 'drink') { v.state = 'recover'; v.t = 0.4; this.timaSpeak('ЭЙ, РАЗЛИЛ!', 1.0); this.foamAt(12, v.x + v.w / 2, v.y + 30); }
     if (v.state === 'dust' || v.state === 'dustDraw') {
@@ -281,12 +308,12 @@ Object.assign(GameScene.prototype, {
     if (v.hp <= 0) this.timaDie();
   },
   timaDie() {
-    const v = this.tima; v.state = 'dead'; v.t = 2.6; v.vx = 0; v.hyper = 0; this.bossDead = true;
+    const v = this.tima; v.state = 'dead'; v.t = 2.6; v.vx = 0; v.hyper = 0; this.bossDead = true; this.bossDeathFx();
     for (const pr of this.projs) pr.dead = true;
     this.setRepo(false); this.repoT = 0; this.sendEv({ k: 'repo', on: 0 });
     this.timaSpeak('ВСЁ… Я СПАТЬ…', 2.4); this.sfx('burp'); this.shake(600, 0.008);
     for (let i = 0; i < 6; i++) this.time.delayedCall(i * 170, () => this.foamAt(18, v.x + Math.random() * v.w, v.y + Math.random() * v.h));
-    this.time.delayedCall(2700, () => { this.ui().bossBar(false); this.win(); });
+    this.time.delayedCall(3300, () => { this.ui().bossBar(false); this.win(); });
   },
   foamAt(n, x, y) { this.foam.explode(n, x, y); if (this.online === 'host') this.sendEv({ k: 'foam', n, x: Math.round(x), y: Math.round(y) }); },
   stepTimaProj(pr, dt) {
@@ -327,9 +354,10 @@ Object.assign(GameScene.prototype, {
 
   drawTima(now) {
     const v = this.tima, g = v.g; g.clear();
+    if (v.y < -50) { this.tSay.setVisible(false); return; } // в «лаге»: Тима пропал
     const f = v.face, fl = v.flash > 0, dead = v.state === 'dead', hyper = v.hyper > 0;
-    g.setAlpha(dead ? clamp(v.t / 1.2, 0, 1) : 1);
-    const shake = ['beerWind', 'ringWind', 'boxWind', 'bankWind'].includes(v.state) ? Math.sin(now * 70) * 1.5 : 0;
+    g.setAlpha(dead ? clamp(v.t / 1.2, 0, 1) : v.state === 'lagWind' ? 0.35 + Math.abs(Math.sin(now * 30)) * 0.6 : 1);
+    const shake = ['beerWind', 'ringWind', 'boxWind', 'bankWind'].includes(v.state) ? Math.sin(now * 70) * 1.5 : v.state === 'lagWind' ? Math.sin(now * 90) * 4 : 0;
     const cx = v.x + v.w / 2 + shake, fy = v.y + v.h;
     if (hyper) { g.fillStyle(0xffe38a, 0.12 + Math.sin(now * 12) * 0.05); g.fillEllipse(cx, fy - 40, 100, 110); }
     const walk = Math.abs(v.vx) > 5, legA = walk ? Math.sin(now * (hyper ? 24 : 12)) * 5 : 0;
