@@ -192,7 +192,7 @@
       const box = this.atkBox(p), auth = this.auth();
       for (const pr of this.projs) if (!pr.dead && EXTRA_CUT.has(pr.kind) && !(pr.delay > 0) && overlap(box, pr)) {
         pr.dead = true; this.burst(6, pr.x + pr.w / 2, pr.y + pr.h / 2, 0xffd47a);
-        if (auth) this.sfx('clink'); else this.sendEv({ k: 'cut', kind: pr.kind, x: Math.round(pr.x), y: Math.round(pr.y) });
+        if (auth) this.sfx('clink'); else if (!p.remote) this.sendEv({ k: 'cut', kind: pr.kind, x: Math.round(pr.x), y: Math.round(pr.y) });
       }
     }
   };

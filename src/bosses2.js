@@ -154,6 +154,7 @@ const RAW = {};              // исходные функции урона (бе
 (function () {
   const proto = GameScene.prototype;
   proto.poiseAdd = function (b, n) {
+    if (this.online === 'guest') return; // стойку считает только хост, гость получает её в снимке
     if (!b || b.poiseImmune > 0 || b.stagger > 0 || ['sleep', 'dead', 'gone', 'intro', 'rage'].includes(b.state)) return;
     b.poise = (b.poise || 0) + n; b.poiseT = 0;
     if (b.poise >= POISE_MAX[b.phase || 1]) {
