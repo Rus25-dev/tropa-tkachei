@@ -159,13 +159,13 @@ const RacePlay = {
   },
   // сверка с состоянием организатора: «пошёл» мог прийти, пока игрок был без связи или вкладка перезагружалась
   syncRun(st) {
-    const S = this.S, r = Speedrun.run; if (!S || !st || !r || !r.rc) return;
+    const S = this.S, r = Speedrun.run; if (!S || !st || !r || !r.rc || Journal.rp) return; // пока журнал проигрывается, сеть в забег не вмешивается
     if (st.phase === 'run' && r.hold && S.loadedSent !== false) this.go({ at: st.goAt, late: true });
     if (st.pause && st.pause.on) this.tech(true); else if (r.tp != null && !(st.pause && st.pause.on)) this.tech(false);
     if (st.phase === 'lobby' && S.started && r.rc.id !== st.id) this.reset({});
   },
   go(m) {
-    const S = this.S, r = Speedrun.run; if (!S || !r || !r.rc || !r.hold) return;
+    const S = this.S, r = Speedrun.run; if (!S || !r || !r.rc || !r.hold || Journal.rp) return;
     // опоздавший «пошёл» (связь была потеряна): время считается от настоящего старта по часам организатора
     const late = m.late || (m.at != null && S.client && S.client.skew != null && (Date.now() + S.client.skew - m.at) > 800);
     Speedrun.release();

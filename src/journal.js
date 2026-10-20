@@ -4,7 +4,8 @@
 // состояния; раз в ~2 с он сохраняется в localStorage (tt_jr). «Восстановить забег» заново создаёт сцену и гонит тики без отрисовки
 // и звука, проверяя хэши: при расхождении забег не продолжается (честнее, чем играть в другом состоянии).
 // Время простоя идёт в зачёт: RTA считается от настенного времени старта (wallT0), а в итоге помечается «восстановлен».
-// Журнал ведётся только для одиночных забегов (спидран, гонки): сцена с online/2 игроками его не пишет.
+// Журнал забега ведётся для одиночных забегов (спидран, гонки). Режим «в памяти» (Journal.startMem, для золотых записей и тестов) пишет любую
+// офлайн-сцену: босс-тест, кампанию, спидран; один или два локальных игрока; в localStorage не пишется. Онлайн-сцены (кооп по сети) не пишутся.
 const Journal = {
   KEY: 'tt_jr', J: null, seg: null, rp: null, depth: 0, lastSave: 0, dirty: false,
   BITS: ['left', 'right', 'up', 'down', 'jump', 'atk', 'dash', 'heal', 'bomb', 'tool'],
@@ -16,7 +17,7 @@ const Journal = {
   // ----- хранилище -----
   load() { try { const j = JSON.parse(localStorage.getItem(this.KEY) || 'null'); return j && j.v === 1 && Array.isArray(j.segs) ? j : null; } catch (_) { return null; } },
   write(force) {
-    const J = this.J; if (!J) return;
+    const J = this.J; if (!J || J.mem) return;
     const now = performance.now(); if (!force && now - this.lastSave < 2000) return;
     this.lastSave = now; this.dirty = false; J.wallSave = Date.now();
     try { localStorage.setItem(this.KEY, JSON.stringify(J)); } catch (_) { /* переполнение или режим «инкогнито»: забег идёт без журнала */ }
@@ -27,17 +28,31 @@ const Journal = {
     const ticks = j.segs.reduce((s, g) => s + g.n, 0);
     return { j, ok: j.ver === GAME_VERSION && ticks > 0, why: j.ver !== GAME_VERSION ? `журнал от версии ${j.ver}, у вас ${GAME_VERSION}` : '', ticks, sec: Math.round(ticks / 60), cat: j.cat, race: j.race, down: Math.max(0, Date.now() - (j.wallSave || Date.now())) };
   },
-  clear() { this.J = null; this.seg = null; this.rp = null; try { localStorage.removeItem(this.KEY); } catch (_) { } },
+  clear() { if (this.J && this.J.mem && !this.force) return; /* журнал в памяти (золотые записи) финиш и выход забега не стирают */ this.J = null; this.seg = null; this.rp = null; try { localStorage.removeItem(this.KEY); } catch (_) { } },
 
   // ----- запись -----
   startRun(info) {
+    if (this.J && this.J.mem) { this.J.cat = info.cat; this.J.seed = info.seed >>> 0; return; } // запись в памяти: журнал уже заведён, забег только помечает категорию
     this.J = { v: 1, ver: GAME_VERSION, cat: info.cat, race: info.race || null, seed: info.seed >>> 0, wall0: Date.now(), wallT0: null, wallSave: Date.now(), restored: 0, splits: [], pauses: [], segs: [], st: { easy: !!Settings.s.easy, speed: Settings.s.speed || 100 } };
     this.seg = null; this.write(true);
+  },
+  // запись в памяти (золотые записи): любой режим, 1–2 локальных игрока, в localStorage не пишется. meta попадает в журнал как есть
+  startMem(meta) {
+    this.J = { v: 1, mem: true, ver: GAME_VERSION, cat: null, race: null, seed: 0, wall0: 0, wallT0: null, wallSave: 0, restored: 0, splits: [], pauses: [], segs: [], st: { easy: !!Settings.s.easy, speed: Settings.s.speed || 100 }, meta: meta || {} };
+    this.seg = null; return this.J;
+  },
+  // итог партии для золотых записей: всё, что должно совпасть в другой реализации ядра
+  outcome(gs) {
+    const b = gs.testBoss() || gs.boss, r = Speedrun.run;
+    return { tick: gs.tickN, won: !!gs.won, wiping: !!gs.wiping, deaths: gs.deaths | 0, beads: gs.beads | 0, bossDead: !!gs.bossDead, boss: b ? { hp: Math.round(b.hp * 1000) / 1000, phase: b.phase || 1, state: b.state } : null,
+      players: gs.players.map((p) => ({ x: Math.round(p.x * 16), y: Math.round(p.y * 16), hp: p.hp, maxHp: p.maxHp, silk: Math.round(p.silk * 10), downed: !!p.downed })), camp: gs.camp ? { ch: gs.camp.ch, st: gs.camp.st } : null,
+      sr: r ? { igt: Math.round(r.igt), splits: r.splits.map((s) => s && Math.round(s.igt)), deaths: r.deaths, done: !!r.done } : null, hash: this.hash2(gs) };
   },
   // начало сцены: новый отрезок журнала (или привязка к воспроизводимому)
   segBegin(gs) {
     gs.jr = null; gs.replaying = false;
-    if (!this.J || !gs.sr || gs.online || gs.nPlayers !== 1) return;
+    if (!this.J || gs.online) return;
+    if (!this.J.mem && (!gs.sr || gs.nPlayers !== 1)) return;
     const rp = this.rp;
     if (rp) {
       const seg = this.J.segs[rp.si];
@@ -46,15 +61,18 @@ const Journal = {
       return;
     }
     const sd = gs.startData || {};
-    this.seg = { seed: gs.seed, data: { mode: sd.mode || 'story', boss: sd.boss || null, camp: sd.camp ? JSON.parse(JSON.stringify(sd.camp)) : null }, n: 0, rle: [], acts: [], chk: [] };
+    this.seg = { seed: gs.seed, np: gs.nPlayers, hv: this.J.mem ? 2 : 1, data: { players: gs.nPlayers, mode: sd.mode || 'story', boss: sd.boss || null, camp: sd.camp ? JSON.parse(JSON.stringify(sd.camp)) : null }, n: 0, rle: [], acts: [], chk: [] };
     this.J.segs.push(this.seg); gs.jr = this; this.dirty = true;
   },
   // вызывается из GameScene.tick на каждом тике до обработки ввода
   rec(gs) {
     const seg = this.seg; if (!seg || gs.replaying) return;
-    const p = gs.players[0];
     if (seg.n > 0 && seg.n % this.CHK === 0) seg.chk.push(seg.n, this.hash(gs));
-    const v = this.enc(p.raw, this.BITS) | (this.enc(p.pend, this.EBITS) << 10), r = seg.rle, L = r.length;
+    // значение тика: ввод первого игрока, у двух локальных игроков второй добавляется старшими разрядами (по 17 бит на игрока)
+    const ps = gs.players, p = ps[0];
+    let v = this.enc(p.raw, this.BITS) | (this.enc(p.pend, this.EBITS) << 10);
+    if (ps.length > 1) v += (this.enc(ps[1].raw, this.BITS) | (this.enc(ps[1].pend, this.EBITS) << 10)) * 131072;
+    const r = seg.rle, L = r.length;
     if (L && r[L - 2] === v) r[L - 1]++; else r.push(v, 1);
     seg.n++; this.dirty = true;
   },
@@ -63,8 +81,22 @@ const Journal = {
     if (!gs.jr || gs.replaying || gs.inTick || !this.seg) return;
     this.seg.acts.push([this.seg.n, name, a == null ? 0 : a, b == null ? 0 : b, c == null ? 0 : c]); this.dirty = true;
   },
+  // богатый хэш для золотых записей (hv:2): все игроки, босс, враги, снаряды; на нём проверяется перенос ядра на v2
+  hash2(gs) {
+    const b = gs.testBoss() || gs.boss; let h = 2166136261;
+    const mix = (n) => { h = Math.imul(h ^ (Math.round(n) | 0), 16777619) >>> 0; };
+    const str = (s) => { for (let i = 0; i < String(s).length; i++) mix(String(s).charCodeAt(i)); };
+    // (номер тика в хэш не входит: при записи он уже увеличен, при проверке — ещё нет)
+    for (const p of gs.players) { mix(p.x * 16); mix(p.y * 16); mix(p.vx); mix(p.vy); mix(p.hp); mix(p.silk * 10); mix(p.inv * 100); mix(p.downed ? 1 : 0); mix(p.dashT * 100); mix(p.atkT * 100); }
+    if (b) { mix(b.x * 16); mix(b.y * 16); mix(b.hp * 10); mix(b.phase || 1); str(b.state); mix((b.stagger || 0) * 100); }
+    let ex = 0, ey = 0, n = 0; for (const e of gs.enemies) if (!e.dead) { n++; ex += e.x; ey += e.y; } mix(n); mix(ex * 16); mix(ey * 16);
+    mix(gs.projs.length); let px = 0; for (const q of gs.projs) px += q.x + q.y; mix(px * 16);
+    mix(gs.beads | 0); mix(gs.deaths | 0); mix(gs.bossDead ? 1 : 0); mix(gs.beadsArr.length); mix(gs.won ? 1 : 0); mix(gs.wiping ? 1 : 0);
+    return h;
+  },
   // мелкое состояние для контрольных хэшей
   hash(gs) {
+    if (this.seg && this.seg.hv === 2) return this.hash2(gs);
     const p = gs.players[0], b = gs.testBoss() || gs.boss; let h = 2166136261;
     const mix = (n) => { h = Math.imul(h ^ (Math.round(n) | 0), 16777619) >>> 0; };
     mix(p.x * 16); mix(p.y * 16); mix(p.hp); mix(gs.beads | 0); mix(((b && b.hp) || 0) * 10); mix(gs.deaths | 0);
@@ -90,6 +122,19 @@ const Journal = {
     this.timer = setInterval(() => { const rp = this.rp; if (!rp) { clearInterval(this.timer); return; } if (rp.gs && rp.gs.sys && rp.gs.sys.isActive()) this.pump(rp.gs); else if (!rp.gs && rp.waitT && performance.now() - rp.waitT > 8000) this.fail(null, 'переход между отрезками не произошёл'); }, 16);
     return true;
   },
+  // воспроизведение журнала из памяти (золотые записи, тесты): без экрана, звука и localStorage. opt: { onDone(gs), onFail(why), budget (мс на кадр) }
+  restoreMem(J, opt) {
+    this.J = J; this.seg = null; this.error = null;
+    const first = J.segs[0];
+    let data;
+    if (J.cat) { data = Speedrun.begin(J.cat, null, { seed: first.seed, restoring: J }); if (first.data.camp) data.camp = first.data.camp; data.seed = first.seed; if (J.race) { Speedrun.run.rc = J.race; Speedrun.run.hold = true; } /* гонка: до действия 'rel' герой стоит */ }
+    else data = { players: first.data.players || 1, mode: first.data.mode, boss: first.data.boss, camp: first.data.camp, seed: first.seed };
+    this.rp = { si: 0, gs: null, ready: false, t0: performance.now(), total: J.segs.reduce((s, g) => s + g.n, 0), done: 0, opt: Object.assign({ silent: true, budget: 150 }, opt || {}), muted: null };
+    this.mute(true);
+    const g = window.__game; g.scene.stop('menu'); g.scene.start('game', data);
+    this.timer = setInterval(() => { const rp = this.rp; if (!rp) { clearInterval(this.timer); return; } if (rp.gs && rp.gs.sys && rp.gs.sys.isActive()) this.pump(rp.gs); else if (!rp.gs && rp.waitT && performance.now() - rp.waitT > 8000) this.fail(null, 'переход между отрезками не произошёл'); }, 5);
+    return true;
+  },
   mute(on) {
     if (on) { if (!this._snd) { this._snd = Snd.play; Snd.play = () => { }; } }
     else if (this._snd) { Snd.play = this._snd; this._snd = null; }
@@ -109,9 +154,9 @@ const Journal = {
     const rp = this.rp; if (!rp) return;
     this.mute(false); this.overlay(false); clearInterval(this.timer);
     if (gs) { gs.replaying = false; gs.quiet = false; gs.jr = null; }
-    const cb = rp.opt && rp.opt.onFail; this.rp = null; this.J = null; this.seg = null;
+    const cb = rp.opt && rp.opt.onFail, mem = !!(this.J && this.J.mem); this.rp = null; this.J = null; this.seg = null;
     this.error = why; try { console.warn('Журнал: восстановление не удалось — ' + why); } catch (_) { }
-    try { localStorage.removeItem(this.KEY); } catch (_) { }
+    if (!mem) { try { localStorage.removeItem(this.KEY); } catch (_) { } }
     Speedrun.run = null; if (cb) cb(why);
     const u = window.__game && window.__game.scene.getScene('ui');
     if (u && u.ready && u.toast) u.toast('Не удалось восстановить забег: ' + why, 6);
@@ -131,7 +176,7 @@ const Journal = {
       case 'mg': MapTravel.sel = x; MapTravel.go(gs); break;
       case 'rel': Speedrun.release(true); break;
       case 'tp': Speedrun.techPause(gs, !!x, true); break;
-      case 'ex': if (this.ext && this.ext[x]) this.ext[x](gs); break; // подключаемые действия (тесты, будущие режимы)
+      case 'ex': if (this.ext && this.ext[x]) this.ext[x](gs, y, z); break; // подключаемые действия (тесты, будущие режимы)
     }
   },
   // порция тиков (до ~40 мс на кадр), чтобы страница не зависала
@@ -142,19 +187,21 @@ const Journal = {
     if (!rp.ready) { if (!ui || !ui.ready) return; rp.ready = true; }
     this.pumping = true;
     try {
-      const seg = this.J.segs[rp.si], p = gs.players[0], t0 = performance.now(), acts = seg.acts, chk = {};
+      const seg = this.J.segs[rp.si], t0 = performance.now(), acts = seg.acts, chk = {}, budget = (rp.opt && rp.opt.budget) || 40;
       for (let i = 0; i < seg.chk.length; i += 2) chk[seg.chk[i]] = seg.chk[i + 1];
       if (rp.rleSeg !== rp.si) { rp.rleSeg = rp.si; rp.rleI = 0; rp.rleLeft = seg.rle.length ? seg.rle[1] : 0; rp.ai = 0; }
-      while (performance.now() - t0 < 40 && gs.tickN < seg.n) {
+      while (performance.now() - t0 < budget && gs.tickN < seg.n) {
         // действия интерфейса, случившиеся до этого тика
         while (rp.ai < acts.length && acts[rp.ai][0] <= gs.tickN) this.runAct(gs, acts[rp.ai++]);
         if (gs.tickN > 0 && gs.tickN % this.CHK === 0 && chk[gs.tickN] != null && chk[gs.tickN] !== this.hash(gs)) { this.fail(gs, `состояние разошлось на тике ${gs.tickN} (отрезок ${rp.si + 1})`); return; }
         const v = seg.rle[rp.rleI];
-        p.raw = this.dec(v & 1023, this.BITS); p.pend = this.dec(v >> 10, this.EBITS);
+        const v0 = v % 131072, v1 = Math.floor(v / 131072), ps = gs.players;
+        ps[0].raw = this.dec(v0 & 1023, this.BITS); ps[0].pend = this.dec(v0 >> 10, this.EBITS);
+        if (ps.length > 1) { ps[1].raw = this.dec(v1 & 1023, this.BITS); ps[1].pend = this.dec(v1 >> 10, this.EBITS); }
         if (--rp.rleLeft <= 0) { rp.rleI += 2; rp.rleLeft = rp.rleI < seg.rle.length ? seg.rle[rp.rleI + 1] : 0; }
         gs.tick(); rp.done++;
       }
-      this.overlay(true, `${Math.min(100, Math.round(100 * rp.done / Math.max(1, rp.total)))} %`);
+      if (!(rp.opt && rp.opt.silent)) this.overlay(true, `${Math.min(100, Math.round(100 * rp.done / Math.max(1, rp.total)))} %`);
       if (gs.tickN >= seg.n) {
         while (rp.ai < acts.length) this.runAct(gs, acts[rp.ai++]); // действия после последнего тика (например, пауза перед падением)
         if (rp.si >= this.J.segs.length - 1) this.finishRestore(gs);
@@ -165,6 +212,11 @@ const Journal = {
   finishRestore(gs) {
     const rp = this.rp, J = this.J, r = Speedrun.run, p = gs.players[0];
     clearInterval(this.timer);
+    if (J.mem) { // золотая запись: проиграли до конца, дальше ничего не пишем и не паузим
+      gs.replaying = false; gs.quiet = false; gs.jr = null; this.mute(false); this.rp = null;
+      if (rp.opt && rp.opt.onDone) rp.opt.onDone(gs);
+      return;
+    }
     gs.replaying = false; gs.quiet = false; gs.jr = this;
     p.prev = p.raw || p.prev; p.pend = {}; p.carry = {};
     this.mute(false); this.overlay(false);
