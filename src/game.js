@@ -324,7 +324,7 @@ class GameScene extends Phaser.Scene {
       g.fillStyle(0x3a2a1c, 1); g.fillRect(bx + 32, by - 44, 3, 44);
       g.fillStyle(0xffd47a, 0.12); g.fillCircle(bx + 34, by - 48, 22); g.fillStyle(0xffd47a, 0.25); g.fillCircle(bx + 34, by - 48, 10);
       g.fillStyle(0xffe3a3, 1); g.fillCircle(bx + 34, by - 48, 4);
-      const prompt = this.add.text(bx, by - 46, '↑ отдохнуть', { fontFamily: '"Fira Sans", sans-serif', fontSize: '13px', color: '#ffe3a3' }).setOrigin(0.5).setDepth(8).setAlpha(0);
+      const prompt = this.add.text(bx, by - 46, '↑ скамья', { fontFamily: '"Fira Sans", sans-serif', fontSize: '13px', color: '#ffe3a3' }).setOrigin(0.5).setDepth(8).setAlpha(0);
       return { x: bx, y: by, prompt };
     });
     // выход
@@ -852,6 +852,19 @@ class GameScene extends Phaser.Scene {
     this.wiping = false; this.cameras.main.fadeIn(600, 3, 8, 7);
   }
 
+  // скамья: ↑ открывает меню (ingame.js), «Отдохнуть» — benchRest
+  benchOpen(p, b) { this.benchRest(p, b); }
+  benchRest(p, b, quiet) {
+    p.sit = true; p.x = b.x - 7; p.hp = p.maxHp; this.respawn = { x: b.x, y: b.y }; Snd.play('bench');
+    for (const q of this.players) if (q.downed && !q.remote) { q.downed = false; q.hp = 2; q.inv = 1.5; q.x = b.x - 7 + 22; q.y = b.y - 26; }
+    this.sendEv({ k: 'bench', x: b.x, y: b.y });
+    if (!quiet) this.ui().toast(this.camp ? (Touch.enabled ? 'Скамья: здесь вы очнётесь. Прогресс сохранён. Стик вниз — лавка' : 'Скамья: здесь вы очнётесь. Прогресс сохранён. ↓ — лавка') : 'Скамья: здесь вы очнётесь. Прогресс сохранён');
+    if (this.mode === 'story' && this.online !== 'guest') {
+      const bi = this.benches.indexOf(b), area = this.L.areas.reduce((a, ar) => (b.x / T >= ar.x ? ar : a), this.L.areas[0]);
+      Campaign.save(this, { bench: bi, name: Campaign.saveName(this, area.name) });
+    }
+  }
+
   stepCoop(dt) {
     // скамьи
     for (const b of this.benches) {
@@ -860,16 +873,7 @@ class GameScene extends Phaser.Scene {
         if (p.downed || p.remote) continue;
         if (Math.abs(p.x + 7 - b.x) < 30 && Math.abs(p.y + 26 - b.y) < 12) {
           near = !p.sit;
-          if (p.inp.upP && p.onGround && !p.sit) {
-            p.sit = true; p.x = b.x - 7; p.hp = p.maxHp; this.respawn = { x: b.x, y: b.y }; Snd.play('bench');
-            for (const q of this.players) if (q.downed && !q.remote) { q.downed = false; q.hp = 2; q.inv = 1.5; q.x = b.x - 7 + 22; q.y = b.y - 26; }
-            this.sendEv({ k: 'bench', x: b.x, y: b.y });
-            this.ui().toast(this.camp ? (Touch.enabled ? 'Скамья: здесь вы очнётесь. Прогресс сохранён. Стик вниз — лавка' : 'Скамья: здесь вы очнётесь. Прогресс сохранён. ↓ — лавка') : 'Скамья: здесь вы очнётесь. Прогресс сохранён');
-            if (this.mode === 'story' && this.online !== 'guest') {
-              const bi = this.benches.indexOf(b), area = this.L.areas.reduce((a, ar) => (b.x / T >= ar.x ? ar : a), this.L.areas[0]);
-              Campaign.save(this, { bench: bi, name: Campaign.saveName(this, area.name) });
-            }
-          }
+          if (p.inp.upP && p.onGround && !p.sit && !this.benchMenuOpen) this.benchOpen(p, b);
         }
       }
       b.prompt.setAlpha(near ? 1 : 0);
@@ -1631,13 +1635,8 @@ class UIScene extends Phaser.Scene {
     this.tdLayer = this.add.container(0, 0, [this.tdG, ...this.tdTags, this.tdSay, this.tdInfo, this.tdTitle]).setVisible(false);
     this.children.sendToBack(this.tdLayer); // под всем интерфейсом: здоровье, подсказки, пауза видны поверх
     this.t = 0;
-    // клавиши экрана победы: только когда он уже показан, не от удержания (Пробел — прыжок) и не раньше чем через 0,8 с;
-    // «ещё раз» — на N: R в боях с Мишей — дымовуха
+    // экран победы: пункты меню выбираются стрелками, Enter / Пробел / A или касанием (ingame.js); не от удержания (Пробел — прыжок) и не раньше чем через 0,8 с
     this.winAt = 0; this.campWinS = null;
-    const winKey = (e) => this.gs.won && this.winShown() && !(e && e.repeat) && performance.now() - this.winAt > 800;
-    this.input.keyboard.on('keydown-ENTER', (e) => { if (winKey(e)) this.winEnter(); });
-    this.input.keyboard.on('keydown-SPACE', (e) => { if (winKey(e)) this.winEnter(); });
-    this.input.keyboard.on('keydown-N', (e) => { if (winKey(e) && !this.gs.online) this.retry(); });
     this.ready = true;
   }
   winShown() { return !!this.win && this.win.visible; }
@@ -1730,18 +1729,10 @@ class UIScene extends Phaser.Scene {
       : s.hits != null ? `Время боя: ${m}:${sec}\nУдаров иглой: ${s.hits}\nОбрывов нити: ${s.deaths}\nТкачей: ${s.players}`
       : `Время: ${m}:${sec}\nБусин собрано: ${s.beads}\nОбрывов нити: ${s.deaths}\nТкачей: ${s.players}`;
     const t2 = this.add.text(VW / 2, 260, lines, { fontFamily: F, fontSize: '18px', color: '#b9d4c8', align: 'center', lineSpacing: 8 }).setOrigin(0.5, 0);
-    const t3 = this.add.text(VW / 2, 440, this.gs.online ? 'Enter — в главное меню' : 'Enter — в главное меню   ·   N — ещё раз', { fontFamily: F, fontSize: '15px', color: '#ffe3a3' }).setOrigin(0.5);
     Touch.show(false);
-    const btn = (x, label, fn) => {
-      const t = this.add.text(x, 392, label, { fontFamily: D, fontSize: '26px', color: '#cfe8dc', fontStyle: '700', backgroundColor: 'rgba(20,48,41,0.9)', padding: { x: 16, y: 7 } })
-        .setOrigin(0.5).setInteractive({ useHandCursor: true });
-      t.on('pointerover', () => t.setColor('#ffd47a')); t.on('pointerout', () => t.setColor('#cfe8dc')); t.on('pointerdown', fn);
-      return t;
-    };
-    const extra = this.gs.online ? [btn(VW / 2, 'В главное меню', () => this.restart())]
-      : [btn(VW / 2 - 130, 'В главное меню', () => this.restart()), btn(VW / 2 + 130, 'Ещё раз', () => this.retry())];
-    if (Touch.enabled) t3.setVisible(false);
-    this.win.add([bg, t1, t2, t3, ...extra]); this.win.setVisible(true).setAlpha(0); this.winAt = performance.now();
+    const entries = this.gs.online ? [['В главное меню', () => this.restart()]] : [['Заново', () => this.retry()], ['В главное меню', () => this.restart()]];
+    const items = [bg, t1, t2, ...this.winMenuBuild(entries, { title: t1, body: t2 })];
+    this.win.add(items); this.win.setVisible(true).setAlpha(0); this.winAt = performance.now();
     this.tweens.add({ targets: this.win, alpha: 1, duration: 900 });
   }
   update(time, delta) {
