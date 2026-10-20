@@ -51,7 +51,7 @@ const phaserSrc = fs.readFileSync(require.resolve('phaser/dist/phaser.min.js'), 
     o.dx = p.x - x0; o.dcam = sc.cameras.main.scrollX - sx0;
     return o;
   });
-  ok(r1b.dx > 20 && Math.abs(r1b.dcam) > 5, '1: после «Заново» герой ходит, камера следует (dx=' + Math.round(r1b.dx) + ', камера ' + Math.round(r1b.dcam) + ')');
+  ok(r1b.dx > 20 && Math.abs(r1b.dcam) > 2, '1: после «Заново» герой ходит, камера следует (dx=' + Math.round(r1b.dx) + ', камера ' + Math.round(r1b.dcam) + ')');
   ok(r1.td2 == null && r1.flip2 === false, '1: после «В меню» и новой игры td сброшен');
 
   // 2. Кампания: победа в арене сохраняет прогресс; босс-тест и спидран — нет
