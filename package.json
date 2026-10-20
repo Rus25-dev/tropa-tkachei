@@ -1,12 +1,12 @@
 {
   "name": "tropa-tkachei",
-  "version": "1.8.0",
+  "version": "1.8.1",
   "private": true,
   "description": "Тропа Ткачей — кооперативная метроидвания в браузере. Инструменты сборки и автотестов.",
   "scripts": {
     "build": "python3 build.py",
     "test": "npm run build && node tools/smoke.js story 2000 && node tools/smoke.js misha 2000 && node tools/smoke.js vladik 2000 && node tools/smoke.js tima 2000 && node tools/smoke.js enemies2 2000 && node tools/mishatest.js && node tools/padtest.js && node tools/race-net-test.js",
-    "test:full": "npm test && node tools/determinism-test.js && node tools/journal-test.js && node tools/race-test.js && node tools/bugs1-test.js && node tools/bugs2-test.js && node tools/bugs3-test.js && node tools/maptest.js && node tools/gear-test.js && node tools/menu-test.js && node tools/ingame-menu-test.js && node tools/snaptest.js && node tools/speedrun-test.js all",
+    "test:full": "npm test && node tools/determinism-test.js && node tools/rotate-test.js && node tools/journal-test.js && node tools/race-test.js && node tools/bugs1-test.js && node tools/bugs2-test.js && node tools/bugs3-test.js && node tools/maptest.js && node tools/gear-test.js && node tools/menu-test.js && node tools/ingame-menu-test.js && node tools/snaptest.js && node tools/speedrun-test.js all",
     "bot": "node tools/bot.js table 6",
     "serve": "python3 -m http.server 8080",
     "peer": "peerjs --port 9000 --path /",

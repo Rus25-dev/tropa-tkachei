@@ -179,7 +179,8 @@
   /* кнопка «На весь экран» в меню больше не нужна: она в «Настройки › Экран», а на Android экран разворачивается первым касанием */
   #ios-tip { position: fixed; z-index: 21; inset: 0; display: grid; place-items: center; background: rgba(3,8,7,0.86);
     padding-inline: max(16px, var(--sl)) max(16px, var(--sr)); }
-  #ios-tip .card { max-width: 420px; background: #0c1815; border: 1px solid #24433a; border-radius: 10px; padding: 18px 20px; display: grid; gap: 10px; }
+  @media (orientation: portrait) { html.touch #ios-tip { display: none !important; } } /* поверх «Поверните телефон» подсказка не нужна */
+  #ios-tip .card { max-width: 420px; max-height: calc(100% - 16px); overflow: auto; background: #0c1815; border: 1px solid #24433a; border-radius: 10px; padding: 18px 20px; display: grid; gap: 10px; }
   #ios-tip h4 { margin: 0; font: 700 24px var(--display); color: var(--bone); }
   #ios-tip p { margin: 0; color: #b9d4c8; font-size: 14px; line-height: 1.5; }
   #ios-tip button { justify-self: start; font: 600 14px var(--body); color: #08130f; background: var(--moss); border: 0; border-radius: 7px; padding: 8px 14px; }
@@ -1502,9 +1503,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = RaceNet;
 // ===== ИГРА: «Тропа Ткачей» — кооперативная метроидвания =====
 let VW = 960; const VH = 540;
 // версия игры; номер сборки подставляет build.py
-const GAME_VERSION = '1.8';
-const GAME_BUILD = '261020.2033';
+const GAME_VERSION = '1.8.1';
+const GAME_BUILD = '261020.2110';
 const CHANGELOG = [
+  'Исправлено: меню пропадало после поворота телефона; подсказка Safari не закрывает экран',
   'Гонки Ткачей: организатор создаёт гонку и раздаёт ссылки, двое играют у себя, обсервер показывает обоих (1920×1080: две половины, табло, лента событий, разбор)',
   'Надёжная сеть гонок: пульс, автопереподключение, нумерация событий и догонка после обрыва, организатор восстанавливает комнату после перезагрузки',
   'Забег можно восстановить после падения вкладки: журнал ввода по тикам логики пишется в браузер, «Восстановить забег» в разделе «Спидран»; время простоя идёт в зачёт',
@@ -8851,6 +8853,8 @@ Object.assign(MenuScene.prototype, {
     this.scale.on('resize', onRs);
     this.events.once('shutdown', () => { Dev.subs = Dev.subs.filter((f) => f !== onDev); this.scale.off('resize', onRs); });
     this.menuRender();
+    // первая отрисовка идёт в create(), когда масштаб холста ещё не устоялся (после scene.restart — особенно): перерисовываем на первом кадре
+    this.events.once('postupdate', () => { if (this.sys.isActive()) this.menuRender(); });
   },
   menuCrumbs() { return this.mStack.slice(1).map((e) => { const d = MENU[e.id], c = d.crumb || d.title; return typeof c === 'function' ? c(this, e.ctx) : c; }).filter((c, i, a) => !i || c !== a[i - 1]); },
   menuGo(id, ctx) {
@@ -8885,7 +8889,9 @@ Object.assign(MenuScene.prototype, {
 
   // ----- рисование -----
   menuRender() {
-    if (!this.mStack || !this.sys.isActive()) return;
+    // после scene.restart() (поворот телефона меняет ширину поля) create() идёт в статусе CREATING: isActive() там ложно и меню оставалось пустым
+    const stt = this.sys.settings.status;
+    if (!this.mStack || (stt !== Phaser.Scenes.RUNNING && stt !== Phaser.Scenes.CREATING)) return;
     for (const o of this.mObj) if (o && o.scene) o.destroy();
     this.mObj = []; this.mRows = [];
     const top = this.mTop(), desc = MENU[top.id], ctx = top.ctx, root = !!desc.root;
@@ -8918,7 +8924,12 @@ Object.assign(MenuScene.prototype, {
     let ct;
     if (root) {
       const vt = txt(pad, zone / 2, `Версия ${GAME_VERSION} · сборка ${GAME_BUILD}`, { fontFamily: F, fontSize: fs(15) + 'px', color: '#9fc4b4', fontStyle: '600' }, 0, 0.5);
-      const lk = txt(vt.x + vt.width + 18, zone / 2, 'Что нового ›', { fontFamily: F, fontSize: fs(15) + 'px', color: '#ffd47a', fontStyle: '600' }, 0, 0.5);
+      const lk = txt(0, zone / 2, 'Что нового ›', { fontFamily: F, fontSize: fs(15) + 'px', color: '#ffd47a', fontStyle: '600' }, 0, 0.5);
+      // версия не должна цеплять правую колонку (иначе пункты съезжают вниз и сжимаются): ужимаем строку версии, пока не поместится
+      const vmax = Math.round(VW * 0.46) - 12 - pad - 18 - lk.width;
+      fit(vt, vmax, fmin);
+      if (vt.width > vmax) { vt.setText(`v${GAME_VERSION} · ${GAME_BUILD}`); fit(vt, vmax, fmin); } // на узком экране слово «Версия/сборка» убираем
+      lk.x = vt.x + vt.width + 18;
       const lz = add(this.add.zone(lk.x - 8, 0, lk.width + 16, zone).setOrigin(0).setInteractive({ useHandCursor: true }));
       lz.on('pointerdown', () => this.menuChangelog());
       ct = lk.x + lk.width > Math.round(VW * 0.46) - 12 ? zone + 4 : 8; // правая колонка поднимается к самому верху, если версия её не задевает
