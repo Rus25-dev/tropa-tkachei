@@ -313,7 +313,7 @@ Object.assign(GameScene.prototype, {
     this.setRepo(false); this.repoT = 0; this.sendEv({ k: 'repo', on: 0 });
     this.timaSpeak('ВСЁ… Я СПАТЬ…', 2.4); this.sfx('burp'); this.shake(600, 0.008);
     for (let i = 0; i < 6; i++) this.time.delayedCall(i * 170, () => this.foamAt(18, v.x + Math.random() * v.w, v.y + Math.random() * v.h));
-    this.time.delayedCall(3300, () => { this.ui().bossBar(false); this.win(); });
+    this.after(3.3, () => { this.ui().bossBar(false); this.win(); });
   },
   foamAt(n, x, y) { this.foam.explode(n, x, y); if (this.online === 'host') this.sendEv({ k: 'foam', n, x: Math.round(x), y: Math.round(y) }); },
   stepTimaProj(pr, dt) {

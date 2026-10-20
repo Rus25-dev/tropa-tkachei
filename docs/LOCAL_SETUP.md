@@ -18,6 +18,14 @@
    - Linux: `export CHROME=/usr/bin/google-chrome`
 4. Проверка: `npm test` (сборка + быстрые тесты, должно быть «ошибок: 0»).
 
+## Windows: практические заметки (проверено на Windows 11)
+- Node.js: `winget install OpenJS.NodeJS.LTS` (путь `C:\Program Files
+odejs` попадает в системный PATH; в уже открытых терминалах — перезапустить).
+- Скрипты `package.json` зовут `python3`: на Windows положите копию `python.exe` под именем `python3.exe` рядом с `python.exe` (она есть в PATH).
+- Playwright использует установленный Chrome (`CHROME`). Дополнительно `npx playwright-core install webkit firefox` даёт WebKit (движок Safari/iPhone) для `tools/devices-shot.js`; Firefox в некоторых средах не стартует.
+- Реальный WebRTC без интернета: `npm run test:real` (поднимает локальный PeerJS-сервер из пакета `peer` и гоняет организатора, двух игроков и обсервера в Chrome). Руками: `npm run peer`, затем страницы с `?peer=localhost:9000`.
+- Не запускайте два набора тестов одновременно: нагрузка даёт ложные падения.
+
 ## MCP-серверы для Claude Code (подключаются сами)
 В корне лежит `.mcp.json` — Claude Code подключает эти серверы в этом проекте автоматически:
 - **context7** — свежая документация библиотек (Phaser, Vite, PeerJS). Сверяйся с ней, а не пиши по памяти.

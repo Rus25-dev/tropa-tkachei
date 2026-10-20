@@ -11,6 +11,7 @@ parts = [
     "settings.js",
     "touch.js",
     "net.js",
+    "race-net.js",
     "game.js",
     "misha.js",
     "vladik.js",
@@ -36,6 +37,11 @@ parts = [
     "speedrun.js",
     "uifix.js",
     "ingame.js",
+    "journal.js",
+    "race-stats.js",
+    "race-play.js",
+    "race-org.js",
+    "race-watch.js",
     # новые модули добавляй строкой выше (по одному на строку — меньше конфликтов слияния)
     "update.js",
 ]

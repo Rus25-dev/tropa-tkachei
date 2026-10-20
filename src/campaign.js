@@ -137,11 +137,12 @@ const Campaign = {
   },
   go(gs, camp) {
     if (gs.leaving) return; gs.leaving = true;
-    const data = { players: gs.nPlayers, mode: 'story', online: gs.online, camp };
+    // зерно следующей сцены выводится из зерна этой: цепочка сцен забега воспроизводима по одному начальному зерну
+    const data = { players: gs.nPlayers, mode: 'story', online: gs.online, camp, seed: gs.online ? undefined : rngSeedFor(gs.seed, 'next:' + camp.ch + camp.st) };
     if (gs.online === 'host') gs.sendEv({ k: 'next', camp });
     Snd.play('bench');
     gs.cameras.main.fadeOut(450, 3, 8, 7); gs.ui().cameras.main.fadeOut(450, 3, 8, 7);
-    gs.time.delayedCall(gs.online === 'host' ? 900 : 480, () => gs.ui().campGo(data));
+    gs.after(gs.online === 'host' ? 0.9 : 0.48, () => gs.ui().campGo(data));
   },
   onEv(gs, m) {
     if (m.k === 'next') {
@@ -162,7 +163,7 @@ const Campaign = {
   },
   closeShop(gs) {
     if (!gs.shopOpen) return;
-    setTimeout(() => { gs.shopOpen = false; }, 0); // Esc не должен тут же включить паузу
+    gs.after(1 / 60, () => { gs.shopOpen = false; }); // Esc не должен тут же включить паузу; в тиках, чтобы воспроизведение совпало
     Touch.show(true); gs.ui().shopHide();
   },
   buy(gs, id, fromGuest) {
@@ -179,7 +180,9 @@ const Campaign = {
     gs.toastAll(`Куплено: ${it.name}`);
     if (gs.ui().shopC && gs.ui().shopC.visible) gs.ui().shopRefresh();
   },
-  // каждый кадр: геймпад в лавке и защита от «зависшей» лавки
+  // каждый тик логики: защита от «зависшей» лавки (нужна и при воспроизведении журнала)
+  shopGuard(gs) { const me = gs.shopP; if (!me || !me.sit || me.downed || gs.wiping || gs.won) this.closeShop(gs); },
+  // каждый кадр: геймпад в лавке
   tick(gs) {
     if (!gs.shopOpen) return;
     const me = gs.shopP;

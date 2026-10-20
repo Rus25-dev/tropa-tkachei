@@ -313,7 +313,7 @@ Object.assign(GameScene.prototype, {
     for (const c of this.curtains) c.slime = Math.min(c.slime, 1);
     this.vladikSpeak('ЛАДНО… Я СКРИПКА…', 2.4); this.sfx('violin'); this.shake(700, 0.008);
     for (let i = 0; i < 6; i++) this.time.delayedCall(i * 170, () => this.burst(18, v.x + Math.random() * v.w, v.y + Math.random() * v.h, i % 2 ? 0xffd47a : 0xf4efe0));
-    this.time.delayedCall(3300, () => { this.ui().bossBar(false); this.win(); });
+    this.after(3.3, () => { this.ui().bossBar(false); this.win(); });
   },
   stepClef(pr, dt) {
     if (pr.t0 > 0) { pr.t0 -= dt; return; }

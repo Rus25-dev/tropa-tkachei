@@ -30,8 +30,8 @@ const phaserSrc = fs.readFileSync(require.resolve('phaser/dist/phaser.min.js'), 
       ui.shopSel = 3; ui.shopAct(); frames(2);
       ok(sc.gearOpen && ui.gearC.visible && !ui.shopC.visible, 'экран снаряжения не открылся из лавки');
       // вкладки
-      ui.gearTab(1); log.toolsRows = ui.gearItemsN; ok(ui.gearItemsN === 2, 'инструменты: ' + ui.gearItemsN);
-      ui.gearSel = 1; ui.gearAct(); ok(Loadout.owned('tools', 'knife', sc), 'нож не куплен'); ok(sc.beads === 180, 'бусины не списались: ' + sc.beads);
+      ui.gearTab(1); log.toolsRows = ui.gearItemsN; ok(ui.gearItemsN === Object.keys(TOOLS).length + 1, 'инструменты: ' + ui.gearItemsN); // +1 — «Без инструмента»
+      ui.gearSel = Object.keys(TOOLS).indexOf('knife') + 1; ui.gearAct(); ok(Loadout.owned('tools', 'knife', sc), 'нож не куплен'); ok(sc.beads === 180, 'бусины не списались: ' + sc.beads);
       ui.gearAct(); ok(Loadout.data().tool === 'knife' && p.toolId === 'knife', 'нож не надет');
       const sv = Settings.progress(); ok(sv.beads === 180 && sv.abil.double && sv.chapter === 1 && sv.up.hp === 1, 'прогресс потерял поля: ' + JSON.stringify(sv));
       // оружие закрыто боссом

@@ -106,10 +106,14 @@ const PB = { trail: { pb: { rta: 1421520, igt: 1398100, deaths: 3, ver: '1.6', s
     ok(await p.evaluate(() => /Таблица друзей/.test(document.querySelector('#sr-fr .crumbs').textContent)), 'крошки таблицы друзей');
     await p.evaluate(() => document.activeElement && document.activeElement.blur()); await key(p, 'Escape'); ok(!(await dom(p, '#sr-fr')), 'Esc закрывает таблицу друзей'); s = await S(p); ok(s.id === 'srcat', 'после таблицы друзей мы на экране категории');
     await key(p, 'Escape'); await key(p, 'Escape'); s = await S(p); ok(s.id === 'main', 'из Спидрана назад в главное меню');
-    // гонки Ткачей (заглушка)
-    await key(p, '5'); s = await S(p); ok(s.id === 'races', 'Гонки Ткачей — экран-заглушка');
-    for (const k of ['1', '2', '3', '4']) await key(p, k);
-    s = await S(p); ok(s.id === 'races' && !s.leaving, 'серые пункты не открываются');
+    // Гонки Ткачей (v1.8): рабочие пункты
+    await key(p, '5'); s = await S(p); ok(s.id === 'races' && s.n === 4, 'Гонки Ткачей — экран с четырьмя пунктами: ' + s.n);
+    await key(p, '2'); await frames(p, 3); ok(await dom(p, '#rc-join'), '«Войти игроком» открывает окно входа'); await key(p, 'Escape'); ok(!(await dom(p, '#rc-join')), 'Esc закрывает окно входа');
+    await key(p, '3'); await frames(p, 3); ok(await dom(p, '#rw-join'), '«Обсервер» открывает окно кода'); await key(p, 'Escape'); ok(!(await dom(p, '#rw-join')), 'Esc закрывает окно обсервера');
+    await key(p, '4'); await frames(p, 3); ok(await dom(p, '#rc-arch'), '«Архив гонок» открывается'); await key(p, 'Escape'); ok(!(await dom(p, '#rc-arch')), 'Esc закрывает архив');
+    await key(p, '1'); await frames(p, 3); ok(await dom(p, '#rc-org'), '«Создать гонку» открывает панель организатора'); await key(p, 'Escape'); ok(!(await dom(p, '#rc-org')), 'Esc сворачивает панель (комната продолжает работать)');
+    await p.evaluate(() => RaceOrg.close(true));
+    s = await S(p); ok(s.id === 'races' && !s.leaving, 'после окон мы на экране гонок');
     await key(p, 'Escape');
     // как играть / что нового
     await key(p, '6'); await frames(p, 4); ok(await dom(p, '#howto') && (await S(p)).busy, 'Как играть открылось, меню занято');
@@ -237,11 +241,13 @@ const PB = { trail: { pb: { rta: 1421520, igt: 1398100, deaths: 3, ver: '1.6', s
     const r1 = await rowCenter(p, 0); await tapG(p, r1.x, r1.y); await frames(p, 4); s = await S(p); ok(s.settings, 'касание раздела открывает оверлей');
     const bb = await p.evaluate(() => { const r = document.querySelector('#settings .ovback').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height }; });
     ok(bb.w >= 43.5 && bb.h >= 43.5, 'кнопка «← Назад» в оверлее не меньше 44 px');
+    await sleep(450); // оверлей 350 мс после открытия глотает касания (защита от «призрачного» клика)
     await p.touchscreen.tap(bb.x, bb.y); await frames(p, 4); s = await S(p); ok(!s.settings && s.id === 'settings', 'касание «← Назад» в оверлее');
     await tapG(p, 50, 24); await frames(p, 4); s = await S(p);
     // «Что нового ›» касанием
     const lz = await p.evaluate(() => { const m = window.__game.scene.getScene('menu'); const z = m.mObj.find((o) => o.type === 'Zone'); return { x: z.x + z.width / 2, y: z.y + z.height / 2, h: z.height * m.mCs() }; });
     ok(lz.h >= 43.5, 'зона «Что нового ›» не меньше 44 px');
+    await sleep(450);
     await tapG(p, lz.x, lz.y); await frames(p, 4); ok(await dom(p, '#changelog'), 'касание «Что нового ›» открывает экран');
     await p.close();
   }
@@ -268,9 +274,9 @@ const PB = { trail: { pb: { rta: 1421520, igt: 1398100, deaths: 3, ver: '1.6', s
         const t = n.nodeValue.trim(); if (!t) continue; const el = n.parentElement;
         if (el.closest('[hidden]') || !el.getClientRects().length) continue;
         const st = getComputedStyle(el); if (st.visibility === 'hidden' || st.display === 'none' || +st.opacity === 0) continue;
-        const r = document.createRange(); r.selectNodeContents(n); const b = r.getBoundingClientRect(); if (!b.width) continue;
-        const bd = el.closest('.ovbody, .hw-body'), br = bd && bd.getBoundingClientRect(); if (bd && (res.scroll || bd.classList.contains('hw-body')) && (b.top < br.top - 1 || b.bottom > br.bottom + 1)) continue; // за краем прокрутки
-        res.leaves.push({ t: t.slice(0, 30), x: b.left, y: b.top, w: b.width, h: b.height, fs: parseFloat(st.fontSize), inScroll: !!bd });
+        const r = document.createRange(); r.selectNodeContents(n); const rects = [...r.getClientRects()].filter((q) => q.width > 0); if (!rects.length) continue; // построчно: общий прямоугольник многострочного текста даёт ложные наложения
+        const bd = el.closest('.ovbody, .hw-body'), br = bd && bd.getBoundingClientRect(); const clipped = (b) => bd && (res.scroll || bd.classList.contains('hw-body')) && (b.top < br.top - 1 || b.bottom > br.bottom + 1); // за краем прокрутки
+        for (const b of rects) if (!clipped(b)) res.leaves.push({ t: t.slice(0, 30), x: b.left, y: b.top, w: b.width, h: b.height, fs: parseFloat(st.fontSize), inScroll: !!bd });
       }
       root.querySelectorAll('button, label.opt, .seg label, .ovback').forEach((e) => { if (e.closest('[hidden]') || !e.getClientRects().length) return; const r = e.getBoundingClientRect(); res.ctl.push({ t: (e.textContent || '').trim().slice(0, 24), w: r.width, h: r.height }); });
       return res;
@@ -317,6 +323,7 @@ const PB = { trail: { pb: { rta: 1421520, igt: 1398100, deaths: 3, ver: '1.6', s
     ['keys', '#keys', () => { Settings.show(null, 'controls'); Access.show(); }, true],
     ['lobby-host', '#lobby', () => { const m = window.__game.scene.getScene('menu'); m.menuOpen('net', { mode: 'story' }); m.openLobby('story', 'host'); }, true],
     ['howto', '#howto', () => HowTo.show(null), true], ['changelog', '#changelog', () => Changelog.show(null), true],
+    ['race-join', '#rc-join', () => RacePlay.open('K7P4Q', {}), true], ['race-watch-join', '#rw-join', () => RaceWatch.open('', {}), true], ['race-org', '#rc-org', () => { if (!RaceOrg.S) RaceOrg.create(); else RaceOrg.panel(); RaceOrg.render(); }, true], ['race-arch', '#rc-arch', () => RaceOrg.archiveOpen(), true],
     ['friends', '#sr-fr', () => Speedrun.friendsOpen(), true], ['race-room', '#sr-room', () => { window.__game.scene.getScene('menu').menuOpen('srcat', { cat: 'trail' }); Speedrun.raceOpen('host'); }, true],
   ];
   for (const [sz, w, h, touch] of SIZES) {
@@ -349,7 +356,7 @@ const PB = { trail: { pb: { rta: 1421520, igt: 1398100, deaths: 3, ver: '1.6', s
       // закрываем всё
       await p.evaluate(() => {
         if (!Access.el.hidden) Access.hide(); if (Settings.open) Settings.hide(); if (!Lobby.el.hidden) Lobby.hide(true);
-        for (const i of ['howto', 'changelog']) { const e = document.getElementById(i); if (e) e.hidden = true; }
+        for (const i of ['howto', 'changelog', 'rc-join', 'rw-join', 'rc-org', 'rc-arch']) { const e = document.getElementById(i); if (e) e.hidden = true; }
         if (Speedrun.race) Speedrun.raceLeave(); const f = document.getElementById('sr-fr'); if (f) f.hidden = true;
         const m = window.__game.scene.getScene('menu'); m.busy = false; m.leaving = false;
       });
