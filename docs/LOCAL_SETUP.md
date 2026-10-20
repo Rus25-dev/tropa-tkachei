@@ -25,6 +25,7 @@ odejs` попадает в системный PATH; в уже открытых �
 - Playwright использует установленный Chrome (`CHROME`). Дополнительно `npx playwright-core install webkit firefox` даёт WebKit (движок Safari/iPhone) для `tools/devices-shot.js`; Firefox в некоторых средах не стартует.
 - Реальный WebRTC без интернета: `npm run test:real` (поднимает локальный PeerJS-сервер из пакета `peer` и гоняет организатора, двух игроков и обсервера в Chrome). Руками: `npm run peer`, затем страницы с `?peer=localhost:9000`.
 - Не запускайте два набора тестов одновременно: нагрузка даёт ложные падения.
+
 ## MCP-серверы для Claude Code (подключаются сами)
 В корне лежит `.mcp.json` — Claude Code подключает эти серверы в этом проекте автоматически:
 - **context7** — свежая документация библиотек (Phaser, Vite, PeerJS). Сверяйся с ней, а не пиши по памяти.
