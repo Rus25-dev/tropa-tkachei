@@ -237,11 +237,13 @@ const PB = { trail: { pb: { rta: 1421520, igt: 1398100, deaths: 3, ver: '1.6', s
     const r1 = await rowCenter(p, 0); await tapG(p, r1.x, r1.y); await frames(p, 4); s = await S(p); ok(s.settings, 'касание раздела открывает оверлей');
     const bb = await p.evaluate(() => { const r = document.querySelector('#settings .ovback').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height }; });
     ok(bb.w >= 43.5 && bb.h >= 43.5, 'кнопка «← Назад» в оверлее не меньше 44 px');
+    await sleep(450); // оверлей 350 мс после открытия глотает касания (защита от «призрачного» клика)
     await p.touchscreen.tap(bb.x, bb.y); await frames(p, 4); s = await S(p); ok(!s.settings && s.id === 'settings', 'касание «← Назад» в оверлее');
     await tapG(p, 50, 24); await frames(p, 4); s = await S(p);
     // «Что нового ›» касанием
     const lz = await p.evaluate(() => { const m = window.__game.scene.getScene('menu'); const z = m.mObj.find((o) => o.type === 'Zone'); return { x: z.x + z.width / 2, y: z.y + z.height / 2, h: z.height * m.mCs() }; });
     ok(lz.h >= 43.5, 'зона «Что нового ›» не меньше 44 px');
+    await sleep(450);
     await tapG(p, lz.x, lz.y); await frames(p, 4); ok(await dom(p, '#changelog'), 'касание «Что нового ›» открывает экран');
     await p.close();
   }
@@ -268,9 +270,9 @@ const PB = { trail: { pb: { rta: 1421520, igt: 1398100, deaths: 3, ver: '1.6', s
         const t = n.nodeValue.trim(); if (!t) continue; const el = n.parentElement;
         if (el.closest('[hidden]') || !el.getClientRects().length) continue;
         const st = getComputedStyle(el); if (st.visibility === 'hidden' || st.display === 'none' || +st.opacity === 0) continue;
-        const r = document.createRange(); r.selectNodeContents(n); const b = r.getBoundingClientRect(); if (!b.width) continue;
-        const bd = el.closest('.ovbody, .hw-body'), br = bd && bd.getBoundingClientRect(); if (bd && (res.scroll || bd.classList.contains('hw-body')) && (b.top < br.top - 1 || b.bottom > br.bottom + 1)) continue; // за краем прокрутки
-        res.leaves.push({ t: t.slice(0, 30), x: b.left, y: b.top, w: b.width, h: b.height, fs: parseFloat(st.fontSize), inScroll: !!bd });
+        const r = document.createRange(); r.selectNodeContents(n); const rects = [...r.getClientRects()].filter((q) => q.width > 0); if (!rects.length) continue; // построчно: общий прямоугольник многострочного текста даёт ложные наложения
+        const bd = el.closest('.ovbody, .hw-body'), br = bd && bd.getBoundingClientRect(); const clipped = (b) => bd && (res.scroll || bd.classList.contains('hw-body')) && (b.top < br.top - 1 || b.bottom > br.bottom + 1); // за краем прокрутки
+        for (const b of rects) if (!clipped(b)) res.leaves.push({ t: t.slice(0, 30), x: b.left, y: b.top, w: b.width, h: b.height, fs: parseFloat(st.fontSize), inScroll: !!bd });
       }
       root.querySelectorAll('button, label.opt, .seg label, .ovback').forEach((e) => { if (e.closest('[hidden]') || !e.getClientRects().length) return; const r = e.getBoundingClientRect(); res.ctl.push({ t: (e.textContent || '').trim().slice(0, 24), w: r.width, h: r.height }); });
       return res;

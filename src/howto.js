@@ -55,7 +55,7 @@ const Sheet = {
   .hw { padding-top: max(6px, var(--st, 0px)); padding-bottom: max(4px, var(--sb, 0px)); }
   .hw-card { gap: 5px; }
   .hw-head h2 { font-size: 26px; }
-  .hw button { min-height: 34px; padding: 5px 12px; font-size: 14px; }
+  .hw button { min-height: 44px; padding: 4px 12px; font-size: 14px; } /* зона касания не меньше 44 px и в низких окнах */
   .hw-body { font-size: 14px; line-height: 1.38; padding: 10px 12px 14px; }
   .hw-body h3 { font-size: 19px; }
   .hw-foot { font-size: 12px; }

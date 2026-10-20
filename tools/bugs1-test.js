@@ -46,9 +46,9 @@ const phaserSrc = fs.readFileSync(require.resolve('phaser/dist/phaser.min.js'), 
     g.scene.getScene('ui').retry(); await sleep(1200);
     sc = g.scene.getScene('game'); g.loop.stop();
     const p = sc.players[0], o = {}; let f = 0; for (let i = 0; i < 90; i++, f++) sc.update(f * 16.667, 16.667);
-    const x0 = p.x, sx0 = sc.cameras.main.scrollX; sc.kb1.right[0].isDown = true;
+    const x0 = p.x, sx0 = sc.camX; sc.kb1.right[0].isDown = true; // центр камеры в мире: scrollX зависит ещё и от смены зума
     for (let i = 0; i < 40; i++, f++) sc.update(f * 16.667, 16.667);
-    o.dx = p.x - x0; o.dcam = sc.cameras.main.scrollX - sx0;
+    o.dx = p.x - x0; o.dcam = sc.camX - sx0;
     return o;
   });
   ok(r1b.dx > 20 && Math.abs(r1b.dcam) > 2, '1: после «Заново» герой ходит, камера следует (dx=' + Math.round(r1b.dx) + ', камера ' + Math.round(r1b.dcam) + ')');

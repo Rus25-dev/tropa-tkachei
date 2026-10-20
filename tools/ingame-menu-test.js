@@ -12,6 +12,8 @@ const SIZES = [['667x375', 667, 375, true], ['844x390', 844, 390, true], ['932x4
 const fails = []; let errs = 0;
 const ok = (c, m) => { console.log(c ? 'ок   ' : 'ПРОВАЛ', m); if (!c) fails.push(m); };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+// нажатие «как у человека»: клавиша удерживается 40 мс, затем пауза. Две клавиши с разницей в 1–2 мс Phaser обрабатывает с дублями — живой ввод так не бывает
+const kpress = async (page, k) => { await page.keyboard.press(k, { delay: 40 }); await sleep(90); };
 
 const PAGE_LIB = `
   window.__texts = (root) => {
@@ -71,7 +73,7 @@ function geometry(name, list, W, H, minPx, cs) {
   const shot = async (page, n) => { if (shotDir) { fs.mkdirSync(shotDir, { recursive: true }); await page.screenshot({ path: path.join(shotDir, n + '.png') }); } };
   const st = (page) => page.evaluate(() => { const g = __gs(), u = __ui(); return { paused: g.paused, pv: u.pause.visible, sel: u.pmMenu ? u.pmMenu.sel : -1, items: u.pmMenu ? u.pmMenu.texts.map((t) => t.text) : [],
     how: HowTo.open, chg: Changelog.open, set: Settings.open, bench: !!g.benchMenuOpen, benchV: !!(u.benchC && u.benchC.visible), shop: !!g.shopOpen, gear: !!g.gearOpen, map: MapTravel.open }; });
-  const seat = (page, bi) => page.evaluate((i) => { const g = __gs(), p = g.players[0], b = g.benches[i || 0]; p.sit = false; p.x = b.x - 7; p.y = b.y - 26; p.vy = 0; p.vx = 0; g.camX = p.x; g.camY = p.y; }, bi);
+  const seat = (page, bi) => page.evaluate((i) => { const g = __gs(), p = g.players[0], b = g.benches[i || 0]; for (const e of g.enemies) { e.dead = true; if (e.g) e.g.clear(); } /* враги у скамьи в реальном времени отбрасывают героя и срывают тест */ p.sit = false; p.x = b.x - 7; p.y = b.y - 26; p.vy = 0; p.vx = 0; g.camX = p.x; g.camY = p.y; }, bi);
   const storyData = { players: 1, mode: 'story' };
   // на загруженной машине таймеры страницы идут редко: ждём условие, а не фиксированное время
   const until = async (page, fn, ms) => { for (let t = 0; t < (ms || 6000); t += 100) { if (await page.evaluate(fn)) return true; await sleep(100); } return false; };
@@ -80,7 +82,7 @@ function geometry(name, list, W, H, minPx, cs) {
   if (want('kb')) {
     const page = await open(960, 540, '');
     await start(page, storyData);
-    const kb = page.keyboard;
+    const kb = { press: (k) => kpress(page, k), down: (k) => page.keyboard.down(k), up: (k) => page.keyboard.up(k) };
     await kb.press('Escape'); await sleep(250);
     let s = await st(page);
     ok(s.pv && s.paused, 'Esc: пауза открылась');
@@ -135,22 +137,22 @@ function geometry(name, list, W, H, minPx, cs) {
     ok(m.n === (await page.evaluate(() => CHANGELOG.length)) && m.sh > m.ch, `«Что нового»: все ${m.n} записей, прокручиваемое окно (${m.sh} > ${m.ch}); ${m.ver}`);
     await page.mouse.move(480, 300); await page.mouse.wheel(0, 300); await until(page, () => document.querySelector('#changelog .hw-body').scrollTop > 50);
     let top = await page.evaluate(() => document.querySelector('#changelog .hw-body').scrollTop); ok(top > 50, 'колёсико листает: ' + top);
-    await page.keyboard.press('ArrowDown'); await sleep(50);
+    await kpress(page, 'ArrowDown'); await sleep(50);
     const t2 = await page.evaluate(() => document.querySelector('#changelog .hw-body').scrollTop); ok(t2 > top, '↓ листает');
-    await page.keyboard.press('End'); await sleep(50);
+    await kpress(page, 'End'); await sleep(50);
     ok(await page.evaluate(() => { const b = document.querySelector('#changelog .hw-body'); return b.scrollTop + b.clientHeight >= b.scrollHeight - 2; }), 'End — до конца');
-    await page.keyboard.press('Escape'); await sleep(150);
+    await kpress(page, 'Escape'); await sleep(150);
     ok(!(await page.evaluate(() => Changelog.open)) && (await page.evaluate(() => window.__closed === 1)), 'Esc закрывает и вызывает onClose');
     // «Как играть» с разделом: боссы закрыты до первой встречи
     await page.evaluate(() => { localStorage.removeItem('tt_records'); HowTo.show(null, 'bosses'); }); await sleep(150);
     let b = await page.evaluate(() => [...document.querySelectorAll('#howto .hw-it')].map((e) => e.textContent.slice(0, 40)));
     ok(b.length === 4 && b.every((t) => t.startsWith('???')), 'карточки боссов закрыты без встречи: ' + b.join(' | '));
-    await page.keyboard.press('Escape');
+    await kpress(page, 'Escape');
     await page.evaluate(() => { Records.put('misha', { tries: 3, wins: 1, best: 95 }); HowTo.show(null, 'bosses'); }); await sleep(150);
     b = await page.evaluate(() => [...document.querySelectorAll('#howto .hw-it')].map((e) => ({ t: e.textContent.slice(0, 30), li: e.querySelectorAll('li').length })));
     ok(b[1].t.startsWith('Миша Додик') && b[1].li === 3 && b[0].t.startsWith('???') && b[2].t.startsWith('???'), 'карточка Миши открылась после встречи: ' + JSON.stringify(b));
     await page.evaluate(() => localStorage.removeItem('tt_records'));
-    await page.keyboard.press('Escape'); await page.close();
+    await kpress(page, 'Escape'); await page.close();
   }
 
   // ================= 2. СКАМЬЯ (клавиатура) =================
@@ -165,12 +167,12 @@ function geometry(name, list, W, H, minPx, cs) {
     ok((await page.evaluate(() => !__gs().players[0].sit)) && (await page.evaluate(() => window.__ev.indexOf('bench') < 0)), 'отдых не случился мгновенно');
     const items = await page.evaluate(() => __ui().benchMenu.texts.map((t) => t.text));
     ok(items.length === 4 && /Отдохнуть/.test(items[0]) && /Лавка/.test(items[1]) && /Карта и переходы/.test(items[2]) && /Снаряжение/.test(items[3]), 'пункты скамьи: ' + items.join(' | '));
-    await page.keyboard.press('Escape'); await sleep(250); s = await st(page);
+    await kpress(page, 'Escape'); await sleep(250); s = await st(page);
     ok(!s.bench && !s.benchV && !s.paused && !s.pv, 'Esc закрывает меню скамьи, пауза не включилась');
     // повторно: Отдохнуть (Enter)
     await sleep(800);
     await page.keyboard.down('w'); await sleep(90); await page.keyboard.up('w'); await sleep(250);
-    await page.keyboard.press('Enter'); await sleep(300);
+    await kpress(page, 'Enter'); await sleep(300);
     const r = await page.evaluate(() => { const g = __gs(), p = g.players[0]; return { sit: p.sit, paused: g.paused, ev: window.__ev.filter((k) => k === 'bench').length, sv: Settings.progress(), hp: p.hp === p.maxHp, resp: Math.round(g.respawn.x) === Math.round(g.benches[0].x) }; });
     ok(r.sit && !r.paused && r.ev === 1 && r.sv && /Гл\./.test(r.sv.name || '') && r.hp && r.resp, 'Отдохнуть: сел, событие bench, автосохранение, место возрождения: ' + JSON.stringify(r));
     await sleep(600);
@@ -178,15 +180,15 @@ function geometry(name, list, W, H, minPx, cs) {
     // Лавка
     await page.evaluate(() => { __gs().players[0].sit = false; }); await sleep(300);
     await page.keyboard.down('w'); await sleep(90); await page.keyboard.up('w'); await sleep(250);
-    await page.keyboard.press('2'); await sleep(300); s = await st(page);
+    await kpress(page, '2'); await sleep(300); s = await st(page);
     ok(s.shop && !s.bench && !s.paused, 'Лавка открывается из меню скамьи');
-    await page.keyboard.press('Escape'); await sleep(300); s = await st(page); ok(!s.shop && !s.pv, 'Esc закрывает лавку, пауза не включилась');
+    await kpress(page, 'Escape'); await sleep(300); s = await st(page); ok(!s.shop && !s.pv, 'Esc закрывает лавку, пауза не включилась');
     // Снаряжение возвращает в меню скамьи
     await page.evaluate(() => { __gs().players[0].sit = false; }); await sleep(300);
     await page.keyboard.down('w'); await sleep(90); await page.keyboard.up('w'); await sleep(250);
-    await page.keyboard.press('4'); await sleep(300); s = await st(page); ok(s.gear && s.bench, 'Снаряжение открывается из меню скамьи');
+    await kpress(page, '4'); await sleep(300); s = await st(page); ok(s.gear && s.bench, 'Снаряжение открывается из меню скамьи');
     await page.evaluate(() => Gear.close(__gs())); await sleep(300); s = await st(page); ok(!s.gear && s.bench && s.benchV, 'закрыв снаряжение, возвращаемся в меню скамьи');
-    await page.keyboard.press('3'); await sleep(300); s = await st(page); ok(s.map && !s.bench, '«Карта и переходы» открывает карту');
+    await kpress(page, '3'); await sleep(300); s = await st(page); ok(s.map && !s.bench, '«Карта и переходы» открывает карту');
     ok(await page.evaluate(() => __gs().players[0].sit), 'карта: герой сидит на скамье (переход возможен)');
     await page.evaluate(() => MapTravel.close(__gs())); await sleep(200);
     await page.close();
@@ -215,7 +217,7 @@ function geometry(name, list, W, H, minPx, cs) {
     await start(page, { players: 1, mode: 'bosstest', boss: 'vladik' });
     await page.evaluate(() => { window.__retry = 0; __ui().retry = () => { window.__retry++; }; __gs().win(); });
     await sleep(150);
-    const kb = page.keyboard;
+    const kb = { press: (k) => kpress(page, k), down: (k) => page.keyboard.down(k), up: (k) => page.keyboard.up(k) };
     let w = await page.evaluate(() => ({ items: __ui().winMenu.texts.map((t) => t.text), sel: __ui().winMenu.sel }));
     ok(w.items.join() === 'Заново,В главное меню', 'победа в босс-тесте: ' + w.items.join());
     const early = await page.evaluate(() => { const u = __ui(), k = u.input.keyboard; u.winAt = performance.now(); k.emit('keydown-ENTER', { repeat: false }); k.emit('keydown-SPACE', { repeat: false }); k.emit('keydown-RIGHT', { repeat: false }); return { menu: window.__game.scene.getScene('menu').sys.isActive(), sel: u.winMenu.sel, retry: window.__retry }; });
@@ -237,7 +239,7 @@ function geometry(name, list, W, H, minPx, cs) {
     await sleep(1000);
     const it = await p2.evaluate(() => __ui().winMenu.texts.map((t) => t.text));
     ok(it.length === 3 && /Дальше/.test(it[0]) && it[1] === 'Заново' && it[2] === 'В главное меню', 'глава пройдена: ' + it.join(' | '));
-    await p2.keyboard.press('Space'); await sleep(100);
+    await kpress(p2, 'Space'); await sleep(100);
     ok(await p2.evaluate(() => window.__go && window.__go.ch === 2 && window.__go.st === 'road'), 'Пробел на «Дальше» ведёт в главу II');
     await p2.close();
     // финал кампании: «Дальше» нет
