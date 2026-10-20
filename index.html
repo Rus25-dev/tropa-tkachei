@@ -245,6 +245,8 @@ function buildLevel() {
     { x: 47, y: 31, text: 'Прыгай от стен,\nчтобы подняться' },
     { x: 64, y: 10, text: 'G — рывок, даже в воздухе', touch: '«Рывок» — даже в воздухе' },
     { x: 101, y: 31, text: 'Скамья: ↑ — отдохнуть, здесь ты очнёшься.\nНа скамье ↓ — лавка (бусины → улучшения)', touch: 'Скамья: стик вверх — отдохнуть.\nНа скамье стик вниз — лавка улучшений' },
+    { x: 109, y: 31, text: 'Q без полной нити — отбив:\nокно 0.2 с, сбивает снаряды, копит нить', touch: '«Нить» без полной катушки — отбив:\nокно 0.2 с, сбивает снаряды' },
+    { x: 113, y: 31, text: 'Стик/↑ + Q (от 4 нити) — всполох:\nбьёт всех вокруг. Рывок сквозь удар — уворот', touch: 'Стик вверх + «Нить» (от 4 нити) — всполох.\nРывок сквозь удар — идеальный уворот' },
     { x: 155, y: 31, text: 'В прыжке S + F — удар вниз:\nотскок от колючек и врагов', touch: 'В прыжке стик вниз + удар:\nотскок от колючек и врагов' },
   ];
   const benches = [{ x: 104, y: 33 }];
@@ -1030,7 +1032,7 @@ const Lobby = {
 let VW = 960; const VH = 540;
 // версия игры; номер сборки подставляет build.py
 const GAME_VERSION = '1.2';
-const GAME_BUILD = '261020.1115';
+const GAME_BUILD = '261020.1243';
 const CHANGELOG = [
   'Кампания: после Корнематки — Глава II (Миша), III (Владик), IV (Тима) с коридорами перед аренами',
   'Прогресс по главам сохраняется на скамьях; «Продолжить» возвращает в нужную главу',
@@ -2561,6 +2563,8 @@ class UIScene extends Phaser.Scene {
       '', 'Удар вверх: держи ↑ + удар.  Удар вниз в прыжке: ↓ + удар — отскок от колючек и врагов.',
       'Прыжок от стены: прижмись к стене в падении и прыгни.  Спрыгнуть с платформы: ↓ + прыжок.',
       'Лечение: когда катушка нити полна, восстанавливает 3 бутона.',
+      'Отбив: кнопка нити (Q), когда нить не полна, — окно 0.2 с, отбивает удар и снаряды.  Всполох: ↑ + нить (от 4 нити).',
+      'Комбо: третий удар подряд — тяжёлый.  Рывок сквозь удар — идеальный уворот (+2 нити).  Серия ударов оглушает босса.',
       'Напарник в коконе: подойди и держи ↑ одну секунду.  Скамья (↑) лечит и оживляет.',
       'По сети каждый играет раскладкой игрока 1, а пауза не останавливает мир.',
     ].join('\n'), { fontFamily: F, fontSize: '14px', color: '#b9d4c8', align: 'center', lineSpacing: 7 }).setOrigin(0.5).setY(285);
@@ -2568,6 +2572,8 @@ class UIScene extends Phaser.Scene {
       'Стик слева — идти. Вверх + удар — удар вверх, в прыжке вниз + удар — отскок.',
       'Прыжок от стены: прижмись стиком к стене в падении и жми «Прыжок».  Спрыгнуть с платформы: стик вниз + «Прыжок».',
       'Лечение: когда катушка нити полна, восстанавливает 3 бутона.',
+      'Отбив: кнопка нити (Q), когда нить не полна, — окно 0.2 с, отбивает удар и снаряды.  Всполох: ↑ + нить (от 4 нити).',
+      'Комбо: третий удар подряд — тяжёлый.  Рывок сквозь удар — идеальный уворот (+2 нити).  Серия ударов оглушает босса.',
       'Напарник в коконе: подойди и держи стик вверх одну секунду.  Скамья: стик вверх.',
       'По сети пауза не останавливает мир.',
     ].join('\n')).setY(270);
@@ -5044,6 +5050,74 @@ Object.assign(UIScene.prototype, {
     this.shopHint.setText(Touch.enabled ? 'Нажмите на улучшение, чтобы купить' : '↑ ↓ — выбрать   ·   Enter / Пробел / F — купить   ·   Esc — закрыть   ·   геймпад: A — купить, B — закрыть');
   },
 });
+
+// ===== УДОБСТВА: рекорды боссов, возрождение у арены, подсказка отбива =====
+const Records = {
+  all() { try { return JSON.parse(localStorage.getItem('tt_records') || '{}') || {}; } catch (_) { return {}; } },
+  get(id) { return this.all()[id] || { tries: 0, wins: 0, best: 0 }; },
+  put(id, r) { const a = this.all(); a[id] = r; try { localStorage.setItem('tt_records', JSON.stringify(a)); } catch (_) { } },
+  fmt(s) { return Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0'); },
+  line(id) {
+    const r = this.get(id);
+    return r.tries ? `Попыток: ${r.tries} · побед: ${r.wins}` + (r.best ? ` · лучшее время: ${this.fmt(r.best)}` : '') : 'Ещё не пробовали';
+  },
+};
+
+(function () {
+  const proto = GameScene.prototype;
+  const bossId = (sc) => (sc.mode === 'bosstest' ? sc.bossKind : 'korn');
+  const bossLive = (sc) => {
+    const b = sc.testBoss() || sc.boss;
+    return !!b && !['sleep', 'gone', 'dead', 'intro'].includes(b.state);
+  };
+  // таймер боя и счётчик попыток
+  const step = proto.step;
+  proto.step = function (dt) {
+    step.call(this, dt);
+    if (this.online === 'guest') return;
+    if (bossLive(this)) {
+      if (!this.fightOn) {
+        this.fightOn = true; this.fightT = 0;
+        const id = bossId(this), r = Records.get(id); r.tries++; Records.put(id, r);
+        if (r.tries > 1) this.ui().toast(`Попытка ${r.tries}`, 1.6);
+        // возрождение у входа в арену Корнематки, чтобы не бежать через весь уровень
+        if (this.mode === 'story' && this.L.gateIn && !this.bossDead) {
+          const gi = this.L.gateIn; this.respawn = { x: (gi.x + 3) * T + 16, y: (gi.y1 + 1) * T };
+        }
+      }
+      this.fightT += dt;
+    }
+  };
+  const respawnAll = proto.respawnAll;
+  proto.respawnAll = function () { this.fightOn = false; respawnAll.call(this); };
+  // запись победы
+  const onWin = function (sc) {
+    if (!sc.fightOn || sc.fightWon) return; sc.fightWon = true;
+    const id = bossId(sc), r = Records.get(id), t = sc.fightT || 0;
+    r.wins++; const rec = !r.best || t < r.best; if (rec) r.best = t; Records.put(id, r);
+    sc.ui().toast(`Босс повержен за ${Records.fmt(t)}` + (rec ? ' — новый рекорд!' : ` (лучшее ${Records.fmt(r.best)})`), 4);
+  };
+  for (const fn of ['killBoss', 'mishaDie', 'vladikDie', 'timaDie']) {
+    const f = proto[fn]; if (!f) continue;
+    proto[fn] = function (...a) { onWin(this); return f.apply(this, a); };
+  }
+  // подсказка: кольцо вокруг героя, когда рядом летит опасное и отбив готов
+  const fx = proto.drawPlayerFx;
+  proto.drawPlayerFx = function (p, g) {
+    fx.call(this, p, g);
+    if (p.remote || p.parryT > 0 || p.parryCd > 0 || !this.projs) return;
+    const cx = p.x + 7, cy = p.y + 13;
+    for (const pr of this.projs) if (!pr.dead && pr.kind !== 'bomb' && pr.kind !== 'pad' && Math.hypot(pr.x - cx, pr.y - cy) < 95) {
+      g.lineStyle(1.5, 0xffffff, 0.35 + 0.25 * Math.sin(this.animT * 18)); g.strokeCircle(0, -14, 27); return;
+    }
+  };
+  // строка рекордов на экране выбора босса
+  const setPick = MenuScene.prototype.setPick;
+  MenuScene.prototype.setPick = function (i) {
+    setPick.call(this, i);
+    this.pickAbout.setText(BOSSES[this.pickIdx].about + '\n' + Records.line(BOSSES[this.pickIdx].id));
+  };
+})();
 
 // ===== ПРОВЕРКА ОБНОВЛЕНИЙ: важно для иконки на экране «Домой» (iPhone держит старую версию в кэше и в памяти) =====
 const Updater = {

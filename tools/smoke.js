@@ -88,7 +88,7 @@ const phaserSrc = fs.readFileSync(require.resolve('phaser/dist/phaser.min.js'), 
           sc._i = { right: f % 400 < 300, left: f % 400 >= 300, jump: f % 37 < 12, atk: f % 11 === 0, dash: f % 90 === 0, heal: f % 53 === 0, up: f % 130 < 20, down: false, bomb: f % 70 === 0 };
           sc.update(f * 16.667, 16.667); maxX = Math.max(maxX, sc.players[0].x);
         }
-        if (f >= N) return resolve({ f, maxX: Math.round(maxX), hp: sc.players[0].hp, abil: sc.abil });
+        if (f >= N) return resolve({ rec: localStorage.getItem('tt_records'), f, maxX: Math.round(maxX), hp: sc.players[0].hp, abil: sc.abil });
         setTimeout(run, 0);
       };
       run();
