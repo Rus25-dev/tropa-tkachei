@@ -11,6 +11,16 @@ const PAL = [
   { name: 'Ярь', tag: 'Ta', cloak: 0xd8862a, dark: 0x8a4f16, accent: 0xffd9a0, hex: '#ffc46e' },
 ];
 const MASK = 0xe8e2cf, INK = 0x10141a;
+const PERSIST_KINDS = new Set(['wave', 'rwave', 'pad', 'stamp', 'box', 'clef']);
+const SLASH_KINDS = new Set(['spore', 'letter', 'note', 'bottle']);
+const STORY_KINDS = new Set(['spore', 'wave', 'rock']);
+const NET_KINDS = ['spore', 'wave', 'rock', 'letter', 'bigletter', 'bomb', 'clef', 'note', 'drip', 'bottle', 'pad', 'rwave', 'ringfx', 'box', 'stamp'];
+const NET_SIZES = [[12, 12], [24, 18], [16, 16], [22, 26], [56, 60], [12, 12], [28, 40], [14, 18], [8, 10], [10, 22], [26, 18], [24, 18], [0, 0], [36, 22], [80, 44]];
+const BOSSES = [
+  { id: 'misha', name: 'Миша Додик', about: 'Швыряется печатными буквами. Бей дымовыми бомбами в рюкзак.' },
+  { id: 'vladik', name: 'Владик Скрипка', about: 'Кидает скрипичные ключи и мажет шторы слизью. Бей иглой.' },
+  { id: 'tima', name: 'Тима Пиво', about: 'Пиво, банкротство, приставка и волшебная пыль. Бей иглой.' },
+];
 const KC = () => Phaser.Input.Keyboard.KeyCodes;
 
 const overlap = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
@@ -51,7 +61,7 @@ class MenuScene extends Phaser.Scene {
     mkBtn(250, '1 · Один ткач', 'клавиша 1 · геймпад A', 1);
     mkBtn(301, '2 · Двое за одним компьютером', 'клавиша 2 · геймпад Y', 2);
     mkBtn(352, '3 · Вдвоём по сети', 'клавиша 3 · комната с кодом, работает и с серым IP', 3);
-    mkBtn(403, '4 · Босс-тест: Миша Додик', 'клавиша 4 · геймпад X · сразу в бой', 4);
+    mkBtn(403, '4 · Босс-тест', 'клавиша 4 · геймпад X · три босса на выбор, сразу в бой', 4);
 
     const ctl = [
       'Игрок 1:  A D W S — ходить   Пробел — прыжок   F — удар   G — рывок   Q — лечение   R — дымовуха',
@@ -65,23 +75,35 @@ class MenuScene extends Phaser.Scene {
     this.pick = this.add.container(0, 0).setVisible(false).setDepth(10);
     const pg = this.add.graphics(); pg.fillStyle(0x030807, 0.9); pg.fillRect(0, 0, VW, VH);
     const D = '"Cormorant SC", Georgia, serif', F = '"Fira Sans", sans-serif';
-    const pt = this.add.text(VW / 2, 120, 'Босс-тест · Миша Додик', { fontFamily: D, fontSize: '44px', color: '#e8e2cf', fontStyle: '700' }).setOrigin(0.5);
-    const ps = this.add.text(VW / 2, 168, 'Он швыряется печатными буквами и бережёт рюкзак. Закиньте туда дымовые бомбы.', { fontFamily: F, fontSize: '14px', color: '#8fb8a8' }).setOrigin(0.5);
+    const pt = this.add.text(VW / 2, 84, 'Босс-тест', { fontFamily: D, fontSize: '44px', color: '#e8e2cf', fontStyle: '700' }).setOrigin(0.5);
+    this.pickIdx = 0;
+    this.bossBtns = BOSSES.map((b, i) => {
+      const t = this.add.text(VW / 2 + (i - 1) * 270, 150, b.name, { fontFamily: D, fontSize: '28px', color: '#8fb8a8', fontStyle: '700' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+      t.on('pointerdown', () => this.setPick(i));
+      return t;
+    });
+    this.pickLine = this.add.graphics();
+    const ph = this.add.text(VW / 2, 186, '← → выбрать босса', { fontFamily: F, fontSize: '12px', color: '#6f9586' }).setOrigin(0.5);
+    const ps = this.add.text(VW / 2, 222, '', { fontFamily: F, fontSize: '15px', color: '#cfe8dc' }).setOrigin(0.5);
+    this.pickAbout = ps;
     const mkPick = (y, label, fn) => {
       const t = this.add.text(VW / 2, y, label, { fontFamily: D, fontSize: '30px', color: '#cfe8dc', fontStyle: '600' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
       t.on('pointerover', () => t.setColor('#ffd47a')); t.on('pointerout', () => t.setColor('#cfe8dc')); t.on('pointerdown', fn);
       return t;
     };
-    const p1 = mkPick(250, '1 · В одиночку', () => this.go(1, 'bosstest'));
-    const p2 = mkPick(305, '2 · Вдвоём за одним компьютером', () => this.go(2, 'bosstest'));
-    const p3 = mkPick(360, '3 · Вдвоём по сети', () => this.openLobby('bosstest'));
-    const pb = mkPick(440, '← Назад (Esc)', () => this.closePick()); pb.setFontSize(22);
-    this.pick.add([pg, pt, ps, p1, p2, p3, pb]);
+    const p1 = mkPick(290, '1 · В одиночку', () => this.go(1, 'bosstest'));
+    const p2 = mkPick(343, '2 · Вдвоём за одним компьютером', () => this.go(2, 'bosstest'));
+    const p3 = mkPick(396, '3 · Вдвоём по сети', () => this.openLobby('bosstest'));
+    const pb = mkPick(470, '← Назад (Esc)', () => this.closePick()); pb.setFontSize(22);
+    this.pick.add([pg, pt, ...this.bossBtns, this.pickLine, ph, ps, p1, p2, p3, pb]);
+    this.setPick(0);
     k.on('keydown', (e) => {
       Snd.init();
       if (this.pick.visible) {
         if (e.key === '1') this.go(1, 'bosstest'); if (e.key === '2') this.go(2, 'bosstest'); if (e.key === '3') this.openLobby('bosstest');
         if (e.key === 'Escape') this.closePick();
+        if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A' || e.key === 'ф' || e.key === 'Ф') this.setPick(this.pickIdx - 1);
+        if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D' || e.key === 'в' || e.key === 'В') this.setPick(this.pickIdx + 1);
         return;
       }
       if (e.key === '1') this.go(1); if (e.key === '2') this.go(2); if (e.key === '3') this.openLobby(); if (e.key === '4') this.openPick();
@@ -90,17 +112,27 @@ class MenuScene extends Phaser.Scene {
     this.input.on('pointerdown', () => Snd.init());
     this.t = 0;
   }
+  setPick(i) {
+    this.pickIdx = (i + BOSSES.length) % BOSSES.length;
+    this.bossBtns.forEach((t, k) => t.setColor(k === this.pickIdx ? '#ffd47a' : '#8fb8a8'));
+    const t = this.bossBtns[this.pickIdx], g = this.pickLine; g.clear();
+    g.fillStyle(0xffd47a, 1); g.fillRect(t.x - t.width / 2, 168, t.width, 2);
+    this.pickAbout.setText(BOSSES[this.pickIdx].about);
+  }
   openPick() { if (this.leaving) return; Snd.init(); this.pick.setVisible(true); this.pickT = 0.3; }
   closePick() { this.pick.setVisible(false); }
-  openLobby(mode) { if (this.leaving) return; this.leaving = true; Snd.init(); Lobby.mode = mode || 'story'; Lobby.show(); }
-  goOnline(role, mode) {
+  openLobby(mode) {
+    if (this.leaving) return; this.leaving = true; Snd.init();
+    Lobby.mode = mode || 'story'; Lobby.boss = BOSSES[this.pickIdx].id; Lobby.bossName = BOSSES[this.pickIdx].name; Lobby.show();
+  }
+  goOnline(role, mode, boss) {
     Snd.play('bench'); this.cameras.main.fadeOut(450, 3, 8, 7);
-    this.time.delayedCall(460, () => this.scene.start('game', { players: 2, online: role, mode: mode || 'story' }));
+    this.time.delayedCall(460, () => this.scene.start('game', { players: 2, online: role, mode: mode || 'story', boss: boss || 'misha' }));
   }
   go(n, mode) {
     if (this.leaving) return; this.leaving = true; Snd.init(); Snd.play('bench');
     this.cameras.main.fadeOut(450, 3, 8, 7);
-    this.time.delayedCall(460, () => this.scene.start('game', { players: n, mode: mode || 'story' }));
+    this.time.delayedCall(460, () => this.scene.start('game', { players: n, mode: mode || 'story', boss: BOSSES[this.pickIdx].id }));
   }
   update(time, delta) {
     this.t += delta / 1000;
@@ -112,6 +144,9 @@ class MenuScene extends Phaser.Scene {
       if (this.pick.visible) {
         if (this.pickT > 0) continue;
         if (b(0)) this.go(1, 'bosstest'); if (b(3)) this.go(2, 'bosstest'); if (b(1)) this.closePick();
+        const lr = (pad.left ? -1 : 0) + (pad.right ? 1 : 0);
+        if (lr && !this._lrHeld) this.setPick(this.pickIdx + lr);
+        this._lrHeld = !!lr;
         continue;
       }
       if (b(0)) this.go(1);
@@ -168,6 +203,8 @@ class BGScene extends Phaser.Scene {
   }
   update() {
     const gs = this.scene.get('game'); if (!gs || !gs.cameras || !gs.camX) return;
+    const room = !!(gs.L && gs.L.theme);
+    for (const o of [this.far, this.mid, this.glow, this.spores]) o.setVisible(!room);
     const x = gs.camX, y = gs.camY;
     this.far.tilePositionX = x * 0.12; this.far.tilePositionY = (y - 600) * 0.05;
     this.mid.tilePositionX = x * 0.3; this.mid.tilePositionY = (y - 600) * 0.12;
@@ -178,7 +215,7 @@ class BGScene extends Phaser.Scene {
 // ---------- ИГРОВАЯ СЦЕНА ----------
 class GameScene extends Phaser.Scene {
   constructor() { super('game'); }
-  init(data) { this.startData = data; this.mode = data.mode || 'story'; this.nPlayers = data.players || 1; this.online = data.online || null; this.localIdx = data.online === 'guest' ? 1 : 0; }
+  init(data) { this.startData = data; this.mode = data.mode || 'story'; this.bossKind = data.boss || 'misha'; this.nPlayers = data.players || 1; this.online = data.online || null; this.localIdx = data.online === 'guest' ? 1 : 0; }
   auth() { return this.online !== 'guest'; }
   sendEv(o) { if (this.online) Net.send({ t: 'ev', ...o }); }
   sfx(n) { Snd.play(n); if (this.online === 'host') this.sendEv({ k: 'snd', n }); }
@@ -191,13 +228,14 @@ class GameScene extends Phaser.Scene {
     genBackgrounds(this);
     this.scene.launch('bg'); this.scene.launch('ui');
     this.enemies = []; this.boss = null;
-    this.L = this.mode === 'bosstest' ? buildMishaArena() : buildLevel();
-    this.misha = null; this.crates = null;
+    const arenas = { misha: buildMishaArena, vladik: buildVladikArena, tima: buildTimaArena };
+    this.L = this.mode === 'bosstest' ? (arenas[this.bossKind] || buildMishaArena)() : buildLevel();
+    this.misha = null; this.crates = null; this.vladik = null; this.tima = null; this.curtains = null; this.puddles = null; this.repoT = 0;
     const L = this.L;
     this.grid = L.grid;
     // карта
-    this.chunks = drawLevelChunks(this, L);
-    for (const c of this.chunks) this.add.image(c.x, 0, c.key).setOrigin(0).setDepth(1);
+    this.chunks = L.theme === 'class' ? drawClassroom(this, L) : L.theme === 'den' ? drawDen(this, L) : drawLevelChunks(this, L);
+    for (const c of this.chunks) this.add.image(c.x, 0, c.key).setOrigin(0).setDepth(L.theme ? 0.2 : 1);
 
     // таблички
     for (const s of L.signs) {
@@ -253,7 +291,11 @@ class GameScene extends Phaser.Scene {
     this.enemies = []; this.spawnEnemies();
     this.bossDead = this.mode === 'bosstest'; this.makeBoss();
     this.projs = []; this.beadsArr = [];
-    if (this.mode === 'bosstest') this.setupMishaArena();
+    if (this.mode === 'bosstest') {
+      if (this.bossKind === 'vladik') this.setupVladikArena();
+      else if (this.bossKind === 'tima') this.setupTimaArena();
+      else this.setupMishaArena();
+    }
     this.beads = 0; this.deaths = 0; this.timeSec = 0;
 
     // ввод
@@ -269,9 +311,11 @@ class GameScene extends Phaser.Scene {
     this.acc = 0; this.hitstop = 0; this.paused = false; this.wiping = false; this.won = false; this.animT = 0;
     this.areaIdx = -1; this.events.emit('ready');
     this.input.keyboard.on('keydown-ESC', () => this.togglePause());
-    this.input.keyboard.on('keydown', () => Snd.init());
+    this.input.keyboard.on('keydown', (e) => { Snd.init(); this.onKeyTap(e); });
   }
   ui() { return this.scene.get('ui'); }
+  testBoss() { return this.misha || this.vladik || this.tima; }
+  speedMul() { return 1; }
   togglePause() {
     if (this.won) return;
     if (this.online) { const u = this.ui(); u.showPause(!u.pause.visible); return; } // по сети мир не останавливаем
@@ -287,11 +331,25 @@ class GameScene extends Phaser.Scene {
     this.kbArrows = set({ left: [K.LEFT], right: [K.RIGHT], up: [K.UP], down: [K.DOWN], jump: [K.Z], atk: [K.X], dash: [K.C], heal: [K.V], bomb: [K.B] });
     this.kb2 = set({ left: [K.LEFT], right: [K.RIGHT], up: [K.UP], down: [K.DOWN], jump: [K.NUMPAD_ONE, K.FORWARD_SLASH], atk: [K.NUMPAD_TWO, K.PERIOD], dash: [K.NUMPAD_THREE, K.COMMA], heal: [K.NUMPAD_ZERO, K.M], bomb: [K.NUMPAD_FOUR, K.N] });
   }
+  keySets(i) {
+    if (this.online && i !== this.localIdx) return [];
+    return (this.nPlayers === 1 || this.online) ? [this.kb1, this.kbArrows] : (i === 0 ? [this.kb1] : [this.kb2]);
+  }
+  // нажатия ловим событиями: короткий тап не теряется даже при низком FPS
+  onKeyTap(e) {
+    if (e.repeat || !this.players) return;
+    for (const p of this.players) {
+      if (p.remote) continue;
+      for (const set of this.keySets(p.i)) for (const act of ['jump', 'atk', 'dash', 'heal', 'bomb', 'up']) {
+        if (set[act] && set[act].some((k) => k.keyCode === e.keyCode)) { const pd = p.pend || (p.pend = {}); pd[act + 'P'] = true; p.tapHold = p.tapHold || {}; p.tapHold[act] = 2; }
+      }
+    }
+  }
   rawInput(i) {
     const out = { left: false, right: false, up: false, down: false, jump: false, atk: false, dash: false, heal: false, bomb: false };
     const solo = this.nPlayers === 1 || !!this.online;
     if (this.online && i !== this.localIdx) return out;
-    const sets = solo ? [this.kb1, this.kbArrows] : (i === 0 ? [this.kb1] : [this.kb2]);
+    const sets = this.keySets(i);
     for (const s of sets) for (const n in out) if (s[n] && s[n].some((key) => key.isDown)) out[n] = true;
     const pads = this.input.gamepad ? this.input.gamepad.gamepads.filter((p) => p && p.connected !== false) : [];
     let pad = null;
@@ -402,6 +460,7 @@ class GameScene extends Phaser.Scene {
     for (const p of this.players) {
       if (p.remote) continue;
       const r = this.rawInput(p.i), pr = p.prev, pd = p.pend || (p.pend = {});
+      if (p.tapHold) for (const a in p.tapHold) if (p.tapHold[a] > 0) { r[a] = true; p.tapHold[a]--; }
       pd.jumpP ||= r.jump && !pr.jump; pd.atkP ||= r.atk && !pr.atk; pd.dashP ||= r.dash && !pr.dash; pd.healP ||= r.heal && !pr.heal; pd.upP ||= r.up && !pr.up; pd.bombP ||= r.bomb && !pr.bomb;
       p.raw = r; p.prev = r;
     }
@@ -435,6 +494,8 @@ class GameScene extends Phaser.Scene {
       for (const e of this.enemies) if (!e.dead) this.stepEnemy(e, dt);
       this.stepBoss(dt);
       if (this.misha) this.stepMisha(dt);
+      if (this.vladik) this.stepVladik(dt);
+      if (this.tima) this.stepTima(dt);
       this.stepProjs(dt);
       this.stepBeads(dt);
     } else this.guestProjHits();
@@ -449,6 +510,9 @@ class GameScene extends Phaser.Scene {
       if (p.inv <= 0 && (b.state !== 'sleep' && b.state !== 'dead' && b.state !== 'gone') && overlap(pr, inset(b, 8))) this.hurtPlayer(p, 1, b.x + b.w / 2);
       const m = this.misha;
       if (m && p.inv <= 0 && !['dead', 'intro', 'cough'].includes(m.state) && overlap(pr, inset(m, 8))) this.hurtPlayer(p, 1, m.x + m.w / 2);
+      const vb = this.vladik || this.tima;
+      if (vb && p.inv <= 0 && !['dead', 'intro'].includes(vb.state) && overlap(pr, inset(vb, 8))) this.hurtPlayer(p, 1, vb.x + vb.w / 2);
+      if (this.curtains && p.inv <= 0) for (const c of this.curtains) if (c.slime > 0 && overlap(pr, this.curtainHazard(c))) { this.hurtPlayer(p, 1, c.x + c.w / 2); break; }
     }
     // выход
     if (auth && this.exitR && this.bossDead && !this.won && this.players.some((p) => !p.downed && overlap(p, this.exitR))) this.win();
@@ -472,7 +536,7 @@ class GameScene extends Phaser.Scene {
       p.trail.push({ x: p.x + 7, y: p.y + 26, a: 1, f: p.face });
       if (p.dashT <= 0) p.vx = dir * P.RUN;
     } else {
-      if (p.wjLock <= 0) { p.vx = dir * P.RUN + p.kbx; if (dir) p.face = dir; }
+      if (p.wjLock <= 0) { p.vx = dir * P.RUN * this.speedMul(p) + p.kbx; if (dir) p.face = dir; }
       p.kbx *= 0.8; if (Math.abs(p.kbx) < 5) p.kbx = 0;
       p.wallDir = 0;
       if (!p.onGround && p.vy > 0) { if (dir === 1 && this.touchWall(p, 1)) p.wallDir = 1; else if (dir === -1 && this.touchWall(p, -1)) p.wallDir = -1; }
@@ -553,9 +617,19 @@ class GameScene extends Phaser.Scene {
       if (local) { if (p.atkDir === 'd') pogo(); else if (p.atkDir === 'f') p.kbx = -p.face * 170; }
     }
     if (this.misha && this.mishaNeedle(p, box) && local) { if (p.atkDir === 'd') pogo(); else if (p.atkDir === 'f') p.kbx = -p.face * 190; }
-    for (const pr of this.projs) if ((pr.kind === 'spore' || pr.kind === 'letter') && !pr.dead && overlap(box, pr)) {
-      if (auth) { pr.dead = true; if (pr.kind === 'letter') { this.paperAt(6, pr.x + 11, pr.y + 13); this.sfx('clink'); } else this.burst(6, pr.x + 6, pr.y + 6, 0xc7f08a); }
-      else if (pr.kind === 'letter') { pr.dead = true; this.sendEv({ k: 'cut', x: Math.round(pr.x), y: Math.round(pr.y) }); }
+    for (const [vb, fn] of [[this.vladik, 'damageVladik'], [this.tima, 'damageTima']]) {
+      if (!vb || p.atkHits.has(vb) || ['dead', 'intro'].includes(vb.state) || !overlap(box, vb)) continue;
+      p.atkHits.add(vb);
+      if (auth) this[fn](p); else { vb.flash = 0.09; this.hitstop = 0.04; Snd.play('hit'); }
+      if (local) { if (p.atkDir === 'd') pogo(); else if (p.atkDir === 'f') p.kbx = -p.face * 170; }
+    }
+    for (const pr of this.projs) if (SLASH_KINDS.has(pr.kind) && !pr.dead && overlap(box, pr)) {
+      if (auth) {
+        pr.dead = true;
+        if (pr.kind === 'letter') { this.paperAt(6, pr.x + 11, pr.y + 13); this.sfx('clink'); }
+        else if (pr.kind === 'spore') this.burst(6, pr.x + 6, pr.y + 6, 0xc7f08a);
+        else { this.burst(6, pr.x + pr.w / 2, pr.y + pr.h / 2, 0xffd47a); this.sfx('clink'); }
+      } else if (pr.kind !== 'spore') { pr.dead = true; this.sendEv({ k: 'cut', kind: pr.kind, x: Math.round(pr.x), y: Math.round(pr.y) }); }
       if (local && p.atkDir === 'd') pogo();
     }
     if (local && p.atkDir === 'd' && !p.pogoed && this.rectHitsTile(box, SPIKE, 0.7)) { pogo(); this.parts.setParticleTint(0xffffff); this.parts.explode(5, box.x + 18, box.y + 30); }
@@ -605,6 +679,8 @@ class GameScene extends Phaser.Scene {
     for (const pr of this.projs) pr.dead = true;
     if (!this.bossDead) { this.makeBoss(); if (this.gates[0]) this.setGate(this.gates[0], false); this.ui().bossBar(false); }
     if (this.misha && this.misha.state !== 'dead') { this.makeMisha(); this.ui().bossBar(false); }
+    if (this.vladik && this.vladik.state !== 'dead') { this.makeVladik(); this.ui().bossBar(false); }
+    if (this.tima && this.tima.state !== 'dead') { this.repoT = 0; this.makeTima(); this.sendEv({ k: 'repo', on: 0 }); this.ui().bossBar(false); }
     this.sendEv({ k: 'respawn', x: this.respawn.x, y: this.respawn.y });
     this.respawnLocal();
   }
@@ -833,8 +909,13 @@ class GameScene extends Phaser.Scene {
       } else if (pr.kind === 'letter') this.stepLetter(pr, dt);
       else if (pr.kind === 'bigletter') this.stepBigLetter(pr, dt);
       else if (pr.kind === 'bomb') { this.stepBomb(pr, dt); continue; }
+      else if (pr.kind === 'clef') this.stepClef(pr, dt);
+      else if (pr.kind === 'note') this.stepNote(pr, dt);
+      else if (pr.kind === 'drip') this.stepDrip(pr, dt);
+      else if (pr.kind === 'ringfx') { this.stepTimaProj(pr, dt); continue; }
+      else if (this.tima) this.stepTimaProj(pr, dt);
       if (pr.dead) continue;
-      for (const p of this.players) if (!p.remote && !p.downed && p.inv <= 0 && overlap(inset(p, 2), pr)) { this.hurtPlayer(p, 1, pr.x + pr.w / 2); if (pr.kind !== 'wave') pr.dead = true; }
+      for (const p of this.players) if (!p.remote && !p.downed && p.inv <= 0 && overlap(inset(p, 2), pr)) { this.hurtPlayer(p, 1, pr.x + pr.w / 2); if (!PERSIST_KINDS.has(pr.kind)) pr.dead = true; }
     }
     this.projs = this.projs.filter((pr) => !pr.dead);
   }
@@ -859,7 +940,11 @@ class GameScene extends Phaser.Scene {
   win() {
     this.won = true; Snd.play('win');
     const s = { time: this.timeSec, beads: this.beads, deaths: this.deaths, players: this.nPlayers };
-    if (this.mode === 'bosstest') { s.title = 'Миша Додик повержен'; s.bag = this.bagHits; }
+    if (this.mode === 'bosstest') {
+      if (this.vladik) { s.title = 'Владик Скрипка повержен'; s.hits = this.needleHits; }
+      else if (this.tima) { s.title = 'Тима Пиво повержен'; s.hits = this.timaHits; }
+      else { s.title = 'Миша Додик повержен'; s.bag = this.bagHits; }
+    }
     this.sendEv({ k: 'win', s });
     this.ui().victory(s);
   }
@@ -874,11 +959,13 @@ class GameScene extends Phaser.Scene {
   packSnap() {
     const r = Math.round, b = this.boss;
     const st = (e) => (e.state === 'wind' || e.state === 'charge') ? 1 : e.state === 'stun' ? 2 : 0;
-    const kc = { spore: 0, wave: 1, rock: 2, letter: 3, bigletter: 4, bomb: 5 }, mi = this.misha;
+    const mi = this.misha, vl = this.vladik, tm = this.tima, r10 = (x) => Math.round(x * 10) / 10;
     return { t: 's',
       e: this.enemies.map((e) => [r(e.x), r(e.y), e.face, e.dead ? 1 : 0, e.flash > 0 ? 1 : 0, st(e)]),
       b: [r(b.x), r(b.y), b.face, b.hp, b.maxHp, b.state, b.flash > 0 ? 1 : 0, Math.round(b.t * 100) / 100],
-      pr: this.projs.map((q) => [kc[q.kind], r(q.x), r(q.y), r(q.vx), r(q.vy), q.delay > 0 ? 1 : 0, q.ch || '']),
+      pr: this.projs.map((q) => [NET_KINDS.indexOf(q.kind), r(q.x), r(q.y), r(q.vx), r(q.vy), q.delay > 0 ? 1 : 0, q.ch || (q.kind === 'ringfx' ? r(q.r) : '')]),
+      vl: vl ? [r(vl.x), r(vl.y), vl.face, vl.hp, vl.maxHp, vl.state, vl.flash > 0 ? 1 : 0, r10(vl.t), vl.sayT > 0 ? vl.say : '', this.curtains.map((c) => [r10(c.slime), Math.round(c.wet * 100) / 100])] : null,
+      tm: tm ? [r(tm.x), r(tm.y), tm.face, tm.hp, tm.maxHp, tm.state, tm.flash > 0 ? 1 : 0, r10(tm.t), tm.sayT > 0 ? tm.say : '', r10(tm.hyper), this.repo ? 1 : 0, this.puddles.map((q) => [r(q.x), q.w, r(q.y), r10(q.t)])] : null,
       mi: mi ? [r(mi.x), r(mi.y), mi.face, mi.hp, mi.maxHp, mi.state, mi.flash > 0 ? 1 : 0, Math.round(mi.t * 100) / 100, mi.sayT > 0 ? mi.say : ''] : null,
       bd: this.beadsArr.map((d) => [r(d.x), r(d.y)]), bc: this.beads,
       g: this.gates.map((gt) => (gt.closed ? 1 : 0)), bD: this.bossDead ? 1 : 0, rs: [r(this.respawn.x), r(this.respawn.y)] };
@@ -909,8 +996,23 @@ class GameScene extends Phaser.Scene {
     const b = this.boss, B = m.b;
     if (b.tx == null || Math.abs(b.x - B[0]) > 140) { b.x = B[0]; b.y = B[1]; }
     b.tx = B[0]; b.ty = B[1]; b.face = B[2]; b.hp = B[3]; b.maxHp = B[4]; b.state = B[5]; if (B[6]) b.flash = 0.09; b.t = B[7];
-    const sz = [[12, 12], [24, 18], [16, 16], [22, 26], [56, 60], [12, 12]], kinds = ['spore', 'wave', 'rock', 'letter', 'bigletter', 'bomb'];
-    this.projs = m.pr.map((a) => ({ kind: kinds[a[0]], x: a[1], y: a[2], vx: a[3], vy: a[4], delay: a[5] ? 1 : 0, ch: a[6], w: sz[a[0]][0], h: sz[a[0]][1], life: 1 }));
+    const old = this.projs;
+    this.projs = m.pr.map((a, i) => {
+      const q = { kind: NET_KINDS[a[0]], x: a[1], y: a[2], vx: a[3], vy: a[4], delay: a[5] ? 1 : 0, ch: a[6], w: NET_SIZES[a[0]][0], h: NET_SIZES[a[0]][1], life: 1 };
+      if (q.kind === 'ringfx') q.r = a[6];
+      q.rot = old[i] && old[i].kind === q.kind ? old[i].rot || 0 : 0;
+      return q;
+    });
+    const syncBoss = (bb, A, name, flagKey) => {
+      if (bb.tx == null || Math.abs(bb.x - A[0]) > 140) { bb.x = A[0]; bb.y = A[1]; }
+      bb.tx = A[0]; bb.ty = A[1]; bb.face = A[2]; bb.hp = A[3]; bb.maxHp = A[4]; bb.state = A[5]; if (A[6]) bb.flash = 0.09; bb.t = A[7];
+      if (A[8]) { bb.say = A[8]; bb.sayT = 0.2; }
+      const show = bb.state !== 'dead';
+      if (show !== !!this[flagKey]) { this[flagKey] = show; this.ui().bossBar(show, name); }
+      if (show) this.ui().bossBar(true, null, Math.max(0, bb.hp) / bb.maxHp);
+    };
+    if (m.vl && this.vladik) { syncBoss(this.vladik, m.vl, 'Владик Скрипка', '_vb'); m.vl[9].forEach((c, i) => { if (this.curtains[i]) { this.curtains[i].slime = c[0]; this.curtains[i].wet = c[1]; } }); }
+    if (m.tm && this.tima) { syncBoss(this.tima, m.tm, 'Тима Пиво', '_tb'); this.tima.hyper = m.tm[9]; this.setRepo(!!m.tm[10]); this.puddles = m.tm[11].map((q) => ({ x: q[0], w: q[1], y: q[2], t: q[3] })); }
     if (m.mi && this.misha) {
       const M = m.mi, mm = this.misha;
       if (mm.tx == null || Math.abs(mm.x - M[0]) > 140) { mm.x = M[0]; mm.y = M[1]; }
@@ -936,10 +1038,14 @@ class GameScene extends Phaser.Scene {
       case 'bomb': if (this.auth() && this.L.crates) this.projs.push({ kind: 'bomb', ...m.b, w: 12, h: 12, life: 3, owner: m.i }); break;
       case 'cut':
         if (this.auth()) {
-          const q = this.projs.find((pr) => pr.kind === 'letter' && !pr.dead && Math.abs(pr.x - m.x) < 40 && Math.abs(pr.y - m.y) < 40);
-          if (q) { q.dead = true; this.paperAt(6, q.x + 11, q.y + 13); this.sfx('clink'); }
+          const kind = m.kind || 'letter';
+          const q = this.projs.find((pr) => pr.kind === kind && !pr.dead && Math.abs(pr.x - m.x) < 40 && Math.abs(pr.y - m.y) < 40);
+          if (q) { q.dead = true; if (kind === 'letter') this.paperAt(6, q.x + 11, q.y + 13); else this.burst(6, q.x + q.w / 2, q.y + q.h / 2, 0xffd47a); this.sfx('clink'); }
         }
         break;
+      case 'repo': if (!this.auth() && this.tima) this.setRepo(!!m.on); break;
+      case 'bankrupt': if (this.tima) this.bankruptSilk(); break;
+      case 'foam': if (this.foam) this.foam.explode(m.n, m.x, m.y); break;
       case 'burst': this.parts.setParticleTint(m.c); this.parts.explode(m.n, m.x, m.y); break;
       case 'dust': this.dust.explode(m.n, m.x, m.y); break;
       case 'shake': this.cameras.main.shake(m.d, m.i); break;
@@ -977,11 +1083,14 @@ class GameScene extends Phaser.Scene {
       const k2 = 1 - Math.exp(-dt * 14);
       for (const e of this.enemies) if (!e.dead && e.tx != null) { e.x += (e.tx - e.x) * k2; e.y += (e.ty - e.y) * k2; e.flash -= dt; }
       const b = this.boss; if (b.tx != null) { b.x += (b.tx - b.x) * k2; b.y += (b.ty - b.y) * k2; b.flash -= dt; }
-      const mm = this.misha; if (mm && mm.tx != null) { mm.x += (mm.tx - mm.x) * k2; mm.y += (mm.ty - mm.y) * k2; mm.flash -= dt; mm.sayT -= dt; }
+      for (const mm of [this.misha, this.vladik, this.tima]) if (mm && mm.tx != null) { mm.x += (mm.tx - mm.x) * k2; mm.y += (mm.ty - mm.y) * k2; mm.flash -= dt; mm.sayT -= dt; }
       for (const pr of this.projs) {
         if (pr.delay) continue;
+        if (pr.kind === 'ringfx') { pr.r += 900 * dt; continue; }
+        if (pr.kind === 'pad') continue;
+        if (pr.kind === 'clef' || pr.kind === 'bottle') pr.rot = (pr.rot || 0) + dt * 10;
         if (pr.kind === 'spore') pr.vy += 700 * dt;
-        else if (pr.kind === 'rock' || pr.kind === 'bigletter' || pr.kind === 'bomb') pr.vy = Math.min(pr.vy + 1100 * dt, 800);
+        else if (['rock', 'bigletter', 'bomb', 'note', 'drip', 'bottle', 'box', 'stamp'].includes(pr.kind)) pr.vy = Math.min(pr.vy + 1100 * dt, 800);
         pr.x += pr.vx * dt; pr.y += pr.vy * dt;
         if (pr.kind === 'wave' && Math.random() < 0.3) this.dust.explode(1, pr.x + pr.w / 2, pr.y + pr.h);
       }
@@ -990,7 +1099,7 @@ class GameScene extends Phaser.Scene {
   guestProjHits() {
     for (const p of this.players) {
       if (p.remote || p.downed || p.inv > 0) continue;
-      for (const pr of this.projs) if (!pr.dead && !pr.delay && pr.kind !== 'bomb' && overlap(inset(p, 2), pr)) { this.hurtPlayer(p, 1, pr.x + pr.w / 2); if (pr.kind !== 'wave') pr.dead = true; break; }
+      for (const pr of this.projs) if (!pr.dead && !pr.delay && pr.kind !== 'bomb' && pr.kind !== 'ringfx' && overlap(inset(p, 2), pr)) { this.hurtPlayer(p, 1, pr.x + pr.w / 2); if (!PERSIST_KINDS.has(pr.kind)) pr.dead = true; break; }
     }
     this.projs = this.projs.filter((q) => !q.dead);
   }
@@ -1021,7 +1130,7 @@ class GameScene extends Phaser.Scene {
     const pts = this.alivePlayers().length ? this.alivePlayers() : this.players;
     let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
     for (const p of pts) { x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x + p.w); y0 = Math.min(y0, p.y); y1 = Math.max(y1, p.y + p.h); }
-    const mi = this.misha, withBoss = mi && mi.state !== 'dead';
+    const mi = this.testBoss(), withBoss = mi && mi.state !== 'dead';
     if (withBoss) { x0 = Math.min(x0, mi.x - 20); x1 = Math.max(x1, mi.x + mi.w + 20); y0 = Math.min(y0, mi.y - 40); }
     let tx = (x0 + x1) / 2, ty = (y0 + y1) / 2 - 30;
     if (pts.length === 1 && !withBoss) tx += pts[0].face * 50;
@@ -1050,6 +1159,8 @@ class GameScene extends Phaser.Scene {
     for (const e of this.enemies) if (!e.dead) this.drawEnemy(e, now);
     this.drawBoss(now);
     if (this.misha) { this.drawMisha(now); this.drawLetters(now); }
+    if (this.vladik) { this.drawCurtains(now); this.drawVladik(now); }
+    if (this.tima) this.drawTima(now);
     // удары
     for (const p of this.players) {
       if (p.downed || p.atkT <= 0) continue;
@@ -1063,7 +1174,7 @@ class GameScene extends Phaser.Scene {
     }
     // снаряды
     for (const pr of this.projs) {
-      if (pr.kind === 'letter' || pr.kind === 'bigletter' || pr.kind === 'bomb') continue;
+      if (!STORY_KINDS.has(pr.kind)) continue;
       if (pr.delay > 0) {
         fx.fillStyle(0x8fae9c, 0.5); fx.fillTriangle(pr.x + 2, 19 * T, pr.x + 14, 19 * T, pr.x + 8, 19 * T + 8); continue;
       }
@@ -1078,6 +1189,8 @@ class GameScene extends Phaser.Scene {
         fx.fillStyle(0x2b3d36, 1); fx.fillRoundedRect(pr.x, pr.y, 16, 16, 4); fx.fillStyle(0x3b7448, 1); fx.fillRect(pr.x + 2, pr.y, 12, 3);
       }
     }
+    if (this.vladik) this.drawVladikProjs(now);
+    if (this.tima) { this.drawTimaProjs(now); this.drawStampLabels(); }
     // бусины
     for (const bd of this.beadsArr) {
       fx.fillStyle(0xffd47a, 0.25); fx.fillCircle(bd.x + 4, bd.y + 4, 7);
@@ -1283,6 +1396,7 @@ class UIScene extends Phaser.Scene {
     const m = Math.floor(s.time / 60), sec = Math.floor(s.time % 60).toString().padStart(2, '0');
     const t1 = this.add.text(VW / 2, 160, s.title || 'Глава I пройдена', { fontFamily: D, fontSize: '56px', color: '#e8e2cf', fontStyle: '700' }).setOrigin(0.5).setShadow(0, 0, '#9ff0c8', 16, false, true);
     const lines = s.bag != null ? `Время боя: ${m}:${sec}\nДымовух в рюкзаке: ${s.bag}\nОбрывов нити: ${s.deaths}\nТкачей: ${s.players}`
+      : s.hits != null ? `Время боя: ${m}:${sec}\nУдаров иглой: ${s.hits}\nОбрывов нити: ${s.deaths}\nТкачей: ${s.players}`
       : `Время: ${m}:${sec}\nБусин собрано: ${s.beads}\nОбрывов нити: ${s.deaths}\nТкачей: ${s.players}`;
     const t2 = this.add.text(VW / 2, 260, lines, { fontFamily: F, fontSize: '18px', color: '#b9d4c8', align: 'center', lineSpacing: 8 }).setOrigin(0.5, 0);
     const t3 = this.add.text(VW / 2, 440, this.gs.online ? 'Enter — в главное меню' : 'Enter — в главное меню   ·   R — ещё раз', { fontFamily: F, fontSize: '15px', color: '#ffe3a3' }).setOrigin(0.5);

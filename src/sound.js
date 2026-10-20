@@ -52,6 +52,17 @@ const Snd = {
       case 'cough': [0, 160, 320].forEach((d) => setTimeout(() => { this.hiss(0.12, 0.2, 900, 1.5); this.tone('sawtooth', 180, 120, 0.1, 0.06); }, d)); break;
       case 'pickup': this.tone('sine', 660, 990, 0.12, 0.1); break;
       case 'letter': this.tone('triangle', 900 + Math.random() * 300, 500, 0.08, 0.04); this.hiss(0.06, 0.05, 3000, 2); break;
+      case 'violin': { const c = this.ctx, t = c.currentTime, o = c.createOscillator(), l = c.createOscillator(), lg = c.createGain(), g = c.createGain();
+        o.type = 'sawtooth'; o.frequency.setValueAtTime(660, t); o.frequency.linearRampToValueAtTime(990, t + 0.35); l.frequency.value = 7; lg.gain.value = 14;
+        l.connect(lg); lg.connect(o.frequency); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.07, t + 0.05); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
+        o.connect(g); g.connect(this.master); o.start(t); l.start(t); o.stop(t + 0.55); l.stop(t + 0.55); break; }
+      case 'squish': this.hiss(0.35, 0.18, 260, 2.5); this.tone('sine', 140, 70, 0.3, 0.12); break;
+      case 'glug': [0, 220, 440].forEach((d) => setTimeout(() => this.tone('sine', 220, 140, 0.15, 0.12), d)); break;
+      case 'burp': this.tone('sawtooth', 110, 70, 0.6, 0.18); this.hiss(0.5, 0.06, 200, 0.6); break;
+      case 'glass': this.tone('triangle', 2600, 1800, 0.12, 0.08); this.hiss(0.2, 0.12, 4000, 2); break;
+      case 'coin': [0, 90].forEach((d, i) => setTimeout(() => this.tone('square', i ? 1320 : 990, i ? 1320 : 990, 0.12, 0.05), d)); break;
+      case 'sparkle': for (let i = 0; i < 5; i++) setTimeout(() => this.tone('sine', 1500 + Math.random() * 1500, 2500, 0.1, 0.04), i * 60); break;
+      case 'buzz': this.tone('square', 120, 120, 0.35, 0.05); this.tone('square', 123, 123, 0.35, 0.05); break;
       case 'win': [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => this.tone('triangle', f, f, 0.5, 0.12), i * 140)); break;
     }
   },

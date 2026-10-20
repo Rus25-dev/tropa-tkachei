@@ -410,6 +410,17 @@ const Snd = {
       case 'cough': [0, 160, 320].forEach((d) => setTimeout(() => { this.hiss(0.12, 0.2, 900, 1.5); this.tone('sawtooth', 180, 120, 0.1, 0.06); }, d)); break;
       case 'pickup': this.tone('sine', 660, 990, 0.12, 0.1); break;
       case 'letter': this.tone('triangle', 900 + Math.random() * 300, 500, 0.08, 0.04); this.hiss(0.06, 0.05, 3000, 2); break;
+      case 'violin': { const c = this.ctx, t = c.currentTime, o = c.createOscillator(), l = c.createOscillator(), lg = c.createGain(), g = c.createGain();
+        o.type = 'sawtooth'; o.frequency.setValueAtTime(660, t); o.frequency.linearRampToValueAtTime(990, t + 0.35); l.frequency.value = 7; lg.gain.value = 14;
+        l.connect(lg); lg.connect(o.frequency); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.07, t + 0.05); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
+        o.connect(g); g.connect(this.master); o.start(t); l.start(t); o.stop(t + 0.55); l.stop(t + 0.55); break; }
+      case 'squish': this.hiss(0.35, 0.18, 260, 2.5); this.tone('sine', 140, 70, 0.3, 0.12); break;
+      case 'glug': [0, 220, 440].forEach((d) => setTimeout(() => this.tone('sine', 220, 140, 0.15, 0.12), d)); break;
+      case 'burp': this.tone('sawtooth', 110, 70, 0.6, 0.18); this.hiss(0.5, 0.06, 200, 0.6); break;
+      case 'glass': this.tone('triangle', 2600, 1800, 0.12, 0.08); this.hiss(0.2, 0.12, 4000, 2); break;
+      case 'coin': [0, 90].forEach((d, i) => setTimeout(() => this.tone('square', i ? 1320 : 990, i ? 1320 : 990, 0.12, 0.05), d)); break;
+      case 'sparkle': for (let i = 0; i < 5; i++) setTimeout(() => this.tone('sine', 1500 + Math.random() * 1500, 2500, 0.1, 0.04), i * 60); break;
+      case 'buzz': this.tone('square', 120, 120, 0.35, 0.05); this.tone('square', 123, 123, 0.35, 0.05); break;
       case 'win': [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => this.tone('triangle', f, f, 0.5, 0.12), i * 140)); break;
     }
   },
@@ -485,7 +496,7 @@ const Lobby = {
   },
   selectLink() { const r = document.createRange(); r.selectNodeContents(document.getElementById('lb-link')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); },
   show() {
-    document.getElementById('lb-title').textContent = this.mode === 'bosstest' ? 'Босс-тест по сети' : 'Вдвоём по сети';
+    document.getElementById('lb-title').textContent = this.mode === 'bosstest' ? 'Босс-тест по сети: ' + (this.bossName || '') : 'Вдвоём по сети';
     this.el.hidden = false; this.status(''); document.getElementById('lb-hostbox').hidden = true;
     if (this.room) { document.getElementById('lb-code').value = this.room; const r = this.room; this.room = null; this.doJoin(r); }
   },
@@ -504,8 +515,8 @@ const Lobby = {
         this.status('Ждём напарника. Отправьте ему код или ссылку.', 'wait');
       } else if (ev === 'connected') {
         this.status('Напарник подключился!', 'ok');
-        const mode = this.mode || 'story';
-        setTimeout(() => { Net.send({ t: 'start', mode }); this.start('host', mode); }, 400);
+        const mode = this.mode || 'story', boss = this.boss || 'misha';
+        setTimeout(() => { Net.send({ t: 'start', mode, boss }); this.start('host', mode, boss); }, 400);
       } else if (ev === 'error') this.status(Net.errText(d), 'err');
     });
   },
@@ -518,14 +529,14 @@ const Lobby = {
     });
   },
   route(m) {
-    if (m && m.t === 'start' && Net.role === 'guest') { this.start('guest', m.mode); return; }
+    if (m && m.t === 'start' && Net.role === 'guest') { this.start('guest', m.mode, m.boss); return; }
     const gs = window.__game && window.__game.scene.getScene('game');
     if (gs && gs.sys.isActive() && gs.onNet) gs.onNet(m);
   },
-  start(role, mode) {
+  start(role, mode, boss) {
     this.hide(false);
     const menu = window.__game.scene.getScene('menu');
-    if (menu && menu.sys.isActive()) menu.goOnline(role, mode);
+    if (menu && menu.sys.isActive()) menu.goOnline(role, mode, boss);
   },
 };
 
@@ -542,6 +553,16 @@ const PAL = [
   { name: 'Ярь', tag: 'Ta', cloak: 0xd8862a, dark: 0x8a4f16, accent: 0xffd9a0, hex: '#ffc46e' },
 ];
 const MASK = 0xe8e2cf, INK = 0x10141a;
+const PERSIST_KINDS = new Set(['wave', 'rwave', 'pad', 'stamp', 'box', 'clef']);
+const SLASH_KINDS = new Set(['spore', 'letter', 'note', 'bottle']);
+const STORY_KINDS = new Set(['spore', 'wave', 'rock']);
+const NET_KINDS = ['spore', 'wave', 'rock', 'letter', 'bigletter', 'bomb', 'clef', 'note', 'drip', 'bottle', 'pad', 'rwave', 'ringfx', 'box', 'stamp'];
+const NET_SIZES = [[12, 12], [24, 18], [16, 16], [22, 26], [56, 60], [12, 12], [28, 40], [14, 18], [8, 10], [10, 22], [26, 18], [24, 18], [0, 0], [36, 22], [80, 44]];
+const BOSSES = [
+  { id: 'misha', name: 'Миша Додик', about: 'Швыряется печатными буквами. Бей дымовыми бомбами в рюкзак.' },
+  { id: 'vladik', name: 'Владик Скрипка', about: 'Кидает скрипичные ключи и мажет шторы слизью. Бей иглой.' },
+  { id: 'tima', name: 'Тима Пиво', about: 'Пиво, банкротство, приставка и волшебная пыль. Бей иглой.' },
+];
 const KC = () => Phaser.Input.Keyboard.KeyCodes;
 
 const overlap = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
@@ -582,7 +603,7 @@ class MenuScene extends Phaser.Scene {
     mkBtn(250, '1 · Один ткач', 'клавиша 1 · геймпад A', 1);
     mkBtn(301, '2 · Двое за одним компьютером', 'клавиша 2 · геймпад Y', 2);
     mkBtn(352, '3 · Вдвоём по сети', 'клавиша 3 · комната с кодом, работает и с серым IP', 3);
-    mkBtn(403, '4 · Босс-тест: Миша Додик', 'клавиша 4 · геймпад X · сразу в бой', 4);
+    mkBtn(403, '4 · Босс-тест', 'клавиша 4 · геймпад X · три босса на выбор, сразу в бой', 4);
 
     const ctl = [
       'Игрок 1:  A D W S — ходить   Пробел — прыжок   F — удар   G — рывок   Q — лечение   R — дымовуха',
@@ -596,23 +617,35 @@ class MenuScene extends Phaser.Scene {
     this.pick = this.add.container(0, 0).setVisible(false).setDepth(10);
     const pg = this.add.graphics(); pg.fillStyle(0x030807, 0.9); pg.fillRect(0, 0, VW, VH);
     const D = '"Cormorant SC", Georgia, serif', F = '"Fira Sans", sans-serif';
-    const pt = this.add.text(VW / 2, 120, 'Босс-тест · Миша Додик', { fontFamily: D, fontSize: '44px', color: '#e8e2cf', fontStyle: '700' }).setOrigin(0.5);
-    const ps = this.add.text(VW / 2, 168, 'Он швыряется печатными буквами и бережёт рюкзак. Закиньте туда дымовые бомбы.', { fontFamily: F, fontSize: '14px', color: '#8fb8a8' }).setOrigin(0.5);
+    const pt = this.add.text(VW / 2, 84, 'Босс-тест', { fontFamily: D, fontSize: '44px', color: '#e8e2cf', fontStyle: '700' }).setOrigin(0.5);
+    this.pickIdx = 0;
+    this.bossBtns = BOSSES.map((b, i) => {
+      const t = this.add.text(VW / 2 + (i - 1) * 270, 150, b.name, { fontFamily: D, fontSize: '28px', color: '#8fb8a8', fontStyle: '700' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+      t.on('pointerdown', () => this.setPick(i));
+      return t;
+    });
+    this.pickLine = this.add.graphics();
+    const ph = this.add.text(VW / 2, 186, '← → выбрать босса', { fontFamily: F, fontSize: '12px', color: '#6f9586' }).setOrigin(0.5);
+    const ps = this.add.text(VW / 2, 222, '', { fontFamily: F, fontSize: '15px', color: '#cfe8dc' }).setOrigin(0.5);
+    this.pickAbout = ps;
     const mkPick = (y, label, fn) => {
       const t = this.add.text(VW / 2, y, label, { fontFamily: D, fontSize: '30px', color: '#cfe8dc', fontStyle: '600' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
       t.on('pointerover', () => t.setColor('#ffd47a')); t.on('pointerout', () => t.setColor('#cfe8dc')); t.on('pointerdown', fn);
       return t;
     };
-    const p1 = mkPick(250, '1 · В одиночку', () => this.go(1, 'bosstest'));
-    const p2 = mkPick(305, '2 · Вдвоём за одним компьютером', () => this.go(2, 'bosstest'));
-    const p3 = mkPick(360, '3 · Вдвоём по сети', () => this.openLobby('bosstest'));
-    const pb = mkPick(440, '← Назад (Esc)', () => this.closePick()); pb.setFontSize(22);
-    this.pick.add([pg, pt, ps, p1, p2, p3, pb]);
+    const p1 = mkPick(290, '1 · В одиночку', () => this.go(1, 'bosstest'));
+    const p2 = mkPick(343, '2 · Вдвоём за одним компьютером', () => this.go(2, 'bosstest'));
+    const p3 = mkPick(396, '3 · Вдвоём по сети', () => this.openLobby('bosstest'));
+    const pb = mkPick(470, '← Назад (Esc)', () => this.closePick()); pb.setFontSize(22);
+    this.pick.add([pg, pt, ...this.bossBtns, this.pickLine, ph, ps, p1, p2, p3, pb]);
+    this.setPick(0);
     k.on('keydown', (e) => {
       Snd.init();
       if (this.pick.visible) {
         if (e.key === '1') this.go(1, 'bosstest'); if (e.key === '2') this.go(2, 'bosstest'); if (e.key === '3') this.openLobby('bosstest');
         if (e.key === 'Escape') this.closePick();
+        if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A' || e.key === 'ф' || e.key === 'Ф') this.setPick(this.pickIdx - 1);
+        if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D' || e.key === 'в' || e.key === 'В') this.setPick(this.pickIdx + 1);
         return;
       }
       if (e.key === '1') this.go(1); if (e.key === '2') this.go(2); if (e.key === '3') this.openLobby(); if (e.key === '4') this.openPick();
@@ -621,17 +654,27 @@ class MenuScene extends Phaser.Scene {
     this.input.on('pointerdown', () => Snd.init());
     this.t = 0;
   }
+  setPick(i) {
+    this.pickIdx = (i + BOSSES.length) % BOSSES.length;
+    this.bossBtns.forEach((t, k) => t.setColor(k === this.pickIdx ? '#ffd47a' : '#8fb8a8'));
+    const t = this.bossBtns[this.pickIdx], g = this.pickLine; g.clear();
+    g.fillStyle(0xffd47a, 1); g.fillRect(t.x - t.width / 2, 168, t.width, 2);
+    this.pickAbout.setText(BOSSES[this.pickIdx].about);
+  }
   openPick() { if (this.leaving) return; Snd.init(); this.pick.setVisible(true); this.pickT = 0.3; }
   closePick() { this.pick.setVisible(false); }
-  openLobby(mode) { if (this.leaving) return; this.leaving = true; Snd.init(); Lobby.mode = mode || 'story'; Lobby.show(); }
-  goOnline(role, mode) {
+  openLobby(mode) {
+    if (this.leaving) return; this.leaving = true; Snd.init();
+    Lobby.mode = mode || 'story'; Lobby.boss = BOSSES[this.pickIdx].id; Lobby.bossName = BOSSES[this.pickIdx].name; Lobby.show();
+  }
+  goOnline(role, mode, boss) {
     Snd.play('bench'); this.cameras.main.fadeOut(450, 3, 8, 7);
-    this.time.delayedCall(460, () => this.scene.start('game', { players: 2, online: role, mode: mode || 'story' }));
+    this.time.delayedCall(460, () => this.scene.start('game', { players: 2, online: role, mode: mode || 'story', boss: boss || 'misha' }));
   }
   go(n, mode) {
     if (this.leaving) return; this.leaving = true; Snd.init(); Snd.play('bench');
     this.cameras.main.fadeOut(450, 3, 8, 7);
-    this.time.delayedCall(460, () => this.scene.start('game', { players: n, mode: mode || 'story' }));
+    this.time.delayedCall(460, () => this.scene.start('game', { players: n, mode: mode || 'story', boss: BOSSES[this.pickIdx].id }));
   }
   update(time, delta) {
     this.t += delta / 1000;
@@ -643,6 +686,9 @@ class MenuScene extends Phaser.Scene {
       if (this.pick.visible) {
         if (this.pickT > 0) continue;
         if (b(0)) this.go(1, 'bosstest'); if (b(3)) this.go(2, 'bosstest'); if (b(1)) this.closePick();
+        const lr = (pad.left ? -1 : 0) + (pad.right ? 1 : 0);
+        if (lr && !this._lrHeld) this.setPick(this.pickIdx + lr);
+        this._lrHeld = !!lr;
         continue;
       }
       if (b(0)) this.go(1);
@@ -699,6 +745,8 @@ class BGScene extends Phaser.Scene {
   }
   update() {
     const gs = this.scene.get('game'); if (!gs || !gs.cameras || !gs.camX) return;
+    const room = !!(gs.L && gs.L.theme);
+    for (const o of [this.far, this.mid, this.glow, this.spores]) o.setVisible(!room);
     const x = gs.camX, y = gs.camY;
     this.far.tilePositionX = x * 0.12; this.far.tilePositionY = (y - 600) * 0.05;
     this.mid.tilePositionX = x * 0.3; this.mid.tilePositionY = (y - 600) * 0.12;
@@ -709,7 +757,7 @@ class BGScene extends Phaser.Scene {
 // ---------- ИГРОВАЯ СЦЕНА ----------
 class GameScene extends Phaser.Scene {
   constructor() { super('game'); }
-  init(data) { this.startData = data; this.mode = data.mode || 'story'; this.nPlayers = data.players || 1; this.online = data.online || null; this.localIdx = data.online === 'guest' ? 1 : 0; }
+  init(data) { this.startData = data; this.mode = data.mode || 'story'; this.bossKind = data.boss || 'misha'; this.nPlayers = data.players || 1; this.online = data.online || null; this.localIdx = data.online === 'guest' ? 1 : 0; }
   auth() { return this.online !== 'guest'; }
   sendEv(o) { if (this.online) Net.send({ t: 'ev', ...o }); }
   sfx(n) { Snd.play(n); if (this.online === 'host') this.sendEv({ k: 'snd', n }); }
@@ -722,13 +770,14 @@ class GameScene extends Phaser.Scene {
     genBackgrounds(this);
     this.scene.launch('bg'); this.scene.launch('ui');
     this.enemies = []; this.boss = null;
-    this.L = this.mode === 'bosstest' ? buildMishaArena() : buildLevel();
-    this.misha = null; this.crates = null;
+    const arenas = { misha: buildMishaArena, vladik: buildVladikArena, tima: buildTimaArena };
+    this.L = this.mode === 'bosstest' ? (arenas[this.bossKind] || buildMishaArena)() : buildLevel();
+    this.misha = null; this.crates = null; this.vladik = null; this.tima = null; this.curtains = null; this.puddles = null; this.repoT = 0;
     const L = this.L;
     this.grid = L.grid;
     // карта
-    this.chunks = drawLevelChunks(this, L);
-    for (const c of this.chunks) this.add.image(c.x, 0, c.key).setOrigin(0).setDepth(1);
+    this.chunks = L.theme === 'class' ? drawClassroom(this, L) : L.theme === 'den' ? drawDen(this, L) : drawLevelChunks(this, L);
+    for (const c of this.chunks) this.add.image(c.x, 0, c.key).setOrigin(0).setDepth(L.theme ? 0.2 : 1);
 
     // таблички
     for (const s of L.signs) {
@@ -784,7 +833,11 @@ class GameScene extends Phaser.Scene {
     this.enemies = []; this.spawnEnemies();
     this.bossDead = this.mode === 'bosstest'; this.makeBoss();
     this.projs = []; this.beadsArr = [];
-    if (this.mode === 'bosstest') this.setupMishaArena();
+    if (this.mode === 'bosstest') {
+      if (this.bossKind === 'vladik') this.setupVladikArena();
+      else if (this.bossKind === 'tima') this.setupTimaArena();
+      else this.setupMishaArena();
+    }
     this.beads = 0; this.deaths = 0; this.timeSec = 0;
 
     // ввод
@@ -800,9 +853,11 @@ class GameScene extends Phaser.Scene {
     this.acc = 0; this.hitstop = 0; this.paused = false; this.wiping = false; this.won = false; this.animT = 0;
     this.areaIdx = -1; this.events.emit('ready');
     this.input.keyboard.on('keydown-ESC', () => this.togglePause());
-    this.input.keyboard.on('keydown', () => Snd.init());
+    this.input.keyboard.on('keydown', (e) => { Snd.init(); this.onKeyTap(e); });
   }
   ui() { return this.scene.get('ui'); }
+  testBoss() { return this.misha || this.vladik || this.tima; }
+  speedMul() { return 1; }
   togglePause() {
     if (this.won) return;
     if (this.online) { const u = this.ui(); u.showPause(!u.pause.visible); return; } // по сети мир не останавливаем
@@ -818,11 +873,25 @@ class GameScene extends Phaser.Scene {
     this.kbArrows = set({ left: [K.LEFT], right: [K.RIGHT], up: [K.UP], down: [K.DOWN], jump: [K.Z], atk: [K.X], dash: [K.C], heal: [K.V], bomb: [K.B] });
     this.kb2 = set({ left: [K.LEFT], right: [K.RIGHT], up: [K.UP], down: [K.DOWN], jump: [K.NUMPAD_ONE, K.FORWARD_SLASH], atk: [K.NUMPAD_TWO, K.PERIOD], dash: [K.NUMPAD_THREE, K.COMMA], heal: [K.NUMPAD_ZERO, K.M], bomb: [K.NUMPAD_FOUR, K.N] });
   }
+  keySets(i) {
+    if (this.online && i !== this.localIdx) return [];
+    return (this.nPlayers === 1 || this.online) ? [this.kb1, this.kbArrows] : (i === 0 ? [this.kb1] : [this.kb2]);
+  }
+  // нажатия ловим событиями: короткий тап не теряется даже при низком FPS
+  onKeyTap(e) {
+    if (e.repeat || !this.players) return;
+    for (const p of this.players) {
+      if (p.remote) continue;
+      for (const set of this.keySets(p.i)) for (const act of ['jump', 'atk', 'dash', 'heal', 'bomb', 'up']) {
+        if (set[act] && set[act].some((k) => k.keyCode === e.keyCode)) { const pd = p.pend || (p.pend = {}); pd[act + 'P'] = true; p.tapHold = p.tapHold || {}; p.tapHold[act] = 2; }
+      }
+    }
+  }
   rawInput(i) {
     const out = { left: false, right: false, up: false, down: false, jump: false, atk: false, dash: false, heal: false, bomb: false };
     const solo = this.nPlayers === 1 || !!this.online;
     if (this.online && i !== this.localIdx) return out;
-    const sets = solo ? [this.kb1, this.kbArrows] : (i === 0 ? [this.kb1] : [this.kb2]);
+    const sets = this.keySets(i);
     for (const s of sets) for (const n in out) if (s[n] && s[n].some((key) => key.isDown)) out[n] = true;
     const pads = this.input.gamepad ? this.input.gamepad.gamepads.filter((p) => p && p.connected !== false) : [];
     let pad = null;
@@ -933,6 +1002,7 @@ class GameScene extends Phaser.Scene {
     for (const p of this.players) {
       if (p.remote) continue;
       const r = this.rawInput(p.i), pr = p.prev, pd = p.pend || (p.pend = {});
+      if (p.tapHold) for (const a in p.tapHold) if (p.tapHold[a] > 0) { r[a] = true; p.tapHold[a]--; }
       pd.jumpP ||= r.jump && !pr.jump; pd.atkP ||= r.atk && !pr.atk; pd.dashP ||= r.dash && !pr.dash; pd.healP ||= r.heal && !pr.heal; pd.upP ||= r.up && !pr.up; pd.bombP ||= r.bomb && !pr.bomb;
       p.raw = r; p.prev = r;
     }
@@ -966,6 +1036,8 @@ class GameScene extends Phaser.Scene {
       for (const e of this.enemies) if (!e.dead) this.stepEnemy(e, dt);
       this.stepBoss(dt);
       if (this.misha) this.stepMisha(dt);
+      if (this.vladik) this.stepVladik(dt);
+      if (this.tima) this.stepTima(dt);
       this.stepProjs(dt);
       this.stepBeads(dt);
     } else this.guestProjHits();
@@ -980,6 +1052,9 @@ class GameScene extends Phaser.Scene {
       if (p.inv <= 0 && (b.state !== 'sleep' && b.state !== 'dead' && b.state !== 'gone') && overlap(pr, inset(b, 8))) this.hurtPlayer(p, 1, b.x + b.w / 2);
       const m = this.misha;
       if (m && p.inv <= 0 && !['dead', 'intro', 'cough'].includes(m.state) && overlap(pr, inset(m, 8))) this.hurtPlayer(p, 1, m.x + m.w / 2);
+      const vb = this.vladik || this.tima;
+      if (vb && p.inv <= 0 && !['dead', 'intro'].includes(vb.state) && overlap(pr, inset(vb, 8))) this.hurtPlayer(p, 1, vb.x + vb.w / 2);
+      if (this.curtains && p.inv <= 0) for (const c of this.curtains) if (c.slime > 0 && overlap(pr, this.curtainHazard(c))) { this.hurtPlayer(p, 1, c.x + c.w / 2); break; }
     }
     // выход
     if (auth && this.exitR && this.bossDead && !this.won && this.players.some((p) => !p.downed && overlap(p, this.exitR))) this.win();
@@ -1003,7 +1078,7 @@ class GameScene extends Phaser.Scene {
       p.trail.push({ x: p.x + 7, y: p.y + 26, a: 1, f: p.face });
       if (p.dashT <= 0) p.vx = dir * P.RUN;
     } else {
-      if (p.wjLock <= 0) { p.vx = dir * P.RUN + p.kbx; if (dir) p.face = dir; }
+      if (p.wjLock <= 0) { p.vx = dir * P.RUN * this.speedMul(p) + p.kbx; if (dir) p.face = dir; }
       p.kbx *= 0.8; if (Math.abs(p.kbx) < 5) p.kbx = 0;
       p.wallDir = 0;
       if (!p.onGround && p.vy > 0) { if (dir === 1 && this.touchWall(p, 1)) p.wallDir = 1; else if (dir === -1 && this.touchWall(p, -1)) p.wallDir = -1; }
@@ -1084,9 +1159,19 @@ class GameScene extends Phaser.Scene {
       if (local) { if (p.atkDir === 'd') pogo(); else if (p.atkDir === 'f') p.kbx = -p.face * 170; }
     }
     if (this.misha && this.mishaNeedle(p, box) && local) { if (p.atkDir === 'd') pogo(); else if (p.atkDir === 'f') p.kbx = -p.face * 190; }
-    for (const pr of this.projs) if ((pr.kind === 'spore' || pr.kind === 'letter') && !pr.dead && overlap(box, pr)) {
-      if (auth) { pr.dead = true; if (pr.kind === 'letter') { this.paperAt(6, pr.x + 11, pr.y + 13); this.sfx('clink'); } else this.burst(6, pr.x + 6, pr.y + 6, 0xc7f08a); }
-      else if (pr.kind === 'letter') { pr.dead = true; this.sendEv({ k: 'cut', x: Math.round(pr.x), y: Math.round(pr.y) }); }
+    for (const [vb, fn] of [[this.vladik, 'damageVladik'], [this.tima, 'damageTima']]) {
+      if (!vb || p.atkHits.has(vb) || ['dead', 'intro'].includes(vb.state) || !overlap(box, vb)) continue;
+      p.atkHits.add(vb);
+      if (auth) this[fn](p); else { vb.flash = 0.09; this.hitstop = 0.04; Snd.play('hit'); }
+      if (local) { if (p.atkDir === 'd') pogo(); else if (p.atkDir === 'f') p.kbx = -p.face * 170; }
+    }
+    for (const pr of this.projs) if (SLASH_KINDS.has(pr.kind) && !pr.dead && overlap(box, pr)) {
+      if (auth) {
+        pr.dead = true;
+        if (pr.kind === 'letter') { this.paperAt(6, pr.x + 11, pr.y + 13); this.sfx('clink'); }
+        else if (pr.kind === 'spore') this.burst(6, pr.x + 6, pr.y + 6, 0xc7f08a);
+        else { this.burst(6, pr.x + pr.w / 2, pr.y + pr.h / 2, 0xffd47a); this.sfx('clink'); }
+      } else if (pr.kind !== 'spore') { pr.dead = true; this.sendEv({ k: 'cut', kind: pr.kind, x: Math.round(pr.x), y: Math.round(pr.y) }); }
       if (local && p.atkDir === 'd') pogo();
     }
     if (local && p.atkDir === 'd' && !p.pogoed && this.rectHitsTile(box, SPIKE, 0.7)) { pogo(); this.parts.setParticleTint(0xffffff); this.parts.explode(5, box.x + 18, box.y + 30); }
@@ -1136,6 +1221,8 @@ class GameScene extends Phaser.Scene {
     for (const pr of this.projs) pr.dead = true;
     if (!this.bossDead) { this.makeBoss(); if (this.gates[0]) this.setGate(this.gates[0], false); this.ui().bossBar(false); }
     if (this.misha && this.misha.state !== 'dead') { this.makeMisha(); this.ui().bossBar(false); }
+    if (this.vladik && this.vladik.state !== 'dead') { this.makeVladik(); this.ui().bossBar(false); }
+    if (this.tima && this.tima.state !== 'dead') { this.repoT = 0; this.makeTima(); this.sendEv({ k: 'repo', on: 0 }); this.ui().bossBar(false); }
     this.sendEv({ k: 'respawn', x: this.respawn.x, y: this.respawn.y });
     this.respawnLocal();
   }
@@ -1364,8 +1451,13 @@ class GameScene extends Phaser.Scene {
       } else if (pr.kind === 'letter') this.stepLetter(pr, dt);
       else if (pr.kind === 'bigletter') this.stepBigLetter(pr, dt);
       else if (pr.kind === 'bomb') { this.stepBomb(pr, dt); continue; }
+      else if (pr.kind === 'clef') this.stepClef(pr, dt);
+      else if (pr.kind === 'note') this.stepNote(pr, dt);
+      else if (pr.kind === 'drip') this.stepDrip(pr, dt);
+      else if (pr.kind === 'ringfx') { this.stepTimaProj(pr, dt); continue; }
+      else if (this.tima) this.stepTimaProj(pr, dt);
       if (pr.dead) continue;
-      for (const p of this.players) if (!p.remote && !p.downed && p.inv <= 0 && overlap(inset(p, 2), pr)) { this.hurtPlayer(p, 1, pr.x + pr.w / 2); if (pr.kind !== 'wave') pr.dead = true; }
+      for (const p of this.players) if (!p.remote && !p.downed && p.inv <= 0 && overlap(inset(p, 2), pr)) { this.hurtPlayer(p, 1, pr.x + pr.w / 2); if (!PERSIST_KINDS.has(pr.kind)) pr.dead = true; }
     }
     this.projs = this.projs.filter((pr) => !pr.dead);
   }
@@ -1390,7 +1482,11 @@ class GameScene extends Phaser.Scene {
   win() {
     this.won = true; Snd.play('win');
     const s = { time: this.timeSec, beads: this.beads, deaths: this.deaths, players: this.nPlayers };
-    if (this.mode === 'bosstest') { s.title = 'Миша Додик повержен'; s.bag = this.bagHits; }
+    if (this.mode === 'bosstest') {
+      if (this.vladik) { s.title = 'Владик Скрипка повержен'; s.hits = this.needleHits; }
+      else if (this.tima) { s.title = 'Тима Пиво повержен'; s.hits = this.timaHits; }
+      else { s.title = 'Миша Додик повержен'; s.bag = this.bagHits; }
+    }
     this.sendEv({ k: 'win', s });
     this.ui().victory(s);
   }
@@ -1405,11 +1501,13 @@ class GameScene extends Phaser.Scene {
   packSnap() {
     const r = Math.round, b = this.boss;
     const st = (e) => (e.state === 'wind' || e.state === 'charge') ? 1 : e.state === 'stun' ? 2 : 0;
-    const kc = { spore: 0, wave: 1, rock: 2, letter: 3, bigletter: 4, bomb: 5 }, mi = this.misha;
+    const mi = this.misha, vl = this.vladik, tm = this.tima, r10 = (x) => Math.round(x * 10) / 10;
     return { t: 's',
       e: this.enemies.map((e) => [r(e.x), r(e.y), e.face, e.dead ? 1 : 0, e.flash > 0 ? 1 : 0, st(e)]),
       b: [r(b.x), r(b.y), b.face, b.hp, b.maxHp, b.state, b.flash > 0 ? 1 : 0, Math.round(b.t * 100) / 100],
-      pr: this.projs.map((q) => [kc[q.kind], r(q.x), r(q.y), r(q.vx), r(q.vy), q.delay > 0 ? 1 : 0, q.ch || '']),
+      pr: this.projs.map((q) => [NET_KINDS.indexOf(q.kind), r(q.x), r(q.y), r(q.vx), r(q.vy), q.delay > 0 ? 1 : 0, q.ch || (q.kind === 'ringfx' ? r(q.r) : '')]),
+      vl: vl ? [r(vl.x), r(vl.y), vl.face, vl.hp, vl.maxHp, vl.state, vl.flash > 0 ? 1 : 0, r10(vl.t), vl.sayT > 0 ? vl.say : '', this.curtains.map((c) => [r10(c.slime), Math.round(c.wet * 100) / 100])] : null,
+      tm: tm ? [r(tm.x), r(tm.y), tm.face, tm.hp, tm.maxHp, tm.state, tm.flash > 0 ? 1 : 0, r10(tm.t), tm.sayT > 0 ? tm.say : '', r10(tm.hyper), this.repo ? 1 : 0, this.puddles.map((q) => [r(q.x), q.w, r(q.y), r10(q.t)])] : null,
       mi: mi ? [r(mi.x), r(mi.y), mi.face, mi.hp, mi.maxHp, mi.state, mi.flash > 0 ? 1 : 0, Math.round(mi.t * 100) / 100, mi.sayT > 0 ? mi.say : ''] : null,
       bd: this.beadsArr.map((d) => [r(d.x), r(d.y)]), bc: this.beads,
       g: this.gates.map((gt) => (gt.closed ? 1 : 0)), bD: this.bossDead ? 1 : 0, rs: [r(this.respawn.x), r(this.respawn.y)] };
@@ -1440,8 +1538,23 @@ class GameScene extends Phaser.Scene {
     const b = this.boss, B = m.b;
     if (b.tx == null || Math.abs(b.x - B[0]) > 140) { b.x = B[0]; b.y = B[1]; }
     b.tx = B[0]; b.ty = B[1]; b.face = B[2]; b.hp = B[3]; b.maxHp = B[4]; b.state = B[5]; if (B[6]) b.flash = 0.09; b.t = B[7];
-    const sz = [[12, 12], [24, 18], [16, 16], [22, 26], [56, 60], [12, 12]], kinds = ['spore', 'wave', 'rock', 'letter', 'bigletter', 'bomb'];
-    this.projs = m.pr.map((a) => ({ kind: kinds[a[0]], x: a[1], y: a[2], vx: a[3], vy: a[4], delay: a[5] ? 1 : 0, ch: a[6], w: sz[a[0]][0], h: sz[a[0]][1], life: 1 }));
+    const old = this.projs;
+    this.projs = m.pr.map((a, i) => {
+      const q = { kind: NET_KINDS[a[0]], x: a[1], y: a[2], vx: a[3], vy: a[4], delay: a[5] ? 1 : 0, ch: a[6], w: NET_SIZES[a[0]][0], h: NET_SIZES[a[0]][1], life: 1 };
+      if (q.kind === 'ringfx') q.r = a[6];
+      q.rot = old[i] && old[i].kind === q.kind ? old[i].rot || 0 : 0;
+      return q;
+    });
+    const syncBoss = (bb, A, name, flagKey) => {
+      if (bb.tx == null || Math.abs(bb.x - A[0]) > 140) { bb.x = A[0]; bb.y = A[1]; }
+      bb.tx = A[0]; bb.ty = A[1]; bb.face = A[2]; bb.hp = A[3]; bb.maxHp = A[4]; bb.state = A[5]; if (A[6]) bb.flash = 0.09; bb.t = A[7];
+      if (A[8]) { bb.say = A[8]; bb.sayT = 0.2; }
+      const show = bb.state !== 'dead';
+      if (show !== !!this[flagKey]) { this[flagKey] = show; this.ui().bossBar(show, name); }
+      if (show) this.ui().bossBar(true, null, Math.max(0, bb.hp) / bb.maxHp);
+    };
+    if (m.vl && this.vladik) { syncBoss(this.vladik, m.vl, 'Владик Скрипка', '_vb'); m.vl[9].forEach((c, i) => { if (this.curtains[i]) { this.curtains[i].slime = c[0]; this.curtains[i].wet = c[1]; } }); }
+    if (m.tm && this.tima) { syncBoss(this.tima, m.tm, 'Тима Пиво', '_tb'); this.tima.hyper = m.tm[9]; this.setRepo(!!m.tm[10]); this.puddles = m.tm[11].map((q) => ({ x: q[0], w: q[1], y: q[2], t: q[3] })); }
     if (m.mi && this.misha) {
       const M = m.mi, mm = this.misha;
       if (mm.tx == null || Math.abs(mm.x - M[0]) > 140) { mm.x = M[0]; mm.y = M[1]; }
@@ -1467,10 +1580,14 @@ class GameScene extends Phaser.Scene {
       case 'bomb': if (this.auth() && this.L.crates) this.projs.push({ kind: 'bomb', ...m.b, w: 12, h: 12, life: 3, owner: m.i }); break;
       case 'cut':
         if (this.auth()) {
-          const q = this.projs.find((pr) => pr.kind === 'letter' && !pr.dead && Math.abs(pr.x - m.x) < 40 && Math.abs(pr.y - m.y) < 40);
-          if (q) { q.dead = true; this.paperAt(6, q.x + 11, q.y + 13); this.sfx('clink'); }
+          const kind = m.kind || 'letter';
+          const q = this.projs.find((pr) => pr.kind === kind && !pr.dead && Math.abs(pr.x - m.x) < 40 && Math.abs(pr.y - m.y) < 40);
+          if (q) { q.dead = true; if (kind === 'letter') this.paperAt(6, q.x + 11, q.y + 13); else this.burst(6, q.x + q.w / 2, q.y + q.h / 2, 0xffd47a); this.sfx('clink'); }
         }
         break;
+      case 'repo': if (!this.auth() && this.tima) this.setRepo(!!m.on); break;
+      case 'bankrupt': if (this.tima) this.bankruptSilk(); break;
+      case 'foam': if (this.foam) this.foam.explode(m.n, m.x, m.y); break;
       case 'burst': this.parts.setParticleTint(m.c); this.parts.explode(m.n, m.x, m.y); break;
       case 'dust': this.dust.explode(m.n, m.x, m.y); break;
       case 'shake': this.cameras.main.shake(m.d, m.i); break;
@@ -1508,11 +1625,14 @@ class GameScene extends Phaser.Scene {
       const k2 = 1 - Math.exp(-dt * 14);
       for (const e of this.enemies) if (!e.dead && e.tx != null) { e.x += (e.tx - e.x) * k2; e.y += (e.ty - e.y) * k2; e.flash -= dt; }
       const b = this.boss; if (b.tx != null) { b.x += (b.tx - b.x) * k2; b.y += (b.ty - b.y) * k2; b.flash -= dt; }
-      const mm = this.misha; if (mm && mm.tx != null) { mm.x += (mm.tx - mm.x) * k2; mm.y += (mm.ty - mm.y) * k2; mm.flash -= dt; mm.sayT -= dt; }
+      for (const mm of [this.misha, this.vladik, this.tima]) if (mm && mm.tx != null) { mm.x += (mm.tx - mm.x) * k2; mm.y += (mm.ty - mm.y) * k2; mm.flash -= dt; mm.sayT -= dt; }
       for (const pr of this.projs) {
         if (pr.delay) continue;
+        if (pr.kind === 'ringfx') { pr.r += 900 * dt; continue; }
+        if (pr.kind === 'pad') continue;
+        if (pr.kind === 'clef' || pr.kind === 'bottle') pr.rot = (pr.rot || 0) + dt * 10;
         if (pr.kind === 'spore') pr.vy += 700 * dt;
-        else if (pr.kind === 'rock' || pr.kind === 'bigletter' || pr.kind === 'bomb') pr.vy = Math.min(pr.vy + 1100 * dt, 800);
+        else if (['rock', 'bigletter', 'bomb', 'note', 'drip', 'bottle', 'box', 'stamp'].includes(pr.kind)) pr.vy = Math.min(pr.vy + 1100 * dt, 800);
         pr.x += pr.vx * dt; pr.y += pr.vy * dt;
         if (pr.kind === 'wave' && Math.random() < 0.3) this.dust.explode(1, pr.x + pr.w / 2, pr.y + pr.h);
       }
@@ -1521,7 +1641,7 @@ class GameScene extends Phaser.Scene {
   guestProjHits() {
     for (const p of this.players) {
       if (p.remote || p.downed || p.inv > 0) continue;
-      for (const pr of this.projs) if (!pr.dead && !pr.delay && pr.kind !== 'bomb' && overlap(inset(p, 2), pr)) { this.hurtPlayer(p, 1, pr.x + pr.w / 2); if (pr.kind !== 'wave') pr.dead = true; break; }
+      for (const pr of this.projs) if (!pr.dead && !pr.delay && pr.kind !== 'bomb' && pr.kind !== 'ringfx' && overlap(inset(p, 2), pr)) { this.hurtPlayer(p, 1, pr.x + pr.w / 2); if (!PERSIST_KINDS.has(pr.kind)) pr.dead = true; break; }
     }
     this.projs = this.projs.filter((q) => !q.dead);
   }
@@ -1552,7 +1672,7 @@ class GameScene extends Phaser.Scene {
     const pts = this.alivePlayers().length ? this.alivePlayers() : this.players;
     let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
     for (const p of pts) { x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x + p.w); y0 = Math.min(y0, p.y); y1 = Math.max(y1, p.y + p.h); }
-    const mi = this.misha, withBoss = mi && mi.state !== 'dead';
+    const mi = this.testBoss(), withBoss = mi && mi.state !== 'dead';
     if (withBoss) { x0 = Math.min(x0, mi.x - 20); x1 = Math.max(x1, mi.x + mi.w + 20); y0 = Math.min(y0, mi.y - 40); }
     let tx = (x0 + x1) / 2, ty = (y0 + y1) / 2 - 30;
     if (pts.length === 1 && !withBoss) tx += pts[0].face * 50;
@@ -1581,6 +1701,8 @@ class GameScene extends Phaser.Scene {
     for (const e of this.enemies) if (!e.dead) this.drawEnemy(e, now);
     this.drawBoss(now);
     if (this.misha) { this.drawMisha(now); this.drawLetters(now); }
+    if (this.vladik) { this.drawCurtains(now); this.drawVladik(now); }
+    if (this.tima) this.drawTima(now);
     // удары
     for (const p of this.players) {
       if (p.downed || p.atkT <= 0) continue;
@@ -1594,7 +1716,7 @@ class GameScene extends Phaser.Scene {
     }
     // снаряды
     for (const pr of this.projs) {
-      if (pr.kind === 'letter' || pr.kind === 'bigletter' || pr.kind === 'bomb') continue;
+      if (!STORY_KINDS.has(pr.kind)) continue;
       if (pr.delay > 0) {
         fx.fillStyle(0x8fae9c, 0.5); fx.fillTriangle(pr.x + 2, 19 * T, pr.x + 14, 19 * T, pr.x + 8, 19 * T + 8); continue;
       }
@@ -1609,6 +1731,8 @@ class GameScene extends Phaser.Scene {
         fx.fillStyle(0x2b3d36, 1); fx.fillRoundedRect(pr.x, pr.y, 16, 16, 4); fx.fillStyle(0x3b7448, 1); fx.fillRect(pr.x + 2, pr.y, 12, 3);
       }
     }
+    if (this.vladik) this.drawVladikProjs(now);
+    if (this.tima) { this.drawTimaProjs(now); this.drawStampLabels(); }
     // бусины
     for (const bd of this.beadsArr) {
       fx.fillStyle(0xffd47a, 0.25); fx.fillCircle(bd.x + 4, bd.y + 4, 7);
@@ -1814,6 +1938,7 @@ class UIScene extends Phaser.Scene {
     const m = Math.floor(s.time / 60), sec = Math.floor(s.time % 60).toString().padStart(2, '0');
     const t1 = this.add.text(VW / 2, 160, s.title || 'Глава I пройдена', { fontFamily: D, fontSize: '56px', color: '#e8e2cf', fontStyle: '700' }).setOrigin(0.5).setShadow(0, 0, '#9ff0c8', 16, false, true);
     const lines = s.bag != null ? `Время боя: ${m}:${sec}\nДымовух в рюкзаке: ${s.bag}\nОбрывов нити: ${s.deaths}\nТкачей: ${s.players}`
+      : s.hits != null ? `Время боя: ${m}:${sec}\nУдаров иглой: ${s.hits}\nОбрывов нити: ${s.deaths}\nТкачей: ${s.players}`
       : `Время: ${m}:${sec}\nБусин собрано: ${s.beads}\nОбрывов нити: ${s.deaths}\nТкачей: ${s.players}`;
     const t2 = this.add.text(VW / 2, 260, lines, { fontFamily: F, fontSize: '18px', color: '#b9d4c8', align: 'center', lineSpacing: 8 }).setOrigin(0.5, 0);
     const t3 = this.add.text(VW / 2, 440, this.gs.online ? 'Enter — в главное меню' : 'Enter — в главное меню   ·   R — ещё раз', { fontFamily: F, fontSize: '15px', color: '#ffe3a3' }).setOrigin(0.5);
@@ -2181,6 +2306,721 @@ Object.assign(GameScene.prototype, {
     }
     for (let i = li; i < this.letterPool.length; i++) this.letterPool[i].setVisible(false);
     for (let i = bi; i < this.bigPool.length; i++) this.bigPool[i].setVisible(false);
+  },
+});
+
+// ===== БОСС «ВЛАДИК СКРИПКА»: школьный класс, скрипичные ключи, слизь на шторах =====
+const VLADIK_SAY_HIT = ['Я НЕ СКРИПКА!', 'Я ВЛАДИК!', 'НЕ НАЗЫВАЙТЕ МЕНЯ ТАК!', 'Я НЕ СКРИПКА!!!'];
+
+function buildVladikArena() {
+  const W = 44, H = 22, g = [];
+  for (let y = 0; y < H; y++) g.push(new Array(W).fill(SOLID));
+  for (let y = 4; y <= 17; y++) for (let x = 1; x <= 42; x++) g[y][x] = EMPTY;
+  const plat = (x0, x1, y) => { for (let x = x0; x <= x1; x++) g[y][x] = PLAT; };
+  plat(12, 15, 15); plat(28, 31, 15); // парты
+  return {
+    W, H, grid: g, theme: 'class', spawn: { x: 6, y: 17 }, benches: [], enemies: [], gates: [], exit: null,
+    signs: [{ x: 13, y: 17, text: 'Шторы в слизи жгутся — не прыгай в них.\nПод шторой можно пройти низом' }],
+    windows: [[4, 8], [19, 24], [35, 39]],
+    curtains: [[2, 3], [9, 10], [17, 18], [25, 26], [33, 34], [40, 41]],
+    vladik: { x: 30, y: 17 }, floorY: 18,
+    areas: [{ x: 0, name: 'Кабинет музыки' }], region: 'Босс-тест',
+  };
+}
+
+// пол, стены, окна, доска и парты — одной картинкой
+function drawClassroom(scene, L) {
+  const key = 'classroom', w = L.W * T, h = L.H * T;
+  if (scene.textures.exists(key)) scene.textures.remove(key);
+  const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+  const c = cv.getContext('2d'), R = rng(77);
+  const floorY = L.floorY * T, top = 4 * T;
+  // стена
+  const wall = c.createLinearGradient(0, top, 0, floorY);
+  wall.addColorStop(0, '#24302e'); wall.addColorStop(1, '#2d3b37');
+  c.fillStyle = wall; c.fillRect(0, 0, w, h);
+  // окна с вечерним небом
+  for (const [a, b] of L.windows) {
+    const x = a * T, ww = (b - a + 1) * T, y = 5 * T + 8, wh = 7 * T;
+    const sky = c.createLinearGradient(0, y, 0, y + wh); sky.addColorStop(0, '#16203a'); sky.addColorStop(1, '#3b3352');
+    c.fillStyle = sky; c.fillRect(x, y, ww, wh);
+    c.fillStyle = 'rgba(255,240,200,0.8)'; for (let i = 0; i < 6; i++) c.fillRect(x + R() * ww, y + R() * wh * 0.6, 1.5, 1.5);
+    c.strokeStyle = '#5a4634'; c.lineWidth = 6; c.strokeRect(x, y, ww, wh);
+    c.lineWidth = 4; c.beginPath(); c.moveTo(x + ww / 2, y); c.lineTo(x + ww / 2, y + wh); c.moveTo(x, y + wh * 0.45); c.lineTo(x + ww, y + wh * 0.45); c.stroke();
+    c.fillStyle = '#6b5236'; c.fillRect(x - 10, y + wh, ww + 20, 8);
+  }
+  // карниз над шторами
+  c.fillStyle = '#4a3726'; c.fillRect(T, 4 * T + 6, (L.W - 2) * T, 6);
+  // деревянные панели внизу
+  c.fillStyle = '#3b2f27'; c.fillRect(0, floorY - 70, w, 70);
+  c.strokeStyle = '#2a211b'; c.lineWidth = 2;
+  for (let x = 20; x < w; x += 90) c.strokeRect(x, floorY - 60, 74, 50);
+  c.fillStyle = '#5a4634'; c.fillRect(0, floorY - 72, w, 5);
+  // доска
+  const bx = 11 * T + 6, by = 5 * T + 10, bw = 6 * T - 12, bh = 4 * T;
+  c.fillStyle = '#5a4634'; c.fillRect(bx - 8, by - 8, bw + 16, bh + 16);
+  c.fillStyle = '#1f3a2c'; c.fillRect(bx, by, bw, bh);
+  c.strokeStyle = 'rgba(232,234,223,0.55)'; c.lineWidth = 1.2;
+  for (let i = 0; i < 5; i++) { c.beginPath(); c.moveTo(bx + 14, by + 60 + i * 9); c.lineTo(bx + bw - 14, by + 60 + i * 9); c.stroke(); }
+  c.fillStyle = 'rgba(232,234,223,0.6)';
+  for (let i = 0; i < 6; i++) { const nx = bx + 60 + i * 22, ny = by + 64 + ((i * 7) % 4) * 9; c.beginPath(); c.ellipse(nx, ny, 4, 3, -0.4, 0, 6.3); c.fill(); c.fillRect(nx + 3, ny - 22, 1.4, 22); }
+  c.fillStyle = '#8a7a66'; c.fillRect(bx, by + bh, bw, 5);
+  // портреты и часы на второй стене
+  for (let i = 0; i < 2; i++) {
+    const px = 27 * T + 20 + i * 100, py = 6 * T;
+    c.fillStyle = '#6b5236'; c.fillRect(px, py, 64, 80); c.fillStyle = '#2b2622'; c.fillRect(px + 6, py + 6, 52, 68);
+    c.fillStyle = '#5c5047'; c.beginPath(); c.ellipse(px + 32, py + 34, 13, 16, 0, 0, 6.3); c.fill(); c.fillRect(px + 16, py + 50, 32, 24);
+  }
+  c.fillStyle = '#e8e2cf'; c.beginPath(); c.arc(22 * T, 5 * T + 12, 16, 0, 6.3); c.fill();
+  c.strokeStyle = '#2b2622'; c.lineWidth = 2; c.beginPath(); c.arc(22 * T, 5 * T + 12, 16, 0, 6.3); c.stroke();
+  c.beginPath(); c.moveTo(22 * T, 5 * T + 12); c.lineTo(22 * T, 5 * T + 2); c.moveTo(22 * T, 5 * T + 12); c.lineTo(22 * T + 8, 5 * T + 15); c.stroke();
+  // сплошные тайлы: потолок, стены, паркет
+  for (let y = 0; y < L.H; y++) for (let x = 0; x < L.W; x++) {
+    if (L.grid[y][x] !== SOLID) continue;
+    c.fillStyle = y >= L.floorY ? '#2a1f18' : '#1a2220'; c.fillRect(x * T, y * T, T, T);
+  }
+  // паркет
+  for (let x = 0; x < w; x += 24) {
+    c.fillStyle = (x / 24) % 2 ? '#7a5534' : '#6b4a2d'; c.fillRect(x, floorY, 24, 12);
+    c.fillStyle = 'rgba(255,220,170,0.12)'; c.fillRect(x, floorY, 24, 2);
+  }
+  c.fillStyle = '#3b2a1c'; c.fillRect(0, floorY + 12, w, 4);
+  c.fillStyle = '#4a3726'; c.fillRect(0, top - 8, w, 8);
+  // парты: столешница и ножки до пола
+  for (let y = 0; y < L.H; y++) for (let x = 0; x < L.W; x++) {
+    if (L.grid[y][x] !== PLAT || L.grid[y][x - 1] === PLAT) continue;
+    let x1 = x; while (L.grid[y][x1 + 1] === PLAT) x1++;
+    const dx = x * T, dw = (x1 - x + 1) * T, dy = y * T;
+    c.fillStyle = '#2b2622'; c.fillRect(dx + 8, dy + 10, 5, floorY - dy - 10); c.fillRect(dx + dw - 13, dy + 10, 5, floorY - dy - 10);
+    c.fillRect(dx + 8, dy + 40, dw - 16, 4);
+    c.fillStyle = '#8a6440'; c.fillRect(dx, dy, dw, 10); c.fillStyle = '#a77b4f'; c.fillRect(dx, dy, dw, 3);
+    c.strokeStyle = 'rgba(30,20,10,0.5)'; c.lineWidth = 1; c.beginPath(); c.moveTo(dx + 20, dy + 5); c.lineTo(dx + 40, dy + 6); c.stroke();
+  }
+  scene.textures.addCanvas(key, cv);
+  return [{ key, x: 0 }];
+}
+
+// скрипичный ключ: ломаная из точек, поворачиваем вручную
+const CLEF_PTS = (() => {
+  const p = [[-1, 20], [1, -24], [4, -29], [6, -23], [3, -16], [-4, -9], [-8, -1]];
+  for (let k = 0; k <= 22; k++) { const a = Math.PI + (k / 22) * Math.PI * 1.75, r = 9 - k * 0.22; p.push([Math.cos(a) * r, 4 - Math.sin(a) * r]); }
+  return p;
+})();
+function drawClef(g, x, y, s, rot, col) {
+  const cs = Math.cos(rot), sn = Math.sin(rot);
+  const pts = CLEF_PTS.map(([px, py]) => ({ x: x + (px * cs - py * sn) * s, y: y + (px * sn + py * cs) * s }));
+  g.lineStyle(6 * s, 0x1a1410, 1); g.strokePoints(pts, false);
+  g.lineStyle(3.2 * s, col, 1); g.strokePoints(pts, false);
+  const dx = (-4 * cs - 21 * sn) * s, dy = (-4 * sn + 21 * cs) * s;
+  g.fillStyle(0x1a1410, 1); g.fillCircle(x + dx, y + dy, 4.2 * s); g.fillStyle(col, 1); g.fillCircle(x + dx, y + dy, 3 * s);
+}
+
+Object.assign(GameScene.prototype, {
+  setupVladikArena() {
+    const L = this.L;
+    this.add.text(14 * T, 5 * T + 22, 'Тема: скрипичный ключ', { fontFamily: '"Fira Sans", sans-serif', fontSize: '13px', fontStyle: 'italic', color: '#e8eadf' })
+      .setOrigin(0.5, 0).setAlpha(0.75).setDepth(0.25);
+    this.curtains = L.curtains.map(([a, b]) => ({ x: a * T, w: (b - a + 1) * T, y: 4 * T + 8, h: L.floorY * T - 44 - (4 * T + 8), slime: 0, wet: 0, drip: 0 }));
+    this.curtainG = this.add.graphics().setDepth(3);
+    this.slimeG = this.add.graphics().setDepth(3.1);
+    this.vSay = this.add.text(0, 0, '', { fontFamily: '"Fira Sans", sans-serif', fontSize: '15px', fontStyle: '600', color: '#1a1410',
+      backgroundColor: '#f4efe0', padding: { x: 8, y: 4 } }).setOrigin(0.5, 1).setDepth(8.5).setVisible(false);
+    this.needleHits = 0;
+    this.makeVladik();
+  },
+  makeVladik() {
+    if (this.vladik && this.vladik.g) this.vladik.g.destroy();
+    const d = this.L.vladik, hp = this.nPlayers === 2 ? 42 : 30;
+    this.vladik = { x: d.x * T - 22, y: (d.y + 1) * T - 84, w: 44, h: 84, vx: 0, vy: 0, face: -1, hp, maxHp: hp, state: 'intro', t: 2.0,
+      flash: 0, last: '', say: 'Я НЕ СКРИПКА!', sayT: 2.2, sayCd: 0, barShown: false, air: 0, target: null, g: this.add.graphics().setDepth(4) };
+    if (this.curtains) for (const c of this.curtains) { c.slime = 0; c.wet = 0; }
+  },
+  vladikSpeak(text, dur) { const v = this.vladik; v.say = text; v.sayT = dur || 1.6; },
+  curtainHazard(c) { return { x: c.x + 4, y: c.y, w: c.w - 8, h: c.h }; },
+
+  stepVladik(dt) {
+    const v = this.vladik; if (!v) return;
+    v.flash -= dt; v.sayT -= dt; v.sayCd -= dt;
+    if (!v.barShown && this.ui().ready) { v.barShown = true; this.ui().bossBar(true, 'Владик Скрипка', v.hp / v.maxHp); }
+    // шторы: высыхание и капли
+    for (const c of this.curtains) {
+      if (c.slime > 0) {
+        c.slime -= dt; c.drip -= dt;
+        if (c.drip <= 0) { c.drip = 0.8 + Math.random() * 0.6; this.projs.push({ kind: 'drip', x: c.x + 8 + Math.random() * (c.w - 22), y: c.y + c.h - 8, w: 8, h: 10, vx: 0, vy: 40, life: 2 }); }
+      }
+    }
+    if (v.state === 'dead') { v.t -= dt; v.vy = Math.min(v.vy + P.G * dt, P.MAXFALL); this.moveBody(v, dt); return; }
+    const phase2 = v.hp <= v.maxHp / 2;
+    const [tp] = this.nearestPlayer(v.x + v.w / 2, v.y + v.h / 2);
+    const tx = tp ? tp.x + 7 : v.x + v.w / 2, vcx = v.x + v.w / 2;
+    v.t -= dt;
+    switch (v.state) {
+      case 'intro': v.vx = 0; if (v.t <= 0) { v.state = 'idle'; v.t = 0.7; } break;
+      case 'idle':
+        v.face = tx > vcx ? 1 : -1;
+        v.vx = Math.abs(tx - vcx) > 160 ? v.face * 90 : 0;
+        if (v.t <= 0) {
+          const slimed = this.curtains.filter((c) => c.slime > 0).length;
+          let opts = ['clef', 'leap', 'smear'].filter((o) => o !== v.last);
+          if (slimed >= 3) opts = opts.filter((o) => o !== 'smear');
+          const pick = opts[Math.floor(Math.random() * opts.length)]; v.last = pick; v.vx = 0;
+          if (pick === 'clef') { v.state = 'clefWind'; v.t = phase2 ? 0.35 : 0.5; }
+          if (pick === 'leap') { v.state = 'leapWind'; v.t = 0.4; }
+          if (pick === 'smear') this.vladikPickCurtain(phase2);
+        }
+        break;
+      case 'clefWind':
+        v.vx = 0; v.face = tx > vcx ? 1 : -1;
+        if (v.t <= 0) {
+          const n = phase2 ? 3 : 1; this.sfx('violin');
+          for (let i = 0; i < n; i++) {
+            const hy = v.y + 20 + i * 26 - (n > 1 ? 10 : 0);
+            this.projs.push({ kind: 'clef', x: vcx + v.face * 24 - 14, y: hy, w: 28, h: 40, vx: v.face * (500 + i * 40), ax: -v.face * (680 + i * 40), vy: 0, life: 3.2, t0: i * 0.12, home: vcx, rot: 0 });
+          }
+          if (v.sayCd <= 0 && Math.random() < 0.5) { this.vladikSpeak('Я НЕ СКРИПКА!', 1.2); v.sayCd = 2.5; }
+          v.state = 'recover'; v.t = phase2 ? 0.7 : 1.0;
+        }
+        break;
+      case 'leapWind':
+        v.vx = 0; v.face = tx > vcx ? 1 : -1;
+        if (v.t <= 0) { v.state = 'leap'; v.vy = -720; v.vx = clamp((tx - vcx) / 1.0, -380, 380); v.air = 0; this.sfx('jump'); }
+        break;
+      case 'leap':
+        v.air += dt;
+        if (v.onGround && v.air > 0.15) {
+          v.vx = 0; this.shake(200, 0.01); this.sfx('slam'); this.dustAt(12, vcx, v.y + v.h);
+          const n = phase2 ? 7 : 5;
+          for (let i = 0; i < n; i++) {
+            const a = -Math.PI / 2 + (i - (n - 1) / 2) * 0.32;
+            this.projs.push({ kind: 'note', x: vcx - 7, y: v.y + 10, w: 14, h: 18, vx: Math.cos(a) * 330, vy: Math.sin(a) * 520, life: 3 });
+          }
+          this.sfx('violin');
+          v.state = 'recover'; v.t = phase2 ? 0.5 : 0.75;
+        }
+        break;
+      case 'smearGo': {
+        const c = v.target, cx = c.x + c.w / 2;
+        v.face = cx > vcx ? 1 : -1; v.vx = v.face * 300;
+        if (Math.abs(cx - vcx) < 26 || v.t <= 0) { v.vx = 0; v.state = 'smear'; v.t = 0.7; this.sfx('squish'); }
+        break;
+      }
+      case 'smear': {
+        v.vx = 0; const c = v.target; c.wet = 1 - v.t / 0.7;
+        if (v.t <= 0) {
+          c.slime = phase2 ? 10 : 8; c.wet = 0; c.drip = 0.4;
+          if (v.target2) { v.target2.slime = c.slime; v.target2.drip = 0.6; this.smokeAtSlime(v.target2); }
+          this.smokeAtSlime(c);
+          if (v.sayCd <= 0) { this.vladikSpeak('ХЕ-ХЕ, ЛИПКО!', 1.2); v.sayCd = 2.5; }
+          v.state = 'recover'; v.t = 0.5;
+        }
+        break;
+      }
+      case 'recover': v.vx = 0; if (v.t <= 0) { v.state = 'idle'; v.t = phase2 ? 0.35 : 0.6; } break;
+    }
+    v.vy = Math.min(v.vy + P.G * dt, P.MAXFALL);
+    this.moveBody(v, dt);
+  },
+  vladikPickCurtain(phase2) {
+    const v = this.vladik, free = this.curtains.filter((c) => c.slime <= 0);
+    if (!free.length) { v.state = 'idle'; v.t = 0.3; return; }
+    const [tp] = this.nearestPlayer(v.x, v.y); const px = tp ? tp.x : v.x;
+    free.sort((a, b) => Math.abs(a.x + a.w / 2 - px) - Math.abs(b.x + b.w / 2 - px));
+    v.target = free[0]; v.target2 = phase2 && free[1] ? free[1] : null;
+    v.state = 'smearGo'; v.t = 1.8;
+    if (v.sayCd <= 0) { this.vladikSpeak('А ВОТ ТАК!', 1.0); v.sayCd = 2; }
+  },
+  smokeAtSlime(c) { this.burst(10, c.x + c.w / 2, c.y + c.h * 0.6, 0x8fdc3a); },
+  damageVladik(p) {
+    const v = this.vladik;
+    v.hp -= 1; v.flash = 0.09; this.gainSilk(p); if (!p.remote) this.hitstop = 0.04; this.sfx('hit'); this.needleHits++;
+    this.burst(9, clamp(p.x + 7 + p.face * 26, v.x, v.x + v.w), v.y + v.h / 2, 0xf4f1e6);
+    this.ui().bossBar(true, 'Владик Скрипка', Math.max(0, v.hp) / v.maxHp);
+    if (v.sayCd <= 0 && Math.random() < 0.35) { this.vladikSpeak(VLADIK_SAY_HIT[Math.floor(Math.random() * VLADIK_SAY_HIT.length)], 1.2); v.sayCd = 2.5; }
+    if (v.hp === Math.floor(v.maxHp / 2)) { this.vladikSpeak('Я! НЕ! СКРИПКА!!!', 1.6); v.sayCd = 3; this.sfx('violin'); this.toastAll('Владик в ярости: ключи летят по три'); }
+    if (v.hp <= 0) this.vladikDie();
+  },
+  vladikDie() {
+    const v = this.vladik; v.state = 'dead'; v.t = 2.6; v.vx = 0; this.bossDead = true;
+    for (const pr of this.projs) pr.dead = true;
+    for (const c of this.curtains) c.slime = Math.min(c.slime, 1);
+    this.vladikSpeak('ЛАДНО… Я СКРИПКА…', 2.4); this.sfx('violin'); this.shake(700, 0.008);
+    for (let i = 0; i < 6; i++) this.time.delayedCall(i * 170, () => this.burst(18, v.x + Math.random() * v.w, v.y + Math.random() * v.h, i % 2 ? 0xffd47a : 0xf4efe0));
+    this.time.delayedCall(2700, () => { this.ui().bossBar(false); this.win(); });
+  },
+  stepClef(pr, dt) {
+    if (pr.t0 > 0) { pr.t0 -= dt; return; }
+    pr.vx += pr.ax * dt; pr.x += pr.vx * dt; pr.rot += dt * 10;
+    pr.y += Math.sin(pr.life * 6) * 30 * dt;
+    // вернулся к Владику — исчез
+    if (Math.sign(pr.vx) === Math.sign(pr.ax) && Math.abs(pr.x + 14 - pr.home) < 30) pr.dead = true;
+    if (pr.x < T || pr.x + pr.w > (this.L.W - 1) * T) { pr.vx = -pr.vx * 0.6; pr.x = clamp(pr.x, T, (this.L.W - 1) * T - pr.w); }
+  },
+  stepNote(pr, dt) {
+    pr.vy = Math.min(pr.vy + 900 * dt, 700); pr.x += pr.vx * dt; pr.y += pr.vy * dt;
+    if (this.isSolid(Math.floor((pr.x + 7) / T), Math.floor((pr.y + 16) / T))) { pr.dead = true; this.burst(5, pr.x + 7, pr.y + 14, 0xffd47a); }
+  },
+  stepDrip(pr, dt) {
+    pr.vy = Math.min(pr.vy + 900 * dt, 600); pr.y += pr.vy * dt;
+    const t = this.tileAt(Math.floor((pr.x + 4) / T), Math.floor((pr.y + 10) / T));
+    if (t === SOLID || t === PLAT) { pr.dead = true; this.burst(4, pr.x + 4, pr.y + 8, 0x8fdc3a); }
+  },
+
+  // ----- отрисовка -----
+  drawCurtains(now) {
+    const g = this.curtainG, s = this.slimeG; g.clear(); s.clear();
+    for (const c of this.curtains) {
+      // ткань со складками
+      const folds = 5, fw = c.w / folds;
+      for (let i = 0; i < folds; i++) {
+        const sway = Math.sin(now * 1.2 + c.x * 0.01 + i) * 1.5;
+        g.fillStyle(i % 2 ? 0x6e2433 : 0x7f2c3c, 1);
+        g.fillPoints([{ x: c.x + i * fw, y: c.y }, { x: c.x + (i + 1) * fw, y: c.y }, { x: c.x + (i + 1) * fw + sway, y: c.y + c.h }, { x: c.x + i * fw + sway, y: c.y + c.h }], true);
+      }
+      g.fillStyle(0x4a1822, 1); g.fillRect(c.x, c.y + c.h - 6, c.w, 6);
+      g.fillStyle(0xc9a227, 1); for (let i = 0; i < 4; i++) g.fillCircle(c.x + 6 + i * ((c.w - 12) / 3), c.y + 2, 3);
+      // слизь
+      const amt = c.slime > 0 ? 1 : c.wet;
+      if (amt > 0) {
+        const fade = c.slime > 0 && c.slime < 1.2 ? (Math.floor(now * 10) % 2 ? 0.45 : 0.9) : 0.9;
+        const hh = c.h * amt;
+        s.fillStyle(0x6fbf2a, 0.55 * fade); s.fillRect(c.x + 2, c.y + 4, c.w - 4, hh - 4);
+        s.fillStyle(0x9be84a, 0.75 * fade);
+        for (let i = 0; i < 7; i++) {
+          const bx = c.x + 8 + ((i * 37) % (c.w - 16)), by = c.y + 20 + ((i * 53) % Math.max(20, hh - 40));
+          if (by < c.y + hh) s.fillEllipse(bx, by + Math.sin(now * 2 + i) * 2, 14, 20);
+        }
+        if (c.slime > 0) for (let i = 0; i < 3; i++) { const dx = c.x + 10 + i * ((c.w - 20) / 2), len = 8 + Math.abs(Math.sin(now * 1.5 + i)) * 12; s.fillRect(dx - 2, c.y + c.h - 4, 4, len); s.fillCircle(dx, c.y + c.h - 4 + len, 3); }
+        s.fillStyle(0xe8ffc0, 0.6 * fade); for (let i = 0; i < 4; i++) s.fillCircle(c.x + 10 + i * 12, c.y + 30 + i * 40, 2);
+      }
+    }
+  },
+  drawVladik(now) {
+    const v = this.vladik, g = v.g; g.clear();
+    const f = v.face, fl = v.flash > 0, dead = v.state === 'dead';
+    g.setAlpha(dead ? clamp(v.t / 1.2, 0, 1) : 1);
+    const shake = ['clefWind', 'leapWind'].includes(v.state) ? Math.sin(now * 70) * 1.5 : 0;
+    const cx = v.x + v.w / 2 + shake, fy = v.y + v.h;
+    const walk = Math.abs(v.vx) > 5, legA = walk ? Math.sin(now * 14) * 5 : 0;
+    const squat = v.state === 'leapWind' ? 6 : 0;
+    // ноги
+    g.lineStyle(3, 0x1a1410, 1); g.lineBetween(cx - 6, fy - 20, cx - 6 + legA, fy); g.lineBetween(cx + 6, fy - 20, cx + 6 - legA, fy);
+    g.fillStyle(0x1a1410, 1); g.fillEllipse(cx - 6 + legA + 3 * f, fy - 1, 11, 5); g.fillEllipse(cx + 6 - legA + 3 * f, fy - 1, 11, 5);
+    // тело-скрипка
+    const by = fy - 20 + squat;
+    const wood = fl ? 0xffffff : 0x9a4f1f, woodHi = fl ? 0xffffff : 0xc0712f;
+    g.fillStyle(wood, 1); g.fillEllipse(cx, by - 14, 38, 30); g.fillEllipse(cx, by - 40, 30, 26); g.fillRect(cx - 10, by - 36, 20, 16);
+    g.fillStyle(woodHi, 0.6); g.fillEllipse(cx - 6, by - 18, 14, 18); g.fillEllipse(cx - 5, by - 44, 10, 12);
+    g.fillStyle(0x24302e, 1); g.fillEllipse(cx - 17, by - 27, 7, 10); g.fillEllipse(cx + 17, by - 27, 7, 10); // талия
+    g.lineStyle(1.6, 0x2a140a, 1);
+    for (const s of [-1, 1]) { g.beginPath(); g.moveTo(cx + s * 9, by - 30); g.lineTo(cx + s * 7, by - 22); g.lineTo(cx + s * 9, by - 14); g.strokePath(); g.fillStyle(0x2a140a, 1); g.fillCircle(cx + s * 9, by - 31, 1.4); g.fillCircle(cx + s * 9, by - 13, 1.4); }
+    g.fillStyle(0x1a1410, 1); g.fillRect(cx - 4, by - 8, 8, 8); // подгрифник
+    g.fillStyle(0xe8d9b0, 1); g.fillRect(cx - 7, by - 22, 14, 3); // подставка
+    g.lineStyle(0.8, 0xf4efe0, 0.9); for (let i = 0; i < 4; i++) g.lineBetween(cx - 3 + i * 2, by - 52, cx - 3 + i * 2, by - 6);
+    g.fillStyle(0x1a1410, 1); g.fillRect(cx - 3, by - 58, 6, 12); // гриф
+    // голова с завитком-чубом и очками
+    const hx = cx + 3 * f, hy = by - 68;
+    g.fillStyle(fl ? 0xffffff : 0xd9b98f, 1); g.fillCircle(hx, hy, 13);
+    g.lineStyle(4, 0x3b2215, 1); g.beginPath(); g.arc(hx - 2 * f, hy - 16, 6, 0, Math.PI * 1.6, false); g.strokePath();
+    g.fillStyle(0x3b2215, 1); g.fillEllipse(hx - 3 * f, hy - 10, 26, 8);
+    g.lineStyle(1.8, 0x1a1410, 1); g.strokeCircle(hx + 4 * f, hy + 1, 4.5); g.strokeCircle(hx + 12 * f, hy + 1, 4); g.lineBetween(hx + 8 * f, hy + 1, hx + 8.5 * f, hy + 1);
+    g.fillStyle(0x1a1410, 1); g.fillCircle(hx + 5 * f, hy + 1.5, 1.6); g.fillCircle(hx + 12.5 * f, hy + 1.5, 1.5);
+    const open = v.sayT > 0 || ['clefWind', 'leapWind', 'intro'].includes(v.state);
+    if (open) g.fillEllipse(hx + 8 * f, hy + 9, 6, 4 + Math.abs(Math.sin(now * 14)) * 3); else g.fillRect(Math.min(hx + 5 * f, hx + 11 * f), hy + 9, 6, 1.5);
+    // руки и смычок
+    const arm = v.state === 'clefWind' || v.state === 'smear';
+    g.lineStyle(3, 0x1a1410, 1);
+    const hx2 = cx + f * (arm ? 30 : 20), hy2 = by - (arm ? 50 : 30);
+    g.lineBetween(cx + 12 * f, by - 44, hx2, hy2);
+    g.lineStyle(2, 0xe8d9b0, 1); g.lineBetween(hx2, hy2, hx2 - f * 34, hy2 + (arm ? 28 : 18));
+    g.lineStyle(1, 0xf4efe0, 0.8); g.lineBetween(hx2 - f * 2, hy2 + 3, hx2 - f * 32, hy2 + (arm ? 30 : 20));
+    if (v.state === 'smear') { g.fillStyle(0x8fdc3a, 1); g.fillCircle(hx2, hy2, 5); }
+    // реплика
+    const say = this.vSay;
+    if (v.sayT > 0 && v.say) say.setText(v.say).setPosition(hx, hy - 30).setVisible(true); else say.setVisible(false);
+  },
+  drawVladikProjs(now) {
+    const fx = this.fx;
+    for (const pr of this.projs) {
+      if (pr.kind === 'clef') { if (pr.t0 > 0) continue; drawClef(fx, pr.x + 14, pr.y + 20, 1.05, pr.rot, 0xf4efe0); }
+      else if (pr.kind === 'note') {
+        const x = pr.x + 7, y = pr.y + 14;
+        fx.fillStyle(0x1a1410, 1); fx.fillEllipse(x, y, 13, 10); fx.fillStyle(0xffd47a, 1); fx.fillEllipse(x, y, 10, 7.5);
+        fx.fillStyle(0xffd47a, 1); fx.fillRect(x + 3.5, y - 16, 2.2, 16); fx.fillTriangle(x + 5.5, y - 16, x + 12, y - 9, x + 5.5, y - 11);
+      } else if (pr.kind === 'drip') {
+        fx.fillStyle(0x9be84a, 0.95); fx.fillCircle(pr.x + 4, pr.y + 6, 4); fx.fillTriangle(pr.x + 1, pr.y + 5, pr.x + 7, pr.y + 5, pr.x + 4, pr.y - 2);
+      }
+    }
+  },
+});
+
+// ===== БОСС «ТИМА ПИВО»: берлога, пиво, банкротство, волшебная пыль и приставка =====
+const TIMA_SAY_HIT = ['ЭЙ, НЕ РАЗЛЕЙ!', 'АЙ!', 'Я НА ПАУЗЕ!', 'ЛАГАЕТ!'];
+
+function buildTimaArena() {
+  const W = 44, H = 22, g = [];
+  for (let y = 0; y < H; y++) g.push(new Array(W).fill(SOLID));
+  for (let y = 4; y <= 17; y++) for (let x = 1; x <= 42; x++) g[y][x] = EMPTY;
+  const furniture = [
+    { kind: 'couch', x0: 7, x1: 13, y: 15 },
+    { kind: 'shelf', x0: 19, x1: 24, y: 10 },
+    { kind: 'crates', x0: 31, x1: 34, y: 14 },
+  ];
+  for (const f of furniture) for (let x = f.x0; x <= f.x1; x++) g[f.y][x] = PLAT;
+  return {
+    W, H, grid: g, theme: 'den', spawn: { x: 4, y: 17 }, benches: [], enemies: [], gates: [], exit: null,
+    signs: [{ x: 5, y: 17, text: 'Тима бьётся обычной иглой.\nПока он нюхает пыль — бей: три удара, и он чихнёт' }],
+    furniture, tima: { x: 30, y: 17 }, floorY: 18,
+    areas: [{ x: 0, name: 'Берлога Тимы' }], region: 'Босс-тест',
+  };
+}
+
+function drawDen(scene, L) {
+  const key = 'den', w = L.W * T, h = L.H * T;
+  if (scene.textures.exists(key)) scene.textures.remove(key);
+  const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+  const c = cv.getContext('2d'), R = rng(91), floorY = L.floorY * T;
+  // обои в полоску
+  c.fillStyle = '#2b2533'; c.fillRect(0, 0, w, h);
+  for (let x = 0; x < w; x += 28) { c.fillStyle = (x / 28) % 2 ? 'rgba(255,255,255,0.025)' : 'rgba(0,0,0,0.05)'; c.fillRect(x, 4 * T, 14, floorY - 4 * T); }
+  // окно
+  const wx = 2 * T, wy = 6 * T, ww = 4 * T, wh = 4 * T;
+  c.fillStyle = '#121a30'; c.fillRect(wx, wy, ww, wh);
+  c.fillStyle = 'rgba(255,240,200,0.85)'; for (let i = 0; i < 8; i++) c.fillRect(wx + R() * ww, wy + R() * wh, 1.5, 1.5);
+  c.fillStyle = '#e8e2cf'; c.beginPath(); c.arc(wx + ww * 0.7, wy + 28, 12, 0, 6.3); c.fill();
+  c.strokeStyle = '#4a3a2a'; c.lineWidth = 6; c.strokeRect(wx, wy, ww, wh);
+  // телевизор на тумбе
+  const tx = 26 * T, ty = 11 * T;
+  c.fillStyle = '#3b2f27'; c.fillRect(tx - 10, floorY - 50, 5 * T + 20, 50);
+  c.fillStyle = '#111'; c.fillRect(tx, ty, 5 * T, 3 * T + 20);
+  const scr = c.createLinearGradient(tx, ty, tx + 5 * T, ty + 3 * T); scr.addColorStop(0, '#2a6a8a'); scr.addColorStop(1, '#5b2a7a');
+  c.fillStyle = scr; c.fillRect(tx + 8, ty + 8, 5 * T - 16, 3 * T + 4);
+  c.fillStyle = 'rgba(255,255,255,0.85)'; c.font = '700 14px "Fira Sans", sans-serif'; c.textAlign = 'center';
+  c.fillText('GAME OVER?', tx + 2.5 * T, ty + 1.7 * T);
+  c.fillRect(tx + 2.5 * T - 2, floorY - 70, 4, 20);
+  // плакаты
+  const poster = (x, y, col, text) => { c.fillStyle = col; c.fillRect(x, y, 70, 92); c.fillStyle = 'rgba(0,0,0,0.25)'; c.fillRect(x + 6, y + 6, 58, 58);
+    c.fillStyle = '#f4efe0'; c.font = '700 12px "Fira Sans", sans-serif'; c.textAlign = 'center'; c.fillText(text, x + 35, y + 82); };
+  poster(15 * T, 5 * T + 4, '#7a3a2a', 'ЧЕМПИОН'); poster(37 * T, 6 * T, '#2a4a6a', 'ЛВЛ 99');
+  // плинтус и ковёр
+  c.fillStyle = '#4a3726'; c.fillRect(0, floorY - 8, w, 8);
+  for (let y = 0; y < L.H; y++) for (let x = 0; x < L.W; x++) {
+    if (L.grid[y][x] !== SOLID) continue;
+    c.fillStyle = y >= L.floorY ? '#3a2a22' : '#181420'; c.fillRect(x * T, y * T, T, T);
+  }
+  c.fillStyle = '#5a2a2a'; c.fillRect(6 * T, floorY, 30 * T, 10);
+  c.fillStyle = '#7a3a34'; for (let x = 6 * T; x < 36 * T; x += 16) c.fillRect(x, floorY + 3, 8, 3);
+  c.fillStyle = '#4a3726'; c.fillRect(0, 4 * T - 8, w, 8);
+  scene.textures.addCanvas(key, cv);
+  return [{ key, x: 0 }];
+}
+
+Object.assign(GameScene.prototype, {
+  setupTimaArena() {
+    // мебель рисуем отдельно: при банкротстве её изымают
+    this.furnG = this.add.graphics().setDepth(0.6);
+    this.stampTexts = this.L.furniture.map((f) => this.add.text((f.x0 + f.x1 + 1) * T / 2, f.y * T - 6, 'ИЗЪЯТО',
+      { fontFamily: '"Fira Sans", sans-serif', fontSize: '22px', fontStyle: '700', color: '#ff5a4a', stroke: '#1a1410', strokeThickness: 4 })
+      .setOrigin(0.5).setAngle(-8).setDepth(6.3).setVisible(false));
+    this.repo = false; this.drawFurniture();
+    this.puddles = [];
+    this.tSay = this.add.text(0, 0, '', { fontFamily: '"Fira Sans", sans-serif', fontSize: '15px', fontStyle: '600', color: '#1a1410',
+      backgroundColor: '#f4efe0', padding: { x: 8, y: 4 } }).setOrigin(0.5, 1).setDepth(8.5).setVisible(false);
+    this.dustFx = this.add.particles(0, 0, 'spark', { emitting: false, lifespan: 700, speed: { min: 20, max: 90 }, scale: { start: 0.9, end: 0 },
+      tint: [0xffe38a, 0xffffff, 0xffb6f0, 0x9ff0ff], blendMode: 'ADD' }).setDepth(7);
+    this.foam = this.add.particles(0, 0, 'dot', { emitting: false, lifespan: 500, speed: { min: 40, max: 180 }, scale: { start: 1.6, end: 0 },
+      tint: [0xfff6d8, 0xf2c14e], gravityY: 400 }).setDepth(7);
+    this.timaHits = 0;
+    this.makeTima();
+  },
+  drawFurniture() {
+    const g = this.furnG; g.clear();
+    for (const f of this.L.furniture) {
+      const x = f.x0 * T, w = (f.x1 - f.x0 + 1) * T, y = f.y * T, fl = this.L.floorY * T;
+      if (f.kind === 'couch') {
+        g.fillStyle(0x3a4a6a, 1); g.fillRoundedRect(x - 6, y - 34, w + 12, 34, 10); // спинка
+        g.fillStyle(0x4a5c80, 1); g.fillRoundedRect(x, y, w, 22, 6); g.fillRect(x + 6, y + 18, w - 12, fl - y - 18);
+        g.fillStyle(0x3a4a6a, 1); g.fillRoundedRect(x - 14, y - 10, 20, fl - y + 10, 6); g.fillRoundedRect(x + w - 6, y - 10, 20, fl - y + 10, 6);
+        g.lineStyle(2, 0x2c3850, 1); for (let i = 1; i < 3; i++) g.lineBetween(x + (w * i) / 3, y + 2, x + (w * i) / 3, y + 20);
+      } else if (f.kind === 'shelf') {
+        g.fillStyle(0x5a4634, 1); g.fillRect(x, y, w, 10); g.fillStyle(0x3b2f27, 1); g.fillRect(x + 10, y + 10, 6, 14); g.fillRect(x + w - 16, y + 10, 6, 14);
+        for (let i = 0; i < 5; i++) { g.fillStyle(0x6b3d14, 1); g.fillRoundedRect(x + 18 + i * 30, y - 26, 10, 26, 3); g.fillStyle(0xf4efe0, 1); g.fillRect(x + 18 + i * 30, y - 16, 10, 7); }
+      } else {
+        for (let yy = y; yy < fl; yy += 34) for (let xx = x; xx < x + w; xx += 64) {
+          g.fillStyle(0xc9a227, 1); g.fillRect(xx + 1, yy, 62, 33); g.lineStyle(2, 0x8a6a10, 1); g.strokeRect(xx + 1, yy, 62, 33);
+          g.fillStyle(0x6b3d14, 1); for (let i = 0; i < 5; i++) g.fillCircle(xx + 10 + i * 11, yy + 6, 4);
+        }
+      }
+    }
+  },
+  setRepo(on) {
+    if (this.repo === on) return;
+    this.repo = on;
+    for (const f of this.L.furniture) for (let x = f.x0; x <= f.x1; x++) this.grid[f.y][x] = on ? EMPTY : PLAT;
+    this.furnG.setAlpha(on ? 0.18 : 1);
+    this.stampTexts.forEach((t) => t.setVisible(on));
+  },
+  makeTima() {
+    if (this.tima && this.tima.g) this.tima.g.destroy();
+    const d = this.L.tima, hp = this.nPlayers === 2 ? 46 : 34;
+    this.tima = { x: d.x * T - 30, y: (d.y + 1) * T - 80, w: 60, h: 80, vx: 0, vy: 0, face: -1, hp, maxHp: hp, state: 'intro', t: 2.0,
+      flash: 0, last: '', say: 'ПИВКА ДЛЯ РЫВКА!', sayT: 2.2, sayCd: 0, barShown: false, air: 0, hyper: 0, dustCd: 6, dustHits: 0, drinkCd: 8,
+      g: this.add.graphics().setDepth(4) };
+    if (this.puddles) this.puddles = [];
+    if (this.furnG) this.setRepo(false);
+  },
+  timaSpeak(text, dur) { const v = this.tima; v.say = text; v.sayT = dur || 1.6; },
+  speedMul(p) {
+    if (!this.puddles || !p.onGround) return 1;
+    for (const q of this.puddles) if (p.x + p.w > q.x && p.x < q.x + q.w && Math.abs(p.y + p.h - q.y) < 6) return 0.5;
+    return 1;
+  },
+
+  stepTima(dt) {
+    const v = this.tima; if (!v) return;
+    v.flash -= dt; v.sayT -= dt; v.sayCd -= dt; v.dustCd -= dt; v.drinkCd -= dt;
+    if (!v.barShown && this.ui().ready) { v.barShown = true; this.ui().bossBar(true, 'Тима Пиво', v.hp / v.maxHp); }
+    for (const q of this.puddles) q.t -= dt;
+    this.puddles = this.puddles.filter((q) => q.t > 0);
+    if (this.repoT > 0) { this.repoT -= dt; if (this.repoT <= 0) { this.setRepo(false); this.sendEv({ k: 'repo', on: 0 }); } }
+    if (v.state === 'dead') { v.t -= dt; v.vy = Math.min(v.vy + P.G * dt, P.MAXFALL); this.moveBody(v, dt); return; }
+    if (v.hyper > 0) { v.hyper -= dt; if (Math.random() < 0.5) this.dustFx.explode(1, v.x + Math.random() * v.w, v.y + Math.random() * v.h); }
+    const sp = v.hyper > 0 ? 1.55 : 1, phase2 = v.hp <= v.maxHp / 2;
+    const [tp] = this.nearestPlayer(v.x + v.w / 2, v.y + v.h / 2);
+    const tx = tp ? tp.x + 7 : v.x + v.w / 2, vcx = v.x + v.w / 2;
+    v.t -= dt * sp;
+    switch (v.state) {
+      case 'intro': v.vx = 0; if (v.t <= 0) { v.state = 'idle'; v.t = 0.8; } break;
+      case 'idle':
+        v.face = tx > vcx ? 1 : -1;
+        v.vx = Math.abs(tx - vcx) > 180 ? v.face * 80 * sp : 0;
+        if (v.t <= 0) {
+          v.vx = 0;
+          if (v.dustCd <= 0 && v.hp < v.maxHp * 0.75 && v.hyper <= 0) { v.state = 'dust'; v.t = 1.5; v.dustHits = 0; this.timaSpeak('ВОЛШЕБНАЯ ПЫЛЬ!', 1.5); this.sfx('sparkle'); break; }
+          if (v.drinkCd <= 0 && v.hp < v.maxHp * 0.85 && Math.random() < 0.5) { v.state = 'drink'; v.t = 1.2; v.drinkCd = 14; this.timaSpeak('БУЛЬ-БУЛЬ…', 1.2); this.sfx('glug'); break; }
+          const opts = ['beer', 'pad', 'ring', 'box', 'bankrupt'].filter((o) => o !== v.last && !(o === 'bankrupt' && (this.repoT > 0 || !phase2 && Math.random() < 0.5)));
+          const pick = opts[Math.floor(Math.random() * opts.length)]; v.last = pick;
+          if (pick === 'beer') { v.state = 'beerWind'; v.t = 0.5; this.timaSpeak('ЛОВИ ПИВКО!', 1.0); }
+          if (pick === 'pad') { v.state = 'pad'; v.t = 2.0; this.timaSpeak('ИКС-БОКС!', 1.2); this.projs.push({ kind: 'pad', x: vcx, y: v.y + 30, w: 26, h: 18, vx: 0, vy: 0, life: 2.2, ang: v.face > 0 ? 0 : Math.PI, rad: 20, spin: v.face }); this.sfx('buzz'); }
+          if (pick === 'ring') { v.state = 'ringWind'; v.t = 0.9; this.timaSpeak('КРАСНОЕ КОЛЬЦО!', 1.3); this.sfx('buzz'); }
+          if (pick === 'box') { v.state = 'boxWind'; v.t = 0.5; this.timaSpeak('ДЕРЖИ ПРИСТАВКУ!', 1.1); }
+          if (pick === 'bankrupt') { v.state = 'bankWind'; v.t = 0.8; this.timaSpeak('БАНКРОТСТВО!', 1.6); this.sfx('roar'); }
+        }
+        break;
+      case 'beerWind':
+        v.vx = 0; v.face = tx > vcx ? 1 : -1;
+        if (v.t <= 0) {
+          const n = phase2 ? 4 : 3;
+          for (let i = 0; i < n; i++) {
+            const dist = tx - vcx + (i - (n - 1) / 2) * 70;
+            this.projs.push({ kind: 'bottle', x: vcx - 5, y: v.y + 6, w: 10, h: 22, vx: clamp(dist / 0.95, -520, 520), vy: -520 - i * 20, life: 3, rot: 0 });
+          }
+          this.sfx('throw'); v.state = 'recover'; v.t = 0.6;
+        }
+        break;
+      case 'pad': v.vx = 0; if (v.t <= 0) { v.state = 'recover'; v.t = 0.4; } break;
+      case 'ringWind':
+        v.vx = 0;
+        if (v.t <= 0) {
+          const cy = v.y + v.h - 18;
+          this.projs.push({ kind: 'ringfx', x: vcx, y: v.y + 24, w: 0, h: 0, vx: 0, vy: 0, life: 0.9, r: 10 });
+          for (const d of [-1, 1]) this.projs.push({ kind: 'rwave', x: vcx - 12 + d * 26, y: cy, w: 24, h: 18, vx: d * (phase2 ? 420 : 360) * Math.min(sp, 1.25), vy: 0, life: 2.6 });
+          this.shake(260, 0.012); this.sfx('slam'); v.state = 'recover'; v.t = 0.7;
+        }
+        break;
+      case 'boxWind':
+        v.vx = 0; v.face = tx > vcx ? 1 : -1;
+        if (v.t <= 0) {
+          this.projs.push({ kind: 'box', x: vcx - 18, y: v.y + 4, w: 36, h: 22, vx: clamp((tx - vcx) / 1.1, -460, 460), vy: -600, life: 4, bounces: 2 });
+          this.sfx('throw'); v.state = 'recover'; v.t = 0.6;
+        }
+        break;
+      case 'bankWind':
+        v.vx = 0;
+        if (v.t <= 0) {
+          const targets = this.alivePlayers().length ? this.alivePlayers() : this.players;
+          targets.forEach((p, i) => this.projs.push({ kind: 'stamp', x: clamp(p.x + 7, 2 * T, (this.L.W - 2) * T) - 40, y: 7 * T, w: 80, h: 44, vx: 0, vy: 0, life: 3, delay: 0.7 + i * 0.2 }));
+          this.repoT = 6; this.setRepo(true); this.sendEv({ k: 'repo', on: 1 });
+          this.bankruptSilk(); this.sendEv({ k: 'bankrupt' });
+          this.toastAll('Банкротство! Мебель изъята, нить ушла кредиторам');
+          this.sfx('coin'); v.state = 'recover'; v.t = 0.9;
+        }
+        break;
+      case 'drink':
+        v.vx = 0;
+        if (v.t <= 0) { v.hp = Math.min(v.maxHp, v.hp + 2); this.ui().bossBar(true, 'Тима Пиво', v.hp / v.maxHp); this.timaSpeak('БУЭЭЭ!', 1.0); this.sfx('burp'); v.state = 'recover'; v.t = 0.5; }
+        break;
+      case 'dust':
+        v.vx = 0;
+        if (Math.random() < 0.6) this.dustFx.explode(1, vcx + v.face * 30 + (Math.random() - 0.5) * 30, v.y + 10 + Math.random() * 20);
+        if (v.t <= 0) { v.hyper = 8; v.dustCd = 20; this.timaSpeak('Я БЫСТРЫЙ!', 1.2); this.sfx('sparkle'); this.toastAll('Тима разогнался: бегай от него 8 секунд'); v.state = 'idle'; v.t = 0.3; }
+        break;
+      case 'sneeze': v.vx = 0; if (v.t <= 0) { v.state = 'idle'; v.t = 0.5; } break;
+      case 'recover': v.vx = 0; if (v.t <= 0) { v.state = 'idle'; v.t = (phase2 ? 0.45 : 0.7); } break;
+    }
+    v.vy = Math.min(v.vy + P.G * dt, P.MAXFALL);
+    this.moveBody(v, dt);
+  },
+  bankruptSilk() { for (const p of this.players) if (!p.remote) p.silk = Math.floor(p.silk / 2); },
+  damageTima(p) {
+    const v = this.tima;
+    v.hp -= 1; v.flash = 0.09; this.gainSilk(p); if (!p.remote) this.hitstop = 0.04; this.sfx('hit'); this.timaHits++;
+    this.burst(9, clamp(p.x + 7 + p.face * 28, v.x, v.x + v.w), v.y + v.h / 2, 0xf4f1e6);
+    if (v.state === 'drink') { v.state = 'recover'; v.t = 0.4; this.timaSpeak('ЭЙ, РАЗЛИЛ!', 1.0); this.foamAt(12, v.x + v.w / 2, v.y + 30); }
+    if (v.state === 'dust') {
+      v.dustHits++;
+      if (v.dustHits >= 3) { v.state = 'sneeze'; v.t = 1.6; v.dustCd = 14; this.timaSpeak('АПЧХИ!', 1.2); this.sfx('cough'); this.dustFx.explode(30, v.x + v.w / 2 + v.face * 30, v.y + 20); }
+    }
+    this.ui().bossBar(true, 'Тима Пиво', Math.max(0, v.hp) / v.maxHp);
+    if (v.sayCd <= 0 && Math.random() < 0.3 && v.state !== 'sneeze') { this.timaSpeak(TIMA_SAY_HIT[Math.floor(Math.random() * TIMA_SAY_HIT.length)], 1.0); v.sayCd = 2.5; }
+    if (v.hp <= 0) this.timaDie();
+  },
+  timaDie() {
+    const v = this.tima; v.state = 'dead'; v.t = 2.6; v.vx = 0; v.hyper = 0; this.bossDead = true;
+    for (const pr of this.projs) pr.dead = true;
+    this.setRepo(false); this.repoT = 0; this.sendEv({ k: 'repo', on: 0 });
+    this.timaSpeak('ВСЁ… Я СПАТЬ…', 2.4); this.sfx('burp'); this.shake(600, 0.008);
+    for (let i = 0; i < 6; i++) this.time.delayedCall(i * 170, () => this.foamAt(18, v.x + Math.random() * v.w, v.y + Math.random() * v.h));
+    this.time.delayedCall(2700, () => { this.ui().bossBar(false); this.win(); });
+  },
+  foamAt(n, x, y) { this.foam.explode(n, x, y); if (this.online === 'host') this.sendEv({ k: 'foam', n, x: Math.round(x), y: Math.round(y) }); },
+  stepTimaProj(pr, dt) {
+    const v = this.tima;
+    if (pr.kind === 'bottle') {
+      pr.vy = Math.min(pr.vy + 1100 * dt, 800); pr.x += pr.vx * dt; pr.y += pr.vy * dt; pr.rot += dt * 12;
+      const t = this.tileAt(Math.floor((pr.x + 5) / T), Math.floor((pr.y + 20) / T));
+      if (t === SOLID || (t === PLAT && pr.vy > 0)) {
+        pr.dead = true; this.foamAt(10, pr.x + 5, pr.y + 16); this.sfx('glass');
+        const gy = Math.floor((pr.y + 20) / T) * T;
+        this.puddles.push({ x: pr.x + 5 - 40, w: 80, y: gy, t: 5 });
+      }
+    } else if (pr.kind === 'pad') {
+      const vcx = v.x + v.w / 2, vcy = v.y + 34;
+      const k = 1 - pr.life / 2.2;
+      pr.rad = 20 + Math.min(1, k * 2.2) * 125 * (k > 0.8 ? (1 - k) * 5 : 1);
+      pr.ang += pr.spin * dt * (v.hyper > 0 ? 7.5 : 5.5);
+      pr.x = vcx + Math.cos(pr.ang) * pr.rad - 13; pr.y = vcy + Math.sin(pr.ang) * pr.rad * 0.75 - 9;
+      pr.cx = vcx; pr.cy = vcy;
+    } else if (pr.kind === 'rwave') {
+      pr.x += pr.vx * dt;
+      const fx = pr.vx > 0 ? pr.x + pr.w : pr.x;
+      if (this.isSolid(Math.floor(fx / T), Math.floor((pr.y + 9) / T))) pr.dead = true;
+    } else if (pr.kind === 'ringfx') {
+      pr.r += 900 * dt;
+    } else if (pr.kind === 'box') {
+      pr.vy = Math.min(pr.vy + 1100 * dt, 800); pr.x += pr.vx * dt; pr.y += pr.vy * dt;
+      if (this.isSolid(Math.floor((pr.x + 18) / T), Math.floor((pr.y + 22) / T)) && pr.vy > 0) {
+        pr.y = Math.floor((pr.y + 22) / T) * T - 22; this.dustAt(8, pr.x + 18, pr.y + 22); this.sfx('slam');
+        if (pr.bounces-- > 0) { pr.vy = -380; pr.vx *= 0.8; } else pr.dead = true;
+      }
+      if (this.isSolid(Math.floor((pr.x + (pr.vx > 0 ? 36 : 0)) / T), Math.floor((pr.y + 10) / T))) pr.vx = -pr.vx;
+    } else if (pr.kind === 'stamp') {
+      pr.vy = Math.min(pr.vy + 1300 * dt, 900); pr.y += pr.vy * dt;
+      if (this.isSolid(Math.floor((pr.x + 40) / T), Math.floor((pr.y + 44) / T))) { pr.dead = true; this.dustAt(16, pr.x + 40, pr.y + 44); this.shake(180, 0.01); this.sfx('slam'); }
+    }
+  },
+
+  drawTima(now) {
+    const v = this.tima, g = v.g; g.clear();
+    const f = v.face, fl = v.flash > 0, dead = v.state === 'dead', hyper = v.hyper > 0;
+    g.setAlpha(dead ? clamp(v.t / 1.2, 0, 1) : 1);
+    const shake = ['beerWind', 'ringWind', 'boxWind', 'bankWind'].includes(v.state) ? Math.sin(now * 70) * 1.5 : 0;
+    const cx = v.x + v.w / 2 + shake, fy = v.y + v.h;
+    if (hyper) { g.fillStyle(0xffe38a, 0.12 + Math.sin(now * 12) * 0.05); g.fillEllipse(cx, fy - 40, 100, 110); }
+    const walk = Math.abs(v.vx) > 5, legA = walk ? Math.sin(now * (hyper ? 24 : 12)) * 5 : 0;
+    // ноги в трениках
+    g.lineStyle(7, 0x2a2f3a, 1); g.lineBetween(cx - 11, fy - 18, cx - 11 + legA, fy - 2); g.lineBetween(cx + 11, fy - 18, cx + 11 - legA, fy - 2);
+    g.fillStyle(0xf4efe0, 1); g.fillEllipse(cx - 11 + legA + 3 * f, fy - 2, 15, 6); g.fillEllipse(cx + 11 - legA + 3 * f, fy - 2, 15, 6);
+    // панцирь-спина и пузо в майке
+    g.fillStyle(fl ? 0xffffff : 0x4b5a3c, 1); g.fillEllipse(cx - 6 * f, fy - 40, 58, 52);
+    g.fillStyle(fl ? 0xffffff : 0xe9e4d4, 1); g.fillEllipse(cx + 6 * f, fy - 36, 46, 44);
+    g.lineStyle(3, 0xcfc8b4, 1); g.lineBetween(cx - 4 + 6 * f, fy - 62, cx - 6 + 6 * f, fy - 50); g.lineBetween(cx + 14 + 6 * f, fy - 62, cx + 16 + 6 * f, fy - 50);
+    g.fillStyle(0x3b2a1c, 0.35); g.fillCircle(cx + 10 * f, fy - 30, 2.5);
+    // голова с щетиной и наушниками
+    const hx = cx + 10 * f, hy = fy - 72;
+    g.fillStyle(fl ? 0xffffff : 0x6f7f56, 1); g.fillEllipse(hx, hy, 34, 28);
+    g.fillStyle(0x3b4a2c, 0.5); for (let i = 0; i < 8; i++) g.fillCircle(hx + f * (2 + (i % 4) * 4), hy + 6 + Math.floor(i / 4) * 3, 1);
+    g.lineStyle(3, 0x1a1a22, 1); g.beginPath(); g.arc(hx - 2 * f, hy - 4, 17, Math.PI * 1.1, Math.PI * 1.9, false); g.strokePath();
+    g.fillStyle(0x1a1a22, 1); g.fillRoundedRect(hx - 2 * f - 6 - 12 * f, hy - 6, 10, 14, 3);
+    g.fillStyle(0x6bd36b, 0.9); g.fillCircle(hx - 2 * f - 1 - 12 * f, hy + 1, 1.6);
+    // глаза
+    if (v.state === 'sneeze' || dead) { g.lineStyle(2, 0x1a1410, 1); g.lineBetween(hx + 3 * f, hy - 2, hx + 9 * f, hy); g.lineBetween(hx + 10 * f, hy - 2, hx + 15 * f, hy); }
+    else {
+      g.fillStyle(0xf4efe0, 1); g.fillEllipse(hx + 6 * f, hy - 1, 8, 7); g.fillEllipse(hx + 13 * f, hy - 1, 7, 6);
+      g.fillStyle(hyper ? 0xffb6f0 : 0x1a1410, 1); g.fillCircle(hx + 7 * f, hy, 2); g.fillCircle(hx + 14 * f, hy, 1.8);
+      g.fillStyle(0xd9686a, 0.35); g.fillCircle(hx + 12 * f, hy + 6, 4); // румянец
+    }
+    const open = v.sayT > 0;
+    g.fillStyle(0x1a1410, 1); if (open) g.fillEllipse(hx + 10 * f, hy + 9, 7, 4 + Math.abs(Math.sin(now * 14)) * 3); else g.fillRect(Math.min(hx + 7 * f, hx + 13 * f), hy + 9, 6, 1.6);
+    // рука с бутылкой / приставкой / мешочком
+    g.lineStyle(5, fl ? 0xffffff : 0x6f7f56, 1);
+    const up = ['beerWind', 'ringWind', 'boxWind', 'bankWind', 'drink'].includes(v.state);
+    const ax = cx + f * (up ? 26 : 30), ay = fy - (up ? 78 : 42);
+    g.lineBetween(cx + 18 * f, fy - 54, ax, ay);
+    if (v.state === 'ringWind') {
+      g.fillStyle(0x1e1e22, 1); g.fillRoundedRect(ax - 22, ay - 30, 44, 28, 5);
+      g.lineStyle(3, 0xff3a2a, 0.5 + Math.abs(Math.sin(now * 16)) * 0.5); g.strokeCircle(ax, ay - 16, 8);
+    } else if (v.state === 'boxWind') {
+      g.fillStyle(0x1e1e22, 1); g.fillRoundedRect(ax - 18, ay - 24, 36, 22, 5); g.fillStyle(0x6bd36b, 1); g.fillCircle(ax + 10, ay - 13, 2);
+    } else if (v.state === 'dust') {
+      g.fillStyle(0xb98a52, 1); g.fillCircle(cx + 22 * f, fy - 70, 7); g.fillStyle(0xffe38a, 0.8); g.fillCircle(cx + 22 * f, fy - 76, 3);
+    } else if (v.state === 'bankWind') {
+      g.fillStyle(0x6b3d14, 1); g.fillRoundedRect(ax - 14, ay - 10, 28, 18, 3); g.fillStyle(0x1a1410, 1); g.fillRect(ax - 10, ay - 4, 20, 3);
+    } else {
+      const bx = up ? ax : ax, by = up ? ay - 18 : ay - 14;
+      g.fillStyle(0x6b3d14, 1); g.fillRoundedRect(bx - 5, by, 10, 22, 3); g.fillRect(bx - 2, by - 7, 4, 8);
+      g.fillStyle(0xf4efe0, 1); g.fillRect(bx - 5, by + 8, 10, 7);
+    }
+    // реплика
+    const say = this.tSay;
+    if (v.sayT > 0 && v.say) say.setText(v.say).setPosition(hx, hy - 24).setVisible(true); else say.setVisible(false);
+  },
+  drawTimaProjs(now) {
+    const fx = this.fx, fb = this.fxBack;
+    for (const q of this.puddles || []) {
+      const a = Math.min(1, q.t) * 0.85;
+      fb.fillStyle(0xf2c14e, a); fb.fillEllipse(q.x + q.w / 2, q.y - 2, q.w, 9);
+      fb.fillStyle(0xfff6d8, a); for (let i = 0; i < 5; i++) fb.fillCircle(q.x + 10 + i * 15, q.y - 4 - Math.abs(Math.sin(now * 3 + i)) * 2, 3);
+    }
+    for (const pr of this.projs) {
+      if (pr.kind === 'bottle') {
+        const cs = Math.cos(pr.rot), sn = Math.sin(pr.rot), x = pr.x + 5, y = pr.y + 11;
+        const P2 = (px, py) => ({ x: x + px * cs - py * sn, y: y + px * sn + py * cs });
+        fx.fillStyle(0x6b3d14, 1); fx.fillPoints([P2(-5, -4), P2(5, -4), P2(5, 11), P2(-5, 11)], true);
+        fx.fillPoints([P2(-2, -11), P2(2, -11), P2(2, -4), P2(-2, -4)], true);
+        fx.fillStyle(0xf4efe0, 1); fx.fillPoints([P2(-5, 1), P2(5, 1), P2(5, 6), P2(-5, 6)], true);
+      } else if (pr.kind === 'pad') {
+        fx.lineStyle(2, 0x1a1a22, 1); fx.lineBetween(pr.cx || pr.x, pr.cy || pr.y, pr.x + 13, pr.y + 9);
+        fx.fillStyle(0x2a2a30, 1); fx.fillRoundedRect(pr.x, pr.y + 2, 26, 14, 6); fx.fillCircle(pr.x + 4, pr.y + 14, 5); fx.fillCircle(pr.x + 22, pr.y + 14, 5);
+        fx.fillStyle(0xd0d0d6, 1); fx.fillCircle(pr.x + 8, pr.y + 8, 2.2);
+        fx.fillStyle(0xff5a4a, 1); fx.fillCircle(pr.x + 19, pr.y + 6, 1.6); fx.fillStyle(0x5ab0ff, 1); fx.fillCircle(pr.x + 17, pr.y + 9, 1.6);
+        fx.fillStyle(0x6bd36b, 1); fx.fillCircle(pr.x + 21, pr.y + 9, 1.6); fx.fillStyle(0xffd47a, 1); fx.fillCircle(pr.x + 19, pr.y + 12, 1.6);
+      } else if (pr.kind === 'rwave') {
+        fx.fillStyle(0xff3a2a, 0.3); fx.fillEllipse(pr.x + 12, pr.y + 12, 36, 22);
+        fx.fillStyle(0xff6a4a, 1); for (let i = 0; i < 3; i++) fx.fillTriangle(pr.x + i * 8, pr.y + 18, pr.x + 4 + i * 8, pr.y + 2 + Math.sin(now * 30 + i) * 3, pr.x + 8 + i * 8, pr.y + 18);
+      } else if (pr.kind === 'ringfx') {
+        const a = Math.max(0, pr.life / 0.9);
+        fx.lineStyle(10, 0xff3a2a, 0.6 * a); fx.strokeCircle(pr.x, pr.y, pr.r); fx.lineStyle(3, 0xffc0b0, 0.8 * a); fx.strokeCircle(pr.x, pr.y, pr.r);
+      } else if (pr.kind === 'box') {
+        fx.fillStyle(0x1e1e22, 1); fx.fillRoundedRect(pr.x, pr.y, 36, 22, 5); fx.fillStyle(0x34343c, 1); fx.fillRect(pr.x + 4, pr.y + 4, 28, 3);
+        fx.fillStyle(0x6bd36b, 1); fx.fillCircle(pr.x + 28, pr.y + 14, 2);
+      } else if (pr.kind === 'stamp') {
+        const warn = pr.delay > 0;
+        if (warn) { fx.fillStyle(0xff5a4a, 0.45 + Math.sin(now * 20) * 0.15); fx.fillEllipse(pr.x + 40, this.L.floorY * T - 2, 84, 12); }
+        const a = warn ? 0.4 : 1;
+        fx.fillStyle(0x6b3d14, a); fx.fillRect(pr.x + 34, pr.y - 26, 12, 26); fx.fillCircle(pr.x + 40, pr.y - 28, 9);
+        fx.fillStyle(0x3a2a22, a); fx.fillRect(pr.x, pr.y, 80, 34); fx.fillStyle(0xd23a2a, a); fx.fillRect(pr.x + 2, pr.y + 34, 76, 10);
+      }
+    }
+  },
+  drawStampLabels() {
+    if (!this.stampPool) this.stampPool = [];
+    let i = 0;
+    for (const pr of this.projs) if (pr.kind === 'stamp') {
+      let t = this.stampPool[i];
+      if (!t) { t = this.add.text(0, 0, 'БАНКРОТ', { fontFamily: '"Fira Sans", sans-serif', fontSize: '14px', fontStyle: '700', color: '#f4efe0' }).setOrigin(0.5).setDepth(6.4); this.stampPool.push(t); }
+      t.setPosition(pr.x + 40, pr.y + 17).setAlpha(pr.delay > 0 ? 0.4 : 1).setVisible(true); i++;
+    }
+    for (let k = i; k < this.stampPool.length; k++) this.stampPool[k].setVisible(false);
   },
 });
 
