@@ -521,9 +521,10 @@ class GameScene extends Phaser.Scene {
   }
   spawnEnemies() {
     for (const e of this.enemies) e.g.destroy();
-    this.enemies = this.L.enemies.map((d) => {
+    this.enemies = this.L.enemies.flatMap((d) => {
       const base = { type: d.type, vx: 0, vy: 0, face: -1, flash: 0, kbT: 0, kbx: 0, kby: 0, dead: false, t: Math.random() * 6, g: this.add.graphics().setDepth(4) };
       const fx = d.x * T + 16, fy = (d.y + 1) * T;
+      const n2 = this.spawnEnemy2(d, base); if (n2) return n2; // новые враги (enemies2.js)
       if (d.type === 'crawler') return { ...base, w: 26, h: 16, x: fx - 13, y: fy - 16, hp: 3, vx: -45, beads: 3 };
       if (d.type === 'gnat') return { ...base, w: 20, h: 18, x: fx - 10, y: d.y * T, hx: fx, hy: d.y * T, hp: 2, beads: 2 };
       return { ...base, w: 36, h: 22, x: fx - 18, y: fy - 22, hp: 6, vx: -40, state: 'walk', st: 0, beads: 6 };
@@ -720,7 +721,7 @@ class GameScene extends Phaser.Scene {
     for (const e of this.enemies) {
       if (e.dead || p.atkHits.has(e) || !overlap(box, e)) continue;
       p.atkHits.add(e);
-      if (auth) { this.damageEnemy(e, p); if (p.heavy && !e.dead) this.damageEnemy(e, p); } else { e.flash = 0.1; this.hitstop = 0.045; Snd.play('hit'); }
+      if (auth) { this.damageEnemy(e, p); if (p.heavy && !e.dead) this.damageEnemy(e, p); } else if (!this.e2Blocked(e, p, true)) { e.flash = 0.1; this.hitstop = 0.045; Snd.play('hit'); }
       if (local) { if (p.atkDir === 'd') pogo(); else if (p.atkDir === 'f') p.kbx = -p.face * 150; }
     }
     const b = this.boss;
@@ -750,6 +751,7 @@ class GameScene extends Phaser.Scene {
   }
   gainSilk(p) { if (p.remote) this.sendEv({ k: 'silk', i: p.i }); else p.silk = Math.min(P.SILK, p.silk + 1); }
   damageEnemy(e, p) {
+    if (e.e2 && this.e2Blocked(e, p)) return; // броня панциря, засадник под землёй
     e.hp -= 1; e.flash = 0.1; this.gainSilk(p); if (!p.remote) this.hitstop = 0.045; this.sfx('hit');
     this.burst(8, e.x + e.w / 2, e.y + e.h / 2, 0xf4f1e6);
     const dx = p.atkDir === 'f' ? p.face : Math.sign(e.x + e.w / 2 - (p.x + 7)) || 1;
@@ -869,6 +871,7 @@ class GameScene extends Phaser.Scene {
 
   stepEnemy(e, dt) {
     e.flash -= dt; e.t += dt;
+    if (e.e2) { this.stepEnemy2(e, dt); return; }
     if (e.kbT > 0) {
       e.kbT -= dt; e.vx = e.kbx;
       if (e.type === 'gnat') e.vy = e.kby;
@@ -1100,14 +1103,14 @@ class GameScene extends Phaser.Scene {
     const r = (v) => Math.round(v * 10) / 10, f2 = (v) => Math.round(Math.max(0, v) * 100) / 100;
     return { t: 'p', i: p.i, x: r(p.x), y: r(p.y), vx: Math.round(p.vx), vy: Math.round(p.vy), f: p.face, g: p.onGround ? 1 : 0,
       d: f2(p.dashT), s: p.sit ? 1 : 0, h: f2(p.healT), l: f2(p.landT), hp: p.hp, mh: p.maxHp, sk: p.silk, dn: p.downed ? 1 : 0,
-      iv: f2(p.inv), u: p.raw && p.raw.up ? 1 : 0, rv: f2(p.reviveT), sq: p.seq || 0, ad: p.atkDir, bm: p.bombs, tp: this.td ? [Math.round(p.tdx), Math.round(p.tdy)] : null };
+      iv: f2(p.inv), u: p.raw && p.raw.up ? 1 : 0, rv: f2(p.reviveT), sq: p.seq || 0, ad: p.atkDir, bm: p.bombs, hv: p.heavy ? 1 : 0, tp: this.td ? [Math.round(p.tdx), Math.round(p.tdy)] : null };
   }
   packSnap() {
     const r = Math.round, b = this.boss;
     const st = (e) => (e.state === 'wind' || e.state === 'charge') ? 1 : e.state === 'stun' ? 2 : 0;
     const mi = this.misha, vl = this.vladik, tm = this.tima, r10 = (x) => Math.round(x * 10) / 10;
     return { t: 's',
-      e: this.enemies.map((e) => [r(e.x), r(e.y), e.face, e.dead ? 1 : 0, e.flash > 0 ? 1 : 0, st(e)]),
+      e: this.enemies.map((e) => [r(e.x), r(e.y), e.face, e.dead ? 1 : 0, e.flash > 0 ? 1 : 0, st(e), this.packEnemy2(e)]),
       b: [r(b.x), r(b.y), b.face, b.hp, b.maxHp, b.state, b.flash > 0 ? 1 : 0, Math.round(b.t * 100) / 100],
       pr: this.projs.map((q) => [NET_KINDS.indexOf(q.kind), r(q.x), r(q.y), r(q.vx), r(q.vy), q.delay > 0 ? 1 : 0, q.ch || (q.kind === 'ringfx' ? r(q.r) : '')]),
       vl: vl ? [r(vl.x), r(vl.y), vl.face, vl.hp, vl.maxHp, vl.state, vl.flash > 0 ? 1 : 0, r10(vl.t), vl.sayT > 0 ? vl.say : '', this.curtains.map((c) => [r10(c.slime), Math.round(c.wet * 100) / 100])] : null,
@@ -1122,7 +1125,7 @@ class GameScene extends Phaser.Scene {
     if (m.t === 'p') {
       const p = this.players[m.i]; if (!p || !p.remote) return;
       Object.assign(p, { tx: m.x, ty: m.y, vx: m.vx, vy: m.vy, face: m.f, onGround: !!m.g, dashT: m.d, sit: !!m.s, healT: m.h, landT: m.l,
-        hp: m.hp, maxHp: m.mh, silk: m.sk, downed: !!m.dn, inv: m.iv, netUp: !!m.u, reviveT: m.rv, netT: 0, bombs: m.bm || 0 });
+        hp: m.hp, maxHp: m.mh, silk: m.sk, downed: !!m.dn, inv: m.iv, netUp: !!m.u, reviveT: m.rv, netT: 0, bombs: m.bm || 0, heavy: !!m.hv });
       if (m.tp) { p.tdx = m.tp[0]; p.tdy = m.tp[1]; }
       p.inp = { up: p.netUp };
       if (m.sq !== p.lastSeq) { p.lastSeq = m.sq; p.atkT = P.ATK_T; p.atkHits = new Set(); p.atkDir = m.ad; p.pogoed = true; }
@@ -1140,6 +1143,7 @@ class GameScene extends Phaser.Scene {
       if (dead && !e.dead) e.g.clear();
       e.dead = dead; if (a[4]) e.flash = 0.1;
       e.state = a[5] === 1 ? 'charge' : a[5] === 2 ? 'stun' : 'walk';
+      if (a[6]) this.applyEnemy2(e, a[6]);
     });
     const b = this.boss, B = m.b;
     if (b.tx == null || Math.abs(b.x - B[0]) > 140) { b.x = B[0]; b.y = B[1]; }
@@ -1427,6 +1431,7 @@ class GameScene extends Phaser.Scene {
 
   drawEnemy(e, now) {
     const g = e.g; g.clear();
+    if (e.e2) { this.drawEnemy2(e, now); return; }
     const fl = e.flash > 0;
     const cx = e.x + e.w / 2, fy = e.y + e.h, f = e.face || 1;
     if (e.type === 'crawler') {
