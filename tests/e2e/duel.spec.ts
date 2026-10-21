@@ -199,7 +199,7 @@ for (const [W, H] of SIZES) {
         const hud = document.querySelector('.rw-hud')!.getBoundingClientRect(), out: string[] = [];
         if (hud.left < -1 || hud.top < -1 || hud.right > innerWidth + 1 || hud.bottom > innerHeight + 1) out.push('hud');
         if (document.documentElement.scrollWidth > innerWidth + 1) out.push('hscroll');
-        const boxes = ['.dl-vetoscr', '.dl-watch', '.dl-lobbyinfo', '.over', '.mid'].map((s) => ({ s, el: document.querySelector<HTMLElement>('.rw-hud ' + s) })).filter((x) => x.el).map((x) => ({ s: x.s, r: x.el!.getBoundingClientRect(), sw: x.el!.scrollWidth > x.el!.clientWidth + 2 }));
+        const boxes = ['.dl-vetoscr', '.dl-watch', '.dl-lobbyinfo', '.over', '.mid'].map((s) => ({ s, el: document.querySelector<HTMLElement>('.rw-hud ' + s) })).filter((x) => x.el && x.el.getClientRects().length).map((x) => ({ s: x.s, r: x.el!.getBoundingClientRect(), sw: x.el!.scrollWidth > x.el!.clientWidth + 2 }));
         for (const b of boxes) { if (b.sw) out.push(b.s + ' scroll'); if (b.r.left < hud.left - 1 || b.r.right > hud.right + 1 || b.r.bottom > hud.bottom + 1) out.push(b.s + ' вне окна'); }
         // панели посередине не налезают на табло сверху и на ленту событий снизу
         const mid = document.querySelector<HTMLElement>('.rw-hud .mid:not(.sub)')?.getBoundingClientRect(), feed = document.querySelector<HTMLElement>('.rw-hud .feed')?.getBoundingClientRect();
