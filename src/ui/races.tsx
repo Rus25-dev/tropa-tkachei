@@ -288,10 +288,27 @@ export function WatchView({ races }: { races: Races }) {
     el.style.transform = `translate(${b.x}px,${b.y}px) scale(${b.scale})`;
   };
   useLayoutEffect(() => { fit(); window.addEventListener('resize', fit); return () => window.removeEventListener('resize', fit); }, []);
+  // горячие клавиши обсервера: H — табло, 1/2 — половина игрока на весь экран на 10 с, 0 — обе половины, R затем 1/2 — повтор последних 10 с, Space — заморозить ленту
   useEffect(() => {
-    if (races.stream) return undefined;
-    const k = (e: KeyboardEvent): void => { if (e.key === 'Escape') races.leaveWatch(); };
-    window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k);
+    let armed = 0, hide = 0;
+    const seatOf = (i: number): number | null => w.S?.players?.[i]?.seat ?? null;
+    const k = (e: KeyboardEvent): void => {
+      if ((e.target as HTMLElement | null)?.closest?.('input,select,textarea')) return;
+      const now = w.nowMs();
+      if (e.key === 'Escape' && !races.stream) { races.leaveWatch(); return; }
+      if (e.code === 'KeyH') w.hideBoard = !w.hideBoard;
+      else if (e.code === 'Space') { w.frozen = !w.frozen; e.preventDefault(); }
+      else if (e.code === 'KeyR') { armed = now + 1500; return; }
+      else if (e.code === 'Digit0') { w.solo = null; w.stopReplay(); }
+      else if (e.code === 'Digit1' || e.code === 'Digit2') {
+        const s = seatOf(e.code === 'Digit1' ? 0 : 1); if (s == null) return;
+        if (now < armed) { armed = 0; w.startReplay(s); } else w.solo = { seat: s, until: now + 10000 };
+      } else return;
+      w.changed();
+    };
+    const mv = (): void => { document.documentElement.classList.remove('rw-nocursor'); clearTimeout(hide); if (races.stream) hide = window.setTimeout(() => document.documentElement.classList.add('rw-nocursor'), 2000); };
+    window.addEventListener('keydown', k); window.addEventListener('mousemove', mv); mv();
+    return () => { window.removeEventListener('keydown', k); window.removeEventListener('mousemove', mv); clearTimeout(hide); document.documentElement.classList.remove('rw-nocursor'); };
   }, [races.stream]);
   if (!S) return null;
   const ps = S.players || [], p1 = ps[0], p2 = ps[1], t1 = p1 && w.tel[p1.seat], t2 = p2 && w.tel[p2.seat], phase = S.phase, now = performance.now();
@@ -311,19 +328,20 @@ export function WatchView({ races }: { races: Races }) {
     <div class="rw-wrap" data-testid="watch-view">
       {!races.stream && <button type="button" class="btn rw-exit" data-testid="watch-exit" onClick={() => races.leaveWatch()}>← Выйти</button>}
       <div class="rw-hud" ref={ref}>
-        <div class="mid" data-testid="watch-board">
+        <div class="mid" data-testid="watch-board" style={w.hideBoard ? { display: 'none' } : undefined}>
           <div class="names"><div class="a" style={{ color: '#8fe8d2' }}>{p1 ? p1.name : '—'}</div><div class="st">{phase === 'run' ? (S.pause.on ? 'ПАУЗА' : 'гонка') : phase === 'done' ? 'финиш' : ''}</div><div class="b" style={{ color: '#ffc46e' }}>{p2 ? p2.name : '—'}</div></div>
           <div class="tm" data-testid="watch-time">{phase === 'run' || phase === 'done' ? fmt(clock) : phase === 'count' || phase === 'prep' ? 'старт' : '0:00.00'}</div>
           <div class={`df ${lead && lead.ms < 0 ? 'p' : 'n'}`}>{lead ? (lead.ms === 0 ? '±0.0' : fmtD(lead.ms)) : ' '}</div><div class="st">{lead ? lead.txt : ' '}</div>
           <div class="names"><div class="a masks">{masks(t1)}</div><div class="st">{chap(t1, p1)}{t1 && t2 ? ' · ' : ''}{chap(t2, p2)}</div><div class="b masks">{masks(t2)}</div></div>
         </div>
+        {w.replay && <div class="rw-replay" data-testid="watch-replay">ПОВТОР · {w.S?.players?.find((p) => p.seat === w.replay!.seat)?.name}</div>}
         {w.connStatus !== 'online' && <div class="conn">нет связи с организатором, пробуем снова…</div>}
         {(phase === 'run') && !t1 && p1 && <div class="wait" style={{ left: '0px' }}>Ждём данные игрока…</div>}
         {(phase === 'run') && !t2 && p2 && <div class="wait" style={{ left: '960px' }}>Ждём данные игрока…</div>}
         {[[t1, 20], [t2, 980]].map(([t, x], i) => { const tt = t as Record<string, any> | undefined; return tt && tt['bs'] && tt['bs'].on ? ( // eslint-disable-line @typescript-eslint/no-explicit-any
           <div class="bar" key={i} style={{ left: `${(x as number) + 270}px` }}><span>{bossName(tt['bs'].k)} · фаза {tt['bs'].ph}</span><div class="hp"><i style={{ width: `${Math.max(0, Math.round(100 * tt['bs'].hp / tt['bs'].mh))}%` }} /></div></div>) : null; })}
         <div class="feed" data-testid="watch-feed">
-          {w.feed.length ? w.feed.slice(-4).map((e) => <div key={e.n} class={e.k}><span class="t">{e.t != null ? fmt(e.t) : '—:--'}</span>{e.x}</div>) : <div>Ждём событий…</div>}
+          {w.feed.length ? w.feedView().slice(-4).map((e) => <div key={e.n} class={e.k}><span class="t">{e.t != null ? fmt(e.t) : '—:--'}</span>{e.x}</div>) : <div>Ждём событий…</div>}
         </div>
         {showCards && (<>
           <div class="rw-cards">{card(p1)}{card(p2)}</div>

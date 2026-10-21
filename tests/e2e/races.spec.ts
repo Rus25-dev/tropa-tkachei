@@ -62,6 +62,15 @@ test('гонка: организатор, два игрока и обсерве�
   await expect(org.getByTestId('org-p2-state')).toContainText('Гл.', { timeout: 30_000 });
   await expect.poll(() => wp.evaluate(() => Object.keys(window.__tt!.races?.watch?.tel ?? {}).length), { timeout: 30_000 }).toBe(2);
   await expect.poll(() => wp.evaluate(() => { const sc = window.__tt!.game.scene as unknown as { getScene(k: string): { views?: Map<number, unknown> } }; return sc.getScene('watch').views?.size ?? 0; }), { timeout: 30_000 }).toBe(2);
+  // горячие клавиши обсервера: H — табло, 1 — половина игрока на весь экран, 0 — обе, R затем 1 — повтор
+  await expect.poll(() => wp.evaluate(() => (window.__tt!.races?.watch?.hist[Object.keys(window.__tt!.races.watch.hist)[0] as unknown as number]?.length ?? 0)), { timeout: 30_000 }).toBeGreaterThan(3);
+  await wp.keyboard.press('KeyH'); await expect(wp.getByTestId('watch-board')).toBeHidden();
+  await wp.keyboard.press('KeyH'); await expect(wp.getByTestId('watch-board')).toBeVisible();
+  await wp.keyboard.press('Digit1'); await expect.poll(() => wp.evaluate(() => !!window.__tt!.races?.watch?.solo)).toBe(true);
+  await wp.keyboard.press('Digit0'); await expect.poll(() => wp.evaluate(() => !!window.__tt!.races?.watch?.solo)).toBe(false);
+  await wp.keyboard.press('KeyR'); await wp.keyboard.press('Digit1');
+  await expect(wp.getByTestId('watch-replay')).toBeVisible({ timeout: 10_000 });
+  await wp.keyboard.press('Digit0'); await expect(wp.getByTestId('watch-replay')).toBeHidden();
   await p1.keyboard.up('KeyD'); await p2.keyboard.up('KeyD');
   // финиш: Ива быстрее
   await finish(p1, 120_000); await finish(p2, 125_000);

@@ -22,7 +22,7 @@ export class WatchScene extends Phaser.Scene {
   private cams: Phaser.Cameras.Scene2D.Camera[] = [];
   private conts: Phaser.GameObjects.Container[] = [];
   private levels = new Map<string, LevelPack>();
-  private zoom = 1.55;
+  private zoom = 1.55; private soloOn = false;
   constructor() { super('watch'); }
 
   create(): void {
@@ -44,7 +44,10 @@ export class WatchScene extends Phaser.Scene {
   private fitNow(): void {
     const f = currentFit(), b = watchBox(f.cssW, f.cssH), d = f.dpr;
     const x = Math.round(b.x * d), y = Math.round(b.y * d), w = Math.round(b.w * d), h = Math.round(b.h * d), hw = Math.floor(w / 2);
-    this.cams[0]!.setViewport(x, y, hw, h); this.cams[1]!.setViewport(x + hw, y, w - hw, h);
+    const so = this.watch.solo, si = so ? (this.watch.S?.players || []).findIndex((p) => p.seat === so.seat) : -1;
+    if (si === 0) { this.cams[0]!.setViewport(x, y, w, h); this.cams[1]!.setViewport(x + w, y, 1, h); }
+    else if (si === 1) { this.cams[0]!.setViewport(x - 1, y, 1, h); this.cams[1]!.setViewport(x, y, w, h); }
+    else { this.cams[0]!.setViewport(x, y, hw, h); this.cams[1]!.setViewport(x + hw, y, w - hw, h); }
     this.zoom = 1.55 * (h / 1080);
     this.cams.forEach((c) => c.setZoom(this.zoom));
   }
@@ -81,9 +84,10 @@ export class WatchScene extends Phaser.Scene {
 
   override update(_time: number, delta: number): void {
     const dt = Math.min(delta, 100) / 1000, S = this.watch.S; if (!S) return;
+    const so = this.watch.solo; if (so && this.watch.nowMs() > so.until) { this.watch.solo = null; this.fitNow(); this.watch.changed(); } else if (!!so !== this.soloOn) { this.soloOn = !!so; this.fitNow(); }
     const now = performance.now();
     (S.players || []).slice(0, 2).forEach((p, i) => {
-      const t = this.watch.tel[p.seat], v = this.viewFor(i, p.seat);
+      const t = this.watch.telFor(p.seat), v = this.viewFor(i, p.seat);
       if (!t) { v.g.clear(); v.tag.setVisible(false); return; }
       v.tag.setVisible(true);
       const key = `${t['ch']}:${t['st']}`;
