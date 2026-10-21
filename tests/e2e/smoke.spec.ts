@@ -98,3 +98,10 @@ test('пауза → «В главное меню» возвращает на з
   await expect(page.getByTestId('panel-root')).toBeVisible();
   expect(await page.evaluate(() => window.__tt!.shared.session)).toBeNull();
 });
+
+test('?dev=1: ползунки баланса появляются, в обычном режиме их нет', async ({ page }) => {
+  await boot(page);
+  await expect(page.locator('.lil-gui')).toHaveCount(0);
+  await boot(page, '/?dev=1');
+  await expect(page.locator('.lil-gui').first()).toBeVisible();
+});

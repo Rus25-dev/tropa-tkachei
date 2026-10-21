@@ -1,6 +1,6 @@
 // Сцена игры: рисует состояние ядра (World) и гонит тики по кадрам ввода. Вся логика — в src/core; здесь только отображение, камера и эффекты.
 import Phaser from 'phaser';
-import { PAL, T, clamp } from '../../core/balance';
+import { PAL, SPIKE, T, clamp } from '../../core/balance';
 import { VH } from '../../core/constants';
 import { mulberry32 } from '../../core/rng';
 import type { Session } from '../../core/session';
@@ -18,6 +18,7 @@ import { Music } from '../audio/music';
 import type { Shared } from '../game';
 import type { CamInfo } from './BgScene';
 import { PerfOverlay } from '../perf';
+import { rumble } from '../../input/gamepad';
 import { QualityGovernor, applyCameraFx, gradeMatrix } from '../quality';
 
 const FONT = '"Fira Sans", sans-serif', DISPLAY = '"Cormorant SC", Georgia, serif';
@@ -34,6 +35,7 @@ class Pool implements TextPool {
 
 interface SignObj { txt: Phaser.GameObjects.Text; px: number; py: number }
 
+const NOT_HARM = new Set(['bomb', 'ringfx', 'staffghost', 'mark']);
 export class GameScene extends Phaser.Scene {
   private sh!: Shared;
   private sess: Session | null = null;
@@ -104,6 +106,7 @@ export class GameScene extends Phaser.Scene {
     this.ghostG?.destroy(); this.ghostG = null; this.ghostTag?.destroy(); this.ghostTag = null; this.ghostPos = null;
     this.fx.clear(); this.fb.clear(); this.itemG.clear(); this.curtainG.clear(); this.slimeG.clear(); this.exitG.clear(); this.stG.clear();
     this.letters.destroy(); this.big.destroy(); this.stamps.destroy();
+    this.accG?.destroy(); this.accG = null; this.spkFor = null;
     this.registry.remove('hud'); this.appliedQ = ''; this.appliedKey = '';
     this.registry.set('cam', { x: 0, y: 0, room: false, active: false } satisfies CamInfo);
   }
@@ -237,6 +240,7 @@ export class GameScene extends Phaser.Scene {
     this.consume(s);
     const dt = (Math.min(delta, 100) / 1000) * cw.slowK();
     this.render(cw, dt);
+    this.outlines(cw);
     this.updateCamera(cw, dt);
     this.quality(cw, delta / 1000);
     Music.play(this.musicTrack(cw));
@@ -279,18 +283,42 @@ export class GameScene extends Phaser.Scene {
         case 'foam': this.foam?.explode(e['n'] as number, e['x'] as number, e['y'] as number); break;
         case 'dustFx': this.dustFx?.explode(e['n'] as number, e['x'] as number, e['y'] as number); break;
         case 'shake': if (gfx.shake) cam.shake(e['d'] as number, e['i'] as number); break;
-        case 'flash': if (!gfx.noflash) cam.flash(e['ms'] as number, e['r'] as number, e['g'] as number, e['b'] as number); break;
+        case 'flash': if (!gfx.noflash) cam.flash(e['ms'] as number, e['r'] as number, e['g'] as number, e['b'] as number); else this.game.events.emit('tt:ui', { k: 'dim', d: e['ms'] }); break; // «без вспышек»: мягкое затемнение вместо белой вспышки
         case 'fade': if (e['out']) cam.fadeOut(e['ms'] as number, 3, 8, 7); else cam.fadeIn(e['ms'] as number, 3, 8, 7); break;
         case 'camSnap': { const w = s.world; const p = w.alivePlayers()[0] ?? w.players[0]!; this.camX = w.respawn.x; this.camY = w.respawn.y - 80; void p; break; }
         case 'repo': { const on = e['on'] as boolean; this.furnG?.setAlpha(on ? 0.18 : 1); this.stampTexts.forEach((t) => t.setVisible(on)); break; }
         case 'chargeSnd': if (e['on']) Snd.chargeStart(e['i'] as number, e['dur'] as number, e['id'] as string); else Snd.chargeStop(e['i'] as number); break;
         case 'enemyKill': break;
-        case 'buzz': if (navigator.vibrate) { try { navigator.vibrate(e['ms'] as number); } catch { /* не поддерживается */ } } break;
+        case 'buzz': // отдача: вибрация телефона и геймпада (настройка «Вибрация»)
+          if (gfx.vibro) {
+            if (navigator.vibrate && e['ms']) { try { navigator.vibrate(e['ms'] as number); } catch { /* не поддерживается */ } }
+            if (e['parry']) rumble(110, 0.25, 0.9); else rumble(e['dead'] ? 420 : 180, 0.9, 0.5);
+          }
+          break;
         default: this.game.events.emit('tt:ui', e);
       }
     }
     s.fxq.length = 0;
   }
+
+  /** «Контуры опасного»: яркая обводка снарядов и шипов (доступность) */
+  private outlines(w: World): void {
+    const on = this.sh.gfx().outl && !w.td;
+    if (!on) { this.accG?.clear(); return; }
+    const g = this.accG ?? (this.accG = this.add.graphics().setDepth(8.5)); g.clear();
+    const line = (x: number, y: number, ww: number, hh: number): void => { g.lineStyle(5, 0x000000, 0.65); g.strokeRect(x, y, ww, hh); g.lineStyle(2.5, 0xffe600, 1); g.strokeRect(x, y, ww, hh); };
+    const wv = this.cameras.main.worldView;
+    if (this.spkFor !== w.grid) {
+      this.spkFor = w.grid; this.spk = [];
+      for (let y = 0; y < w.L.H; y++) for (let x = 0; x < w.L.W; x++) if (w.grid[y]![x] === SPIKE) this.spk.push([x * T, y * T]);
+    }
+    for (const [x, y] of this.spk) if (x > wv.x - T && x < wv.right && y > wv.y - T && y < wv.bottom) line(x + 1, y + T * 0.38, T - 2, T * 0.62);
+    for (const pr of w.projs) {
+      if (pr.dead || (pr.delay ?? 0) > 0 || NOT_HARM.has(pr.kind) || !(pr.w > 0)) continue;
+      line(pr.x - 1, pr.y - 1, pr.w + 2, pr.h + 2);
+    }
+  }
+  private accG: Phaser.GameObjects.Graphics | null = null; private spkFor: unknown = null; private spk: [number, number][] = [];
 
   private render(w: World, dt: number): void {
     const fx = this.fx, fb = this.fb; fx.clear(); fb.clear();

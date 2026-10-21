@@ -102,7 +102,7 @@ export function hurtPlayerBase(sc: World, p: Player, dmg: number, srcX: number |
     sc.snd('clink'); sc.parts(14, p.x + 7, p.y + 13, p.pal.accent);
     return;
   }
-  p.hp -= dmg; p.inv = P.INV; if (!p.remote) sc.emit('buzz', { ms: 45 }); p.hurtT = P.HURT; p.dashT = 0; p.sit = false; p.atkT = 0; p['healCh'] = 0; p.healT = 0;
+  p.hp -= dmg; p.inv = P.INV; if (!p.remote) sc.emit('buzz', { ms: 45, dead: p.hp <= 0 }); p.hurtT = P.HURT; p.dashT = 0; p.sit = false; p.atkT = 0; p['healCh'] = 0; p.healT = 0;
   p.vy = spike ? 0 : -320; p.kbx = srcX == null ? 0 : ((p.x + 7 < srcX) ? -1 : 1) * 260;
   sc.hitstop = 0.09; sc.emit('shake', { d: 160, i: 0.008 }); sc.snd('hurt');
   sc.parts(10, p.x + 7, p.y + 13, 0xffffff);
@@ -169,6 +169,7 @@ export function benchRest(sc: World, p: Player, b: { x: number; y: number }, qui
 export function parrySuccess(sc: World, p: Player, _srcX: number | null): void {
   statParry(sc, p);
   p.inv = 0.5; p.parryT = 0; p.parryCd = 0.15;
+  if (!p.remote) sc.emit('buzz', { parry: true });
   if (!p.remote) { p.silk = Math.min(sc.silkMax, p.silk + 1); sc.hitstop = 0.1; }
   const cx = p.x + 7, cy = p.y + 13;
   sc.snd('parry'); sc.emit('flash', { ms: 90, r: 255, g: 255, b: 255 });

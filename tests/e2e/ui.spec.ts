@@ -261,3 +261,56 @@ test('поворот телефона: меню не пропадает, в иг
   await expect(page.getByTestId('pause-title')).toBeVisible();
   await ctx.close();
 });
+
+test('аудит v1.5: R на экране победы ничего не перезапускает, Esc закрывает окно «по сети»', async ({ page }) => {
+  await boot(page);
+  await page.evaluate(() => window.__tt!.start({ kind: 'bosstest', boss: 'tima' }));
+  await page.waitForTimeout(500);
+  await page.evaluate(() => window.__tt!.game.events.emit('tt:ui', { k: 'victory', s: { time: 30, beads: 0, deaths: 0, players: 1, title: 'Тима Пиво повержен', hits: 5 } }));
+  await expect(page.getByTestId('win-screen')).toBeVisible();
+  const t0 = await page.evaluate(() => window.__tt!.shared.session!.world['tickN']);
+  await page.waitForTimeout(900);
+  await page.keyboard.press('KeyR'); await page.keyboard.press('KeyN');
+  await page.waitForTimeout(300);
+  await expect(page.getByTestId('win-screen')).toBeVisible();
+  expect(await page.evaluate(() => window.__tt!.shared.session!.world['tickN'])).toBeGreaterThanOrEqual(t0);
+  await page.locator('#win-exit').click();
+  await expect(page.getByTestId('panel-root')).toBeVisible();
+  // окно «Вдвоём по сети» закрывается по Esc (раньше не закрывалось)
+  await page.getByTestId('m-campaign').click();
+  await page.getByTestId('c-new').click();
+  await page.getByTestId('md-net').click();
+  await page.getByTestId('net-host').click();
+  await expect(page.getByTestId('lb-code')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('net-host')).toBeVisible();
+});
+
+test('сохранения v1.8 открываются: прогресс, рекорды, спидран, настройки, снаряжение', async ({ page }) => {
+  await page.addInitScript(() => {
+    try {
+      if (sessionStorage.getItem('tt_seed')) return;
+      sessionStorage.setItem('tt_seed', '1');
+      localStorage.setItem('tt_settings', JSON.stringify({ vol: 40, mvol: 20, shake: false, easy: false, vibro: true, bsize: 'M', bop: 100, lefty: false, boss: 0, speed: 100, noflash: true, outl: false, gfx: 'low' }));
+      localStorage.setItem('tt_save', JSON.stringify({ bench: 0, beads: 33, abil: { double: true }, chapter: 2, stage: 'road', up: { hp: 1, dmg: 0, silk: 0 }, time: 500, deaths: 3, name: 'Гл. II · Коридор типографии', best: 2 }));
+      localStorage.setItem('tt_loadout', JSON.stringify({ weapon: 'needle', tool: '', charms: [], have: { weapons: ['needle'], tools: [], charms: [] } }));
+      localStorage.setItem('tt_records', JSON.stringify({ misha: { tries: 4, wins: 2, best: 95 } }));
+      localStorage.setItem('tt_sr', JSON.stringify({ trail: { pb: { rta: 1500000, igt: 1400000, deaths: 5, splits: [{ rta: 300000, igt: 280000 }, { rta: 700000, igt: 650000 }, { rta: 1100000, igt: 1000000 }, { rta: 1500000, igt: 1400000 }], ver: '1.8.2', date: 1700000000000 }, seg: [300000, 400000, 400000, 400000] } }));
+      localStorage.setItem('tt_sr_name', 'Ива');
+    } catch { /* нет доступа */ }
+  });
+  await page.goto('/');
+  await page.waitForFunction(() => !!window.__tt && window.__tt.game.scene.isActive('game'));
+  await page.waitForSelector('[data-testid=panel-root]');
+  await expect(page.getByTestId('m-continue')).toContainText('Гл. II');
+  await page.getByTestId('m-bosstest').click();
+  await expect(page.getByTestId('boss-misha')).toContainText('1:35');
+  await page.keyboard.press('Escape');
+  await page.getByTestId('m-speedrun').click();
+  await expect(page.getByTestId('sr-trail')).toContainText('25:00');
+  await page.keyboard.press('Escape');
+  await page.getByTestId('m-continue').click();
+  await page.waitForFunction(() => !!window.__tt!.shared.session);
+  const w = await page.evaluate(() => { const x = window.__tt!.shared.session!.world; return { beads: x['beads'], ch: x['camp'].ch, hp: x['up'].hp }; });
+  expect(w).toEqual({ beads: 33, ch: 2, hp: 1 });
+});

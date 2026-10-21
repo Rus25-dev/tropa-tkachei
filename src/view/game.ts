@@ -19,7 +19,7 @@ export interface Shared {
   /** множитель скорости времени из настроек доступности (1 в забеге) */
   accessSpeed?: () => number;
   /** настройки отрисовки */
-  gfx: () => { shake: boolean; noflash: boolean; outl: boolean; quality: QualitySetting; perf: boolean };
+  gfx: () => { shake: boolean; noflash: boolean; outl: boolean; vibro: boolean; quality: QualitySetting; perf: boolean };
   /** призрак соперника в гонке 1×1: его последнее известное положение (или null) */
   ghost?: () => { c: number; s: string; x: number; y: number; f: number; g: number; vx: number; vy: number; at: number } | null;
 }
