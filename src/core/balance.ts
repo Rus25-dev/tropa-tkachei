@@ -1,14 +1,14 @@
 ﻿// Числа и справочники игры. Перенесены из v1.8 без изменений (legacy/src/game.js, bosses2.js, campaign.js, weapons.js, tools.js, charms.js, status.js).
-// Позже (этап 2.3) боевые числа уходят в data/balance.json; пока они здесь, чтобы золотые записи совпали побитно.
+// Настраиваемые числа (P, BAL, TOOL, MV2, стойкость, статусы, заряд) лежат в data/balance.json; схема проверяется при загрузке.
+// Остальное (справочники, названия, цвета) остаётся в коде. Значения в JSON равны значениям v1.8: золотые записи проходят побитно.
+import raw from '../../data/balance.json' with { type: 'json' };
+import { validateBalance, type BalanceData } from './balance-schema';
+
+const J: BalanceData = validateBalance(raw);
 export const T = 32;
 export const EMPTY = 0, SOLID = 1, PLAT = 2, SPIKE = 3;
 
-export const P = {
-  G: 1500, RUN: 230, JUMP: 700, CUT: 0.45, MAXFALL: 720, COYOTE: 0.1, BUF: 0.13,
-  DASH: 540, DASHT: 0.17, DASHCD: 0.45, WSLIDE: 110, WJX: 290, WJY: 600, WJLOCK: 0.16,
-  POGO: 540, ATK_T: 0.12, ATK_CD: 0.26, INV: 1.0, HURT: 0.22, SILK: 9,
-  BURST: 4, HEAL: 2, HEAL_T: 1.1, PARRY_T: 0.2, PARRY_CD: 0.65, APEX_VY: 90, APEX_G: 0.55, ATKBUF: 0.14, DASHBUF: 0.12, CORNER: 7,
-} as const;
+export const P = J.P;
 
 export interface Pal { name: string; tag: string; cloak: number; dark: number; accent: number; hex: string }
 export const PAL: readonly Pal[] = [
@@ -22,11 +22,7 @@ export const HEAVY_KINDS = new Set(['rwave', 'wave', 'rootspike', 'stamp', 'trop
 export const HEAVY_STATES = new Set(['charge', 'lunge', 'leap', 'lagFall']);
 export const SLASH_KINDS = new Set(['spore', 'letter', 'note', 'bottle', 'rain', 'collector', 'glob']);
 
-export const BAL = {
-  hp: { boss: [330, 460], vladik: [480, 672], tima: [520, 728], misha: [14, 20] },
-  pace: { boss: 1.8, vladik: 1.1, tima: 3.2, misha: 3.2 },
-  silkEvery: 2, // нить копится с каждого N-го удара по боссу
-} as const;
+export const BAL = J.BAL;
 
 export const PHASE_LINES: Record<string, Record<number, string>> = {
   'Корнематка': { 2: 'споры чаще, корни из-под земли', 3: 'двойные прыжки и волны корней' },
@@ -35,9 +31,11 @@ export const PHASE_LINES: Record<string, Record<number, string>> = {
 };
 
 // ----- стойкость и казнь (bosses2.js) -----
-export const POISE_MAX: Record<number, number> = { 1: 7, 2: 8, 3: 9 };
-export const STAGGER_T = 1.5; // сколько босс стоит оглушённым
-export const EXEC_FRAC = 0.06; // казнь снимает столько от полного здоровья босса
+export const POISE_MAX: Record<number, number> = J.POISE_MAX;
+/** сколько босс стоит оглушённым */
+export let STAGGER_T = J.STAGGER_T;
+/** казнь снимает столько от полного здоровья босса */
+export let EXEC_FRAC = J.EXEC_FRAC;
 export const KITS = [{ key: 'boss', name: 'Корнематка' }, { key: 'vladik', name: 'Владик Скрипка' }, { key: 'tima', name: 'Тима Пиво' }] as const;
 export type BossKey = 'boss' | 'vladik' | 'tima';
 
@@ -46,27 +44,27 @@ export const E2_VULN = ['erupt', 'tell', 'pounce', 'tired']; // засадник
 export const E2_UNDER = ['hidden', 'track', 'warn', 'dig']; // в этих состояниях тело спрятано на 50 px под полом
 
 // ----- инструменты (tools.js) -----
-export const TOOL = {
-  NEEDLE_SPD: 760, NEEDLE_DMG: 2, NEEDLE_STICK: 3, TRAP_LIFE: 8, TRAP_FREEZE: 2, TRAP_MAX: 2, TRAP_POISE: 3,
-  BOMB_R: 90, BOMB_DMG: 3, BOMB_FUSE: 0.9, HOOK_R: 260, HOOK_SPD: 900, HOOK_STUN: 0.6,
-} as const;
+export const TOOL = J.TOOL;
 export const FLY_TYPES = new Set(['gnat', 'bat', 'lurker']);
 export const isToolKind = (k: string): boolean => k === 'tneedle' || k === 'ttrap' || k === 'tbomb';
 
 // ----- оружие (weapons.js) -----
-export const CH_T = 0.45; // сколько держать удар до заряженного
-export const CH_SHOW = 0.16; // с какого момента герой светится и замедляется
-export const CH_SLOW = 0.45; // множитель скорости бега при заряде
+/** сколько держать удар до заряженного */
+export let CH_T = J.CH_T;
+/** с какого момента герой светится и замедляется */
+export let CH_SHOW = J.CH_SHOW;
+/** множитель скорости бега при заряде */
+export let CH_SLOW = J.CH_SLOW;
 
 // ----- движение 2 (movement2.js) -----
-export const MV2 = { GLIDE_V: 120, GLIDE_DEC: 3000, GLIDE_HOLD: 0.1, CLIMB_T: 0.2 } as const;
+export const MV2 = J.MV2;
 
 // ----- статусы (status.js) -----
 export const STATUS_KINDS = {
-  poison: { name: 'Яд', iv: 1.2, n: 4, col: 0x86e05a, bit: 1 },
-  burn: { name: 'Ожог', iv: 0.8, n: 3, col: 0xff8a3c, bit: 2 },
-  slow: { name: 'Оцепенение', t: 3, col: 0x6ab8ff, bit: 4 },
-} as const;
+  poison: { name: 'Яд', iv: J.STATUS.poison.iv, n: J.STATUS.poison.n, col: 0x86e05a, bit: 1 },
+  burn: { name: 'Ожог', iv: J.STATUS.burn.iv, n: J.STATUS.burn.n, col: 0xff8a3c, bit: 2 },
+  slow: { name: 'Оцепенение', t: J.STATUS.slow.t, col: 0x6ab8ff, bit: 4 },
+};
 export type StatusKind = keyof typeof STATUS_KINDS;
 
 // ----- кампания (campaign.js) -----
@@ -97,3 +95,28 @@ export const VLADIK_SAY_HIT = ['Я НЕ СКРИПКА!', 'Я ВЛАДИК!', '�
 export const TIMA_SAY_HIT = ['ЭЙ, НЕ РАЗЛЕЙ!', 'АЙ!', 'Я НА ПАУЗЕ!', 'ЛАГАЕТ!'];
 
 export const clamp = (v: number, a: number, b: number): number => Math.max(a, Math.min(b, v));
+
+// ----- переопределение баланса: ТОЛЬКО для Node-инструментов (бот, Optuna), игра его не вызывает -----
+/** Накладывает частичный баланс (та же форма, что data/balance.json) на живые объекты. Вызывать до создания первого мира. */
+export function applyBalanceOverride(over: unknown): void {
+  const o = validateBalance(over, true);
+  const merge = (dst: Record<string, unknown>, src: Record<string, unknown>): void => {
+    for (const k in src) {
+      const v = src[k], d = dst[k];
+      if (Array.isArray(v)) (d as number[]).splice(0, v.length, ...(v as number[]));
+      else if (v && typeof v === 'object') merge(d as Record<string, unknown>, v as Record<string, unknown>);
+      else dst[k] = v;
+    }
+  };
+  if (o.P) merge(P, o.P);
+  if (o.BAL) merge(BAL, o.BAL);
+  if (o.TOOL) merge(TOOL, o.TOOL);
+  if (o.MV2) merge(MV2, o.MV2);
+  if (o.POISE_MAX) merge(POISE_MAX, o.POISE_MAX);
+  if (o.STATUS) merge(STATUS_KINDS, o.STATUS);
+  if (o.STAGGER_T !== undefined) STAGGER_T = o.STAGGER_T;
+  if (o.EXEC_FRAC !== undefined) EXEC_FRAC = o.EXEC_FRAC;
+  if (o.CH_T !== undefined) CH_T = o.CH_T;
+  if (o.CH_SHOW !== undefined) CH_SHOW = o.CH_SHOW;
+  if (o.CH_SLOW !== undefined) CH_SLOW = o.CH_SLOW;
+}
