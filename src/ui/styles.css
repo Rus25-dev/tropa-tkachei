@@ -5,3 +5,8 @@
 .btns { display: grid; grid-template-columns: repeat(3, 64px); gap: 10px; touch-action: none; }
 .tb { min-width: 64px; min-height: 64px; border-radius: 50%; border: 2px solid #3a6b5a; background: rgba(20, 48, 41, .6); color: #e8e2cf; font: 600 13px system-ui, sans-serif; touch-action: none; }
 .tb:active { background: rgba(103, 173, 98, .55); }
+.devmenu { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); display: grid; gap: 8px; width: min(340px, 86vw); padding: 18px; background: rgba(7, 13, 12, .88); border: 1px solid #3a6b5a; border-radius: 12px; }
+.devmenu h1 { margin: 0 0 6px; font: 700 34px "Cormorant SC", Georgia, serif; color: #e8e2cf; text-align: center; }
+.devmenu button, .devback { min-height: 44px; border-radius: 8px; border: 1px solid #3a6b5a; background: #143029; color: #e8e2cf; font: 600 16px system-ui, sans-serif; }
+.devmenu button:hover, .devback:hover { background: #1d4a3d; }
+.devback { position: fixed; right: 10px; top: 10px; padding: 0 14px; z-index: 6; }

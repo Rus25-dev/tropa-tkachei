@@ -1,65 +1,96 @@
 import { expect, test, type Page } from '@playwright/test';
 
-// Каркас v2 (этап 1): игра на Phaser 4 запускается, рисует через WebGL, ввод идёт в формате ядра, поле подстраивается под экран.
-interface TT { game: { renderer: { type: number }; scale: { gameSize: { width: number; height: number } }; loop: { actualFps: number } }; state: () => { x: number; y: number; ticks: number; jumps: number; lastEdges: string } }
+// Игра v2 на Phaser 4 (WebGL): запуск, режимы, ввод, масштаб в родном разрешении, сенсорное управление.
+interface TT {
+  game: { renderer: { type: number }; canvas: HTMLCanvasElement; scene: { isActive(k: string): boolean }; loop: { actualFps: number } };
+  shared: { session: { world: { tickN: number; players: { x: number; y: number; hp: number; vy: number; onGround: boolean }[]; won: boolean } } | null };
+  start(p: unknown): void; stop(): void;
+}
 declare global { interface Window { __tt?: TT } }
 
-async function enter(page: Page, url = '/'): Promise<void> {
+// Качество «низкое»: на CI графика идёт программно (SwiftShader), свечение и цветокоррекция роняют кадры ниже 10 в секунду, и тики логики (кадр ≤ 100 мс) отстают
+async function boot(page: Page, url = '/'): Promise<void> {
+  await page.addInitScript(() => { try { localStorage.setItem('tt_settings', JSON.stringify({ gfx: 'low' })); } catch { /* нет доступа */ } });
   await page.goto(url);
-  await page.waitForSelector('canvas');
-  await page.keyboard.press('Enter');
-  await page.waitForFunction(() => !!window.__tt);
+  await page.waitForFunction(() => !!window.__tt && window.__tt.game.scene.isActive('game'));
 }
-const st = (page: Page) => page.evaluate(() => window.__tt!.state());
+const start = (page: Page, p: object) => page.evaluate((x) => window.__tt!.start(x), p);
+const st = (page: Page) => page.evaluate(() => { const w = window.__tt!.shared.session!.world; return { tick: w.tickN, x: w.players[0]!.x, y: w.players[0]!.y, vy: w.players[0]!.vy, g: w.players[0]!.onGround, hp: w.players[0]!.hp }; });
 
-test('игра стартует на WebGL, версия на экране', async ({ page }) => {
+test('игра стартует на WebGL, версия на экране, меню видно', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  await enter(page);
+  await boot(page);
   expect(await page.evaluate(() => window.__tt!.game.renderer.type)).toBe(2); // Phaser.WEBGL
   await expect(page.getByTestId('version')).toContainText('2.0.0-dev');
+  await expect(page.getByTestId('devmenu')).toBeVisible();
   expect(errors).toEqual([]);
 });
 
-test('фиксированный шаг: ≈ 60 тиков в секунду', async ({ page }) => {
-  await enter(page);
-  const a = await st(page); await page.waitForTimeout(1000); const b = await st(page);
-  expect(b.ticks - a.ticks).toBeGreaterThan(45);
-  expect(b.ticks - a.ticks).toBeLessThan(75);
-});
+for (const [name, p] of [
+  ['глава I (новая)', { kind: 'story', fresh: true }],
+  ['босс-тест: Миша', { kind: 'bosstest', boss: 'misha' }],
+  ['босс-тест: Владик', { kind: 'bosstest', boss: 'vladik' }],
+  ['босс-тест: Тима', { kind: 'bosstest', boss: 'tima' }],
+  ['вдвоём', { kind: 'story', fresh: true, players: 2 }],
+  ['босс-раш', { kind: 'boss' }],
+] as const) {
+  test(`режим «${name}»: идёт, тики ≈ 60 в секунду, без ошибок`, async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+    page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+    await boot(page); await start(page, p);
+    await page.waitForTimeout(500);
+    const a = await st(page); await page.waitForTimeout(1000); const b = await st(page);
+    // на CI кадры идут программно (SwiftShader) и редко, а длина кадра для логики ограничена 100 мс: тут проверяем лишь, что мир живёт; точный темп 60 тиков — в юнит-тестах
+    expect(b.tick - a.tick).toBeGreaterThan(15);
+    expect(b.tick - a.tick).toBeLessThan(80);
+    expect(errors).toEqual([]);
+  });
+}
 
-test('клавиатура: бег и прыжок с фронтом нажатия', async ({ page }) => {
-  await enter(page);
+test('клавиатура: бег и прыжок', async ({ page }) => {
+  await boot(page); await start(page, { kind: 'story', fresh: true });
+  await page.waitForTimeout(600);
   const x0 = (await st(page)).x;
-  await page.keyboard.down('KeyD'); await page.waitForTimeout(500); await page.keyboard.up('KeyD');
-  expect((await st(page)).x).toBeGreaterThan(x0 + 60);
+  await page.keyboard.down('KeyD'); await page.waitForTimeout(600); await page.keyboard.up('KeyD');
+  expect((await st(page)).x).toBeGreaterThan(x0 + 80);
   await page.keyboard.press('Space');
-  await page.waitForTimeout(150);
-  const s = await st(page);
-  expect(s.jumps).toBe(1);
-  expect(s.lastEdges).toContain('jumpP');
+  await page.waitForTimeout(120);
+  expect((await st(page)).vy).toBeLessThan(0);
 });
 
-test('масштаб: холст помещается в окно на 5 размерах экрана', async ({ page }) => {
-  await enter(page);
-  for (const [w, h] of [[667, 375], [844, 390], [932, 430], [1366, 768], [1920, 1080]] as const) {
-    await page.setViewportSize({ width: w, height: h });
-    await page.waitForTimeout(1200);
-    const r = await page.evaluate(() => { const c = document.querySelector('canvas')!.getBoundingClientRect(); return { l: c.left, t: c.top, w: c.width, h: c.height, iw: innerWidth, ih: innerHeight }; });
-    expect(r.l).toBeGreaterThanOrEqual(-1); expect(r.t).toBeGreaterThanOrEqual(-1);
-    expect(r.l + r.w).toBeLessThanOrEqual(r.iw + 1); expect(r.t + r.h).toBeLessThanOrEqual(r.ih + 1);
-    expect(r.w * r.h).toBeGreaterThan(w * h * 0.5); // поле занимает основную часть экрана
+test('родное разрешение: холст = размер окна × devicePixelRatio, поле целиком на экране', async ({ browser }) => {
+  for (const [w, h, dpr] of [[667, 375, 2], [844, 390, 3], [1366, 768, 1], [1920, 1080, 1]] as const) {
+    const ctx = await browser.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: dpr });
+    const page = await ctx.newPage();
+    await boot(page); await start(page, { kind: 'bosstest', boss: 'misha' });
+    await page.waitForTimeout(800);
+    const r = await page.evaluate(() => { const c = window.__tt!.game.canvas, b = c.getBoundingClientRect(); return { pw: c.width, ph: c.height, l: b.left, t: b.top, w: b.width, h: b.height, iw: innerWidth, ih: innerHeight }; });
+    expect(r.w).toBeCloseTo(r.iw, 0); expect(r.h).toBeCloseTo(r.ih, 0);
+    expect(r.pw).toBe(Math.round(r.iw * Math.min(2, dpr))); // на ретине не больше ×2
+    expect(r.ph).toBe(Math.round(r.ih * Math.min(2, dpr)));
+    await ctx.close();
   }
 });
 
-test('касание: кнопка прыжка даёт фронт, как клавиатура', async ({ page }) => {
-  await enter(page, '/?touch=1');
+test('касание: кнопка прыжка даёт прыжок, как клавиатура', async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 844, height: 390 }, hasTouch: true });
+  const page = await ctx.newPage();
+  await boot(page, '/?touch=1'); await start(page, { kind: 'story', fresh: true });
   await expect(page.getByTestId('touchpad')).toBeVisible();
-  const j0 = (await st(page)).jumps;
+  await page.waitForTimeout(600);
   await page.locator('[data-btn=jump]').dispatchEvent('pointerdown', { pointerId: 1, isPrimary: true });
   await page.waitForTimeout(100);
   await page.locator('[data-btn=jump]').dispatchEvent('pointerup', { pointerId: 1, isPrimary: true });
+  expect((await st(page)).vy).toBeLessThan(0);
+  await ctx.close();
+});
+
+test('«В меню» возвращает на заставку', async ({ page }) => {
+  await boot(page); await start(page, { kind: 'bosstest', boss: 'tima' });
   await page.waitForTimeout(300);
-  const s = await st(page);
-  expect(s.jumps).toBe(j0 + 1);
+  await page.getByTestId('menu-back').click();
+  await expect(page.getByTestId('devmenu')).toBeVisible();
+  expect(await page.evaluate(() => window.__tt!.shared.session)).toBeNull();
 });

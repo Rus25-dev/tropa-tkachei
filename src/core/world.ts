@@ -21,7 +21,8 @@ import { stepItems, initItems } from './items';
 import { stepCoop } from './coop';
 import { stepStatus } from './status';
 import { stepTools } from './tools';
-import { mapVisit, mapLoad, type MapState } from './maptravel';
+import { mapVisit, mapLoad, mapClose, type MapState } from './maptravel';
+import { benchClose } from './coop';
 import { srOnTick, srOnCreate, type SrRun } from './speedrun';
 import { winGame } from './win';
 
@@ -377,6 +378,10 @@ export class World {
 
   // ----- интерфейсные действия, меняющие мир (их пишет журнал) -----
   togglePause(): void {
+    // слои v1.8 (снаружи внутрь): меню скамьи → карта → база
+    if (this.benchMenuOpen) { benchClose(this); return; }
+    if (this.mt.open) { mapClose(this); return; }
+    if (this.mt.busy) return;
     if (this.won || this.shopOpen) return;
     this.paused = !this.paused;
     this.emit('pause', { on: this.paused });

@@ -159,6 +159,7 @@ function baseStepPlayer(sc: World, p: Player, dt: number): void {
   p.inv -= dt; p.hurtT -= dt; p.dashCd -= dt; p.bombCd -= dt; p.atkCd -= dt; p.atkT -= dt; p.wjLock -= dt; p.healT -= dt; p.coyote -= dt; p.jumpBuf -= dt; p.landT -= dt;
   p['atkBuf'] = ((p['atkBuf'] as number) || 0) - dt; p['comboT'] = ((p['comboT'] as number) || 0) - dt; p['parryT'] = ((p['parryT'] as number) || 0) - dt; p['parryCd'] = ((p['parryCd'] as number) || 0) - dt;
   p['dashBuf'] = ((p['dashBuf'] as number) || 0) - dt; p['execT'] = ((p['execT'] as number) || 0) - dt;
+  if ((p['burstFx'] as number) > 0) p['burstFx'] -= dt; // только для отрисовки: кольцо всполоха
   if (p.downed) { p.vx *= 0.9; p.vy = Math.min(p.vy + P.G * dt, P.MAXFALL); sc.moveBody(p, dt); return; }
   if (inp.jumpP) p.jumpBuf = P.BUF;
   if (inp.atkP) p['atkBuf'] = P.ATKBUF;
