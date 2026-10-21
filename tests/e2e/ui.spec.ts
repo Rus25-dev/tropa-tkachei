@@ -214,3 +214,27 @@ test('спидран: «Тропа целиком» стартует с тайм
   await page.keyboard.down('KeyD'); await page.waitForTimeout(500); await page.keyboard.up('KeyD');
   await expect(page.getByTestId('srhud')).not.toContainText('ждём первого шага');
 });
+
+test('итог забега: время, сплиты, рекорд записан, строка для друзей принимается таблицей', async ({ page }) => {
+  await boot(page);
+  await page.evaluate(() => window.__tt!.start({ kind: 'trail' }));
+  await page.waitForFunction(() => (window.__tt!.shared.session?.world['tickN'] ?? 0) > 5);
+  await page.evaluate(() => {
+    const w = window.__tt!.shared.session!.world, r = w['sr'];
+    r.t0 = r.clock() - 120000; r.igt = 110000; r.splits = [{ rta: 30000, igt: 28000 }, { rta: 60000, igt: 55000 }, { rta: 90000, igt: 83000 }, { rta: 0, igt: 0 }];
+    window.__tt!.debug.srFinish(w);
+  });
+  await expect(page.getByTestId('sr-total')).toContainText('2:00');
+  const line = await page.getByTestId('sr-line').textContent();
+  expect(line).toContain('Тропа целиком');
+  const pb = await page.evaluate(() => JSON.parse(localStorage.getItem('tt_sr')!).trail.pb.rta);
+  expect(pb).toBeGreaterThan(119000);
+  await page.waitForTimeout(1300);
+  await page.locator('#sr-friends').click();
+  await page.locator('#sr-paste').fill('Вася: ' + line!.replace(/^[^:]*: /, ''));
+  await page.locator('#sr-add').click();
+  await expect(page.locator('#sr-fmsg')).toContainText('Добавлено: 1');
+  await page.keyboard.press('Escape');
+  await page.locator('#sr-menu').click();
+  await expect(page.getByTestId('panel-root')).toBeVisible();
+});

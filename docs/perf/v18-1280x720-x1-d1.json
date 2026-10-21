@@ -1,0 +1,43 @@
+{
+  "version": "1.8.2",
+  "size": "1280x720",
+  "throttle": 1,
+  "dpr": 1,
+  "scenes": {
+    "заставка меню": {
+      "scene": "menu",
+      "fps": 60.1,
+      "frameMsAvg": 16.64,
+      "frameMsP95": 16.8,
+      "frameMsMax": 16.9
+    },
+    "глава I (один)": {
+      "scene": "game",
+      "fps": 60.2,
+      "frameMsAvg": 16.62,
+      "frameMsP95": 16.8,
+      "frameMsMax": 16.9
+    },
+    "босс: Миша, фаза 1": {
+      "scene": "game",
+      "fps": 60.1,
+      "frameMsAvg": 16.64,
+      "frameMsP95": 16.8,
+      "frameMsMax": 16.9
+    },
+    "босс: Тима, фаза 1": {
+      "scene": "game",
+      "fps": 60.1,
+      "frameMsAvg": 16.63,
+      "frameMsP95": 16.8,
+      "frameMsMax": 16.9
+    },
+    "вдвоём, глава I": {
+      "scene": "game",
+      "fps": 60.2,
+      "frameMsAvg": 16.62,
+      "frameMsP95": 16.8,
+      "frameMsMax": 16.9
+    }
+  }
+}

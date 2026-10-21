@@ -2,6 +2,7 @@ import { h, render } from 'preact';
 import { createSession, type LaunchParams } from './app/launch';
 import { applySettings, initLayout } from './app/apply';
 import { loadKeys } from './app/keys';
+import { srFinish } from './core/speedrun';
 import { settings } from './app/store';
 import { Snd } from './view/audio/snd';
 import { InputHub } from './input/hub';
@@ -34,5 +35,5 @@ function start(p: LaunchParams): void {
 }
 function stop(): void { shared.session = null; game.events.emit('tt:session', null); }
 
-(window as unknown as { __tt?: unknown }).__tt = { game, shared, start, stop };
+(window as unknown as { __tt?: unknown }).__tt = { game, shared, start, stop, debug: { srFinish } };
 render(h(App, { hub, version, build, start, stop, game, shared }), ui);

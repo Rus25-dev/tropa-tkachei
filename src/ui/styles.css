@@ -22,7 +22,7 @@
 .ovback:hover { background: #1b3f35; }
 .crumbs { font: 600 15px var(--body); color: var(--dim); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .crumbs b { color: var(--ember); font-weight: 600; }
-.ovbody { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: grid; place-items: center; padding: 10px max(16px, var(--sr)) 10px max(16px, var(--sl)); overscroll-behavior: contain; }
+.ovbody { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: grid; place-items: safe center; padding: 10px max(16px, var(--sr)) 10px max(16px, var(--sl)); overscroll-behavior: contain; }
 .ovhint { flex: none; text-align: center; font: 13px var(--body); color: var(--dim); padding: 6px 12px max(7px, var(--sb)); border-top: 1px solid var(--line); background: #08130f; }
 .ov button, .ov label.opt, .ov .seg label { min-height: 44px; }
 .ov :focus-visible, html.navpad .ov :focus { outline: 2px solid var(--glow); outline-offset: 2px; }
@@ -157,7 +157,7 @@ td.x .del { min-width: 44px; background: none; border: 0; color: #c88; cursor: p
 .trhud { position: fixed; right: max(14px, var(--sr)); top: calc(max(8px, var(--st)) + 70px); z-index: 4; padding: 5px 8px; text-align: right; font: 13px/1.4 var(--body); color: var(--ember); background: rgba(6, 14, 12, .6); pointer-events: none; }
 
 /* ----- пауза, скамья, лавка ----- */
-.ov.bare .ovbody { place-items: center; }
+.ov.bare .ovbody { place-items: safe center; }
 .pause-in, .modal-in { width: min(440px, 100%); display: grid; gap: 8px; }
 .modal-in.wide { width: min(560px, 100%); }
 .pause-t { font: 700 clamp(30px, 7vh, 42px) var(--display); margin: 0; text-align: center; color: var(--bone); text-shadow: 0 0 12px rgba(159, 240, 200, .35); }
@@ -265,3 +265,4 @@ html.lefty #touch .t-heal { left: 98px; } html.lefty #touch .t-tool { left: 166p
   .card { min-height: 64px; }
 }
 @media (max-width: 760px) and (min-aspect-ratio: 5/4) { .scr { grid-template-columns: minmax(0, 40fr) minmax(0, 60fr); } }
+@media (max-height: 460px) { .pause-in { width: min(740px, 100%); } .pause-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } .pause-t { font-size: 26px; } .modal-in { padding: 10px 12px; } }

@@ -56,7 +56,7 @@ export type Parsed = { ok: true; e: Entry; name: string; code: string } | { ok: 
 /** разбор строки друга */
 export function parse(line: string): Parsed {
   const T = '\\d+(?::\\d\\d)*\\.\\d\\d';
-  const m = new RegExp(`^(.*?)\\s*ТТ v(\\d+(?:\\.\\d+)*) (Тропа целиком|Босс-раш) (${T}) \\(IGT (${T})\\) обрывов (\\d+) · сплиты ([\\d:./ ]+?) · код ([0-9A-Fa-f]{6})\\s*$`).exec(line.trim());
+  const m = new RegExp(`^(.*?)\\s*ТТ v([\\w.\\-]+) (Тропа целиком|Босс-раш) (${T}) \\(IGT (${T})\\) обрывов (\\d+) · сплиты ([\\d:./ ]+?) · код ([0-9A-Fa-f]{6})\\s*$`).exec(line.trim());
   if (!m) return { ok: false, err: 'не похоже на результат (нужна строка из «Скопировать результат»)' };
   const cat = m[3] === 'Босс-раш' ? 'boss' : 'trail';
   const e: Entry = { ver: m[2]!, cat, rta: parseTime(m[4]!), igt: parseTime(m[5]!), deaths: Number(m[6]), splits: m[7]!.trim().split(/\s*\/\s*/).map((x) => parseTime(x)) };
