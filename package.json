@@ -22,7 +22,9 @@
     "bot": "node tools/todo.mjs bot",
     "fuzz": "node tools/todo.mjs fuzz",
     "replay": "node tools/todo.mjs replay",
-    "sim": "tsx tools/sim.ts"
+    "sim": "tsx --import ./tools/ldtk-register.mjs tools/sim.ts",
+    "levels:export": "tsx tools/ldtk-export.ts",
+    "levels:check": "tsx tools/levels-check.ts"
   },
   "dependencies": {
     "idb-keyval": "6.3.0",
