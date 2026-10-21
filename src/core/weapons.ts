@@ -247,7 +247,7 @@ export function damageBossWeapons(sc: World, b: Boss | null, p: Player, orig: ()
 export function poiseMul(sc: World, n: number): number {
   const p = sc._inAtk;
   if (p && p['sw']) { const W = wdef(p), sw = p['sw'] as Swing; n *= (W.pm == null ? 1 : W.pm) * (sw.pm == null ? 1 : sw.pm); }
-  return n;
+  return n * sc._cm;
 }
 /** weapons.js: нить копится за нанесённый урон, а не за число ударов (иначе быстрые клинки лечили бы слишком быстро) */
 export function gainSilkWeapons(sc: World, p: Player, boss?: boolean): void {

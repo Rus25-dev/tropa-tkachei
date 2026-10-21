@@ -33,7 +33,7 @@ export class Brain {
   readonly i: number; readonly s: number;
   readonly rng: () => number;
   readonly react: number; readonly missP: number; readonly lapseRate: number; readonly errRate: number;
-  readonly canDash: boolean; readonly canParry: boolean; readonly canBurst: boolean; readonly canExec: boolean;
+  readonly canPerfect: boolean; readonly canDash: boolean; readonly canParry: boolean; readonly canBurst: boolean; readonly canExec: boolean;
   readonly beamW: number; readonly depth: number;
   seen = new WeakMap<object, { f: number; k: number }>();
   frame = 0; lapse = 0; prev: Record<string, boolean> = {}; planAt = -99;
@@ -53,6 +53,7 @@ export class Brain {
     this.missP = 0.3 * (1 - s);                             // шанс «проморгать» угрозу (реакция ×2.2)
     this.lapseRate = 0.5 * Math.pow(1 - s, 1.5);            // зевков в секунду
     this.errRate = 0.012 * Math.pow(1 - s, 1.2);            // промахов по кнопкам на кадр (0.95 → раз в 50 с, 0.6 → раз в 4 с, 0.3 → раз в 1.7 с)
+    this.canPerfect = s >= 0.85;                            // идеальный отбив (отбив 2.0) по телеграфу — только у опытных; ниже — обычный
     this.canDash = s >= 0.35; this.canParry = s >= 0.7; this.canBurst = s >= 0.7; this.canExec = s >= 0.45;
     this.beamW = s >= 0.8 ? 40 : s >= 0.5 ? 28 : 16;
     this.depth = s >= 0.8 ? DEPTH : s >= 0.5 ? 10 : 8;
@@ -116,7 +117,7 @@ export class Brain {
         }
       }
     }
-    return { X, Y, ON, w: pr.w, h: pr.h, kind, pad: 2 };
+    return { X, Y, ON, w: pr.w, h: pr.h, kind, pad: 2, hk: pr.hk };
   }
   // тело босса: его скорость плюс начало рывка/прыжка, если телеграф уже замечен
   bossThreat(p: any): any {
@@ -188,7 +189,7 @@ export class Brain {
     const st = (v: number): number => Math.max(0, Math.floor(v / DT + 1e-6));
     return { x: p.x, y: p.y, vx: p.vx, vy: p.vy, og: !!p.onGround, cd: p.canDash !== false, dcd: Math.max(0, Math.ceil(p.dashCd / DT - 1e-6)), dT: st(p.dashT),
       face: p.face, ud: !!p.usedDouble, jh: !!this.prev['jump'], cut: p.jumpCut !== false, coy: Math.max(0, p.coyote), inv: Math.max(0, Math.ceil((p.inv || 0) / DT - 1e-6)),
-      pt: st(p.parryT || 0), pcd: Math.max(0, Math.ceil((p.parryCd || 0) / DT - 1e-6)), cost: 0, first: null, hits: 0 };
+      pt: st(p.parryT || 0), pe: typeof p.parryF === 'number' ? Math.floor(p.parryF / 2) : 9, pcd: Math.max(0, Math.ceil((p.parryCd || 0) / DT - 1e-6)), cost: 0, first: null, hits: 0 };
   }
   // Все окна (рывок, отбив, неуязвимость) считаем в шагах планирования и округляем в невыгодную для бота сторону
   stepNode(n: any, a: Act, first: boolean, k: number, threats: any[]): void {
@@ -196,7 +197,7 @@ export class Brain {
     if (n.inv > 0) n.inv--;
     if (n.dcd > 0) n.dcd--;
     if (n.pcd > 0) n.pcd--;
-    if (first && a.parry && this.canParry && n.pcd <= 0 && n.pt <= 0 && n.dT <= 0) { n.pt = 5; n.pcd = 20; }
+    if (first && a.parry && this.canParry && n.pcd <= 0 && n.pt <= 0 && n.dT <= 0) { n.pt = 5; n.pcd = 20; n.pe = 0; }
     const dir = a.dir;
     let dashing = false;
     if (n.dT > 0) {
@@ -226,11 +227,13 @@ export class Brain {
       const tx0 = Math.min(t.X[k - 1], t.X[k]) - pad, tx1 = Math.max(t.X[k - 1], t.X[k]) + t.w + pad, ty0 = Math.min(t.Y[k - 1], t.Y[k]) - pad, ty1 = Math.max(t.Y[k - 1], t.Y[k]) + t.h + pad;
       if (px1 <= tx0 || px0 >= tx1 || py1 <= ty0 || py0 >= ty1) continue;
       if (n.inv > 0) continue;
-      if (n.pt > 0) { n.inv = 16; n.pt = 0; n.pcd = 5; n.cost -= 1.4; }
-      else if (dashing) { n.inv = 11; n.cost -= this.canDash ? 0.6 : 0; }
+      // вид удара (отбив 2.0): dodge отбивом не гасится, unblockable не гасится ни отбивом, ни рывком; без hk — как раньше
+      const parryable = n.pt > 0 && (t.hk === undefined || t.hk === 'parry');
+      if (parryable) { n.inv = 16; n.pt = 0; n.pcd = 5; n.cost -= 1.4; if (t.hk === 'parry' && this.canPerfect && n.pe <= 2) n.cost -= 0.5; } // удар в первые кадры окна — идеальный отбив
+      else if (dashing && t.hk !== 'unblockable') { n.inv = 11; n.cost -= this.canDash ? 0.6 : 0; }
       else { n.cost += 100; n.inv = 31; n.hits++; }
     }
-    if (n.pt > 0) n.pt--;
+    if (n.pt > 0) { n.pt--; n.pe++; }
   }
   // можно ли простоять `steps` шагов (1/30 с) на месте, не получив урона
   safeStay(p: any, threats: any[], steps: number): boolean {

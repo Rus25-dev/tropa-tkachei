@@ -26,8 +26,11 @@ export interface Player extends Body {
   [k: string]: any;
 }
 export interface Enemy extends Body { type: string; face: number; flash: number; kbT: number; kbx: number; kby: number; dead: boolean; t: number; hp: number; beads: number; [k: string]: any }
-export interface Boss extends Body { hp: number; maxHp: number; state: string; t: number; face: number; flash: number; phase?: number; [k: string]: any }
-export interface Proj extends Rect { kind: string; vx: number; vy: number; life: number; dead?: boolean; delay?: number; [k: string]: any }
+/** Вид удара (отбив 2.0): 'parry' — отбивается (как раньше); 'dodge' — отбив не работает, нужен рывок или уход; 'unblockable' — не отбить и не проскочить рывком, только уйти или перепрыгнуть. */
+export type HitKind = 'parry' | 'dodge' | 'unblockable';
+
+export interface Boss extends Body { posture?: boolean; hp: number; maxHp: number; state: string; t: number; face: number; flash: number; phase?: number; [k: string]: any }
+export interface Proj extends Rect { hk?: HitKind; kind: string; vx: number; vy: number; life: number; dead?: boolean; delay?: number; [k: string]: any }
 export interface Bead extends Body { t: number; dead?: boolean }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 

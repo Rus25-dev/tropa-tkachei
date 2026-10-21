@@ -36,7 +36,7 @@ export function stepProjs(sc: World, dt: number): void {
     else if (stepExtraProj(sc, pr, dt)) { /* новые снаряды боссов 2.0 */ }
     else if (sc.tima) stepTimaProj(sc, pr, dt);
     if (pr.dead) continue;
-    for (const p of sc.players) if (!p.remote && !p.downed && p.inv <= 0 && overlap(inset(p, 2), pr)) { hurtPlayer(sc, p, HEAVY_KINDS.has(pr.kind) ? 2 : 1, pr.x + pr.w / 2); if (!PERSIST_KINDS.has(pr.kind)) pr.dead = true; }
+    for (const p of sc.players) if (!p.remote && !p.downed && p.inv <= 0 && overlap(inset(p, 2), pr)) { hurtPlayer(sc, p, HEAVY_KINDS.has(pr.kind) ? 2 : 1, pr.x + pr.w / 2, false, pr.hk); if (!PERSIST_KINDS.has(pr.kind)) pr.dead = true; }
   }
   sc.projs = sc.projs.filter((pr: Proj) => !pr.dead);
 }

@@ -10,7 +10,7 @@ import { drawLevelChunks } from '../art';
 import { drawCurtains, drawKorne, drawMisha, drawTima, drawVladik, type Say } from '../draw/bosses';
 import { drawEnemy } from '../draw/enemies';
 import { drawPlayer, drawSwingArc } from '../draw/hero';
-import { drawBeads, drawItems, drawPoiseBars, drawProjectiles, drawStatus, type TextPool } from '../draw/projectiles';
+import { drawBeads, drawHitKinds, drawItems, drawPoiseBars, drawProjectiles, drawStatus, type TextPool } from '../draw/projectiles';
 import { drawWeaver, type G } from '../draw/common';
 import { currentFit, fitCamera, type Fit } from '../fit';
 import { Snd } from '../audio/snd';
@@ -293,6 +293,11 @@ export class GameScene extends Phaser.Scene {
         case 'repo': { const on = e['on'] as boolean; this.furnG?.setAlpha(on ? 0.18 : 1); this.stampTexts.forEach((t) => t.setVisible(on)); break; }
         case 'chargeSnd': if (e['on']) Snd.chargeStart(e['i'] as number, e['dur'] as number, e['id'] as string); else Snd.chargeStop(e['i'] as number); break;
         case 'enemyKill': break;
+        case 'perfectParry': { // «ОТБИВ!» над героем (идеальный отбив)
+          const t = this.add.text(e['x'] as number, e['y'] as number, 'ОТБИВ!', { fontFamily: DISPLAY, fontSize: '15px', fontStyle: '700', color: '#ffe38a', stroke: '#1a1410', strokeThickness: 4 }).setOrigin(0.5).setDepth(8.8);
+          this.tweens.add({ targets: t, y: t.y - 26, alpha: 0, duration: 650, ease: 'Cubic.easeOut', onComplete: () => t.destroy() });
+          break;
+        }
         case 'buzz': // отдача: вибрация телефона и геймпада (настройка «Вибрация»)
           if (gfx.vibro) {
             if (navigator.vibrate && e['ms']) { try { navigator.vibrate(e['ms'] as number); } catch { /* не поддерживается */ } }
@@ -318,7 +323,7 @@ export class GameScene extends Phaser.Scene {
     }
     for (const [x, y] of this.spk) if (x > wv.x - T && x < wv.right && y > wv.y - T && y < wv.bottom) line(x + 1, y + T * 0.38, T - 2, T * 0.62);
     for (const pr of w.projs) {
-      if (pr.dead || (pr.delay ?? 0) > 0 || NOT_HARM.has(pr.kind) || !(pr.w > 0)) continue;
+      if (pr.dead || (pr.delay ?? 0) > 0 || NOT_HARM.has(pr.kind) || !(pr.w > 0) || pr.hk) continue; // с явным видом удара контур рисует drawHitKinds
       line(pr.x - 1, pr.y - 1, pr.w + 2, pr.h + 2);
     }
   }
@@ -360,6 +365,7 @@ export class GameScene extends Phaser.Scene {
     for (const p of w.players) drawSwingArc(w, p, fx);
     drawProjectiles(w, fx, fb, now, { letters: this.letters, big: this.big, stamps: this.stamps });
     drawPoiseBars(w, fx, now);
+    drawHitKinds(w, fx, now, this.sh.gfx().outl && !w.td);
     drawBeads(w, fx);
     this.letters.end(); this.big.end(); this.stamps.end();
     if (w.sr?.race) this.drawGhost(w, dt);

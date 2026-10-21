@@ -251,6 +251,20 @@ function drawToolEntities(w: World, fx: G, now: number): void {
   }
 }
 
+/** цвет контура по виду удара: жёлтый — отбить, красный — уйти рывком, фиолетовый — не отбить и не проскочить */
+export const HK_COLOR = { parry: 0xffd447, dodge: 0xff4a3c, unblockable: 0xb066ff } as const;
+
+/** Контуры снарядов с явно заданным видом удара (hk). Снаряды без hk рисуются по-старому. strong — настройка «Контуры опасного» (толще и ярче). */
+export function drawHitKinds(w: World, fx: G, now: number, strong: boolean): void {
+  for (const pr of w.projs) {
+    if (!pr.hk || pr.dead || (pr.delay ?? 0) > 0 || !(pr.w > 0)) continue;
+    const c = HK_COLOR[pr.hk], pulse = 0.65 + 0.35 * Math.sin(now * 14);
+    if (strong) { fx.lineStyle(6, 0x000000, 0.6); fx.strokeRect(pr.x - 2, pr.y - 2, pr.w + 4, pr.h + 4); }
+    fx.lineStyle(strong ? 3 : 2, c, strong ? 1 : pulse); fx.strokeRect(pr.x - 2, pr.y - 2, pr.w + 4, pr.h + 4);
+    if (pr.hk === 'unblockable') { fx.lineBetween(pr.x - 2, pr.y - 2, pr.x + pr.w + 2, pr.y + pr.h + 2); fx.lineBetween(pr.x + pr.w + 2, pr.y - 2, pr.x - 2, pr.y + pr.h + 2); } // крест: «не отбить»
+  }
+}
+
 /** шкала стойкости над боссом: видна, только пока стойкость копится или босс оглушён */
 export function drawPoiseBars(w: World, fx: G, now: number): void {
   for (const [b, dy, wd] of [[w.boss, -24, 76], [w.vladik, -28, 70], [w.tima, -13, 70]] as const) {

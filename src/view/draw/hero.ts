@@ -1,5 +1,5 @@
 // Герои: фигура, эффекты поз, дуги ударов и клинки (legacy/src/game.js drawPlayer, combat2/qol/movement2 drawPlayerFx, weapons.js drawSwing/drawWeaponBody).
-import { CH_SHOW, CH_T, P } from '../../core/balance';
+import { CH_SHOW, CH_T, P, PARRY2 } from '../../core/balance';
 import type { Player } from '../../core/types';
 import type { Swing } from '../../core/weapons';
 import { atkBox, wdef } from '../../core/weapons';
@@ -52,7 +52,12 @@ export function drawPlayer(w: World, p: Player, g: G, now: number): { sx: number
 
 /** эффекты поз: отбив, казнь, всполох (combat2) → подсказка отбива (qol) → уступ и парус (movement2) */
 function drawPlayerFx(w: World, p: Player, g: G, now: number): void {
-  if ((p['parryT'] as number) > 0) { g.lineStyle(2.5, 0xffffff, 0.9); g.strokeCircle(0, -14, 20 + (P.PARRY_T - p['parryT']) * 50); }
+  if ((p['parryT'] as number) > 0) { // первые кадры окна — золотое кольцо («идеальный» отбив), дальше обычное белое
+    const gold = typeof p['parryF'] === 'number' && p['parryF'] < PARRY2.PERFECT_F;
+    g.lineStyle(gold ? 3.5 : 2.5, gold ? 0xffd96a : 0xffffff, 0.9); g.strokeCircle(0, -14, 20 + (P.PARRY_T - p['parryT']) * 50);
+  }
+  if ((p['perfFx'] as number) > 0) { const k = p['perfFx'] / 0.45; g.lineStyle(4, 0xffd96a, k); g.strokeCircle(0, -14, 20 + (1 - k) * 46); g.lineStyle(2, 0xffffff, k); g.strokeCircle(0, -14, 14 + (1 - k) * 30); }
+  if ((p['counterT'] as number) > 0) { const k = p['counterT'] / PARRY2.COUNTER_T; g.lineStyle(2, 0xffd96a, 0.4 + 0.4 * Math.sin(w.animT * 30)); g.strokeCircle(p.face * 12, -14, 7 + 5 * k); } // контратака готова: золотая искра у руки
   if ((p['execT'] as number) > 0) { // казнь: огромный росчерк вверх или вниз
     const k = p['execT'] / 0.42, up = p['execDir'] === 'u', dy = up ? -1 : 1, f = p.face;
     g.lineStyle(7, 0xfff6d8, k); g.beginPath(); g.arc(f * 8, -14 + dy * 6, 50 + (1 - k) * 22, up ? -Math.PI * 0.95 : Math.PI * 0.05, up ? -Math.PI * 0.05 : Math.PI * 0.95, false); g.strokePath();
@@ -132,6 +137,11 @@ function drawWeaponBody(p: Player, g: G, a: { bob: number }, now: number): boole
 /** рисует дугу удара героя; для обычных ударов иглы по земле — исходный росчерк v1.8 */
 export function drawSwingArc(w: World, p: Player, fx: G): void {
   if (p.downed || p.atkT <= 0) return;
+  if ((p['counterFx'] as number) > 0) { // удар-контратака: золотая дуга пошире поверх обычной
+    const k = p['counterFx'] / 0.3, th = p.face > 0 ? 0 : Math.PI, cx = p.x + p.w / 2 + p.face * 6, cy = p.y + p.h / 2 - 2;
+    fx.lineStyle(7, 0xffd96a, 0.85 * k); fx.beginPath(); fx.arc(cx, cy, 52 + (1 - k) * 16, th - 1.0, th + 1.0, false); fx.strokePath();
+    fx.lineStyle(3, 0xffffff, k); fx.beginPath(); fx.arc(cx, cy, 58 + (1 - k) * 16, th - 0.8, th + 0.8, false); fx.strokePath();
+  }
   if (drawWeaponSwing(w, p, fx)) return;
   const k = p.atkT / P.ATK_T, cx = p.x + p.w / 2, cy = p.y + p.h / 2 - 2;
   const th = p.atkDir === 'f' ? (p.face > 0 ? 0 : Math.PI) : p.atkDir === 'u' ? -Math.PI / 2 : Math.PI / 2;

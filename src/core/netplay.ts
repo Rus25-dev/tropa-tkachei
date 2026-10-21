@@ -201,7 +201,7 @@ export function onEv(w: World, m: NetMsg): void {
     case 'execfx': { const q = w.players[m['i']]; if (q && q.remote) { q['execT'] = 0.4; q['execDir'] = m['d']; } w.emit('execFx', { x: m['x'], y: m['y'], dir: m['d'] }); break; }
     case 'exec': if (auth) { const q = w.players[m['i']], kit = KITS.find((k) => k.key === m['key']); if (q && kit) execBoss(w, q, kit, m['d']); } break;
     case 'abil': itemEv(w, m); break;
-    case 'parrypoise': if (auth) parryPoise(w, m['x'], m['y']); break;
+    case 'parrypoise': if (auth) parryPoise(w, m['x'], m['y'], !!m['pf']); break;
     case 'e2parry': if (auth) e2Parry(w, m['x'], m['y']); break;
     case 'kb': knockFrom(w, m['x']); break;
     case 'silk': { const p = w.players[m['i']]; if (p && !p.remote) p.silk = Math.min(w.silkMax, p.silk + 1); break; }
@@ -278,7 +278,7 @@ export function guestProjHits(w: World): void {
     for (const p of w.players) {
       if (p.remote || p.downed || p.inv > 0) continue;
       for (const pr of w.projs) if (!pr.dead && !pr.delay && pr.kind !== 'bomb' && pr.kind !== 'ringfx' && pr.kind !== 'staffghost' && pr.kind !== 'mark' && overlap(inset(p, 2), pr)) {
-        hurtPlayer(w, p, HEAVY_KINDS.has(pr.kind) ? 2 : 1, pr.x + pr.w / 2); if (!PERSIST_KINDS.has(pr.kind)) pr.dead = true; break;
+        hurtPlayer(w, p, HEAVY_KINDS.has(pr.kind) ? 2 : 1, pr.x + pr.w / 2, false, pr.hk); if (!PERSIST_KINDS.has(pr.kind)) pr.dead = true; break;
       }
     }
     w.projs = w.projs.filter((q) => !q.dead);

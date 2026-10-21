@@ -56,6 +56,11 @@ export let CH_SHOW = J.CH_SHOW;
 /** множитель скорости бега при заряде */
 export let CH_SLOW = J.CH_SLOW;
 
+// ----- отбив 2.0 (v2.5): идеальный отбив и контратака -----
+/** PERFECT_F — сколько первых кадров окна отбива «идеальные» (только для ударов с явным hk; PERFECT_LEGACY=1 — и для ударов без hk, это ломает золотые записи); PERFECT_SILK — нить за идеальный (обычный даёт 1); PERFECT_POISE_MUL — множитель стойкости босса;
+ *  POSTURE_NORMAL_POISE — стойкость за обычный отбив у боссов с posture:true (у остальных 3, как в v2.0); COUNTER_* — окно контратаки после идеального отбива. */
+export const PARRY2 = J.PARRY2;
+
 // ----- движение 2 (movement2.js) -----
 export const MV2 = J.MV2;
 
@@ -112,6 +117,7 @@ export function applyBalanceOverride(over: unknown): void {
   if (o.BAL) merge(BAL, o.BAL);
   if (o.TOOL) merge(TOOL, o.TOOL);
   if (o.MV2) merge(MV2, o.MV2);
+  if (o.PARRY2) merge(PARRY2, o.PARRY2);
   if (o.POISE_MAX) merge(POISE_MAX, o.POISE_MAX);
   if (o.STATUS) merge(STATUS_KINDS, o.STATUS);
   if (o.STAGGER_T !== undefined) STAGGER_T = o.STAGGER_T;
