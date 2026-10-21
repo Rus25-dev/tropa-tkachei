@@ -6,5 +6,7 @@ export interface TT {
   start(p: unknown): void; stop(): void;
   /** помощники для тестов: вызвать ядро напрямую */
   debug: { srFinish(w: Record<string, any>): void };
+  /** «Гонки Ткачей» (src/app/races.ts) */
+  races?: { watch: { tel: Record<string, unknown> } | null; org: { S: { phase: string } | null } | null; play: { state: { phase: string } | null } | null };
 }
 declare global { interface Window { __tt?: TT; __pad?: { axes: number[]; buttons: { pressed: boolean; value: number }[]; connected: boolean; id: string } } }

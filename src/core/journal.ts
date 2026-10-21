@@ -20,7 +20,7 @@ export interface JournalSeg {
 export interface Journal {
   v: 1; mem?: boolean; ver: string; cat: 'trail' | 'boss' | null; race: unknown; seed: number;
   segs: JournalSeg[]; splits: ({ rta: number; igt: number } | null)[]; pauses: [number, number | null][];
-  wall0?: number; wallT0?: number | null; wallSave?: number; restored?: number; st?: unknown; meta?: unknown;
+  wall0?: number; wallT0?: number | null; wallSave?: number; restored?: number; downMs?: number; st?: unknown; meta?: unknown;
 }
 
 /** значение тика: ввод первого игрока, у двух локальных игроков второй добавляется старшими разрядами (по 17 бит на игрока) */

@@ -48,14 +48,15 @@ export function Friends({ crumbs, onBack, last, version }: { crumbs: string[]; o
 }
 
 /** Таймер забега: RTA, IGT, сплиты с дельтой к рекорду, обратный отсчёт. Обновляется 10 раз в секунду. */
-export function SrHud({ w }: { w: World }) {
+export function SrHud({ w, cd, rival }: { w: World; cd?: string; rival?: { text: string; col: string } | null }) {
   const [, tick] = useState(0);
   useEffect(() => { const id = setInterval(() => tick((n) => n + 1), 100); return () => clearInterval(id); }, []);
   const r = w.sr; if (!r) return null;
   if (r.done || r.result) return null;
+  const big = cd ? <div class={`srcd ${cd.length > 3 ? 'sm' : ''}`} data-testid="sr-cd" role="status">{cd}</div> : null;
   const cat = SR_CATS[r.cat], pb = srStore.rec(r.cat).pb, cur = r.splits.length, time = runRta(r);
   return (
-    <div class="srhud" data-testid="srhud" aria-live="off">
+    <>{big}<div class="srhud" data-testid="srhud" aria-live="off">
       <div class={`rta ${r.taint ? 'bad' : r.done ? 'done' : r.t0 == null ? 'wait' : ''}`}>{fmt(time)}</div>
       <div class={`igt ${r.taint ? 'bad' : ''}`}>IGT {fmt(r.igt)}{w.paused ? ' · пауза' : ''}{r.t0 == null && !r.race ? ' · ждём первого шага' : ''}{r.taint ? ' · ВНЕ ЗАЧЁТА' : ''}</div>
       <table class="splits"><tbody>
@@ -66,12 +67,13 @@ export function SrHud({ w }: { w: World }) {
           </tr>);
         })}
       </tbody></table>
-    </div>
+      {rival && <div class="srrival" data-testid="sr-rival" style={{ color: rival.col }}>{rival.text}</div>}
+    </div></>
   );
 }
 
 /** Итоговый экран забега: время, сплиты, личный рекорд, строка для друзей */
-export function SrResultScreen({ res, run, version, onAgain, onMenu, onFriends }: { res: SrResult; run: SrRun; version: string; onAgain: () => void; onMenu: () => void; onFriends: () => void }) {
+export function SrResultScreen({ res, run, version, onAgain, onMenu, onFriends, banner }: { res: SrResult; run: SrRun; version: string; onAgain: () => void; onMenu: () => void; onFriends: () => void; banner?: { text: string; sub: string; col: string } | null }) {
   const [copied, setCopied] = useState<'' | 'ok' | 'no'>('');
   const [armed, setArmed] = useState(false);
   useEffect(() => { const t = setTimeout(() => setArmed(true), 1200); return () => clearTimeout(t); }, []);
@@ -93,6 +95,7 @@ export function SrResultScreen({ res, run, version, onAgain, onMenu, onFriends }
         <h2 class="scr-t">{cat.name} · забег окончен</h2>
         <div class={`big ${res.taint ? 'bad' : ''}`} data-testid="sr-total">{fmt(res.rta)}</div>
         <p class="lead">RTA (настенные часы) · IGT {fmt(res.igt)} (без пауз и лавки) · обрывов нити: {res.deaths}</p>
+        {banner && <div class="srbanner" data-testid="sr-banner" role="status"><div class="bn" style={{ color: banner.col }}>{banner.text}</div><div class="bs">{banner.sub}</div></div>}
         <p class={`pbline ${res.taint ? 'bad' : res.newPb ? 'good' : ''}`}>{pbl}</p>
         <div class="tbl-wrap"><table>
           <thead><tr><th>Сплит</th><th>RTA</th><th>Сегмент</th><th>IGT</th><th>к рекорду</th></tr></thead>
