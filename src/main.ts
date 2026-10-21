@@ -26,7 +26,7 @@ const shared: Shared = {
   hub, version, build, session: null,
   touch: coarse || new URLSearchParams(location.search).get('touch') === '1',
   accessSpeed: () => (settings.s.speed || 100) / 100,
-  gfx: () => ({ shake: settings.s.shake, noflash: settings.s.noflash, outl: settings.s.outl, quality: settings.s.gfx, perf: new URLSearchParams(location.search).get('perf') === '1' }),
+  gfx: () => ({ shake: settings.s.shake, noflash: settings.s.noflash, outl: settings.s.outl, vibro: settings.s.vibro, quality: settings.s.gfx, perf: new URLSearchParams(location.search).get('perf') === '1' }),
 };
 const game = createGame(parent, shared);
 initLayout();
@@ -42,6 +42,7 @@ function start(p: LaunchParams): Session {
 function stop(): void { shared.session = null; game.events.emit('tt:session', null); }
 
 (window as unknown as { __tt?: unknown }).__tt = { game, shared, start, stop, debug: { srFinish } };
+if (new URLSearchParams(location.search).get('dev') === '1') void import('./ui/devtools').then((m) => m.initDev());
 const online = new Online({ version, start });
 const races = new Races({ version, start, stop, shared, game, snd: (n) => Snd.play(n) });
 shared.ghost = () => races.ghost();
