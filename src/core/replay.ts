@@ -1,12 +1,14 @@
 // Воспроизведение журнала без отрисовки и звука (legacy/src/journal.js: restoreMem + pump). Годится для золотых записей, фаззера и бота.
 import type { Act, Journal } from './journal';
 import { CHK, GOLDEN_EXT, applyTickValue, hashFor } from './journal';
-import { newRun, runStartData, type SrRun } from './speedrun';
+import { newRun, runStartData, srRelease, srTechPause, type SrRun } from './speedrun';
 import { World, type WorldOpts } from './world';
 import { benchRest, } from './combat';
 import { benchClose } from './coop';
 import { buy, openShop } from './campaign';
 import { SHOP } from './balance';
+import { damageBoss } from './damage';
+import { mishaBagHit } from './misha';
 import { mapClose, mapGo, mapMove, mapShow } from './maptravel';
 
 export interface ReplayOpts {
@@ -34,7 +36,9 @@ export function runAct(w: World, a: Act, sr: SrRun | null): void {
     case 'mc': mapClose(w); break;
     case 'mm': mapMove(w, x); break;
     case 'mg': w.mt.sel = x; mapGo(w); break;
-    case 'ex': { const f = GOLDEN_EXT[x]; if (f) f(w, y, z); break; }
+    case 'ex': { const f = GOLDEN_EXT[x]; if (f) f(w, y, z); else RACE_EXT[x]?.(w); break; }
+    case 'rel': srRelease(w, true); break;
+    case 'tp': srTechPause(w, !!x, true); break;
     default: void sr;
   }
 }
@@ -80,3 +84,15 @@ export function replayJournal(J: Journal, opt: ReplayOpts = {}): ReplayResult {
   }
   return { ok: true, world: w, sr, ticks: total };
 }
+
+// ----- «читы» гонки (журналируются как ex 1 и ex 2): довести босса до последнего удара и перенести героя на выход, чтобы гонка проходилась за секунды -----
+export const RACE_EXT: Record<number, (sc: World) => void> = {
+  1: (sc) => {
+    const p = sc.players[0]!;
+    if (sc.vladik) { sc.vladik.hp = 1; sc.vladik.state = 'idle'; damageBoss(sc, 'vladik', p); }
+    else if (sc.tima) { sc.tima.hp = 1; sc.tima.state = 'idle'; damageBoss(sc, 'tima', p); }
+    else if (sc.misha) { sc.misha.hp = 1; sc.misha['hitCd'] = 0; sc.misha.state = 'idle'; mishaBagHit(sc); }
+    else { sc.boss.hp = 1; sc.boss.state = 'idle'; damageBoss(sc, 'boss', p); }
+  },
+  2: (sc) => { const p = sc.players[0]!, e = sc.exitR!; p.x = e.x + 4; p.y = e.y + 20; p.vx = p.vy = 0; },
+};

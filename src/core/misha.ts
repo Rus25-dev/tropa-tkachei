@@ -69,7 +69,7 @@ export function stepBomb(sc: World, pr: { x: number; y: number; vx: number; vy: 
   }
   if (sc.isSolid(Math.floor(cx / T), Math.floor(cy / T))) { pr.dead = true; smokeAt(sc, 8, cx, cy - 4); sc.sfx('puff'); }
 }
-function mishaBagHit(sc: World): void {
+export function mishaBagHit(sc: World): void {
   const S = statBegin(sc), cur = sc.testBoss() ?? sc.boss, h0 = cur ? cur.hp : 0;
   mishaBagHitBase(sc);
   if (S) statBossHit(sc, cur, h0);

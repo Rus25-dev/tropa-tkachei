@@ -22,7 +22,7 @@
     "bot": "node tools/todo.mjs bot",
     "fuzz": "node tools/todo.mjs fuzz",
     "replay": "node tools/todo.mjs replay",
-    "sim": "node tools/todo.mjs sim"
+    "sim": "tsx tools/sim.ts"
   },
   "dependencies": {
     "idb-keyval": "6.3.0",
@@ -37,6 +37,7 @@
     "@types/node": "^24.0.0",
     "@vitest/coverage-v8": "^5.0.5",
     "eslint": "10.13.0",
+    "tsx": "^4.23.15",
     "typescript": "6.0.3",
     "typescript-eslint": "8.72.0",
     "vite": "8.3.4",

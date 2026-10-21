@@ -64,7 +64,7 @@ export function srOnSplit(sc: World): void {
   if (r.replay && r.replay.splits[i]) { r.splits[i] = { ...r.replay.splits[i]! }; if (i >= 3 && r.replay.mem) srFinish(sc); return; } // при воспроизведении берём записанное
   r.splits[i] = { rta: rta(r), igt: Math.round(r.igt) };
   sc.emit('srSplit', { i, split: { ...r.splits[i]! } });
-  if (i >= 3) srFinish(sc); else sc.toast(`Сплит №${i + 1}`, 2.4);
+  if (i >= 3) srFinish(sc);
 }
 export function srFinish(sc: World): void {
   const r = sc.sr!; r.done = true; r.end = r.clock();
@@ -90,14 +90,18 @@ export function srOnCreate(sc: World): void {
     for (const p of sc.players) { p.x = (tr + 1) * T + p.i * 20; p.y = by - 26; p.vx = p.vy = 0; p.safeX = p.x; p.safeY = p.y; }
   }
 }
-/** техническая пауза гонки (команда организатора): мир стоит, время не идёт */
-export function srTechPause(sc: World, on: boolean): void {
+/** техническая пауза гонки (команда организатора): мир стоит, время не идёт; replay — воспроизведение журнала (паузы считаются по настенному времени из журнала) */
+export function srTechPause(sc: World, on: boolean, replay?: boolean): void {
   const r = sc.sr; if (!r) return;
   if (on) { if (r.tp != null) return; r.tp = r.clock(); sc.paused = true; }
-  else { if (r.tp == null) return; r.pausedMs = (r.pausedMs || 0) + (r.clock() - r.tp); r.tp = null; sc.paused = false; }
+  else { if (r.tp == null) return; if (!replay) r.pausedMs = (r.pausedMs || 0) + (r.clock() - r.tp); r.tp = null; sc.paused = false; }
+  if (!replay) sc.emit('srTechPause', { on });
 }
-/** «пошёл» в гонке: герой отпущен, IGT с нуля */
-export function srRelease(sc: World): void {
+/** «пошёл» в гонке: герой отпущен, IGT с нуля; воспроизведение авторитетно — «go» из журнала всегда обнуляет IGT */
+export function srRelease(sc: World, replay?: boolean): void {
   const r = sc.sr; if (!r) return;
-  r.hold = false; start(sc, r);
+  if (!r.hold) { if (replay) r.igt = 0; return; }
+  r.hold = false; r.t0 = r.clock(); r.igt = 0;
+  sc.snd('revive');
+  if (!replay) sc.emit('srRelease');
 }

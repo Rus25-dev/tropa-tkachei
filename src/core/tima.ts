@@ -170,7 +170,7 @@ function stepTimaBase(sc: World, dt: number): void {
   }
 }
 
-/** исходная функция урона по Приме (RAW) */
+/** исходная функция урона по Тиме (RAW) */
 export function rawTima(sc: World, p: Player): void {
   const v = sc.tima!;
   if (v.state === 'rage') { sc.snd('clink'); return; }
