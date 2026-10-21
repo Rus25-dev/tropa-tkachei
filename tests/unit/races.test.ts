@@ -2,7 +2,9 @@
 // организатора и игрока, дубли и потери. Это порт tools/race-test.js из v1.8 без браузера (игра игрока — заглушка FakeGame).
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, expect, it } from 'vitest';
+import { computeElo, ratingOf } from '../../src/core/elo';
 import { mergeNames, racesJson } from '../../src/net/racecommon';
+import { bestBoss, bossRows, personalBest, stageText, sumOfBest } from '../../src/net/raceprog';
 import { peerId } from '../../src/net/types';
 import { mkRoom, type Room, VER } from './helpers/racekit';
 
@@ -333,8 +335,8 @@ describe('2.2 «Тропа целиком»: подсплиты, лавка, с�
     sim.run(1000); ev(p1, 'sub', { ch: 1, sk: 'exit' }); ev(p1, 'death', { ch: 1 }); ev(p1, 'lost', { ms: 3000 }); sim.run(500);
     p1.game.finish(); sim.run(1500); p2.game.finish(); sim.run(800);
     const r = org.S!.result!, row = r.players.find((p) => p.name === 'Ива')!;
-    expect(row.subs!.map((s) => s.k)).toEqual(['exit']); expect(row.lost).toBe(3000); expect(row.deathList!.length).toBe(1);
-    expect(r.players.find((p) => p.name === 'Ярь')!.subs).toBeUndefined(); // нет подсплитов — поле не пишется
+    expect(row.subs!.map((s) => s.k)).toEqual(['exit', 'kill']); expect(row.lost).toBe(3000); // последний «kill» берётся из сплитов финиша expect(row.deathList!.length).toBe(1);
+    expect(r.players.find((p) => p.name === 'Ярь')!.subs!.map((s) => s.k)).toEqual(['kill']); // от игрока без событий в итог попадает только смерть последнего босса
     // вторая гонка: рекорд подтягивается из архива
     org.restart(); sim.run(600); p1.play.toggleReady(); p2.play.toggleReady(); sim.run(500); org.start(); sim.run(5000);
     const pb = w1.S!.players[0]!.pb!;
@@ -346,5 +348,55 @@ describe('2.2 «Тропа целиком»: подсплиты, лавка, с�
     const l = lobby(); startRace(l); const { room, p1 } = l, { sim, net } = room;
     sim.run(500); net.cut('p1'); ev(p1, 'sub', { ch: 1, sk: 'exit' }); sim.run(9000); net.heal('p1'); sim.run(20000);
     expect(seat(room, 'Ива').subs!.length).toBe(1); expect(room.org.S!.events.filter((e) => e.k === 'sub').length).toBe(1);
+  });
+});
+
+describe('2.3 «Босс-раш»: дисциплина организатора, подсплиты по фазам, таблица «босс × игрок»', () => {
+  const ev = (p: P, k: string, d: Record<string, unknown> = {}) => p.play.event(k, d);
+  it('организатор выбирает дисциплину в комнате; «Дуэль» пока недоступна; игроки получают cat=boss и общее зерно', () => {
+    const l = lobby(), { room, p1, p2, w1 } = l, { org, sim } = room;
+    expect(org.S!.disc).toBe('trail'); org.setDisc('duel'); expect(org.S!.disc).toBe('trail');
+    org.setDisc('boss'); sim.run(300);
+    expect(org.S!.disc).toBe('boss'); expect(w1.S!.disc).toBe('boss'); expect(w1.S!.discName).toBe('Босс-раш'); expect(p1.play.state!.discName).toBe('Босс-раш');
+    p1.play.toggleReady(); p2.play.toggleReady(); sim.run(500); org.start(); sim.run(5000);
+    expect(p1.game.run!.cat).toBe('boss'); expect(p2.game.run!.cat).toBe('boss'); expect(p1.game.run!.seed).toBe(p2.game.run!.seed);
+    org.setDisc('trail'); expect(org.S!.disc).toBe('boss'); // во время гонки дисциплину не сменить
+  });
+
+  it('бои: фазы и итоги боссов доходят до организатора и обсервера; отрыв и подписи — по именам боссов', () => {
+    const l = lobby(); l.room.org.setDisc('boss'); l.room.sim.run(300); startRace(l); const { room, p1, p2, w1 } = l, { sim } = room;
+    sim.run(1000); ev(p1, 'sub', { ch: 1, sk: 'fight' }); sim.run(500); ev(p2, 'sub', { ch: 1, sk: 'fight' }); sim.run(8000);
+    ev(p1, 'sub', { ch: 1, sk: 'ph2' }); ev(p1, 'boss', { ch: 1, dmg: 31.5, par: 4, tk: 2, stn: 1, exe: 0, dth: 1, fgt: 9000 }); p1.game.split(0); sim.run(300);
+    const text = w1.feed.map((e) => e.x);
+    expect(text).toContain('Ива: Корнематка · начало боя'); expect(text).toContain('Ярь: Корнематка · начало боя'); expect(text).toContain('Ива: Корнематка · фаза 2'); expect(text.some((x) => /^Ива: Корнематка · /.test(x) && /0:\d\d/.test(x))).toBe(true);
+    const a = w1.S!.players[0]!, b = w1.S!.players[1]!;
+    expect(a.bosses).toEqual([{ ch: 1, dmg: 31.5, parries: 4, taken: 2, stuns: 1, execs: 0, deaths: 1, fight: 9000 }]); expect(b.bosses).toEqual([]);
+    expect(w1.lead()!.txt).toMatch(/Корнематка/);
+    const rows = bossRows('boss', a, b); expect(rows[0]!.ta).toBe(a.splits[0]); expect(rows[0]!.tb).toBeNull(); expect(rows[0]!.a!.parries).toBe(4); expect(rows.map((r) => r.name)).toEqual(['Корнематка', 'Миша', 'Владик', 'Тима']);
+    expect(stageText('boss', { ch: 1, st: 'level' }, a.subs, false)).toBe('Корнематка · бой, фаза 2');
+  });
+
+  it('итог: время по боссам, урон и отбивы в результате; лучший босс; Эло и личный рекорд считаются отдельно по дисциплине', () => {
+    const l = lobby(); l.room.org.setDisc('boss'); l.room.sim.run(300); startRace(l); const { room, p1, p2, w1 } = l, { sim, org } = room;
+    sim.run(1000);
+    // Ива быстрее на первом и третьем боссе, Ярь — на втором и четвёртом; последний бой уходит только вместе с финишем
+    const fin = (p: P, t: number[], bosses: Record<string, number>[]) => { const sp = t.map((x) => ({ rta: x, igt: x })); p.play.onFinish({ rta: t[3]!, igt: t[3]!, deaths: 0, splits: sp }, { dps: 1 }, 0, bosses); };
+    const bs = (dmg: number[], par: number[]) => dmg.map((d, i) => ({ ch: i + 1, dmg: d, parries: par[i]!, taken: 0, stuns: 0, execs: 0, deaths: 0, fight: 1000 }));
+    fin(p1, [20_000, 60_000, 80_000, 130_000], bs([100, 200, 150, 300], [1, 2, 3, 4])); sim.run(300); fin(p2, [25_000, 50_000, 90_000, 125_000], bs([90, 210, 140, 310], [0, 5, 1, 6])); sim.run(500);
+    const r = org.S!.result!; expect(org.S!.phase).toBe('done'); expect(r.discipline).toBe('boss'); expect(r.settings.cat).toBe('boss');
+    const a = r.players.find((p) => p.name === 'Ива')!, b = r.players.find((p) => p.name === 'Ярь')!;
+    expect(a.bosses!.map((x) => x.ch)).toEqual([1, 2, 3, 4]); expect(b.bosses![3]!.parries).toBe(6);
+    const pa = w1.S!.players.find((p) => p.name === 'Ива')!, pb = w1.S!.players.find((p) => p.name === 'Ярь')!, rows = bossRows('boss', pa, pb);
+    expect(rows.map((x) => x.win)).toEqual(['a', 'b', 'a', 'b']); // 4-й босс: Ива 50 с против 35 с у Ярь
+    expect(rows[0]!.d).toBe(-5000); expect(rows[1]!.ta).toBe(40_000); expect(rows[1]!.tb).toBe(25_000); expect(rows[3]!.ta).toBe(50_000); expect(rows[3]!.tb).toBe(35_000);
+    expect(bestBoss(rows, 'a')).toBe(3); expect(bestBoss(rows, 'b')).toBe(2); // самый большой отрыв: у Ивы на Владике (20 с), у Ярь на Мише (15 с, при равенстве — первый)
+    // Эло: отдельная таблица «boss», трейловой нет; рейтинг игроков на обложке результата
+    const elo = computeElo(org.archive()); expect(Object.keys(elo.byDisc)).toEqual(['boss']); expect(elo.byDisc['boss']!.map((x) => x.name).sort()).toEqual(['Ива', 'Ярь']);
+    expect(a.eloAfter).not.toBeNull(); expect(a.eloAfter! + b.eloAfter!).toBe(a.eloBefore! + b.eloBefore!);
+    expect(ratingOf(elo, 'Ива', 'trail').rating).toBe(1000); expect(r.winner).toBe('Ярь'); expect(ratingOf(elo, 'Ярь', 'boss').rating).toBe(1020); expect(ratingOf(elo, 'Ива', 'boss').rating).toBe(980);
+    // вторая гонка босс-раша: рекорд подставляется по дисциплине «boss», в «Тропе» его нет
+    org.restart(); sim.run(500); p1.play.toggleReady(); p2.play.toggleReady(); sim.run(500); org.start(); sim.run(5000);
+    expect(w1.S!.players.find((p) => p.name === 'Ива')!.pb!.t).toBe(130_000); expect(personalBest(org.archive(), 'Ива', 'trail')).toBeNull();
+    expect(sumOfBest(w1.S!.players.find((p) => p.name === 'Ярь')!.pb)).toBe(125_000); // лучшие отрезки Ярь: 25, 25, 40, 35
   });
 });

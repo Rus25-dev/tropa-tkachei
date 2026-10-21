@@ -184,10 +184,10 @@ export class RacePlay {
     c.send({ k: 'pev', e: { k, el: Math.round(this.br.rta()), ...(d || {}) } });
   }
   onSplit(i: number, sp: { rta: number; igt: number }): void { this.event('split', { i, rta: sp.rta, igt: sp.igt }); }
-  onFinish(res: { rta: number; igt: number; deaths: number; splits: { rta: number; igt: number }[] }, stats: Record<string, unknown> | null, restored: number): void {
+  onFinish(res: { rta: number; igt: number; deaths: number; splits: { rta: number; igt: number }[] }, stats: Record<string, unknown> | null, restored: number, bosses?: unknown[]): void {
     const c = this.client; if (!c) return;
     this.fin = { rta: res.rta, igt: res.igt, deaths: res.deaths };
-    c.send({ k: 'fin', rta: res.rta, igt: res.igt, deaths: res.deaths, splits: res.splits.map((s) => ({ rta: s.rta, igt: s.igt })), stats, ver: this.o.version, restored });
+    c.send({ k: 'fin', rta: res.rta, igt: res.igt, deaths: res.deaths, splits: res.splits.map((s) => ({ rta: s.rta, igt: s.igt })), stats, ver: this.o.version, restored, ...(bosses && bosses.length ? { bosses } : {}) });
     this.changed();
   }
   /** игрок вышел из забега в меню: сдача (DNF) */

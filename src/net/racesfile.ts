@@ -8,6 +8,7 @@ const row = z.object({
   stats: z.record(z.string(), z.any()).nullable(), splits: z.array(num), eloBefore: num.nullable(), eloAfter: num.nullable(), place: num,
   // необязательные поля 2.2: старые записи без них читаются как раньше
   subs: z.array(z.object({ ch: num, k: z.string(), rta: num }).passthrough()).optional(), lost: num.optional(), deathList: z.array(z.any()).optional(), buys: z.array(z.any()).optional(),
+  bosses: z.array(z.object({ ch: num, dmg: num }).passthrough()).optional(),
 }).passthrough();
 const race = z.object({
   id: z.string().min(1), date: z.string().min(1), version: z.string(), discipline: z.string().min(1),

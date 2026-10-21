@@ -35,3 +35,13 @@ describe('подсплиты в ядре', () => {
     }
   });
 });
+
+describe('итоги боёв с боссами (2.3)', () => {
+  it('босс-раш: по записи на каждого босса — урон, отбивы, смерти и время боя; сумма совпадает со счётчиками забега', () => {
+    const r = replayJournal(load('speedrun-boss-rush.json').journal); if (!r.ok) throw new Error(r.why);
+    const S = r.sr!.stats!, b = S.bosses;
+    expect(b.map((x) => x.ch)).toEqual([1, 2, 3, 4]);
+    expect(b.reduce((a, x) => a + x.parries, 0)).toBe(S.parries); expect(b.reduce((a, x) => a + x.deaths, 0)).toBe(r.sr!.deaths);
+    expect(Math.round(b.reduce((a, x) => a + x.dmg, 0) * 10) / 10).toBeCloseTo(S.bossDmg, 0); expect(b.every((x) => x.dmg > 0 && x.fight > 1000)).toBe(true);
+  });
+});

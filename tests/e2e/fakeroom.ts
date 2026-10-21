@@ -13,9 +13,10 @@ export function fakeRoom(disc: 'trail' | 'boss', now = Date.now()): FakeRoom {
     ? [{ ch: 1, k: 'fight', rta: 3500 }, { ch: 1, k: 'ph2', rta: 12500 }, { ch: 1, k: 'ph3', rta: 19000 }, { ch: 1, k: 'kill', rta: 25000 }, { ch: 2, k: 'fight', rta: 28500 }]
     : [{ ch: 1, k: 'exit', rta: 9000 }, { ch: 1, k: 'fight', rta: 14000 }, { ch: 1, k: 'ph2', rta: 19500 }, { ch: 1, k: 'kill', rta: 25000 }, { ch: 2, k: 'exit', rta: 56000 }];
   const kills = (a: { k: string; rta: number }[]): number[] => a.filter((s) => s.k === 'kill').map((s) => s.rta);
+  const fight = (d: number, p: number) => ({ ch: 1, dmg: d, parries: p, taken: 1, stuns: 2, execs: 0, deaths: 0, fight: 21000 });
   const players = [
-    { seat: 1, name: 'Ива', ready: true, loaded: true, online: true, rtt: 30, fin: null, dnf: false, sp: kills(A).length, splits: kills(A), restored: 0, subs: A, lost: 7200, deaths: 2, buys: 2, pb },
-    { seat: 2, name: 'Ярь', ready: true, loaded: true, online: true, rtt: 41, fin: null, dnf: false, sp: kills(B).length, splits: kills(B), restored: 0, subs: B, lost: 0, deaths: 0, buys: 0, pb: null },
+    { seat: 1, name: 'Ива', ready: true, loaded: true, online: true, rtt: 30, fin: null, dnf: false, sp: kills(A).length, splits: kills(A), restored: 0, subs: A, lost: 7200, deaths: 2, buys: 2, pb, bosses: [fight(41, 3)] },
+    { seat: 2, name: 'Ярь', ready: true, loaded: true, online: true, rtt: 41, fin: null, dnf: false, sp: kills(B).length, splits: kills(B), restored: 0, subs: B, lost: 0, deaths: 0, buys: 0, pb: null, bosses: [fight(38, 5)] },
   ];
   const bs = { k: 'm', x: 900, y: 500, w: 56, h: 74, s: 'idle', hp: 18, mh: 30, ph: 2, f: -1, on: 1 };
   const tel = {

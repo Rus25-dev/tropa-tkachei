@@ -6,17 +6,19 @@ import type { HubState } from './hub';
 export type Phase = 'lobby' | 'prep' | 'count' | 'run' | 'done';
 export const norm = (n: string): string => String(n || '').toLowerCase().replace(/\s+/g, '');
 
-export interface DiscDef { name: string; ready: boolean; note?: string }
-/** дисциплины: пока готова одна — «Тропа целиком» (остальные в версиях 2.3 и 2.4 по docs/V2_PROMPT.md) */
+export interface DiscDef { name: string; ready: boolean; note?: string; /** правила для организатора и игроков */ rules?: string }
+/** дисциплины: готовы «Тропа целиком» и «Босс-раш» (дуэль ткачей — в версии 2.4 по docs/V2_PROMPT.md) */
 export const DISC: Record<string, DiscDef> = {
-  trail: { name: 'Тропа целиком', ready: true },
-  boss: { name: 'Босс-раш', ready: false, note: 'в версии 2.3' },
+  trail: { name: 'Тропа целиком', ready: true, rules: 'Главы I–IV подряд с нуля. Лавка и бусины разрешены, возрождение на скамье. Сплит — на смерти босса каждой главы.' },
+  boss: { name: 'Босс-раш', ready: true, rules: 'Четыре босса подряд: Корнематка, Миша, Владик, Тима. Все способности открыты, лавки нет. Сплит — на смерти каждого босса.' },
   duel: { name: 'Дуэль ткачей', ready: false, note: 'в версии 2.4' },
 };
 
 export interface Fin { rta: number; igt: number; deaths: number; splits: { rta: number; igt: number }[]; stats: Record<string, any> | null; restored: number }
 /** подсплит игрока: глава, вид (exit / bench / fight / ph2 / ph3 / kill) и время забега (RTA, мс) на его часах */
 export interface PSub { ch: number; k: string; rta: number }
+/** итог боя с одним боссом (босс-раш и главы «Тропы»): урон боссу, отбивы, полученный урон, оглушения, казни, смерти и время боя (мс) */
+export interface BossRow { ch: number; dmg: number; parries: number; taken: number; stuns: number; execs: number; deaths: number; fight: number }
 /** личный рекорд игрока в дисциплине по архиву: лучший финиш (t, sp — сплиты, sb — подсплиты «глава:вид» → мс) и лучшие отрезки по главам/боссам (bs) */
 export interface Pb { t: number; sp: number[]; sb: Record<string, number>; bs: (number | null)[] }
 export interface OrgSeat {
@@ -24,6 +26,8 @@ export interface OrgSeat {
   fin: Fin | null; dnf: boolean; dnfAt?: number; splits: number[]; viol: string[]; restored: number; rtt: number | null; tel: Record<string, any> | null;
   /** подсплиты, смерти с потерянным временем, покупки и личный рекорд (необязательны: состояние комнаты из прежних версий читается) */
   subs?: PSub[]; lost?: number; deathList?: { ch: number; rta: number; lost: number | null }[]; buys?: { id: string; name: string; ch: number; rta: number; price: number }[]; pb?: Pb | null;
+  /** бои с боссами по главам (2.3) */
+  bosses?: BossRow[];
 }
 export interface RaceEvent { n: number; t: number | null; k: string; s: number | null; x: string; [extra: string]: any }
 export interface ResultRow {
@@ -31,6 +35,7 @@ export interface ResultRow {
   splits: number[]; eloBefore: number | null; eloAfter: number | null; place: number;
   /** необязательные поля 2.2: подсплиты, потерянное время на смертях, покупки, лучшие отрезки на момент гонки */
   subs?: PSub[]; lost?: number; deathList?: { ch: number; rta: number; lost: number | null }[]; buys?: { id: string; name: string; ch: number; rta: number; price: number }[];
+  bosses?: BossRow[];
 }
 /** запись архива гонок (формат races.json) */
 export interface RaceResult {
@@ -61,7 +66,7 @@ export interface PlayStore { loadSess(): PlaySess | null; saveSess(s: PlaySess):
 export interface RoomPlayer {
   seat: number; name: string; ready: boolean; loaded: boolean; online: boolean; rtt: number | null; fin: { rta: number; igt: number; deaths: number } | null; dnf: boolean;
   sp: number; splits: number[]; restored: number;
-  subs?: PSub[]; lost?: number; deaths?: number; buys?: number; pb?: Pb | null;
+  subs?: PSub[]; lost?: number; deaths?: number; buys?: number; pb?: Pb | null; bosses?: BossRow[];
 }
 export interface RoomState {
   v: 1; id: string; code: string; phase: Phase; disc: string; discName: string; goAt: number | null; ver: string; now: number;
