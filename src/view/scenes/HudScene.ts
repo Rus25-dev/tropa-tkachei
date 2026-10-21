@@ -57,6 +57,7 @@ export class HudScene extends Phaser.Scene {
   // ----- события интерфейса от сцены игры -----
   private onUi(e: UiEvent): void {
     switch (e.k) {
+      case 'dim': { const r = this.add.rectangle(this.fit.vw / 2, VH / 2, this.fit.vw, VH, 0x050c0a, 0.34).setDepth(50); this.tweens.add({ targets: r, alpha: 0, duration: Math.max(260, (e['d'] as number) * 1.3), onComplete: () => r.destroy() }); break; }
       case 'toast': this.toast(e['m'] as string, e['hold'] as number | undefined); break;
       case 'bossBar': this.bossBar(e['show'] as boolean, e['name'] as string | undefined, e['frac'] as number | undefined); break;
       case 'area': this.areaTitle(e['name'] as string); break;
