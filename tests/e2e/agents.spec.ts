@@ -5,7 +5,7 @@ import './tt';
 // Нейросеть-игрок в настоящей игре: ?agent=<пак>&persona=<характер>. Бой с боссом в браузере и гонка 1×1 «Босс-раш» двух агентов
 // на локальном PeerJS — без участия человека. Запуск локально (нужен пак public/agents/tkachi.json и `npm run build`).
 const require = createRequire(import.meta.url);
-const PORT = 9157;
+const PORT = 9158;
 let server: { close?: () => void } | null = null;
 test.beforeAll(() => { const { PeerServer } = require('peer') as { PeerServer: (o: { port: number; path: string }) => { close?: () => void } }; server = PeerServer({ port: PORT, path: '/' }); });
 test.afterAll(() => { server?.close?.(); });

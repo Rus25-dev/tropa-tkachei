@@ -9,7 +9,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && vite build --config vite.rating.config.ts",
     "preview": "vite preview --port 4173 --strictPort",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
@@ -35,7 +35,9 @@
     "lil-gui": "^0.21.0",
     "peerjs": "1.5.5",
     "phaser": "4.2.1",
-    "preact": "11.0.1"
+    "preact": "11.0.1",
+    "uplot": "1.6.32",
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.0",

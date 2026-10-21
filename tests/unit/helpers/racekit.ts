@@ -23,7 +23,7 @@ export class MemPlayStore implements PlayStore {
   clearSess(): void { this.s = null; }
 }
 
-interface FakeRun { id: string; seed: number; held: boolean; t0: number | null; tp: number | null; paused: number; done: boolean; cd: string; splits: { rta: number; igt: number }[]; restored: boolean }
+interface FakeRun { id: string; seed: number; cat: string; held: boolean; t0: number | null; tp: number | null; paused: number; done: boolean; cd: string; splits: { rta: number; igt: number }[]; restored: boolean }
 /** «игра» игрока: хранит только то, что нужно сетевому слою (держим героя, время, паузу) */
 export class FakeGame implements RunBridge {
   run: FakeRun | null = null; journal: { ok: boolean; race: { code: string; id: string } | null } | null = null; note = ''; toasts: string[] = []; viol: string[] = []; log: string[] = []; autoLoad = true;
@@ -36,8 +36,8 @@ export class FakeGame implements RunBridge {
   techOn(): boolean { return this.run?.tp != null; }
   runId(): string | null { return this.run?.id ?? null; }
   rta(): number { const r = this.run; if (!r || r.t0 == null) return 0; return this.sim.t - r.t0 - r.paused - (r.tp != null ? this.sim.t - r.tp : 0); }
-  startRun(p: { id: string; seed: number }): void {
-    this.run = { id: p.id, seed: p.seed, held: true, t0: null, tp: null, paused: 0, done: false, cd: 'Загрузка…', splits: [], restored: false }; this.log.push('start');
+  startRun(p: { id: string; seed: number; cat?: string }): void {
+    this.run = { id: p.id, seed: p.seed, cat: p.cat ?? 'trail', held: true, t0: null, tp: null, paused: 0, done: false, cd: 'Загрузка…', splits: [], restored: false }; this.log.push('start');
     this.journal = { ok: true, race: { code: this.play.code, id: p.id } };
     if (this.autoLoad) this.sim.env().setTimeout(() => this.play.sceneReady(), 300);
   }
@@ -49,7 +49,7 @@ export class FakeGame implements RunBridge {
   clearJournal(): void { this.journal = null; }
   restore(cb: { onDone(): void; onFail(why: string): void }): boolean {
     const j = this.journal!; this.log.push('restore');
-    this.run = { id: j.race!.id, seed: 0, held: true, t0: null, tp: null, paused: 0, done: false, cd: '', splits: [], restored: true };
+    this.run = { id: j.race!.id, seed: 0, cat: 'trail', held: true, t0: null, tp: null, paused: 0, done: false, cd: '', splits: [], restored: true };
     this.sim.env().setTimeout(() => { const r = this.run!; r.held = false; r.t0 = this.sim.t - 20000; cb.onDone(); }, 400);
     return true;
   }

@@ -62,6 +62,26 @@ test('гонка: организатор, два игрока и обсерве�
   await expect(org.getByTestId('org-p2-state')).toContainText('Гл.', { timeout: 30_000 });
   await expect.poll(() => wp.evaluate(() => Object.keys(window.__tt!.races?.watch?.tel ?? {}).length), { timeout: 30_000 }).toBe(2);
   await expect.poll(() => wp.evaluate(() => { const sc = window.__tt!.game.scene as unknown as { getScene(k: string): { views?: Map<number, unknown> } }; return sc.getScene('watch').views?.size ?? 0; }), { timeout: 30_000 }).toBe(2);
+  // горячие клавиши обсервера: H — табло, 1 — половина игрока на весь экран, 0 — обе, R затем 1 — повтор
+  await expect.poll(() => wp.evaluate(() => (window.__tt!.races?.watch?.hist[Object.keys(window.__tt!.races.watch.hist)[0] as unknown as number]?.length ?? 0)), { timeout: 30_000 }).toBeGreaterThan(3);
+  await wp.keyboard.press('KeyH'); await expect(wp.getByTestId('watch-board')).toBeHidden();
+  await wp.keyboard.press('KeyH'); await expect(wp.getByTestId('watch-board')).toBeVisible();
+  await wp.keyboard.press('Digit1'); await expect.poll(() => wp.evaluate(() => !!window.__tt!.races?.watch?.solo)).toBe(true);
+  await wp.keyboard.press('Digit0'); await expect.poll(() => wp.evaluate(() => !!window.__tt!.races?.watch?.solo)).toBe(false);
+  await wp.keyboard.press('KeyR'); await wp.keyboard.press('Digit1');
+  await expect(wp.getByTestId('watch-replay')).toBeVisible({ timeout: 10_000 });
+  await wp.keyboard.press('Digit0'); await expect(wp.getByTestId('watch-replay')).toBeHidden();
+  // 2.2: подсплиты, покупка и смерть с потерянным временем из игры игрока доходят до ленты, ленты кампании, таблицы сплитов и полоски соперника
+  const emit = (p: Page, f: string) => p.evaluate((src) => { const pl = (window as any).__tt.races.play; (new Function('pl', src))(pl); }, f); // eslint-disable-line @typescript-eslint/no-explicit-any
+  await emit(p1, "pl.event('sub', { ch: 1, sk: 'exit' }); pl.event('buy', { id: 'dmg', name: 'Острая игла', ch: 1, price: 12 }); pl.event('death', { ch: 1 }); pl.event('lost', { ms: 4200 });");
+  await emit(p2, "pl.event('sub', { ch: 1, sk: 'exit' });");
+  await expect(wp.getByTestId('watch-feed')).toContainText('потеряно 4.2 с', { timeout: 30_000 });
+  await expect(wp.getByTestId('watch-ribbon')).toBeVisible();
+  await expect(org.getByTestId('org-splits-table')).toContainText('выход из коридора', { timeout: 30_000 });
+  await expect(org.getByTestId('org-log')).toContainText('Ива купил(а): Острая игла');
+  await wp.keyboard.press('KeyT'); await expect(wp.getByTestId('watch-splits-table').locator('tr[data-key="1:exit"]')).toContainText('выход из коридора');
+  await wp.keyboard.press('KeyT'); // таблица сама выключена, чтобы не мешать итогам
+  await expect(p2.getByTestId('sr-rival')).toContainText('Ива · Гл. I', { timeout: 30_000 });
   await p1.keyboard.up('KeyD'); await p2.keyboard.up('KeyD');
   // финиш: Ива быстрее
   await finish(p1, 120_000); await finish(p2, 125_000);
@@ -206,4 +226,82 @@ test('одиночный спидран: после перезагрузки «�
   expect(after.restored).toBe(1); expect(after.paused).toBe(true); expect(after.hold).toBe(false);
   expect(after.tick).toBeGreaterThanOrEqual(before.tick - 125); expect(Math.abs(after.x - before.x)).toBeLessThan(80);
   await ctx.close();
+});
+
+// Архив: загрузка races.json, таблица Эло и картинка итогов (одно окно, годится и для CI)
+test('архив: загрузка races.json даёт рейтинг Эло, неверный файл — понятную ошибку, PNG скачивается', async ({ browser }) => {
+  test.setTimeout(90_000);
+  const ctx = await ctxWith(browser), page = await ctx.newPage();
+  await boot(page, `/?${q}&race=org`);
+  await page.getByTestId('org-archive').click();
+  const row = (i: number, win: string) => ({
+    id: 'e' + i, date: `2026-02-0${i + 1}T10:00:00Z`, version: '2.0.0', discipline: 'trail', settings: { cat: 'trail', easy: false, speed: 100 }, seed: i,
+    players: ['Ива', 'Ярь'].map((name, k) => ({ seat: k + 1, name, dnf: false, time: 90000 + k * 2000, finalTime: 90000 + k * 2000, igt: 89000, deaths: 0, stats: null, splits: [20000, 40000, 60000, 90000], eloBefore: null, eloAfter: null, place: k + 1 })),
+    winner: win, winnerSeat: 1, awarded: false, gap: 2000, goAt: 0, pauseMs: 0, events: [],
+  });
+  const file = { format: 'tropa-tkachei/races', version: 1, game: '2.0.0', exported: '2026-02-05T00:00:00Z', races: [row(0, 'Ива'), row(1, 'Ива')] };
+  await page.getByTestId('arch-load').setInputFiles({ name: 'races.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(file)) });
+  await expect(page.locator('#rca-msg')).toContainText('новых: 2');
+  await expect(page.getByTestId('arch-rating')).toContainText('Ива');
+  expect(await page.getByTestId('arch-rating').locator('tbody tr').first().innerText()).toContain('Ива');
+  await page.getByTestId('arch-load').setInputFiles({ name: 'x.json', mimeType: 'application/json', buffer: Buffer.from('{"format":"чужой"}') });
+  await expect(page.locator('#rca-msg')).toContainText('не архив гонок');
+  const dl = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'PNG' }).first().click();
+  const d = await dl; expect(d.suggestedFilename()).toMatch(/\.png$/); await d.saveAs('test-results/race-card.png');
+  await ctx.close();
+});
+
+test('«Босс-раш»: организатор выбирает дисциплину, оба играют босс-раш на общем зерне, обсервер видит таблицу «босс × игрок», итог — в архиве', async ({ browser }) => {
+  test.setTimeout(240_000);
+  test.skip(!!process.env.CI, 'много окон на программном GL в CI не успевают; логика гонки покрыта tests/unit/races.test.ts, локально запускается');
+  const [cO, c1, c2, cW] = [await ctxWith(browser), await ctxWith(browser, 'Ива'), await ctxWith(browser, 'Ярь'), await ctxWith(browser)];
+  const [org, p1, p2, wp] = [await cO.newPage(), await c1.newPage(), await c2.newPage(), await cW.newPage()];
+  const errs: string[] = [];
+  for (const p of [org, p1, p2, wp]) p.on('pageerror', (e) => errs.push(e.message));
+  await boot(org, `/?${q}&race=org`);
+  const code = (await org.getByTestId('org-code').textContent())!.trim();
+  await expect(org.getByTestId('org-server')).toContainText('на связи', { timeout: 30_000 });
+  await org.getByTestId('org-disc').selectOption('boss');
+  await expect(org.getByTestId('org-rules')).toContainText('Четыре босса подряд');
+  await expect(org.getByTestId('org-disc').locator('option[value="duel"]')).toHaveAttribute('disabled', ''); // дуэль ткачей — версия 2.4
+  await boot(p1, `/?${q}&race=play&room=${code}`); await boot(p2, `/?${q}&race=play&room=${code}`); await boot(wp, `/?${q}&race=watch&room=${code}`);
+  await expect(org.getByTestId('org-p2')).toContainText('Ярь', { timeout: 40_000 });
+  await expect(p1.getByTestId('join-phase')).toContainText('Босс-раш', { timeout: 30_000 });
+  await expect(wp.getByTestId('watch-view')).toBeVisible({ timeout: 40_000 });
+  await p1.getByTestId('join-ready').click(); await p2.getByTestId('join-ready').click();
+  await expect(org.getByTestId('org-start')).toBeEnabled({ timeout: 30_000 });
+  await org.getByTestId('org-start').click();
+  const cat = (p: Page) => p.evaluate(() => { const w = window.__tt!.shared.session?.world; return w ? { cat: w['sr']?.cat as string, ch: w['camp']?.ch as number, seed: w['seed'] as number } : null; });
+  await expect.poll(() => cat(p1), { timeout: 60_000 }).toMatchObject({ cat: 'boss', ch: 1 });
+  await expect.poll(() => cat(p2), { timeout: 60_000 }).toMatchObject({ cat: 'boss', ch: 1 });
+  expect((await cat(p1))!.seed).toBe((await cat(p2))!.seed);
+  await expect(org.getByTestId('org-phase')).toHaveText('гонка идёт', { timeout: 60_000 });
+  await expect.poll(async () => (await run(p1))!.hold || (await run(p2))!.hold, { timeout: 30_000 }).toBe(false);
+  // лента кампании подписана боссами, этап — «Корнематка · …»
+  await expect(wp.getByTestId('watch-ribbon')).toContainText('Корнематка', { timeout: 30_000 });
+  await expect(org.getByTestId('org-p1-state')).toContainText('Корнематка', { timeout: 30_000 });
+  // бой: фаза, итог боя с первым боссом (урон, отбивы) — как их шлёт игра игрока
+  const emit = (p: Page, f: string) => p.evaluate((src) => { const pl = (window as any).__tt.races.play; (new Function('pl', src))(pl); }, f); // eslint-disable-line @typescript-eslint/no-explicit-any
+  await emit(p1, "pl.event('sub', { ch: 1, sk: 'ph2' }); pl.event('boss', { ch: 1, dmg: 41, par: 3, tk: 1, stn: 2, exe: 0, dth: 0, fgt: 21000 });");
+  await emit(p2, "pl.event('boss', { ch: 1, dmg: 38, par: 5, tk: 0, stn: 1, exe: 0, dth: 0, fgt: 22000 });");
+  await expect(org.getByTestId('org-boss-table')).toContainText('Корнематка', { timeout: 30_000 });
+  await wp.keyboard.press('KeyT');
+  await expect(wp.getByTestId('watch-boss-table')).toBeVisible({ timeout: 20_000 });
+  await expect(wp.getByTestId('watch-boss-table').locator('tr[data-key="boss1"]')).toContainText('41');
+  await wp.keyboard.press('KeyT');
+  // финиш: Ива быстрее
+  await finish(p1, 120_000); await finish(p2, 125_000);
+  await expect(org.getByTestId('org-result')).toContainText('Победитель: Ива', { timeout: 30_000 });
+  await expect(wp.getByTestId('watch-over')).toContainText('Победил Ива', { timeout: 30_000 });
+  await expect(wp.getByTestId('watch-boss-over')).toContainText('Корнематка');
+  await expect(p1.getByTestId('sr-banner')).toContainText('ПОБЕДА', { timeout: 30_000 });
+  const arch = await org.evaluate(() => JSON.parse(localStorage.getItem('tt_races') || '[]') as { discipline: string; settings: { cat: string }; players: { name: string; eloAfter: number | null; bosses?: { ch: number; dmg: number }[] }[] }[]);
+  expect(arch.length).toBe(1); expect(arch[0]!.discipline).toBe('boss'); expect(arch[0]!.settings.cat).toBe('boss');
+  expect(arch[0]!.players.every((p) => p.eloAfter != null)).toBe(true); expect(arch[0]!.players.find((p) => p.name === 'Ива')!.bosses![0]).toMatchObject({ ch: 1, dmg: 41 });
+  await org.getByTestId('org-archive').click();
+  await expect(org.getByTestId('arch-table')).toContainText('Босс-раш');
+  await expect(org.getByTestId('arch-rating')).toContainText('Ива');
+  expect(errs).toEqual([]);
+  for (const c of [cO, c1, c2, cW]) await c.close();
 });

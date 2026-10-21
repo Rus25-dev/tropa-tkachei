@@ -1,0 +1,468 @@
+{
+ "format": "tropa-tkachei/races",
+ "version": 1,
+ "game": "2.0.0",
+ "exported": "2026-10-21T08:00:00.000Z",
+ "races": [
+  {
+   "id": "r-240901-a1",
+   "date": "2026-09-01T17:05:00.000Z",
+   "version": "2.0.0",
+   "discipline": "trail",
+   "settings": {
+    "cat": "trail",
+    "easy": false,
+    "speed": 1
+   },
+   "seed": 1101,
+   "players": [
+    {
+     "seat": 1,
+     "name": "Ива",
+     "dnf": false,
+     "time": 1412000,
+     "finalTime": 1412000,
+     "igt": 1409600,
+     "deaths": 3,
+     "stats": null,
+     "splits": [
+      301000,
+      702000,
+      1090000,
+      1412000
+     ],
+     "eloBefore": 1000,
+     "eloAfter": 1020,
+     "place": 1
+    },
+    {
+     "seat": 2,
+     "name": "Ярь",
+     "dnf": false,
+     "time": 1466500,
+     "finalTime": 1466500,
+     "igt": 1464100,
+     "deaths": 3,
+     "stats": null,
+     "splits": [
+      318000,
+      730000,
+      1121000,
+      1466500
+     ],
+     "eloBefore": 1000,
+     "eloAfter": 980,
+     "place": 2
+    }
+   ],
+   "winner": "Ива",
+   "winnerSeat": 1,
+   "awarded": false,
+   "gap": 54500,
+   "goAt": 1000,
+   "pauseMs": 0,
+   "events": []
+  },
+  {
+   "id": "r-240908-b2",
+   "date": "2026-09-08T18:20:00.000Z",
+   "version": "2.0.0",
+   "discipline": "trail",
+   "settings": {
+    "cat": "trail",
+    "easy": false,
+    "speed": 1
+   },
+   "seed": 1102,
+   "players": [
+    {
+     "seat": 1,
+     "name": "Мира",
+     "dnf": false,
+     "time": 1530200,
+     "finalTime": 1530200,
+     "igt": 1527800,
+     "deaths": 3,
+     "stats": null,
+     "splits": [
+      340000,
+      790000,
+      1200000,
+      1530200
+     ],
+     "eloBefore": 1000,
+     "eloAfter": 981,
+     "place": 2
+    },
+    {
+     "seat": 2,
+     "name": "Ива",
+     "dnf": false,
+     "time": 1498800,
+     "finalTime": 1498800,
+     "igt": 1496400,
+     "deaths": 3,
+     "stats": null,
+     "splits": [
+      330000,
+      770000,
+      1176000,
+      1498800
+     ],
+     "eloBefore": 1020,
+     "eloAfter": 1039,
+     "place": 1
+    }
+   ],
+   "winner": "Ива",
+   "winnerSeat": 2,
+   "awarded": false,
+   "gap": 31400,
+   "goAt": 1000,
+   "pauseMs": 0,
+   "events": []
+  },
+  {
+   "id": "r-240915-c3",
+   "date": "2026-09-15T16:40:00.000Z",
+   "version": "2.0.0",
+   "discipline": "boss",
+   "settings": {
+    "cat": "boss",
+    "easy": false,
+    "speed": 1
+   },
+   "seed": 1103,
+   "players": [
+    {
+     "seat": 1,
+     "name": "Ярь",
+     "dnf": false,
+     "time": 402300,
+     "finalTime": 402300,
+     "igt": 399900,
+     "deaths": 3,
+     "stats": null,
+     "splits": [
+      70100,
+      160900,
+      281400,
+      402300
+     ],
+     "eloBefore": 1000,
+     "eloAfter": 980,
+     "place": 2
+    },
+    {
+     "seat": 2,
+     "name": "Мира",
+     "dnf": false,
+     "time": 395100,
+     "finalTime": 395100,
+     "igt": 392700,
+     "deaths": 3,
+     "stats": null,
+     "splits": [
+      72500,
+      158000,
+      276000,
+      395100
+     ],
+     "eloBefore": 1000,
+     "eloAfter": 1020,
+     "place": 1
+    }
+   ],
+   "winner": "Мира",
+   "winnerSeat": 2,
+   "awarded": false,
+   "gap": 7200,
+   "goAt": 1000,
+   "pauseMs": 0,
+   "events": []
+  },
+  {
+   "id": "r-240922-d4",
+   "date": "2026-09-22T19:10:00.000Z",
+   "version": "2.0.0",
+   "discipline": "trail",
+   "settings": {
+    "cat": "trail",
+    "easy": false,
+    "speed": 1
+   },
+   "seed": 1104,
+   "players": [
+    {
+     "seat": 1,
+     "name": "Ярь",
+     "dnf": false,
+     "time": 1441000,
+     "finalTime": 1441000,
+     "igt": 1438600,
+     "deaths": 3,
+     "stats": null,
+     "splits": [
+      305000,
+      715000,
+      1100000,
+      1441000
+     ],
+     "eloBefore": 980,
+     "eloAfter": 980,
+     "place": 1
+    },
+    {
+     "seat": 2,
+     "name": "Мира",
+     "dnf": false,
+     "time": 1441000,
+     "finalTime": 1441000,
+     "igt": 1438600,
+     "deaths": 3,
+     "stats": null,
+     "splits": [
+      309000,
+      712000,
+      1104000,
+      1441000
+     ],
+     "eloBefore": 981,
+     "eloAfter": 981,
+     "place": 1
+    }
+   ],
+   "winner": "draw",
+   "winnerSeat": "draw",
+   "awarded": false,
+   "gap": 0,
+   "goAt": 1000,
+   "pauseMs": 0,
+   "events": []
+  },
+  {
+   "id": "r-240929-e5",
+   "date": "2026-09-29T17:30:00.000Z",
+   "version": "2.0.0",
+   "discipline": "duel",
+   "settings": {
+    "cat": "duel",
+    "easy": false,
+    "speed": 1
+   },
+   "seed": 1105,
+   "players": [
+    {
+     "seat": 1,
+     "name": "Ива",
+     "dnf": false,
+     "time": 254000,
+     "finalTime": 254000,
+     "igt": 251600,
+     "deaths": 3,
+     "stats": null,
+     "splits": [],
+     "eloBefore": 1000,
+     "eloAfter": 1020,
+     "place": 1
+    },
+    {
+     "seat": 2,
+     "name": "Борей",
+     "dnf": false,
+     "time": 281900,
+     "finalTime": 281900,
+     "igt": 279500,
+     "deaths": 3,
+     "stats": null,
+     "splits": [],
+     "eloBefore": 1000,
+     "eloAfter": 980,
+     "place": 2
+    }
+   ],
+   "winner": "Ива",
+   "winnerSeat": 1,
+   "awarded": false,
+   "gap": 27900,
+   "goAt": 1000,
+   "pauseMs": 0,
+   "events": []
+  },
+  {
+   "id": "r-241006-f6",
+   "date": "2026-10-06T18:00:00.000Z",
+   "version": "2.0.0",
+   "discipline": "boss",
+   "settings": {
+    "cat": "boss",
+    "easy": false,
+    "speed": 1
+   },
+   "seed": 1106,
+   "players": [
+    {
+     "seat": 1,
+     "name": "Борей",
+     "dnf": false,
+     "time": 388000,
+     "finalTime": 388000,
+     "igt": 385600,
+     "deaths": 3,
+     "stats": null,
+     "splits": [
+      66000,
+      150000,
+      270000,
+      388000
+     ],
+     "eloBefore": 1000,
+     "eloAfter": 1020,
+     "place": 1
+    },
+    {
+     "seat": 2,
+     "name": "Ива",
+     "dnf": false,
+     "time": 391500,
+     "finalTime": 391500,
+     "igt": 389100,
+     "deaths": 3,
+     "stats": null,
+     "splits": [
+      64000,
+      152500,
+      269000,
+      391500
+     ],
+     "eloBefore": 1000,
+     "eloAfter": 980,
+     "place": 2
+    }
+   ],
+   "winner": "Борей",
+   "winnerSeat": 1,
+   "awarded": false,
+   "gap": 3500,
+   "goAt": 1000,
+   "pauseMs": 0,
+   "events": []
+  },
+  {
+   "id": "r-241013-g7",
+   "date": "2026-10-13T17:15:00.000Z",
+   "version": "2.0.0",
+   "discipline": "trail",
+   "settings": {
+    "cat": "trail",
+    "easy": false,
+    "speed": 1
+   },
+   "seed": 1107,
+   "players": [
+    {
+     "seat": 1,
+     "name": "Борей",
+     "dnf": false,
+     "time": 1399000,
+     "finalTime": 1399000,
+     "igt": 1396600,
+     "deaths": 3,
+     "stats": null,
+     "splits": [
+      298000,
+      690000,
+      1070000,
+      1399000
+     ],
+     "eloBefore": 1000,
+     "eloAfter": 1019,
+     "place": 1
+    },
+    {
+     "seat": 2,
+     "name": "Ярь",
+     "dnf": true,
+     "time": null,
+     "finalTime": null,
+     "igt": null,
+     "deaths": null,
+     "stats": null,
+     "splits": [
+      310000,
+      705000
+     ],
+     "eloBefore": 980,
+     "eloAfter": 961,
+     "place": 2
+    }
+   ],
+   "winner": "Борей",
+   "winnerSeat": 1,
+   "awarded": false,
+   "gap": 1399000,
+   "goAt": 1000,
+   "pauseMs": 0,
+   "events": []
+  },
+  {
+   "id": "r-241020-h8",
+   "date": "2026-10-20T19:45:00.000Z",
+   "version": "2.0.0",
+   "discipline": "trail",
+   "settings": {
+    "cat": "trail",
+    "easy": false,
+    "speed": 1
+   },
+   "seed": 1108,
+   "players": [
+    {
+     "seat": 1,
+     "name": "Мира",
+     "dnf": false,
+     "time": 1377400,
+     "finalTime": 1377400,
+     "igt": 1375000,
+     "deaths": 3,
+     "stats": null,
+     "splits": [
+      292000,
+      681000,
+      1055000,
+      1377400
+     ],
+     "eloBefore": 981,
+     "eloAfter": 1004,
+     "place": 1
+    },
+    {
+     "seat": 2,
+     "name": "Ива",
+     "dnf": false,
+     "time": 1383900,
+     "finalTime": 1383900,
+     "igt": 1381500,
+     "deaths": 3,
+     "stats": null,
+     "splits": [
+      290000,
+      684000,
+      1061000,
+      1383900
+     ],
+     "eloBefore": 1039,
+     "eloAfter": 1016,
+     "place": 2
+    }
+   ],
+   "winner": "Мира",
+   "winnerSeat": 1,
+   "awarded": false,
+   "gap": 6500,
+   "goAt": 1000,
+   "pauseMs": 0,
+   "events": []
+  }
+ ]
+}

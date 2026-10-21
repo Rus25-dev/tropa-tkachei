@@ -1,15 +1,45 @@
 // Статистика забега: урон, DPS, точность, отбивы, увороты, казни, комбо, фазы, покупки (legacy/src/race-stats.js).
 // Считается из самой симуляции и ничего в игре не меняет, поэтому при воспроизведении журнала получается то же самое.
 // Живёт в sr.stats; в гонке уходит организатору в телеметрии и в итоговом результате.
+import { T } from './balance';
 import type { Boss, Enemy, Player } from './types';
 import type { World } from './world';
 
+/** подсплиты главы: выход из коридора (exit), первая скамья (bench), начало боя (fight), фазы 2 и 3 босса (ph2, ph3), смерть босса (kill) */
+export type SubKind = 'exit' | 'bench' | 'fight' | 'ph2' | 'ph3' | 'kill';
+/** igt — игровое время в мс (в тиках логики, одинаково при воспроизведении журнала); настенное время подсплита знает только сетевой слой */
+export interface SubSplit { ch: number; k: SubKind; igt: number }
+/** итог боя с одним боссом (босс-раш и главы «Тропы»): считается на смерти босса как разница накопленных счётчиков забега; в packStats не входит */
+export interface BossStat { ch: number; dmg: number; parries: number; taken: number; stuns: number; execs: number; deaths: number; /** мс от начала боя до смерти босса (игровое время) */ fight: number }
 export interface StatsData {
   dmg: number; bossDmg: number; taken: number; heals: number; swings: number; hits: number; parries: number; dodges: number; stuns: number; execs: number;
   combo: number; kills: number; fight: number; ph: Record<string, number>; buys: { id: string; ch: number; igt: number; price: number }[];
-  _: { atk?: boolean; hp?: number; st?: boolean };
+  /** подсплиты забега в порядке прохождения (только наблюдение: игру не меняют) */
+  subs: SubSplit[];
+  /** бои с боссами по порядку: урон, отбивы, полученный урон, оглушения, казни, смерти, время боя */
+  bosses: BossStat[];
+  _: { atk?: boolean; hp?: number; st?: boolean; bs?: { dmg: number; par: number; taken: number; stuns: number; execs: number; deaths: number } };
 }
-export const freshStats = (): StatsData => ({ dmg: 0, bossDmg: 0, taken: 0, heals: 0, swings: 0, hits: 0, parries: 0, dodges: 0, stuns: 0, execs: 0, combo: 0, kills: 0, fight: 0, ph: {}, buys: [], _: {} });
+export const freshStats = (): StatsData => ({ dmg: 0, bossDmg: 0, taken: 0, heals: 0, swings: 0, hits: 0, parries: 0, dodges: 0, stuns: 0, execs: 0, combo: 0, kills: 0, fight: 0, ph: {}, buys: [], subs: [], bosses: [], _: {} });
+/** номер фазы босса: у Корнематки, Владика и Тимы это поле phase, у Миши фаза растёт с каждой диктовкой (отметки здоровья 2/3 и 1/3) */
+export function bossPhase(b: Boss): number {
+  if (b.phase != null) return b.phase || 1;
+  const u = b['tdUsed'] as unknown;
+  return Array.isArray(u) ? 1 + Math.min(2, u.length) : 1;
+}
+/** записать подсплит главы, если его ещё не было */
+export function statSub(sc: World, k: SubKind): void {
+  const S = statBegin(sc), r = sc.sr; if (!S || !r) return;
+  const ch = sc.camp ? sc.camp.ch : 1;
+  if (S.subs.some((x) => x.ch === ch && x.k === k)) return;
+  const igt = Math.round(r.igt);
+  S.subs.push({ ch, k, igt });
+  if (k === 'kill') { // итог боя: разница счётчиков с прошлой смерти босса
+    const q = S._.bs ?? { dmg: 0, par: 0, taken: 0, stuns: 0, execs: 0, deaths: 0 }, f = S.subs.find((x) => x.ch === ch && x.k === 'fight');
+    S.bosses.push({ ch, dmg: Math.round((S.bossDmg - q.dmg) * 10) / 10, parries: S.parries - q.par, taken: S.taken - q.taken, stuns: S.stuns - q.stuns, execs: S.execs - q.execs, deaths: r.deaths - q.deaths, fight: f ? Math.max(0, igt - f.igt) : 0 });
+    S._.bs = { dmg: S.bossDmg, par: S.parries, taken: S.taken, stuns: S.stuns, execs: S.execs, deaths: r.deaths };
+  }
+}
 
 /** RaceStats.of(gs): статистика текущего забега или null вне забега */
 export function statBegin(sc: World): StatsData | null {
@@ -40,7 +70,20 @@ export function statTick(sc: World): void {
   if (((p['combo'] as number) | 0) > S.combo) S.combo = (p['combo'] as number) | 0;
   if (q.hp != null && p.hp > q.hp && p.healT > 0 && !sc.wiping) S.heals++;
   q.hp = p.hp;
+  // подсплиты: выход из коридора (в «Тропе» — вход на арену, в главе I — проход за триггер боя) и первая скамья главы
+  const sr = sc.sr!;
+  if (sr.cat === 'trail' && sc.camp) {
+    const tr = sc.L.boss ? sc.L.boss.trigger : null;
+    if (sc.camp.st === 'arena' || (sc.camp.st === 'level' && tr != null && p.x >= tr * T)) statSub(sc, 'exit');
+  }
+  if (p.sit) statSub(sc, 'bench');
   const b = sc.testBoss() ?? sc.boss;
+  // подсплиты боя идут по самому боссу, а не по sc.bossDead: на арене глав II–IV этот флаг стоит с начала сцены
+  if (b && b.maxHp && b.state && !['sleep', 'dead', 'gone', 'intro'].includes(b.state) && !(b.hp <= 0)) {
+    statSub(sc, 'fight');
+    if (bossPhase(b) >= 2) statSub(sc, 'ph2');
+    if (bossPhase(b) >= 3) statSub(sc, 'ph3');
+  }
   if (b && b.state && !sc.bossDead && !['sleep', 'dead', 'gone', 'intro'].includes(b.state) && !(b.hp <= 0)) {
     S.fight++;
     const key = (sc.camp ? sc.camp.ch : 1) + ':' + (b.phase || 1); S.ph[key] = (S.ph[key] | 0) + 1;

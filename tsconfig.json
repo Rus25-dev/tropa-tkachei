@@ -20,5 +20,5 @@
     "noEmit": true,
     "types": ["vite/client", "node"]
   },
-  "include": ["src", "tests", "tools/**/*.ts", "vite.config.ts", "playwright.config.ts"]
+  "include": ["src", "tests", "tools/**/*.ts", "vite.config.ts", "vite.rating.config.ts", "playwright.config.ts"]
 }
