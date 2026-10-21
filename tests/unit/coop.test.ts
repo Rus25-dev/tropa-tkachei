@@ -158,4 +158,38 @@ describe('кооператив: хост и гость', () => {
     p.host.close(); p.step(30000);
     expect(lost).toBe(1);
   });
+
+  // ----- ошибки аудита v1.5, не должны вернуться -----
+  it('аудит v1.5: способность с предмета получают оба героя (хост подобрал — гость тоже)', () => {
+    const p = mkPair();
+    p.step(400);
+    const hw = p.hs().world, gw = p.gs().world, it = hw.items.find((x) => x['ability'] === 'double')!;
+    expect(it).toBeTruthy(); expect(gw.items.length).toBe(hw.items.length);
+    const hero = hw.players[0]!; hero.x = (it['px'] as number) - 7; hero.y = (it['py'] as number) - 13;
+    p.step(1200);
+    expect(hw.abil['double']).toBe(true); expect(gw.abil['double']).toBe(true);
+    expect(gw.items.some((x) => x['ability'] === 'double')).toBe(false);
+  });
+
+  it('аудит v1.5: отбив гостя копит стойкость босса у хоста', () => {
+    const p = mkPair({ start: { mode: 'bosstest', boss: 'vladik', camp: null } });
+    p.step(600);
+    const hw = p.hs().world, gw = p.gs().world, b = hw.vladik!;
+    // гость рядом с боссом отбивает: событие parrypoise доходит до хоста
+    gw.players[1]!.x = b.x - 10; gw.players[1]!.y = b.y; gw.players[1]!.parryT = 0.2; gw.players[1]!.inv = 0;
+    b.state = 'idle'; b['poiseImmune'] = 0; const before = b['poise'] || 0;
+    gw.sendEv({ k: 'parrypoise', x: b.x + b.w / 2, y: b.y + b.h / 2 });
+    p.step(500);
+    expect(b['poise'] || 0).toBeGreaterThan(before);
+  });
+
+  it('аудит v1.5: хост не получает «зависание кадра» от ударов гостя', () => {
+    const p = mkPair();
+    p.step(500);
+    const hw = p.hs().world, g = hw.players[1]!, e = hw.enemies.find((x) => !x.dead)!;
+    g.x = e.x - 20; g.y = e.y; g.atkDir = 'f'; g.face = 1; g.atkT = 0.2; g.atkHits = new Set();
+    hw.hitstop = 0;
+    for (let i = 0; i < 6; i++) hw.tick();
+    expect(hw.hitstop).toBe(0); // удар удалённого героя не вызывает hitstop у хоста
+  });
 });
