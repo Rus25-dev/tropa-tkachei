@@ -15,14 +15,22 @@ export const DISC: Record<string, DiscDef> = {
 };
 
 export interface Fin { rta: number; igt: number; deaths: number; splits: { rta: number; igt: number }[]; stats: Record<string, any> | null; restored: number }
+/** подсплит игрока: глава, вид (exit / bench / fight / ph2 / ph3 / kill) и время забега (RTA, мс) на его часах */
+export interface PSub { ch: number; k: string; rta: number }
+/** личный рекорд игрока в дисциплине по архиву: лучший финиш (t, sp — сплиты, sb — подсплиты «глава:вид» → мс) и лучшие отрезки по главам/боссам (bs) */
+export interface Pb { t: number; sp: number[]; sb: Record<string, number>; bs: (number | null)[] }
 export interface OrgSeat {
   id: number; key: string; role: 'play' | 'watch'; name: string; ready: boolean; loaded: boolean; online: boolean;
   fin: Fin | null; dnf: boolean; dnfAt?: number; splits: number[]; viol: string[]; restored: number; rtt: number | null; tel: Record<string, any> | null;
+  /** подсплиты, смерти с потерянным временем, покупки и личный рекорд (необязательны: состояние комнаты из прежних версий читается) */
+  subs?: PSub[]; lost?: number; deathList?: { ch: number; rta: number; lost: number | null }[]; buys?: { id: string; name: string; ch: number; rta: number; price: number }[]; pb?: Pb | null;
 }
 export interface RaceEvent { n: number; t: number | null; k: string; s: number | null; x: string; [extra: string]: any }
 export interface ResultRow {
   seat: number; name: string; dnf: boolean; time: number | null; finalTime: number | null; igt: number | null; deaths: number | null; stats: Record<string, any> | null;
   splits: number[]; eloBefore: number | null; eloAfter: number | null; place: number;
+  /** необязательные поля 2.2: подсплиты, потерянное время на смертях, покупки, лучшие отрезки на момент гонки */
+  subs?: PSub[]; lost?: number; deathList?: { ch: number; rta: number; lost: number | null }[]; buys?: { id: string; name: string; ch: number; rta: number; price: number }[];
 }
 /** запись архива гонок (формат races.json) */
 export interface RaceResult {
@@ -53,6 +61,7 @@ export interface PlayStore { loadSess(): PlaySess | null; saveSess(s: PlaySess):
 export interface RoomPlayer {
   seat: number; name: string; ready: boolean; loaded: boolean; online: boolean; rtt: number | null; fin: { rta: number; igt: number; deaths: number } | null; dnf: boolean;
   sp: number; splits: number[]; restored: number;
+  subs?: PSub[]; lost?: number; deaths?: number; buys?: number; pb?: Pb | null;
 }
 export interface RoomState {
   v: 1; id: string; code: string; phase: Phase; disc: string; discName: string; goAt: number | null; ver: string; now: number;

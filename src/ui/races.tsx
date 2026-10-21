@@ -9,13 +9,14 @@ import { openRating } from '../app/ratinglink';
 import { fixRules, violation } from '../app/speedrun';
 import { rcIds, sr as srStore } from '../app/store';
 import { DISC, mergeNames, racesJson, type RaceEvent, type RaceResult, type RoomPlayer } from '../net/racecommon';
+import { stageText, sumOfBest, tagsOf } from '../net/raceprog';
 import { mergeRaces, parseRaces } from '../net/racesfile';
 import { watchBox } from '../view/fit';
 import { useTick } from './ingame';
 import { Panel } from './kit';
 import { copyCard, downloadCard } from './racecard';
+import { COL_A, COL_B, Ribbon, SplitsTable } from './racetables';
 
-const TAGS = SR_CATS.trail.tags;
 export function useRaces(r: Races): void {
   const [, n] = useState(0);
   useEffect(() => r.subscribe(() => n((x) => x + 1)), [r]);
@@ -58,14 +59,14 @@ export function OrgPanel({ races }: { races: Races }) {
     const p = ps[i];
     if (!p) return <div class="rc-box" data-testid={`org-p${i + 1}`}><h3>Игрок {i + 1}</h3><div class="lead">Ждём: отправьте ссылку игроку</div></div>;
     const t = p.tel as Record<string, number> | null, hp = t ? `${t['hp']}/${t['mh']}` : '—';
-    const ph = p.fin ? 'финиш ' + f(p.fin.rta) : p.dnf ? 'сошёл' : S.phase === 'run' && t ? `${t['pa'] ? 'пауза · ' : ''}Гл. ${TAGS[Math.min(3, p.splits.length)] || ''} · ${f(t['el'] ?? 0)}` : S.phase === 'lobby' ? (p.ready ? 'готов' : 'не готов') : p.loaded ? 'загружен' : 'загружается…';
+    const ph = p.fin ? 'финиш ' + f(p.fin.rta) : p.dnf ? 'сошёл' : S.phase === 'run' && t ? `${t['pa'] ? 'пауза · ' : ''}${stageText(S.disc, t, p.subs, false)} · ${f(t['el'] ?? 0)}` : S.phase === 'lobby' ? (p.ready ? 'готов' : 'не готов') : p.loaded ? 'загружен' : 'загружается…';
     return (
       <div class="rc-box" data-testid={`org-p${i + 1}`}>
         <h3><span class={`dot ${p.online ? 'on' : ''}`} />{p.name}</h3>
         <div data-testid={`org-p${i + 1}-state`}>{ph}</div>
-        <div class="lead">{p.online ? `пинг ${p.rtt != null ? Math.round(p.rtt) + ' мс' : '…'}` : 'нет связи'}{t && S.phase === 'run' ? ` · маски ${hp} · смертей ${t['dt']}` : ''}{p.restored ? ` · восстановлен ×${p.restored}` : ''}</div>
+        <div class="lead">{p.online ? `пинг ${p.rtt != null ? Math.round(p.rtt) + ' мс' : '…'}` : 'нет связи'}{t && S.phase === 'run' ? ` · маски ${hp} · смертей ${t['dt']}${p.lost ? ` (потеряно ${(p.lost / 1000).toFixed(1)} с)` : ''}` : ''}{p.restored ? ` · восстановлен ×${p.restored}` : ''}</div>
         {S.phase === 'lobby' && ps.length === 2 && <div class="lead" data-testid={`org-p${i + 1}-chance`}>Эло {ratingOf(eloT, p.name, S.disc).rating} · шанс на победу {winChances(eloT, ps[0]!.name, ps[1]!.name, S.disc)[i]} %</div>}
-        {p.splits.length > 0 && <div class="lead">{p.splits.map((s, k) => `${TAGS[k]} ${f(s)}`).join(' · ')}</div>}
+        {p.splits.length > 0 && <div class="lead">{p.splits.map((s, k) => `${tagsOf(S.disc)[k]} ${f(s)}`).join(' · ')}</div>}
       </div>
     );
   };
@@ -99,6 +100,11 @@ export function OrgPanel({ races }: { races: Races }) {
           </div>
         </div>
         <div class="rc-grid">{card(0)}{card(1)}</div>
+        {(S.phase === 'run' || S.phase === 'done') && ps.length === 2 && (
+          <div class="rc-box rc-splits" data-testid="org-splits"><h3>Сплиты и подсплиты</h3>
+            <div class="tbl-wrap"><SplitsTable disc={S.disc} a={org.pub().players[0]} b={org.pub().players[1]} mode="full" id="org-splits-table" /></div>
+          </div>
+        )}
         <div class="rc-actions">
           <button type="button" class="btn primary" id="rco-start" data-testid="org-start" disabled={!(org.canStart() || (S.phase === 'prep' && ps.some((p) => p.online)))} onClick={() => (S.phase === 'prep' ? org.maybeCount(true) : org.start())}>{S.phase === 'prep' ? 'Начать без ожидания' : 'Старт гонки'}</button>
           <button type="button" class="btn" id="rco-pause" data-testid="org-pause" disabled={S.phase !== 'run'} onClick={() => org.techPause()}>{S.pause.on ? 'Продолжить гонку' : 'Тех. пауза'}</button>
@@ -302,6 +308,7 @@ export function WatchView({ races }: { races: Races }) {
       else if (e.code === 'Space') { w.frozen = !w.frozen; e.preventDefault(); }
       else if (e.code === 'KeyR') { armed = now + 1500; return; }
       else if (e.code === 'KeyM') races.sound?.toggleMute();
+      else if (e.code === 'KeyT') w.splitsOn = !w.splitsOn;
       else if (e.code === 'Digit0') { w.solo = null; w.stopReplay(); }
       else if (e.code === 'Digit1' || e.code === 'Digit2') {
         const s = seatOf(e.code === 'Digit1' ? 0 : 1); if (s == null) return;
@@ -316,7 +323,8 @@ export function WatchView({ races }: { races: Races }) {
   if (!S) return null;
   const ps = S.players || [], p1 = ps[0], p2 = ps[1], t1 = p1 && w.tel[p1.seat], t2 = p2 && w.tel[p2.seat], phase = S.phase, now = performance.now();
   const masks = (t: Record<string, number> | undefined): string => (t ? '●'.repeat(Math.max(0, t['hp'] ?? 0)) + '○'.repeat(Math.max(0, (t['mh'] ?? 0) - (t['hp'] ?? 0))) : '');
-  const chap = (t: Record<string, any> | undefined, p: RoomPlayer | undefined): string => (!t ? '' : p && p.fin ? 'финиш' : `${TAGS[Math.min(3, (t['ch'] || 1) - 1)]}${t['st'] === 'arena' ? ' · бой' : ''}`); // eslint-disable-line @typescript-eslint/no-explicit-any
+  const chap = (t: Record<string, any> | undefined, p: RoomPlayer | undefined): string => (!t ? '' : stageText(S.disc, t, p?.subs, !!(p && p.fin))); // eslint-disable-line @typescript-eslint/no-explicit-any
+  const showTbl = (w.splitsOn || now < w.splitsUntil) && phase !== 'lobby' && phase !== 'prep' && phase !== 'count' && !!p1 && !!p2;
   const lead = w.lead(), clock = w.clockMs();
   const bossName = (k: string): string => ({ k: 'Корнематка', m: 'Миша Додик', v: 'Владик Скрипка', t: 'Тима Пиво' } as Record<string, string>)[k] || 'Босс';
   const res = S.result || w.resultLite;
@@ -341,8 +349,11 @@ export function WatchView({ races }: { races: Races }) {
           <div class="names"><div class="a" style={{ color: '#8fe8d2' }}>{p1 ? p1.name : '—'}</div><div class="st">{phase === 'run' ? (S.pause.on ? 'ПАУЗА' : 'гонка') : phase === 'done' ? 'финиш' : ''}</div><div class="b" style={{ color: '#ffc46e' }}>{p2 ? p2.name : '—'}</div></div>
           <div class="tm" data-testid="watch-time">{phase === 'run' || phase === 'done' ? fmt(clock) : phase === 'count' || phase === 'prep' ? 'старт' : '0:00.00'}</div>
           <div class={`df ${lead && lead.ms < 0 ? 'p' : 'n'}`}>{lead ? (lead.ms === 0 ? '±0.0' : fmtD(lead.ms)) : ' '}</div><div class="st">{lead ? lead.txt : ' '}</div>
-          <div class="names"><div class="a masks">{masks(t1)}</div><div class="st">{chap(t1, p1)}{t1 && t2 ? ' · ' : ''}{chap(t2, p2)}</div><div class="b masks">{masks(t2)}</div></div>
+          <div class="names"><div class="a masks">{masks(t1)}</div><div class="st" /><div class="b masks">{masks(t2)}</div></div>
+          <div class="stage" data-testid="watch-stage"><div class="a" style={{ color: COL_A }}>{chap(t1, p1)}</div><div class="b" style={{ color: COL_B }}>{chap(t2, p2)}</div></div>
+          {(phase === 'run' || phase === 'done') && <Ribbon disc={S.disc} a={p1} b={p2} ta={t1} tb={t2} />}
         </div>
+        {showTbl && !(phase === 'done' && res) && <div class="rt-live" data-testid="watch-splits"><SplitsTable disc={S.disc} a={p1} b={p2} mode="live" id="watch-splits-table" /></div>}
         {w.replay && <div class="rw-replay" data-testid="watch-replay">ПОВТОР · {w.S?.players?.find((p) => p.seat === w.replay!.seat)?.name}</div>}
         {w.connStatus !== 'online' && <div class="conn">нет связи с организатором, пробуем снова…</div>}
         {(phase === 'run') && !t1 && p1 && <div class="wait" style={{ left: '0px' }}>Ждём данные игрока…</div>}
@@ -357,7 +368,7 @@ export function WatchView({ races }: { races: Races }) {
           {cdText && <div class="big">{cdText}</div>}
           <div class="mid sub">{S.discName || 'Тропа целиком'} · комната {w.code}</div>
         </>)}
-        {phase === 'done' && res && <WatchOver w={w} />}
+        {phase === 'done' && res && (w.splitsOn ? <div class="over full" data-testid="watch-over-splits"><h2>Сплиты и подсплиты</h2><SplitsTable disc={S.disc} a={p1} b={p2} mode="full" id="watch-splits-full" /></div> : <WatchOver w={w} />)}
       </div>
     </div>
   );
@@ -372,11 +383,15 @@ function WatchOver({ w }: { w: NonNullable<Races['watch']> }) {
   };
   const win = r.winner === 'draw' ? 'Ничья' : r.winner != null ? 'Победил ' + (rows.find((x) => x.seat === r.winner)?.name ?? '') : 'Гонка окончена';
   const sp = (p: { seat: number }, i: number): string => { const q = ps.find((x) => x.seat === p.seat); return q && q.splits && q.splits[i] != null ? f(q.splits[i]!) : '—'; };
+  const disc = w.S!.disc, tags = tagsOf(disc), qa = A && ps.find((x) => x.seat === A.seat), qb = B && ps.find((x) => x.seat === B.seat);
+  const sobA = sumOfBest(qa?.pb), sobB = sumOfBest(qb?.pb), lostTxt = (q: RoomPlayer | undefined): string => (q && q.deaths ? `${q.deaths} · −${((q.lost ?? 0) / 1000).toFixed(1)} с` : '0');
   return (
     <div class="over" data-testid="watch-over"><h2>{win}{r.awarded ? ' (присуждено)' : ''}{r.gap != null ? ' · +' + f(Math.abs(r.gap)) : ''}</h2>
       <table><thead><tr><th /><th>{A?.name}</th><th>{B?.name}</th></tr></thead><tbody>
         <tr><td>Время</td><td>{A && !A.dnf ? f(A.time) : '—'}</td><td>{B && !B.dnf ? f(B.time) : '—'}</td></tr>
-        {[0, 1, 2, 3].map((i) => <tr key={i}><td>{TAGS[i]}</td><td>{A ? sp(A, i) : ''}</td><td>{B ? sp(B, i) : ''}</td></tr>)}
+        {[0, 1, 2, 3].map((i) => <tr key={i}><td>{tags[i]}</td><td>{A ? sp(A, i) : ''}</td><td>{B ? sp(B, i) : ''}</td></tr>)}
+        <tr><td>Сумма лучших отрезков</td><td>{sobA != null ? f(sobA) : '—'}</td><td>{sobB != null ? f(sobB) : '—'}</td></tr>
+        <tr><td>Смерти · потеряно времени</td><td>{lostTxt(qa)}</td><td>{lostTxt(qb)}</td></tr>
         {mk('Урон боссам', 'bossDmg')}{mk('DPS в боях', 'dps')}{mk('Получено урона', 'taken')}{mk('Лечений', 'heals')}{mk('Точность', 'acc', (v) => Math.round(v * 100) + ' %')}{mk('Отбивы', 'parries')}{mk('Идеальные увороты', 'dodges')}{mk('Оглушения', 'stuns')}{mk('Казни', 'execs')}{mk('Самое длинное комбо', 'combo')}{mk('Покупок в лавке', 'buys', (v) => String((v as unknown[]).length))}
       </tbody></table></div>
   );
