@@ -3,6 +3,8 @@ import type Phaser from 'phaser';
 import type { LaunchParams } from '../app/launch';
 import { mapCanOpen } from '../core/maptravel';
 import type { Online } from '../app/online';
+import type { Races } from '../app/races';
+import * as jr from '../app/journal';
 import type { Session } from '../core/session';
 import type { InputHub } from '../input/hub';
 import type { Shared } from '../view/game';
@@ -14,12 +16,13 @@ import { TouchPad } from './TouchPad';
 import { UpdateBanner } from './Update';
 import { anyPanel, initNav, setDevice, topPanel } from './nav';
 import { useDevice } from './kit';
+import { RacesLayer, useRaces } from './races';
 
-interface Props { hub: InputHub; version: string; build: string; start: (p: LaunchParams) => Session; stop: () => void; game: Phaser.Game; shared: Shared; online: Online; extra?: Partial<MenuCtl> }
+interface Props { hub: InputHub; version: string; build: string; start: (p: LaunchParams) => Session; stop: () => void; game: Phaser.Game; shared: Shared; online: Online; races: Races; extra?: Partial<MenuCtl> }
 interface UiEvent { k: string; [key: string]: unknown }
 
 /** Корень интерфейса поверх холста: меню, внутриигровые окна, сенсорная панель, подсказки поворота и iPhone */
-export function App({ hub, version, build, start, stop, game, shared, online: net, extra }: Props) {
+export function App({ hub, version, build, start, stop, game, shared, online: net, races, extra }: Props) {
   const [touch, setTouch] = useState(shared.touch);
   const [ses, setSes] = useState<Session | null>(shared.session);
   const [win, setWin] = useState<WinSummary | null>(null);
@@ -28,6 +31,8 @@ export function App({ hub, version, build, start, stop, game, shared, online: ne
   const last = useRef<LaunchParams>({ kind: 'story' });
   const dev = useDevice();
   useTick(100); // состояние мира опрашиваем ~10 раз в секунду
+  useRaces(races);
+  useEffect(() => { races.init(); }, []);
   useEffect(() => {
     const onTouch = (): void => { setTouch(true); setDevice('touch'); };
     window.addEventListener('touchstart', onTouch, { once: true, passive: true });
@@ -93,14 +98,15 @@ export function App({ hub, version, build, start, stop, game, shared, online: ne
   }, []);
 
   const launch = (p: LaunchParams): void => { Snd.init(); last.current = p; start(p); };
-  const exit = (): void => { net.leave(); stop(); };
+  const exit = (): void => { races.onExit(); net.leave(); stop(); };
   net.onHostLost = () => { sess()?.world.toast('Хост отключился. Возвращаемся в меню…', 2.5); setTimeout(() => { if (shared.session) exit(); }, 2800); };
   const retry = (): void => {
     const cur = sess(); if (!cur) return;
+    if (cur.sr?.rc || cur.sr?.race) { cur.world.toast('В гонке нельзя начать заново'); return; }
     if (cur.sr) { launch({ kind: cur.sr.cat }); return; }
     cur.retry();
   };
-  const ctl: MenuCtl = { version, build, launch, online: net, ...extra };
+  const ctl: MenuCtl = { version, build, launch, online: net, racesItems: () => races.racesItems(), racesInfo: () => races.racesInfo(), journal: { info: () => jr.info(version), restore: () => { races.restoreSolo(); }, clear: () => jr.clear() }, net: (_m, cat) => races.openDuel(cat), ...extra };
   const room = useRef(new URLSearchParams(location.search).get('room'));
   const initial = room.current ? [{ id: 'main' }, { id: 'lobby', ctx: { role: 'join', mode: 'story', fresh: false, code: room.current } }] : undefined;
   useEffect(() => { if (room.current) { const u = new URL(location.href); u.searchParams.delete('room'); history.replaceState(null, '', u.toString()); } }, []);
@@ -114,9 +120,10 @@ export function App({ hub, version, build, start, stop, game, shared, online: ne
   return (
     <>
       {s && <div class="ver" data-testid="version">v{version} · {build}</div>}
-      {!s && <Menu ctl={ctl} initial={initial} />}
+      {!s && !races.watching && !races.restoring && <Menu ctl={ctl} initial={initial} />}
+      <RacesLayer races={races} />
       {s && w && (<>
-        {w.sr && <SrHud w={w} />}
+        {w.sr && <SrHud w={w} cd={races.cd} rival={races.rival(w)} />}
         {w.train && <TrainHud w={w} />}
         {touch && <TouchPad hub={hub} tool={!!w.players[0]?.['toolId']} bombs={!!w.L.crates} hidden={anyOverlay || padMode || !!w.won} padMode={padMode} showMap={!!w.mapV}
           onPause={() => pauseKey()} onMap={() => mapKey()} />}
@@ -126,7 +133,7 @@ export function App({ hub, version, build, start, stop, game, shared, online: ne
         {w.mt.open && <MapTravel ses={s} />}
         {gear && <Gear ses={s} onClose={() => setGear(false)} />}
         {win && !srRes && <Win ses={s} s={win} online={online} onNext={(next) => { setWin(null); s.campGo(next); }} onRetry={retry} onExit={exit} />}
-        {srRes && w.sr && !friends && <SrResultScreen res={srRes} run={w.sr} version={version} onAgain={retry} onMenu={exit} onFriends={() => setFriends(true)} />}
+        {srRes && w.sr && !friends && <SrResultScreen res={srRes} run={w.sr} version={version} onAgain={retry} onMenu={exit} onFriends={() => setFriends(true)} banner={races.banner(srRes, w.sr)} />}
         {srRes && friends && <Friends crumbs={['Забег']} onBack={() => setFriends(false)} last={srRes} version={version} />}
       </>)}
       <div id="rotate" role="alert"><div><div class="ph" /><h3>Поверните телефон</h3><p>Игра идёт в горизонтальном положении. Пауза включена.</p></div></div>

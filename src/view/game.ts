@@ -5,6 +5,7 @@ import { BgScene } from './scenes/BgScene';
 import { BootScene } from './scenes/BootScene';
 import { GameScene } from './scenes/GameScene';
 import { HudScene } from './scenes/HudScene';
+import { WatchScene } from './scenes/WatchScene';
 import { currentFit } from './fit';
 import type { QualitySetting } from './quality';
 
@@ -19,6 +20,8 @@ export interface Shared {
   accessSpeed?: () => number;
   /** настройки отрисовки */
   gfx: () => { shake: boolean; noflash: boolean; outl: boolean; quality: QualitySetting; perf: boolean };
+  /** призрак соперника в гонке 1×1: его последнее известное положение (или null) */
+  ghost?: () => { c: number; s: string; x: number; y: number; f: number; g: number; vx: number; vy: number; at: number } | null;
 }
 
 /** Создаёт игру Phaser 4. Холст — в родном разрешении: размер окна × min(devicePixelRatio, 2); поле 960…1280 × 540 масштабируют камеры. */
@@ -33,7 +36,7 @@ export function createGame(parent: HTMLElement, shared: Shared): Phaser.Game {
     scale: { mode: Phaser.Scale.NONE },
     input: { gamepad: true },
     render: { antialias: true, roundPixels: false },
-    scene: [BootScene, BgScene, GameScene, HudScene],
+    scene: [BootScene, BgScene, GameScene, HudScene, WatchScene],
   });
   game.registry.set('shared', shared);
   const sizeCanvas = (): void => {

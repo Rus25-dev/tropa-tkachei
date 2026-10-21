@@ -34,7 +34,7 @@ export function Pause({ ses, online, onRetry, onExit, openGear }: { ses: Session
   if (sub === 'settings') return <Settings crumbs={['Пауза']} onBack={() => setSub(null)} locked={!!w.sr} />;
   const entries: { id: string; label: string; sub?: string; act: () => void }[] = [];
   entries.push({ id: 'resume', label: 'Продолжить', act: resume });
-  if (!online) entries.push({ id: 'retry', label: 'Заново', act: onRetry });
+  if (!online && !(w.sr && (w.sr.rc || w.sr.race))) entries.push({ id: 'retry', label: 'Заново', act: onRetry }); // в гонке начать заново нельзя
   if (w.train) entries.push({ id: 'trreset', label: kb ? 'Сброс босса (Y)' : 'Сброс босса', act: () => ses.trainReset() });
   if (w.mapV) entries.push({ id: 'map', label: 'Карта', act: () => { ses.togglePause(); ses.mapShow(); } });
   if (!w.sr) entries.push({ id: 'gear', label: kb ? 'Снаряжение (I)' : 'Снаряжение', act: openGear });

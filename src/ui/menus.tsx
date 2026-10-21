@@ -31,10 +31,12 @@ export interface MenuCtl {
   version: string; build: string;
   launch(p: LaunchParams): void;
   /** сетевая комната: coop-кампания / coop-босс / гонка 1×1 */
-  net?(mode: 'race'): void;
+  net?(mode: 'race', cat?: 'trail' | 'boss'): void;
   /** сетевая игра вдвоём (кооператив): комната и вход по коду */
   online?: Online;
   /** пункты «Гонки Ткачей»: организатор, игрок, обсервер, архив */
+  /** журнал ввода: восстановить забег после падения вкладки */
+  journal?: { info(): { ok: boolean; why: string; cat: string | null; sec: number; race: unknown } | null; restore(): void; clear(): void };
   racesItems?(): { label: string; sub?: string; act: () => void; disabled?: boolean }[];
   racesInfo?(): string[];
 }
@@ -226,14 +228,19 @@ function BossTest({ ctl, go, back, crumbs }: P) {
   );
 }
 
-function Speedrun({ go, back, crumbs }: P) {
+function Speedrun({ ctl, go, back, crumbs }: P) {
+  const [, bumpJ] = useState(0);
+  const inf = ctl.journal?.info();
+  const solo = inf && !inf.race ? inf : null; // журнал забега гонки восстанавливается в комнате
   const rl = (id: string): string => { const pb = srStore.rec(id).pb; return pb ? 'рекорд ' + fmt(pb.rta) : 'рекорда пока нет'; };
   return (
-    <Panel crumbs={crumbs} onBack={back} hint={{ nums: 3 }} label="Спидран">
+    <Panel crumbs={crumbs} onBack={back} hint={{ nums: solo ? 5 : 3 }} label="Спидран">
       <Screen title="Спидран" info={<><p>Забег на время: RTA идёт с первого шага до последнего удара финального босса, пауза останавливает только игровое время (IGT).</p><Dim>Обычное сохранение и рекорды боссов в забеге не затрагиваются. Лёгкий режим и замедление игры запрещены.</Dim></>}>
         <Item n={1} id="sr-trail" label={SR_CATS.trail.name} sub={rl('trail')} onClick={() => go('srcat', { cat: 'trail' })} />
         <Item n={2} id="sr-boss" label={SR_CATS.boss.name} sub={rl('boss')} onClick={() => go('srcat', { cat: 'boss' })} />
         <Item n={3} id="sr-friends" label="Мои рекорды и таблица друзей" sub="результаты друзей по коду" onClick={() => go('friends')} />
+        {solo && <Item n={4} id="sr-restore" label="Восстановить забег" sub={solo.ok ? `${SR_CATS[solo.cat as 'trail' | 'boss']?.name ?? solo.cat} · ${fmt(solo.sec * 1000)} игрового времени` : 'недоступно: ' + solo.why} disabled={!solo.ok} onClick={() => ctl.journal?.restore()} />}
+        {solo && <Item n={5} id="sr-jrdel" danger label="Удалить сохранённый забег" sub="журнал ввода будет стёрт" onClick={() => { ctl.journal?.clear(); bumpJ((n) => n + 1); }} />}
       </Screen>
     </Panel>
   );
@@ -251,7 +258,7 @@ function SrCat({ ctl, go, back, crumbs, ctx }: P) {
         <Dim>Лёгкий режим: {violation().includes('Лёгкий режим') ? 'ВКЛЮЧЁН — запрещено' : 'выключен'}<br />Замедление игры: {violation().some((v) => v.startsWith('Замедление')) ? 'включено — запрещено' : '100 %'}</Dim>
       </>}>
         <Item n={1} id="sc-solo" label="Забег в одиночку" sub={bad ? 'сначала отключите запрещённые настройки' : 'с нуля, таймер ждёт первого шага'} disabled={bad} onClick={() => ctl.launch({ kind: cat })} />
-        <Item n={2} id="sc-race" label="Гонка 1×1 с другом" sub={bad ? 'сначала отключите запрещённые настройки' : 'по сети: комната с кодом'} disabled={bad || !ctl.net} onClick={() => ctl.net?.('race')} />
+        <Item n={2} id="sc-race" label="Гонка 1×1 с другом" sub={bad ? 'сначала отключите запрещённые настройки' : 'по сети: комната с кодом'} disabled={bad || !ctl.net} onClick={() => ctl.net?.('race', cat)} />
         <Item n={3} id="sc-friends" label="Мои рекорды и таблица друзей" sub="результаты друзей по коду" onClick={() => go('friends')} />
         {bad && <Item n={4} id="sc-fix" danger label="Отключить запрещённые настройки" sub="лёгкий режим и замедление" onClick={() => { fixRules(); bump((n) => n + 1); }} />}
       </Screen>

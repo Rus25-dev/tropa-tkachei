@@ -1,6 +1,6 @@
 // Сцена игры: рисует состояние ядра (World) и гонит тики по кадрам ввода. Вся логика — в src/core; здесь только отображение, камера и эффекты.
 import Phaser from 'phaser';
-import { T, clamp } from '../../core/balance';
+import { PAL, T, clamp } from '../../core/balance';
 import { VH } from '../../core/constants';
 import { mulberry32 } from '../../core/rng';
 import type { Session } from '../../core/session';
@@ -11,7 +11,7 @@ import { drawCurtains, drawKorne, drawMisha, drawTima, drawVladik, type Say } fr
 import { drawEnemy } from '../draw/enemies';
 import { drawPlayer, drawSwingArc } from '../draw/hero';
 import { drawBeads, drawItems, drawPoiseBars, drawProjectiles, drawStatus, type TextPool } from '../draw/projectiles';
-import type { G } from '../draw/common';
+import { drawWeaver, type G } from '../draw/common';
 import { currentFit, fitCamera, type Fit } from '../fit';
 import { Snd } from '../audio/snd';
 import { Music } from '../audio/music';
@@ -52,6 +52,8 @@ export class GameScene extends Phaser.Scene {
   private say = { misha: null as Phaser.GameObjects.Text | null, vladik: null as Phaser.GameObjects.Text | null, tima: null as Phaser.GameObjects.Text | null };
   private letters!: Pool; private big!: Pool; private stamps!: Pool;
   private stampTexts: Phaser.GameObjects.Text[] = []; private furnG: G | null = null;
+  // призрак соперника (гонка 1×1)
+  private ghostG: G | null = null; private ghostTag: Phaser.GameObjects.Text | null = null; private ghostPos: { x: number; y: number } | null = null;
   // частицы
   private parts!: Phaser.GameObjects.Particles.ParticleEmitter; private dustE!: Phaser.GameObjects.Particles.ParticleEmitter;
   private smoke: Phaser.GameObjects.Particles.ParticleEmitter | null = null; private paper: Phaser.GameObjects.Particles.ParticleEmitter | null = null;
@@ -99,6 +101,7 @@ export class GameScene extends Phaser.Scene {
     for (const t of Object.values(this.say)) t?.destroy(); this.say = { misha: null, vladik: null, tima: null };
     for (const e of [this.smoke, this.paper, this.foam, this.dustFx]) e?.destroy(); this.smoke = this.paper = this.foam = this.dustFx = null;
     for (const t of this.stampTexts) t.destroy(); this.stampTexts = []; this.furnG?.destroy(); this.furnG = null;
+    this.ghostG?.destroy(); this.ghostG = null; this.ghostTag?.destroy(); this.ghostTag = null; this.ghostPos = null;
     this.fx.clear(); this.fb.clear(); this.itemG.clear(); this.curtainG.clear(); this.slimeG.clear(); this.exitG.clear(); this.stG.clear();
     this.letters.destroy(); this.big.destroy(); this.stamps.destroy();
     this.registry.remove('hud'); this.appliedQ = ''; this.appliedKey = '';
@@ -327,6 +330,7 @@ export class GameScene extends Phaser.Scene {
     drawPoiseBars(w, fx, now);
     drawBeads(w, fx);
     this.letters.end(); this.big.end(); this.stamps.end();
+    if (w.sr?.race) this.drawGhost(w, dt);
     this.stG.clear(); drawStatus(w, this.stG, now, (c, x, y) => { this.dustE.setParticleTint(c); this.dustE.explode(1, x, y); this.dustE.setParticleTint(0x8fae9c); });
     // ворота
     w.gates.forEach((gt, i) => {
@@ -352,6 +356,23 @@ export class GameScene extends Phaser.Scene {
     }
     // состояние для HUD
     this.registry.set('hud', { world: w, t: now });
+  }
+  /** полупрозрачный силуэт соперника, если он в той же главе и на том же этапе (legacy/speedrun.js drawGhost) */
+  private drawGhost(w: World, dt: number): void {
+    if (!this.ghostG) {
+      this.ghostG = this.add.graphics().setDepth(4.8);
+      this.ghostTag = this.add.text(0, 0, 'Соперник', { fontFamily: FONT, fontSize: '10px', fontStyle: '600', color: '#ffd9a0' }).setOrigin(0.5).setDepth(4.9);
+    }
+    const g = this.ghostG, tag = this.ghostTag!, o = this.sh.ghost?.() ?? null;
+    g.clear();
+    const same = o && performance.now() - o.at < 3000 && w.camp && o.c === w.camp.ch && o.s === w.camp.st;
+    if (!o || !same) { tag.setVisible(false); this.ghostPos = null; return; }
+    const gp = this.ghostPos ?? (this.ghostPos = { x: o.x, y: o.y }), age = Math.min(0.2, (performance.now() - o.at) / 1000), k = Math.min(1, dt * 12);
+    gp.x += (o.x + (o.vx || 0) * age - gp.x) * k; gp.y += (o.y + (o.vy || 0) * age - gp.y) * k;
+    const cx = gp.x + 7, fy = gp.y + 26, run = o.g && Math.abs(o.vx) > 10, ph = w.animT * 14;
+    g.setPosition(cx, fy); g.setAlpha(0.38);
+    drawWeaver(g, 0, 0, o.f || 1, PAL[1]!, { leg: run ? Math.sin(ph) * 5 : (o.g ? 0 : 2), bob: run ? Math.abs(Math.sin(ph)) * 1.5 : 0, sway: run ? -4 : (!o.g ? (o.vy < 0 ? -2 : 3) : 0), lift: (!o.g && o.vy > 0) ? -4 : 0 }, 1);
+    tag.setVisible(true).setAlpha(0.6).setPosition(cx, fy - 52);
   }
   private sayOf(t: Phaser.GameObjects.Text): Say {
     return { show: (text, x, y) => { t.setText(text).setPosition(x, y).setVisible(true); }, hide: () => { t.setVisible(false); } };

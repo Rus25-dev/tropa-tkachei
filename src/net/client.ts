@@ -102,7 +102,9 @@ export class Client {
         this.gSeen = d['g']; this.o.onMsg?.(d['m'], d['g']); this._tx({ k: 'ack' }); break;
       case 'nack': this._resend(); break;
       case 'tl': this.o.onTel?.(d['tv']); break;
-      case 'hb': this._tx({ k: 'hbr', ts: d['ts'] }); break;
+      case 'hb': // пульс несёт последний номер рассылки для нас: если он больше принятого, рассылка потерялась без обрыва связи — просим досылку
+        if (typeof d['lg'] === 'number' && d['lg'] > this.gSeen && this.env.now() - this.lastNack > 300) { this.lastNack = this.env.now(); this._tx({ k: 'nackg' }); }
+        this._tx({ k: 'hbr', ts: d['ts'] }); break;
       case 'hbr': if (d['ts'] != null) { const r = this.env.now() - d['ts']; this.rtt = this.rtt == null ? r : this.rtt * 0.7 + r * 0.3; } break;
       case 'bye': this._lost(); break;
     }
