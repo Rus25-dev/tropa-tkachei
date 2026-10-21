@@ -164,19 +164,29 @@ export class Session {
 
   // ----- действия интерфейса: выполняются сразу и пишутся в журнал, если что-то изменили (journal.js sig) -----
   private sig(): string {
-    const w = this.world, p = w.players[0];
-    return [w.paused, !!w.benchMenuOpen, w.shopOpen, w.mt.open, w.mt.busy, p && p.sit, p && p.hp, w.beads, w.respawn && w.respawn.x, w.up && w.up.hp + ',' + w.up.dmg + ',' + w.up.silk].join('|');
+    const w = this.world;
+    // сидят и лечатся оба героя: действие второго игрока (скамья, лавка) тоже должно попасть в журнал
+    return [w.paused, !!w.benchMenuOpen, w.shopOpen, w.mt.open, w.mt.busy, w.players.map((p) => p.sit + ':' + p.hp).join(), w.beads, w.respawn && w.respawn.x, w.up && w.up.hp + ',' + w.up.dmg + ',' + w.up.silk].join('|');
   }
   private act(name: string, args: [number, number, number], fn: () => void): void {
     const before = this.sig(); fn();
     if (this.rec && this.sig() !== before) this.rec.act(name, ...args);
   }
   togglePause(): void { const w = this.world, was = w.paused && !w.benchMenuOpen && !w.mt.open; this.act('T', [0, 0, 0], () => w.togglePause()); if (was && !w.paused) this.menuLock(); }
-  benchPick(entry: BenchEntry): void { this.act('bc', [1, 0, 0], () => benchPick(this.world, entry)); }
+  /** выбор пункта меню скамьи. Журнал v1.8 раскладывает его на действия (закрыть меню, отдых, лавка/карта): одно 'bc' потеряло бы отдых при воспроизведении */
+  benchPick(entry: BenchEntry): void {
+    const w = this.world, bm = w.benchMenuOpen;
+    if (!bm || entry === 'gear') { benchPick(w, entry); return; }
+    const pi = w.players.indexOf(bm.p), bi = w.benches.indexOf(bm.b);
+    this.act('bc', [1, 0, 0], () => benchClose(w, true));
+    this.act('br', [pi, bi, entry === 'rest' ? 0 : 1], () => benchRest(w, bm.p, bm.b, entry !== 'rest'));
+    if (entry === 'shop') this.openShop(pi); else this.mapShow();
+  }
   benchClose(): void { this.act('bc', [0, 0, 0], () => benchClose(this.world)); this.menuLock(); }
   benchRest(p: number, bench: number, quiet: boolean): void { const w = this.world; this.act('br', [p, bench, quiet ? 1 : 0], () => benchRest(w, w.players[p]!, w.benches[bench]!, quiet)); }
   openShop(p: number): void { const w = this.world; this.act('so', [p, 0, 0], () => openShop(w, w.players[p]!)); }
-  closeShop(): void { this.act('sc', [0, 0, 0], () => this.world.closeShop()); }
+  /** закрытие лавки отложено на тик (world.closeShop), поэтому подпись состояния сразу не меняется: действие пишется безусловно */
+  closeShop(): void { if (this.world.shopOpen) this.rec?.act('sc'); this.world.closeShop(); }
   buy(id: string): void { const w = this.world; this.act('sb', [SHOP.findIndex((s) => s.id === id), 0, 0], () => buy(w, id)); }
   mapShow(): void { this.act('mo', [0, 0, 0], () => mapShow(this.world)); }
   mapClose(): void { this.act('mc', [0, 0, 0], () => mapClose(this.world)); }

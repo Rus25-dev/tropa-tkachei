@@ -1,6 +1,7 @@
 // Запуск партии: собирает сессию ядра из настроек и хранилища и подключает сохранение, рекорды и награды.
 import { resumeCamp, freshCamp, type CampState } from '../core/campaign';
 import { Session, type SceneData } from '../core/session';
+import { attachRecording, recWanted } from './record';
 import type { Journal } from '../core/journal';
 import type { RunOpts, SrRun, Split } from '../core/speedrun';
 import type { World } from '../core/world';
@@ -67,6 +68,8 @@ export function createSession(p: LaunchParams, version: string): Session {
     journalStore.clear();
     void ses;
   }];
+  // «Записывать мои бои» / ?rec=1: после всех обработчиков выше. Сетевая игра и «Гонки Ткачей» ведут свой журнал: их не трогаем
+  if (recWanted() && !p.online && !p.race && !p.rc && !p.resumed) attachRecording(s, version);
   return s;
 }
 const fmtMin = (s: number): string => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');

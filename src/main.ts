@@ -6,6 +6,8 @@ import { Online } from './app/online';
 import { Races } from './app/races';
 import * as jr from './app/journal';
 import { loadKeys } from './app/keys';
+import { flushRecording } from './app/record';
+import { initWatch } from './app/watch';
 import { srFinish } from './core/speedrun';
 import { settings } from './app/store';
 import { Snd } from './view/audio/snd';
@@ -39,7 +41,7 @@ function start(p: LaunchParams): Session {
   game.events.emit('tt:session', s);
   return s;
 }
-function stop(): void { shared.session = null; game.events.emit('tt:session', null); }
+function stop(): void { flushRecording(shared.session); shared.session = null; game.events.emit('tt:session', null); }
 
 (window as unknown as { __tt?: unknown }).__tt = { game, shared, start, stop, debug: { srFinish } };
 if (new URLSearchParams(location.search).get('dev') === '1') void import('./ui/devtools').then((m) => m.initDev());
@@ -49,3 +51,5 @@ shared.ghost = () => races.ghost();
 jr.install(() => shared.session);
 (window as unknown as { __tt?: Record<string, unknown> }).__tt!['races'] = races;
 render(h(App, { hub, version, build, start, stop, game, shared, online, races }), ui);
+// просмотр записей .ttrec: ?watch=адрес, перетаскивание файла, «Настройки → Игра → Открыть запись…»
+initWatch({ version, game, end: stop, begin: (s) => { Snd.init(); applySettings(); shared.session = s; game.events.emit('tt:session', s); } });

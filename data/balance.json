@@ -1,0 +1,30 @@
+{
+  "_": "Баланс игры. Значения перенесены из v1.8 без изменений. Схема проверяется при загрузке (src/core/balance.ts); править вручную после одобрения, Optuna пишет отчёты в ml/reports/, а не сюда.",
+  "P": {
+    "G": 1500, "RUN": 230, "JUMP": 700, "CUT": 0.45, "MAXFALL": 720, "COYOTE": 0.1, "BUF": 0.13,
+    "DASH": 540, "DASHT": 0.17, "DASHCD": 0.45, "WSLIDE": 110, "WJX": 290, "WJY": 600, "WJLOCK": 0.16,
+    "POGO": 540, "ATK_T": 0.12, "ATK_CD": 0.26, "INV": 1.0, "HURT": 0.22, "SILK": 9,
+    "BURST": 4, "HEAL": 2, "HEAL_T": 1.1, "PARRY_T": 0.2, "PARRY_CD": 0.65, "APEX_VY": 90, "APEX_G": 0.55, "ATKBUF": 0.14, "DASHBUF": 0.12, "CORNER": 7
+  },
+  "BAL": {
+    "hp": { "boss": [330, 460], "vladik": [480, 672], "tima": [520, 728], "misha": [14, 20] },
+    "pace": { "boss": 1.8, "vladik": 1.1, "tima": 3.2, "misha": 3.2 },
+    "silkEvery": 2
+  },
+  "POISE_MAX": { "1": 7, "2": 8, "3": 9 },
+  "STAGGER_T": 1.5,
+  "EXEC_FRAC": 0.06,
+  "TOOL": {
+    "NEEDLE_SPD": 760, "NEEDLE_DMG": 2, "NEEDLE_STICK": 3, "TRAP_LIFE": 8, "TRAP_FREEZE": 2, "TRAP_MAX": 2, "TRAP_POISE": 3,
+    "BOMB_R": 90, "BOMB_DMG": 3, "BOMB_FUSE": 0.9, "HOOK_R": 260, "HOOK_SPD": 900, "HOOK_STUN": 0.6
+  },
+  "CH_T": 0.45,
+  "CH_SHOW": 0.16,
+  "CH_SLOW": 0.45,
+  "MV2": { "GLIDE_V": 120, "GLIDE_DEC": 3000, "GLIDE_HOLD": 0.1, "CLIMB_T": 0.2 },
+  "STATUS": {
+    "poison": { "iv": 1.2, "n": 4 },
+    "burn": { "iv": 0.8, "n": 3 },
+    "slow": { "t": 3 }
+  }
+}

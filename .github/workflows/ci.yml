@@ -35,6 +35,25 @@ jobs:
           path: playwright-report
           retention-days: 7
 
+  fuzz:
+    # фаззер ядра: все режимы, инварианты, сверка «журнал → воспроизведение»; находки сохраняются минимальными записями в tests/repro
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run fuzz -- --seconds 60 --seed ${{ github.run_number }}
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: fuzz-repro
+          path: tests/repro
+          retention-days: 14
+
   legacy-golden:
     runs-on: ubuntu-latest
     timeout-minutes: 25
