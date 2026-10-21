@@ -39,6 +39,8 @@ export class RaceWatch {
     this.client.start(); this.changed();
     return null;
   }
+  /** новое событие ленты (звук обсервера) */
+  onFeed: ((e: RaceEvent) => void) | null = null;
   private frozenFeed: RaceEvent[] | null = null;
   /** лента для показа: при заморозке — снимок на момент нажатия */
   feedView(): RaceEvent[] { if (!this.frozen) { this.frozenFeed = null; return this.feed; } return (this.frozenFeed ??= this.feed.slice()); }
@@ -92,7 +94,7 @@ export class RaceWatch {
       const h = this.hist[o.s] || (this.hist[o.s] = []); h.push({ ...o, at: now }); while (h.length && now - h[0]!.at > REPLAY_MS) h.shift();
     }
   }
-  private addEv(e: RaceEvent): void { if (!e || (this.feed.length && this.feed[this.feed.length - 1]!.n >= e.n && e.n)) return; this.feed.push(e); if (this.feed.length > 200) this.feed.shift(); }
+  private addEv(e: RaceEvent): void { if (!e || (this.feed.length && this.feed[this.feed.length - 1]!.n >= e.n && e.n)) return; this.feed.push(e); if (this.feed.length > 200) this.feed.shift(); this.onFeed?.(e); }
 
   // ----- вычисления для табло -----
   /** время на табло: по часам организатора (не зависит от кадров и скрытого окна) */

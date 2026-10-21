@@ -299,6 +299,7 @@ export function WatchView({ races }: { races: Races }) {
       if (e.code === 'KeyH') w.hideBoard = !w.hideBoard;
       else if (e.code === 'Space') { w.frozen = !w.frozen; e.preventDefault(); }
       else if (e.code === 'KeyR') { armed = now + 1500; return; }
+      else if (e.code === 'KeyM') races.sound?.toggleMute();
       else if (e.code === 'Digit0') { w.solo = null; w.stopReplay(); }
       else if (e.code === 'Digit1' || e.code === 'Digit2') {
         const s = seatOf(e.code === 'Digit1' ? 0 : 1); if (s == null) return;
@@ -327,6 +328,12 @@ export function WatchView({ races }: { races: Races }) {
   return (
     <div class="rw-wrap" data-testid="watch-view">
       {!races.stream && <button type="button" class="btn rw-exit" data-testid="watch-exit" onClick={() => races.leaveWatch()}>← Выйти</button>}
+      {!races.stream && races.sound && (
+        <div class="rw-vol" data-testid="watch-audio">
+          <button type="button" class="btn" id="rw-mute" aria-pressed={races.sound.muted} onClick={() => races.sound?.toggleMute()}>{races.sound.muted ? 'Включить звук' : 'Без звука'}</button>
+          <input type="range" min={0} max={100} step={5} aria-label="Громкость обсервера" value={races.sound.muted ? 0 : races.sound.vol} onInput={(e) => races.sound?.setVolume(Number((e.currentTarget as HTMLInputElement).value))} />
+        </div>
+      )}
       <div class="rw-hud" ref={ref}>
         <div class="mid" data-testid="watch-board" style={w.hideBoard ? { display: 'none' } : undefined}>
           <div class="names"><div class="a" style={{ color: '#8fe8d2' }}>{p1 ? p1.name : '—'}</div><div class="st">{phase === 'run' ? (S.pause.on ? 'ПАУЗА' : 'гонка') : phase === 'done' ? 'финиш' : ''}</div><div class="b" style={{ color: '#ffc46e' }}>{p2 ? p2.name : '—'}</div></div>
