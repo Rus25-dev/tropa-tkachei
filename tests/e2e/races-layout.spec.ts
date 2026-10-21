@@ -43,6 +43,7 @@ const boot = async (p: Page, url: string): Promise<void> => { await p.goto(url);
 for (const [W, H] of SIZES) {
   test(`вёрстка гонок ${W}×${H}: меню, организатор, архив, игрок, обсервер, гонка 1×1`, async ({ browser }) => {
     test.setTimeout(240_000);
+    test.skip(!!process.env.CI, 'пять окон на программном GL в CI не успевают; локально запускается');
     const shot = (p: Page, n: string) => p.screenshot({ path: `test-results/races-shots/${W}x${H}-${n}.png` });
     const cO = await ctxAt(browser, W, H), cP = await ctxAt(browser, W, H, 'Ива'), cW = await ctxAt(browser, W, H), cD = await ctxAt(browser, W, H);
     const org = await cO.newPage(), pl = await cP.newPage(), wp = await cW.newPage(), du = await cD.newPage();
