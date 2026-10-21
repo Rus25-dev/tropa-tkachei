@@ -261,3 +261,27 @@ test('поворот телефона: меню не пропадает, в иг
   await expect(page.getByTestId('pause-title')).toBeVisible();
   await ctx.close();
 });
+
+test('аудит v1.5: R на экране победы ничего не перезапускает, Esc закрывает окно «по сети»', async ({ page }) => {
+  await boot(page);
+  await page.evaluate(() => window.__tt!.start({ kind: 'bosstest', boss: 'tima' }));
+  await page.waitForTimeout(500);
+  await page.evaluate(() => window.__tt!.game.events.emit('tt:ui', { k: 'victory', s: { time: 30, beads: 0, deaths: 0, players: 1, title: 'Тима Пиво повержен', hits: 5 } }));
+  await expect(page.getByTestId('win-screen')).toBeVisible();
+  const t0 = await page.evaluate(() => window.__tt!.shared.session!.world['tickN']);
+  await page.waitForTimeout(900);
+  await page.keyboard.press('KeyR'); await page.keyboard.press('KeyN');
+  await page.waitForTimeout(300);
+  await expect(page.getByTestId('win-screen')).toBeVisible();
+  expect(await page.evaluate(() => window.__tt!.shared.session!.world['tickN'])).toBeGreaterThanOrEqual(t0);
+  await page.locator('#win-exit').click();
+  await expect(page.getByTestId('panel-root')).toBeVisible();
+  // окно «Вдвоём по сети» закрывается по Esc (раньше не закрывалось)
+  await page.getByTestId('m-campaign').click();
+  await page.getByTestId('c-new').click();
+  await page.getByTestId('md-net').click();
+  await page.getByTestId('net-host').click();
+  await expect(page.getByTestId('lb-code')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('net-host')).toBeVisible();
+});
