@@ -24,6 +24,7 @@ import json
 import math
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -120,13 +121,22 @@ def to_override(base: dict, boss: str, p: dict[str, float]) -> dict:
 
 
 # ----- запуск бота -----
+def find_node() -> str:
+    """node из PATH, переменной NODE или обычного места установки на Windows."""
+    win = "C:/Program Files/nodejs/node.exe"
+    for cand in (os.environ.get("NODE"), shutil.which("node"), win, "/usr/local/bin/node", "/opt/homebrew/bin/node"):
+        if cand and (shutil.which(cand) or os.path.exists(cand)):
+            return cand
+    raise RuntimeError("не найден node: установите Node 22+ или задайте переменную NODE с путём к node")
+
+
 def run_table(boss: str, skills: list[float], fights: int, override: dict, workers: int | None, seed: int, max_sec: int) -> dict:
     """npm run bot -- table --json c переопределением баланса; возвращает разобранный JSON."""
     with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8") as f:
         json.dump(override, f)
         path = f.name
     try:
-        cmd = ["node", str(TSX), "--import", LDTK.as_uri(), str(BOT), "table", "--json", "--boss", boss,
+        cmd = [find_node(), str(TSX), "--import", LDTK.as_uri(), str(BOT), "table", "--json", "--boss", boss,
                "--skill", ",".join(str(s) for s in skills), "--fights", str(fights), "--seed", str(seed), "--max", str(max_sec), "--balance", path]
         if workers is not None:
             cmd += ["--workers", str(workers)]
@@ -181,7 +191,7 @@ def write_report(out: Path, args: argparse.Namespace, goals: list[Goal], base: d
         g = next(x for x in goals if f"skill{x.skill}:{x.metric}" == k)
         ax.axhspan(g.lo, g.hi, color="tab:green", alpha=0.2, label="цель")
         ax.plot(xs, [t["got"].get(k, float("nan")) for t in trials], ".", color="tab:blue")
-        ax.set_ylabel(k); ax.grid(alpha=0.3); ax.legend(loc="upper right")
+        ax.set_ylabel(k); ax.grid(alpha=0.3); ax.legend(loc="best")
     axes[-1, 0].set_xlabel("проба")
     fig.tight_layout(); fig.savefig(out / "metrics.png", dpi=130); plt.close(fig)
 
@@ -199,7 +209,7 @@ def write_report(out: Path, args: argparse.Namespace, goals: list[Goal], base: d
     (out / "best_balance.json").write_text(json.dumps(override, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     lines = [f"# Подбор баланса: {args.boss}", "", f"- Дата: {dt.datetime.now().isoformat(timespec='seconds')}", f"- Проб: {len(trials)}, боёв на ячейку: {args.fights}, зерно: {args.seed}",
              "- Цель: " + "; ".join(f"skill{g.skill}: {g.metric} {g.lo}..{g.hi}" for g in goals), "",
-             "## Лучший набор", "", f"Штраф: {best['loss']:.4f} (0 — все метрики в пределах цели).", "", "| параметр | множитель |", "|---|---|"]
+             "## Лучший набор", "", f"Штраф: {best['loss']:.4f} (метрики внутри целевых полос дают 0; небольшой остаток — плата за размер правок).", "", "| параметр | множитель |", "|---|---|"]
     lines += [f"| {k} | {v:.3f} |" for k, v in sorted(best["params"].items())]
     lines += ["", "Переопределение баланса (`best_balance.json`, форма как у data/balance.json):", "", "```json", json.dumps(override, ensure_ascii=False, indent=2), "```", "",
               "## Что получилось на лучшем наборе", "", "| метрика | значение | цель |", "|---|---|---|"]

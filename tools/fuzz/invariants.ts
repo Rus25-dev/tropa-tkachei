@@ -51,6 +51,8 @@ export class Monitor {
   private solidRun: number[] = [];
   /** в момент входа в тайл рядом стоял напарник: так выглядит «поводок» v1.8 (позже он мог уйти) */
   private leash: boolean[] = [];
+  /** в момент входа в тайл герой стоял в колонке закрывшихся ворот арены: так выглядит закрытие ворот на герое в проёме (кооп, v1.8) */
+  private gate: boolean[] = [];
   private prevT = 0;
   private world: World | null = null;
   private frozenAt = { wiping: 0, hitstop: 0, leaving: 0, busy: 0, paused: 0 };
@@ -74,11 +76,12 @@ export class Monitor {
       if (w.paused) continue;
       if (w.solidRect({ x: p.x + 1, y: p.y + 1, w: p.w - 2, h: p.h - 2 })) {
         if (this.solidRun[i]! === 0) this.leash[i] = w.players.some((q, k) => k !== i && !q.downed && Math.abs(q.x - p.x) <= 24 && Math.abs(q.y - p.y) <= 2);
+        if (this.solidRun[i]! === 0) this.gate[i] = w.gates.some((g) => g.closed && p.x + p.w > g.x * 32 && p.x < (g.x + 1) * 32 && p.y + p.h > g.y0 * 32 && p.y < (g.y1 + 1) * 32);
         this.solidRun[i]! += dtLogic;
         if (this.solidRun[i]! > SOLID_GRACE_S) {
           // «поводок» v1.8 ставит отставшего напарника рядом с ведущим, не глядя на стены: отдельный класс
           const near = !!this.leash[i];
-          return { ...f('solid', `герой ${i} внутри тайла${near ? ' рядом с напарником (поводок)' : ''}: x=${p.x.toFixed(1)} y=${p.y.toFixed(1)} (${this.solidRun[i]!.toFixed(2)} с подряд)`), ...(near ? { cls: 'leash' } : {}) };
+          return { ...f('solid', `герой ${i} внутри тайла${near ? ' рядом с напарником (поводок)' : this.gate[i] ? ' в проёме закрывшихся ворот' : ''}: x=${p.x.toFixed(1)} y=${p.y.toFixed(1)} (${this.solidRun[i]!.toFixed(2)} с подряд)`), ...(near ? { cls: 'leash' } : this.gate[i] ? { cls: 'gate' } : {}) };
         }
       } else this.solidRun[i] = 0;
       const L = w.L;
