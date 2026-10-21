@@ -48,3 +48,5 @@ ml/.venv/Scripts/python ml/tune.py --boss korne --target "skill0.6:winrate=0.55.
 1. Посмотрите `report.md`, при сомнениях увеличьте `--fights` и перепроверьте: `npm run bot -- table --boss korne --skill 0.6 --fights 200 --balance ml/reports/<…>/best_balance.json`.
 2. После одобрения перенесите значения из `best_balance.json` в `data/balance.json` вручную.
 3. Золотые записи v1.8 привязаны к прежнему балансу и разойдутся — это ожидаемо; перезапишите их осознанно или оставьте прежний баланс для режима сравнения.
+
+Совет: значения, подобранные «на ощущение» в игре с `?dev=1` (кнопка «Скопировать balance.json»), можно сразу проверить ботом: сохраните их в файл и передайте `npm run bot -- table --boss korne --skill 0.6 --fights 200 --balance файл.json` — форма совпадает с переопределением баланса (частичный набор допустим).
