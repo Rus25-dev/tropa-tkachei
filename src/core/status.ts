@@ -20,7 +20,7 @@ function alive(sc: World, t: Target | null): boolean {
 export function src(sc: World, p?: Player | null): Player { return p || sc.players.find((q) => !q.remote) || sc.players[0]!; }
 
 export function applyStatus(sc: World, t: Target | null, kind: StatusKind, dur?: number | null, srcP?: Player | null): boolean {
-  const K = STATUS_KINDS[kind]; if (!K || !t || !alive(sc, t)) return false;
+  const K = STATUS_KINDS[kind]; if (!K || !t || !sc.auth() || !alive(sc, t)) return false;
   if (sc.misha === t) return false;
   const boss = isBoss(sc, t), s = t.status || (t.status = {});
   if (kind === 'slow') {
@@ -76,8 +76,15 @@ function tickDmg(sc: World, t: Target, kind: 'poison' | 'burn', st: { gen: numbe
 }
 
 /** status.js: Status.step — вызывается после основного шага мира */
+/** маска статусов для снимка и отрисовки (у гостя — то, что пришло от хоста) */
+export function statusMask(sc: World, t: Target | null): number {
+  if (!t) return 0;
+  if (!sc.auth()) return (t['stv'] as number | undefined ?? 0) | 0;
+  const s = t.status; if (!s) return 0;
+  let m = 0; for (const k in s) if (s[k]) m |= (STATUS_KINDS as Record<string, { bit: number }>)[k]!.bit; return m;
+}
 export function stepStatus(sc: World, dt: number): void {
-  if (sc.td) return;
+  if (!sc.auth() || sc.td) return;
   const list: (Target | null)[] = [...sc.enemies, sc.boss, sc.vladik, sc.tima];
   for (const t of list) {
     const s = t && t.status; if (!s) continue;
@@ -100,7 +107,7 @@ export function stepStatus(sc: World, dt: number): void {
 
 /** замедление: время врага течёт медленнее (боссы — вдвое слабее). e — враг или босс; возвращает множитель dt. */
 export function slowDt(sc: World, e: Target | null, dt: number, boss: boolean): number {
-  if (typeof dt === 'number' && !sc.td) {
+  if (typeof dt === 'number' && sc.auth() && !sc.td) {
     if (e && e.status && e.status['slow'] && (!boss || bossLive(e as Boss))) return dt * (boss ? 0.8 : 0.6);
   }
   return dt;

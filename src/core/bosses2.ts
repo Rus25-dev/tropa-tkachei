@@ -10,7 +10,7 @@ import { rawBossDamage } from './damage';
 import { slowDt } from './status';
 import { statBegin } from './racestats';
 
-const bossOf = (sc: World, key: BossKey): Boss | null => (key === 'boss' ? sc.boss : sc[key]);
+export const bossOf = (sc: World, key: BossKey): Boss | null => (key === 'boss' ? sc.boss : sc[key]);
 const NAMES: Record<BossKey, string> = { boss: 'Корнематка', vladik: 'Владик Скрипка', tima: 'Тима Пиво' };
 
 // ----- фазы -----
@@ -22,20 +22,21 @@ export function checkPhase(sc: World, b: Boss, name: string): boolean {
 }
 function phaseShift(sc: World, b: Boss, name: string, ph: number): void {
   b.state = 'rage'; b.t = 1.3; b.vx = 0;
-  sc.sfx('roar'); sc.shake(700, 0.012); sc.emit('flash', { ms: 260, r: 255, g: 240, b: 220 });
+  sc.sfx('roar'); sc.shake(700, 0.012); sc.emit('flash', { ms: 260, r: 255, g: 240, b: 220 }); if (sc.online === 'host') sc.sendEv({ k: 'flash' });
   const cx = Math.round(b.x + b.w / 2);
-  knockFrom(sc, cx);
+  knockFrom(sc, cx); sc.sendEv({ k: 'kb', x: cx });
   for (const pr of sc.projs) if (pr.kind !== 'bomb') pr.dead = true;
   const line = PHASE_LINES[name] && PHASE_LINES[name][ph];
   sc.toastAll(`${name} — фаза ${ph}${line ? ': ' + line : ''}`);
   sc.emit('phaseShift', { name, ph });
 }
-function knockFrom(sc: World, cx: number): void {
+export function knockFrom(sc: World, cx: number): void {
   for (const p of sc.players) if (!p.remote && !p.downed) { const d = Math.sign(p.x + 7 - cx) || 1; p.kbx = d * 430; p.vy = -380; p.hurtT = 0.22; p.inv = Math.max(p.inv, 0.6); }
 }
 
 // ----- стойкость -----
 export function poiseAdd(sc: World, b: Boss | null, n0: number): void {
+  if (sc.online === 'guest') return; // стойку считает только хост, гость получает её в снимке
   const n = poiseMul(sc, n0);
   if (!b || b['poiseImmune'] > 0 || b.stagger > 0 || ['sleep', 'dead', 'gone', 'intro', 'rage'].includes(b.state)) return;
   b['poise'] = (b['poise'] || 0) + n; b['poiseT'] = 0;
@@ -101,7 +102,7 @@ export function tryExecute(sc: World, p: Player, dir: string): boolean {
   p.face = Math.sign(b.x + b.w / 2 - (p.x + 7)) || p.face;
   p['execT'] = 0.42; p['execDir'] = dir; p.atkCd = 0.6; p.atkT = 0; p.dashT = 0; p['comboT'] = 0; p.inv = Math.max(p.inv, 0.55); p.kbx = 0;
   p.vx = 0; p.vy = dir === 'u' ? -320 : -140; p.canDash = true;
-  execBoss(sc, p, kit, dir);
+  if (sc.auth()) execBoss(sc, p, kit, dir); else sc.sendEv({ k: 'exec', i: p.i, key: kit.key, d: dir });
   return true;
 }
 /** execBoss: статистика (внешний слой) → оберег «Охотник» → база */
@@ -111,7 +112,7 @@ export function execBoss(sc: World, p: Player, kit: { key: BossKey }, dir: strin
   const wasS = S && cur0 ? !!cur0['executed'] : false;
   const b = bossOf(sc, kit.key), was = b && b['executed'];
   execBossBase(sc, p, kit, dir);
-  if (b && b['executed'] && !was && hasCharm(p, 'hunter')) p.silk = Math.min(sc.silkMax, p.silk + 3);
+  if (b && b['executed'] && !was && hasCharm(p, 'hunter')) { if (p.remote) { for (let i = 0; i < 3; i++) sc.sendEv({ k: 'silk', i: p.i }); } else p.silk = Math.min(sc.silkMax, p.silk + 3); }
   if (S && !wasS) { const b2 = sc.testBoss() ?? sc.boss; if (b2 && b2['executed']) S.execs++; }
 }
 function execBossBase(sc: World, p: Player, kit: { key: BossKey }, dir: string): void {
@@ -120,18 +121,20 @@ function execBossBase(sc: World, p: Player, kit: { key: BossKey }, dir: string):
   b['executed'] = true;
   const n = Math.max(4, Math.round(b.maxHp * EXEC_FRAC)), cx = b.x + b.w / 2, cy = b.y + b.h / 2;
   if (p.remote) { p['execT'] = 0.42; p['execDir'] = dir; }
+  sc.sendEv({ k: 'execfx', i: p.i, d: dir, x: Math.round(cx), y: Math.round(cy) });
   sc.emit('execFx', { x: cx, y: cy, dir });
   sc.sfx('exec'); sc.shake(420, 0.018); sc.hitstop = 0.22;
   // урон без шума: n ударов исходной функцией, нить за них не копится — вместо этого фиксированный бонус
   sc.quiet = true; p['noSilkGain'] = true;
   for (let i = 0; i < n && b.hp > 0 && !['dead', 'gone', 'rage'].includes(b.state); i++) rawBossDamage(sc, kit.key, p);
   sc.quiet = false; p['noSilkGain'] = false;
-  p.silk = Math.min(sc.silkMax, p.silk + 3);
+  if (p.remote) { for (let i = 0; i < 3; i++) sc.sendEv({ k: 'silk', i: p.i }); } else p.silk = Math.min(sc.silkMax, p.silk + 3);
   if (b.hp > 0) { b.stagger = Math.min(b.stagger, 0.4); b['poise'] = 0; b['poiseImmune'] = 6; }
 }
 
 /** смерть босса: замедление времени и белая вспышка */
-export function bossDeathFx(sc: World): void {
+export function bossDeathFx(sc: World): void { sc.sendEv({ k: 'deathfx' }); deathFxLocal(sc); }
+export function deathFxLocal(sc: World): void {
   sc.slowDur = 1.7; sc.slowT = 1.7;
   sc.emit('flash', { ms: 700, r: 255, g: 250, b: 235 });
   sc.snd('bossdie');
@@ -146,7 +149,7 @@ export function stepExtraProj(sc: World, pr: Proj, dt: number): boolean {
       return true;
     case 'rain':
       pr.y += pr.vy * dt;
-      if (sc.isSolid(Math.floor((pr.x + 11) / T), Math.floor((pr.y + 26) / T))) { pr.dead = true; sc.emit('paper', { n: 5, x: pr.x + 11, y: pr.y + 20 }); }
+      if (sc.isSolid(Math.floor((pr.x + 11) / T), Math.floor((pr.y + 26) / T))) { pr.dead = true; sc.paperAt(5, pr.x + 11, pr.y + 20); }
       return true;
     case 'collector': {
       pr['hitCd'] = (pr['hitCd'] || 0) - dt; if (pr['flash'] > 0) pr['flash'] -= dt; // вспышка — только для отрисовки

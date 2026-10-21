@@ -15,6 +15,8 @@ export function setupTimaArena(sc: World): void {
   sc.timaHits = 0;
   makeTima(sc);
 }
+/** банкротство: нить у каждого героя пополам */
+export function bankruptSilk(sc: World): void { for (const p of sc.players) if (!p.remote) p.silk = Math.floor(p.silk / 2); }
 export function setRepo(sc: World, on: boolean): void {
   if (sc.repo === on) return;
   sc.repo = on;
@@ -38,7 +40,7 @@ function stepTimaBase(sc: World, dt: number): void {
   if (!v['barShown']) { v['barShown'] = true; sc.bossBar(true, 'Тима Пиво', v.hp / v.maxHp); }
   for (const q of sc.puddles!) q.t -= dt;
   sc.puddles = sc.puddles!.filter((q) => q.t > 0);
-  if (sc.repoT > 0) { sc.repoT -= dt; if (sc.repoT <= 0) { setRepo(sc, false); } }
+  if (sc.repoT > 0) { sc.repoT -= dt; if (sc.repoT <= 0) { setRepo(sc, false); sc.sendEv({ k: 'repo', on: 0 }); } }
   if (v.state === 'dead') { v.t -= dt; v.vy = Math.min(v.vy + P.G * dt, P.MAXFALL); sc.moveBody(v, dt); return; }
   if (v['hyper'] > 0) { v['hyper'] -= dt; }
   const sp = v['hyper'] > 0 ? 1.55 : 1, phase2 = (v.phase || 1) >= 2, phase3 = (v.phase || 1) >= 3;
@@ -136,8 +138,8 @@ function stepTimaBase(sc: World, dt: number): void {
       if (v.t <= 0) {
         const targets = sc.alivePlayers().length ? sc.alivePlayers() : sc.players;
         targets.forEach((p, i) => sc.projs.push({ kind: 'stamp', x: clamp(p.x + 7, 2 * T, (sc.L.W - 2) * T) - 40, y: 7 * T, w: 80, h: 44, vx: 0, vy: 0, life: 3, delay: 0.7 + i * 0.2 }));
-        sc.repoT = 6; setRepo(sc, true);
-        for (const p of sc.players) if (!p.remote) p.silk = Math.floor(p.silk / 2); // bankruptSilk
+        sc.repoT = 6; setRepo(sc, true); sc.sendEv({ k: 'repo', on: 1 });
+        bankruptSilk(sc); sc.sendEv({ k: 'bankrupt' });
         sc.toastAll('Банкротство! Мебель изъята, нить ушла кредиторам');
         sc.sfx('coin'); v.state = 'recover'; v.t = 0.9;
       }
@@ -176,7 +178,7 @@ export function rawTima(sc: World, p: Player): void {
   if (v.state === 'rage') { sc.snd('clink'); return; }
   v.hp -= 1; v.flash = 0.09; gainSilk(sc, p, true); if (!p.remote) sc.hitstop = 0.04; sc.sfx(bossHitSnd(sc, 'tima', p)); sc.timaHits++;
   sc.burst(9, clamp(p.x + 7 + p.face * 28, v.x, v.x + v.w), v.y + v.h / 2, 0xf4f1e6);
-  if (v.state === 'drink') { v.state = 'recover'; v.t = 0.4; timaSpeak(v, 'ЭЙ, РАЗЛИЛ!', 1.0); sc.emit('foam', { n: 12, x: v.x + v.w / 2, y: v.y + 30 }); }
+  if (v.state === 'drink') { v.state = 'recover'; v.t = 0.4; timaSpeak(v, 'ЭЙ, РАЗЛИЛ!', 1.0); sc.foamAt(12, v.x + v.w / 2, v.y + 30); }
   if (v.state === 'dust' || v.state === 'dustDraw') {
     v['dustHits']++;
     if (v['dustHits'] >= 3) { v.state = 'sneeze'; v.t = 1.6; v['dustCd'] = 14; timaSpeak(v, 'АПЧХИ!', 1.2); sc.sfx('cough'); sc.emit('dustFx', { n: 30, x: v.x + v.w / 2 + v.face * 30, y: v.y + 20 }); }
@@ -189,7 +191,7 @@ export function rawTima(sc: World, p: Player): void {
 function timaDieBase(sc: World): void {
   const v = sc.tima!; v.state = 'dead'; v.t = 2.6; v.vx = 0; v['hyper'] = 0; sc.bossDead = true; bossDeathFx(sc);
   for (const pr of sc.projs) pr.dead = true;
-  setRepo(sc, false); sc.repoT = 0;
+  setRepo(sc, false); sc.repoT = 0; sc.sendEv({ k: 'repo', on: 0 });
   timaSpeak(v, 'ВСЁ… Я СПАТЬ…', 2.4); sc.sfx('burp'); sc.shake(600, 0.008);
   sc.emit('bossBursts', { x: v.x, y: v.y, w: v.w, h: v.h, foam: true });
   sc.after(3.3, () => { sc.bossBar(false); winGame(sc); });
@@ -203,7 +205,7 @@ export function stepTimaProj(sc: World, pr: Proj, dt: number): void {
     pr.vy = Math.min(pr.vy + 1100 * dt, 800); pr.x += pr.vx * dt; pr.y += pr.vy * dt; pr['rot'] += dt * 12;
     const t = sc.tileAt(Math.floor((pr.x + 5) / T), Math.floor((pr.y + 20) / T));
     if (t === 1 || (t === PLAT && pr.vy > 0)) {
-      pr.dead = true; sc.emit('foam', { n: 10, x: pr.x + 5, y: pr.y + 16 }); sc.sfx('glass');
+      pr.dead = true; sc.foamAt(10, pr.x + 5, pr.y + 16); sc.sfx('glass');
       const gy = Math.floor((pr.y + 20) / T) * T;
       sc.puddles!.push({ x: pr.x + 5 - 40, w: 80, y: gy, t: 5 });
     }

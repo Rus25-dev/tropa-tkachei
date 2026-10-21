@@ -66,14 +66,14 @@ export function benchOpen(sc: World, p: Player, b: Bench): void {
   const E = benchEntries(sc);
   if (E.length < 2) { benchRest(sc, p, b); return; }
   sc.benchMenuOpen = { p, b };
-  sc.paused = true;
+  if (!sc.online) sc.paused = true;
   sc.snd('bead');
   sc.emit('benchShow', { entries: E });
 }
 export function benchClose(sc: World, _silent?: boolean): void {
   if (!sc.benchMenuOpen) return;
   sc.benchMenuOpen = null;
-  sc.paused = false;
+  if (!sc.online) sc.paused = false;
   sc.emit('benchHide');
 }
 /** выбор пункта меню скамьи (ingame.js): закрывает меню и выполняет действие */

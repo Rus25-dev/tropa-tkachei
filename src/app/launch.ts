@@ -17,14 +17,16 @@ export interface LaunchParams {
   /** тренировка босс-теста */
   train?: boolean;
   trainPhase?: number;
+  /** игра вдвоём по сети: роль этой вкладки */
+  online?: 'host' | 'guest';
 }
 
 export const newSeed = (): number => (Math.random() * 4294967296) >>> 0;
 
 export function createSession(p: LaunchParams, version: string): Session {
   const seed = (p.seed ?? newSeed()) >>> 0;
-  const players = p.players ?? 1;
-  const cfg = { easy: settings.s.easy && p.kind !== 'trail' && p.kind !== 'boss', loadoutSave: loadout.get(), progress: p.kind === 'story' && !p.fresh ? progress.get() : null, ver: version, clock: () => performance.now(), fx: true };
+  const players = p.online ? 2 : (p.players ?? 1);
+  const cfg = { easy: settings.s.easy && p.kind !== 'trail' && p.kind !== 'boss', loadoutSave: loadout.get(), progress: p.kind === 'story' && !p.fresh && p.online !== 'guest' ? progress.get() : null, online: p.online ?? null, ver: version, clock: () => performance.now(), fx: true };
   let first: SceneData;
   let run: { cat: 'trail' | 'boss' } | undefined;
   if (p.kind === 'bosstest') first = { seed, mode: 'bosstest', boss: p.boss ?? 'misha', players, camp: null, train: !!p.train, trainPhase: p.trainPhase ?? 1 };

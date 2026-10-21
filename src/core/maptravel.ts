@@ -77,7 +77,7 @@ export function mapShow(sc: World): void {
   sc.mt.sel = s && benchOf(sc, s) >= 0 ? benchOf(sc, s) : -1;
   if (sc.mt.sel < 0 && v.length) { const p = sc.players.find((q) => !q.remote) || sc.players[0]!; sc.mt.sel = v.reduce((a, i) => (Math.abs(sc.benches[i]!.x - p.x) < Math.abs(sc.benches[a]!.x - p.x) ? i : a), v[0]!); }
   sc.mt.open = true;
-  sc.paused = true; sc.mt.ownPause = true;
+  if (!sc.online) { sc.paused = true; sc.mt.ownPause = true; }
   sc.snd('bead');
   sc.emit('mapShow');
 }
@@ -99,7 +99,7 @@ export function mapGo(sc: World): void {
   if (!c.ok) { sc.toast(c.why); sc.snd('hit'); return; }
   const bi = sc.mt.sel, b = sc.benches[bi]!;
   sc.mt.busy = true; sc.mt.open = false; sc.emit('mapHide');
-  sc.paused = true; sc.mt.ownPause = false; // на время затемнения мир стоит
+  if (!sc.online) { sc.paused = true; sc.mt.ownPause = false; } // на время затемнения мир стоит
   sc.snd('bench');
   sc.emit('fade', { out: true, ms: 350 });
   sc.after(0.42, () => {
@@ -110,13 +110,14 @@ export function mapGo(sc: World): void {
       p.safeX = p.x; p.safeY = p.y;
     }
     sc.respawn = { x: b.x, y: b.y };
+    sc.sendEv({ k: 'bench', x: b.x, y: b.y });
     sc.emit('camSnap');
     sc.mapB.add(bi); sc.mapDirty = true;
     const ar = areaOf(sc, b.x / T);
     if (sc.mode === 'story') campaignSave(sc, { bench: bi, name: campaignSaveName(sc, ar.name) });
     sc.emit('fade', { out: false, ms: 500 });
     sc.toast(`Быстрый переход: ${ar.name}`);
-    sc.paused = false;
+    if (!sc.online) sc.paused = false;
     sc.mt.busy = false;
   });
 }

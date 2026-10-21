@@ -25,6 +25,7 @@ import { mapVisit, mapLoad, mapClose, type MapState } from './maptravel';
 import { benchClose } from './coop';
 import { srOnTick, srOnCreate, type SrRun } from './speedrun';
 import { winGame } from './win';
+import { guestProjHits } from './netplay';
 import { applyPhase, newTrain, trainTick, type TrainState } from './training';
 
 
@@ -51,6 +52,8 @@ export interface WorldOpts {
   mapSaved?: { v?: number[]; b?: number[] } | null;
   /** складывать ли события для отрисовки (в симуляциях и тестах выключено) */
   fx?: boolean;
+  /** сетевая игра вдвоём: хост считает мир, гость получает снимки (v1.8: GameScene.online) */
+  online?: 'host' | 'guest' | null;
 }
 
 export interface Timer { t: number; fn: () => void }
@@ -58,6 +61,11 @@ export interface Timer { t: number; fn: () => void }
 export class World {
   // ----- параметры запуска -----
   seed: number; mode: Mode; bossKind: string; nPlayers: number; easy: boolean;
+  online: 'host' | 'guest' | null; localIdx: number; ping: number | null = null;
+  /** у гостя: показана ли полоса босса (по снимкам) */
+  _vb = false; _tb = false; _mb = false; _bb = false;
+  /** по сети пауза — только окно (мир идёт) */
+  uiPause = false;
   startData: WorldOpts; camp: CampState | null = null; sr: SrRun | null;
   progress: Progress | null;
   // ----- ГСЧ -----
@@ -99,8 +107,9 @@ export class World {
     this.bossKind = opts.boss ?? 'misha';
     this.nPlayers = opts.players ?? 1;
     this.easy = !!opts.easy;
+    this.online = opts.online ?? null; this.localIdx = this.online === 'guest' ? 1 : 0;
     this.sr = opts.sr ?? null;
-    this.progress = this.sr ? null : (opts.progress ?? null); // в забеге спидрана обычное сохранение не читается
+    this.progress = this.sr || this.online === 'guest' ? null : (opts.progress ?? null); // в забеге спидрана обычное сохранение не читается
     this.fxOn = !!opts.fx;
     campaignInit(this, opts);
     this.create(opts);
@@ -115,17 +124,21 @@ export class World {
 
   // ----- события наружу (вид, звук, интерфейс) -----
   emit(k: string, props?: Record<string, unknown>): void { if (this.fxOn) this.fxq.push({ k, ...props }); }
-  sfx(n: string): void { if (this.quiet) return; this.emit('snd', { n }); }
+  sfx(n: string): void { if (this.quiet) return; this.emit('snd', { n }); if (this.online === 'host') this.sendEv({ k: 'snd', n }); }
   snd(n: string): void { this.emit('snd', { n }); }
-  burst(n: number, x: number, y: number, c: number): void { if (this.quiet) return; this.emit('burst', { n, x, y, c }); }
+  burst(n: number, x: number, y: number, c: number): void { if (this.quiet) return; this.emit('burst', { n, x, y, c }); if (this.online === 'host') this.sendEv({ k: 'burst', n, x: Math.round(x), y: Math.round(y), c }); }
   parts(n: number, x: number, y: number, c: number): void { this.emit('burst', { n, x, y, c }); }
-  dustAt(n: number, x: number, y: number): void { this.emit('dust', { n, x, y }); }
-  shake(d: number, i: number): void { this.emit('shake', { d, i }); }
+  dustAt(n: number, x: number, y: number): void { this.emit('dust', { n, x, y }); if (this.online === 'host') this.sendEv({ k: 'dust', n, x: Math.round(x), y: Math.round(y) }); }
+  paperAt(n: number, x: number, y: number): void { this.emit('paper', { n, x, y }); if (this.online === 'host') this.sendEv({ k: 'paper', n, x: Math.round(x), y: Math.round(y) }); }
+  foamAt(n: number, x: number, y: number): void { this.emit('foam', { n, x, y }); if (this.online === 'host') this.sendEv({ k: 'foam', n, x: Math.round(x), y: Math.round(y) }); }
+  shake(d: number, i: number): void { this.emit('shake', { d, i }); if (this.online === 'host') this.sendEv({ k: 'shake', d, i }); }
   toast(m: string, hold?: number): void { this.emit('toast', { m, hold }); }
-  toastAll(m: string): void { this.emit('toast', { m }); }
+  toastAll(m: string): void { this.emit('toast', { m }); this.sendEv({ k: 'toast', m }); }
   bossBar(show: boolean, name?: string, frac?: number): void { this.emit('bossBar', { show, name, frac }); }
-  auth(): boolean { return true; }
-  sendEv(_o: Record<string, unknown>): void { /* сеть: этап 5 */ }
+  /** считает ли этот экземпляр мира врагов, боссов и урон (гость только показывает снимки) */
+  auth(): boolean { return this.online !== 'guest'; }
+  /** событие напарнику: сессия отправляет его по сети (k = 'nev', полезная нагрузка в o) */
+  sendEv(o: Record<string, unknown>): void { if (this.online) this.emit('nev', { o }); }
 
   // ----- создание сцены -----
   private create(opts: WorldOpts): void {
@@ -149,6 +162,7 @@ export class World {
     if (prog && this.benches[prog.bench]) { const b = this.benches[prog.bench]!; this.respawn = { x: b.x, y: b.y }; }
     this.players = [];
     for (let i = 0; i < this.nPlayers; i++) this.players.push(this.makePlayer(i, this.respawn.x + i * 26, this.respawn.y));
+    if (this.online) for (const p of this.players) { p.remote = p.i !== this.localIdx; p['tx'] = p.x; p['ty'] = p.y; p['lastSeq'] = 0; p['netUp'] = false; }
 
     // враги, босс
     this.enemies = []; spawnEnemies(this);
@@ -282,6 +296,12 @@ export class World {
   /** Один тик логики. Ввод берётся из p.raw (удержание) и p.pend (фронты нажатий, пришедшие с прошлого тика); журнал пишет именно их. */
   tick(): void {
     this.tickN++;
+    // по сети мир идёт: удар, обрыв нити или победа закрывают меню скамьи и карту (Game.update / MapTravel.tick v1.8)
+    if (this.online) {
+      const bm = this.benchMenuOpen;
+      if (bm && (this.won || this.wiping || bm.p.downed || bm.p.hp <= 0 || bm.p.hurtT > 0)) benchClose(this);
+      if (this.mt.open) { const lp = this.players.find((q) => !q.remote); if (this.won || this.wiping || (lp && (lp.downed || lp.hurtT > 0))) mapClose(this); }
+    }
     if (this.slowT > 0) this.slowT -= STEP;
     const k = this.slowK(), dt = STEP * k;
     this.animT += dt;
@@ -330,12 +350,13 @@ export class World {
     mapVisit(this, dt);
     // tools.js
     if (this.tfx.length) this.tfx = this.tfx.filter((f) => ((f['t'] as number) -= dt) > 0);
-    if (this.tl.length && !this.td) stepTools(this, dt);
+    if (this.auth() && this.tl.length && !this.td) stepTools(this, dt);
     // status.js
     stepStatus(this, dt);
   }
 
   private qolFight(dt: number): void {
+    if (this.online === 'guest') return;
     const b = this.testBoss() ?? this.boss;
     const live = !!b && !['sleep', 'gone', 'dead', 'intro'].includes(b.state);
     if (!live) return;
@@ -352,17 +373,21 @@ export class World {
 
   private stepBase(dt: number): void {
     if (this.td) { tdStep(this, dt); return; }
+    const auth = this.auth();
     for (const p of this.players) { if (p.remote) p.atkT -= dt; else stepPlayer(this, p, dt); }
     for (const p of this.players) resolveAttack(this, p);
-    for (const e of this.enemies) if (!e.dead) stepEnemy(this, e, dt);
-    stepBossKorne(this, dt);
-    if (this.misha) stepMisha(this, dt);
-    if (this.vladik) stepVladik(this, dt);
-    if (this.tima) stepTima(this, dt);
-    stepProjs(this, dt);
-    stepBeads(this, dt);
-    stepItems(this);
+    if (auth) {
+      for (const e of this.enemies) if (!e.dead) stepEnemy(this, e, dt);
+      stepBossKorne(this, dt);
+      if (this.misha) stepMisha(this, dt);
+      if (this.vladik) stepVladik(this, dt);
+      if (this.tima) stepTima(this, dt);
+      stepProjs(this, dt);
+      stepBeads(this, dt);
+      stepItems(this);
+    } else guestProjHits(this);
     stepCoop(this, dt);
+    if (auth && this.online && !this.wiping && this.players.every((p) => p.downed)) this.teamWipe();
     // урон от касания (каждый считает только своего героя)
     for (const p of this.players) {
       if (p.remote || p.downed || p.inv > 0) continue;
@@ -377,7 +402,7 @@ export class World {
       if (this.curtains && p.inv <= 0) for (const c of this.curtains) if (c.slime > 0 && overlap(pr, curtainHazard(c))) { hurtPlayer(this, p, 1, c.x + c.w / 2); break; }
     }
     // выход
-    if (this.exitR && this.bossDead && !this.won && this.players.some((p) => !p.downed && overlap(p, this.exitR!))) winGame(this);
+    if (auth && this.exitR && this.bossDead && !this.won && this.players.some((p) => !p.downed && overlap(p, this.exitR!))) winGame(this);
   }
 
   // ----- интерфейсные действия, меняющие мир (их пишет журнал) -----
@@ -387,6 +412,7 @@ export class World {
     if (this.mt.open) { mapClose(this); return; }
     if (this.mt.busy) return;
     if (this.won || this.shopOpen) return;
+    if (this.online) { this.uiPause = !this.uiPause; this.emit('pause', { on: this.uiPause }); return; } // по сети мир не останавливается
     this.paused = !this.paused;
     this.emit('pause', { on: this.paused });
   }
