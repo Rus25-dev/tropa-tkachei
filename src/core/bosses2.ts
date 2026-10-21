@@ -9,7 +9,7 @@ import { poiseMul } from './weapons';
 import { rawBossDamage } from './damage';
 import { slowDt } from './status';
 import { statBegin } from './racestats';
-import { onStagger } from './boss/exec';
+import { dataPoiseMul, dataStaggerBegin, dataStaggerRoom, onStagger } from './boss/exec';
 
 export const bossOf = (sc: World, key: BossRef): Boss | null => (key === 'boss' ? sc.boss : key === 'vladik' || key === 'tima' ? sc[key] : sc.bosses[dataIdx(key)] ?? null);
 const NAMES: Record<BossKey, string> = { boss: 'Корнематка', vladik: 'Владик Скрипка', tima: 'Тима Пиво' };
@@ -50,8 +50,8 @@ export function poiseAdd(sc: World, b: Boss | null, n0: number): void {
   const n = poiseMul(sc, n0);
   if (!b || b['poiseImmune'] > 0 || b.stagger > 0 || ['sleep', 'dead', 'gone', 'intro', 'rage'].includes(b.state)) return;
   b['poise'] = (b['poise'] || 0) + n; b['poiseT'] = 0;
-  if (b['poise'] >= POISE_MAX[b.phase || 1]!) {
-    b['poise'] = 0; b.stagger = STAGGER_T; b['executed'] = false; b.flash = 0.1;
+  if (b['poise'] >= POISE_MAX[b.phase || 1]! * dataPoiseMul(b)) {
+    b['poise'] = 0; b.stagger = STAGGER_T * dataStaggerBegin(b); b['executed'] = false; b.flash = 0.1;
     sc.sfx('stagger'); sc.shake(200, 0.01); sc.hitstop = 0.1;
     sc.burst(24, b.x + b.w / 2, b.y + 10, 0xffd47a);
     sc.toastAll(sc._execHint ? 'Оглушён! Бей!' : 'Оглушён! Подойди и ударь вверх или вниз — казнь'); sc._execHint = true;
@@ -81,7 +81,8 @@ export function poiseWrapDamage(sc: World, key: BossRef, p: Player): void {
   rawBossDamage(sc, key, p);
   if (!live || b!.hp <= 0 || b!.hp === was) return;
   if (b!.stagger > 0) {
-    // двойной урон по оглушённому
+    // двойной урон по оглушённому (у боссов на данных — не выше потолка за окно оглушения)
+    if (!dataStaggerRoom(b!)) return;
     b!.hp -= 1; sc.bossBar(true, nameOf(key, b!), Math.max(0, b!.hp) / b!.maxHp);
     sc.burst(8, b!.x + b!.w / 2, b!.y + b!.h / 2, 0xffd47a);
     if (b!.hp <= 0) rawBossDamage(sc, key, p);

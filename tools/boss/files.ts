@@ -1,0 +1,24 @@
+// Файлы боссов на данных: чтение data/bosses/*.json для инструментов и тестов (правила rules.json читаются отдельно).
+import { readdirSync, readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { ARENAS } from '../../src/core/levels';
+import { T } from '../../src/core/balance';
+import type { ArenaInfo } from '../../src/core/boss/validate';
+
+export const BOSS_DIR = fileURLToPath(new URL('../../data/bosses/', import.meta.url));
+export interface BossFile { file: string; id: string; raw: unknown }
+/** Все боссы из data/bosses (кроме rules.json), по имени файла. */
+export function loadBossFiles(only?: string): BossFile[] {
+  return readdirSync(BOSS_DIR).filter((f) => f.endsWith('.json') && f !== 'rules.json').sort().map((file) => {
+    const raw = JSON.parse(readFileSync(BOSS_DIR + file, 'utf8')) as { id?: string };
+    return { file, id: raw.id ?? file.replace(/\.json$/, ''), raw };
+  }).filter((b) => !only || b.id === only);
+}
+/** Правила честности (data/bosses/rules.json), прочитанные с диска. */
+export const readRulesRaw = (): unknown => JSON.parse(readFileSync(BOSS_DIR + 'rules.json', 'utf8'));
+/** Внутренний размер арены босса, px (без боковых стен и потолка/пола). */
+export function arenaInfo(arena: string | undefined): ArenaInfo | undefined {
+  const mk = arena ? ARENAS[arena] : undefined; if (!mk) return undefined;
+  const L = mk();
+  return { w: (L.W - 2) * T, h: (L.H - 2) * T };
+}

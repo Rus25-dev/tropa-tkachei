@@ -4,12 +4,13 @@
   "about": "Учебный босс каркаса 2.5: жёлтые удары отбиваются, красные — только уворот, фиолетовый не отбивается. После каждой связки есть окно, чтобы ударить.",
   "arena": "vladik",
   "size": { "w": 40, "h": 78 },
-  "hp": [24, 34],
+  "hp": [110, 150],
   "color": 9075306,
   "intro": { "frames": 120, "say": "Смотри внимательно." },
   "deathFrames": 150,
   "idle": { "walkSpeed": 60, "keepDist": 90 },
   "contact": { "dmg": 1, "kind": "dodge" },
+  "antiCheese": { "shoveChain": "c_shove", "relocateChain": "c_leap" },
   "attacks": [
     {
       "id": "swing", "name": "Взмах",
@@ -72,6 +73,13 @@
       "tell": { "frames": 30, "cue": { "color": "white", "sfx": "shove", "pose": "brace" } },
       "active": [{ "from": 0, "to": 3, "hit": { "x": -70, "y": 30, "w": 140, "h": 48 }, "dmg": 1, "kind": "dodge", "knock": { "vx": 420, "vy": -320 } }],
       "recovery": { "frames": 30, "punishWindow": { "from": 6, "to": 25 } }
+    },
+    {
+      "id": "leap", "name": "Прыжок через героя",
+      "tell": { "frames": 32, "lockFace": true, "cue": { "color": "white", "sfx": "leap", "pose": "crouch" } },
+      "move": [{ "from": 0, "to": 44, "vx": 300, "vy": -560, "toward": "player" }],
+      "active": [{ "from": 44, "to": 48, "hit": { "x": -70, "y": 50, "w": 140, "h": 28 }, "dmg": 1, "kind": "dodge" }],
+      "recovery": { "frames": 40, "punishWindow": { "from": 8, "to": 35 } }
     }
   ],
   "chains": [
@@ -82,6 +90,7 @@
     { "id": "c_dash", "steps": [{ "attack": "dash" }], "weight": 2 },
     { "id": "c_crush", "steps": [{ "attack": "crush" }], "weight": 3, "requires": { "phase": [2], "dist": [0, 220] }, "cooldown": 240 },
     { "id": "c_shove", "steps": [{ "attack": "shove" }], "weight": 1, "cooldown": 180 },
+    { "id": "c_leap", "steps": [{ "attack": "leap" }], "weight": 1, "cooldown": 600 },
     { "id": "c_enter", "steps": [{ "attack": "slam" }], "weight": 1 }
   ],
   "phases": [
@@ -91,8 +100,7 @@
         "chains": ["c_combo", "c_lunge", "c_slam_orb", "c_rain", "c_dash"],
         "noRepeat": 1,
         "fatigue": { "factor": 0.6, "decay": 600 },
-        "restFrames": [30, 54],
-        "priority": [{ "chain": "c_shove", "closeDist": 70, "closeFrames": 150 }]
+        "restFrames": [30, 54]
       }
     },
     {
@@ -104,8 +112,7 @@
         "chains": ["c_combo", "c_lunge", "c_slam_orb", "c_rain", "c_dash", "c_crush"],
         "noRepeat": 2,
         "fatigue": { "factor": 0.6, "decay": 600 },
-        "restFrames": [18, 36],
-        "priority": [{ "chain": "c_shove", "closeDist": 70, "closeFrames": 120 }]
+        "restFrames": [18, 36]
       }
     }
   ]
