@@ -5,6 +5,7 @@ import { registerBoss } from '../../src/core/boss/registry';
 import { feedInput, makeFuzzer } from '../../src/core/fuzzinput';
 import { World } from '../../src/core/world';
 import { cloneWorld } from '../../tools/bot/clone';
+import { loadBossFiles } from '../../tools/boss/files';
 import { NoHitPilot, parryImplemented, runFlawless, scanChains } from '../../tools/bot/nohit';
 
 type Raw = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any -- черновое определение в тесте
@@ -35,19 +36,24 @@ describe('no-hit: проходимость', () => {
     if (parryImplemented()) expect(() => new NoHitPilot({ mode: 'parry' })).not.toThrow();
     else expect(() => new NoHitPilot({ mode: 'parry' })).toThrow(/Парирования 2\.0/);
   });
-  it('манекен: каждая связка каждой фазы проходима без урона из разных положений', () => {
-    const rs = scanChains({ boss: 'dummy', bossAt: [0.04, 0.5, 0.96], offsets: [-250, -90, -45, 45, 90, 250], seed: 11 });
-    expect(rs.length).toBeGreaterThanOrEqual(14);
-    for (const r of rs) expect(r.passable, `фаза ${r.phase}, ${r.chain}: ${JSON.stringify(r.fails[0]?.forced)}`).toBe(true);
-  }, 120_000);
-  it('манекен: бой проходится безупречно (без единого удара), босс убит', () => {
-    for (const seed of [1, 2, 3]) {
-      const r = runFlawless('dummy', seed, {}, 200);
-      expect(r.won, `бой ${seed}`).toBe(true);
-      expect(r.hits, `бой ${seed}: ${JSON.stringify(r.forced[0])}`).toBe(0);
-      expect(r.sec).toBeGreaterThan(15);
-    }
-  }, 120_000);
+  // непроходимая связка в data/bosses/*.json — ошибка баланса и падение теста
+  for (const f of loadBossFiles()) {
+    it(`«${f.id}»: каждая связка каждой фазы проходима без урона из разных положений`, () => {
+      registerBoss(f.raw);
+      const rs = scanChains({ boss: f.id, bossAt: [0.04, 0.5, 0.96], offsets: [-250, -90, -45, 45, 90, 250], seed: 11 });
+      expect(rs.length).toBeGreaterThanOrEqual(1);
+      for (const r of rs) expect(r.passable, `фаза ${r.phase}, ${r.chain}: ${JSON.stringify(r.fails[0]?.forced)}`).toBe(true);
+    }, 300_000);
+    it(`«${f.id}»: бой проходится безупречно (без единого удара), босс убит`, () => {
+      registerBoss(f.raw);
+      for (const seed of [1, 2, 3]) {
+        const r = runFlawless(f.id, seed, {}, 300);
+        expect(r.won, `бой ${seed}`).toBe(true);
+        expect(r.hits, `бой ${seed}: ${JSON.stringify(r.forced[0])}`).toBe(0);
+        expect(r.sec).toBeGreaterThan(15);
+      }
+    }, 300_000);
+  }
   for (const [id, froms, ok] of [['x_unfair', [0, 22, 44], false], ['x_fair', [0, 22], true]] as const) it(`удары на всю арену на кадрах ${froms.join(', ')}: ${ok ? 'проходима (рывок + неуязвимость после него)' : 'нет выхода (откат рывка не успевает)'}`, () => {
     const wall = { x: -700, y: -300, w: 1400, h: 380 };
     const raw: Raw = {
