@@ -1,7 +1,7 @@
 // Главное меню и его экраны (карта как в v1.8): Продолжить · Кампания · Босс-тест · Спидран · Гонки Ткачей · Как играть · Настройки.
 // Навигация — стек экранов с хлебными крошками; «← Назад», Esc и кнопка B возвращают на уровень выше.
 import type { ComponentChildren } from 'preact';
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { CHAPTERS, SR_CATS } from '../core/balance';
 import { freshCamp, freshUp, type CampState } from '../core/campaign';
 import { fixRules, fmt, violation, SR_ABOUT } from '../app/speedrun';
@@ -51,7 +51,7 @@ export function Menu({ ctl, initial }: { ctl: MenuCtl; initial?: Entry[] }) {
   const back = (): void => setStack((s) => (s.length > 1 ? s.slice(0, -1) : s));
   const crumbs = stack.slice(1).map((e) => CRUMB[e.id]?.(e.ctx ?? {}) ?? e.id).filter((c, i, a) => !i || c !== a[i - 1]);
   // сообщить тестам и приложению, где мы
-  useEffect(() => { document.documentElement.dataset['menu'] = top.id; }, [top.id]);
+  useLayoutEffect(() => { document.documentElement.dataset['menu'] = top.id; }, [top.id]);
   const ctx = top.ctx ?? {};
   const p = { ctl, go, back, crumbs, ctx };
   switch (top.id) {
@@ -85,7 +85,7 @@ function Main({ ctl, go }: P) {
   const pr = progress.get();
   const players = menuPlayers();
   // N — «Что нового» (клавиатура), X — геймпад
-  useEffect(() => {
+  useLayoutEffect(() => {
     const k = (e: KeyboardEvent): void => { if (e.code === 'KeyN' && !e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey && !(e.target as HTMLElement | null)?.matches?.('input,textarea')) go('changelog'); };
     window.addEventListener('keydown', k);
     let raf = 0, was = false;

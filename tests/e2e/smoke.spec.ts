@@ -1,12 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 
+import './tt';
+
 // Игра v2 на Phaser 4 (WebGL): запуск, режимы, ввод, масштаб в родном разрешении, сенсорное управление.
-interface TT {
-  game: { renderer: { type: number }; canvas: HTMLCanvasElement; scene: { isActive(k: string): boolean }; loop: { actualFps: number } };
-  shared: { session: { world: { tickN: number; players: { x: number; y: number; hp: number; vy: number; onGround: boolean }[]; won: boolean } } | null };
-  start(p: unknown): void; stop(): void;
-}
-declare global { interface Window { __tt?: TT } }
 
 // Качество «низкое»: на CI графика идёт программно (SwiftShader), свечение и цветокоррекция роняют кадры ниже 10 в секунду, и тики логики (кадр ≤ 100 мс) отстают
 async function boot(page: Page, url = '/'): Promise<void> {

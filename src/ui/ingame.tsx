@@ -31,7 +31,7 @@ export function Pause({ ses, online, onRetry, onExit, openGear }: { ses: Session
   const kb = useDevice() === 'kb';
   const resume = (): void => ses.togglePause();
   if (sub === 'howto') return <HowTo crumbs={['Пауза']} onBack={() => setSub(null)} />;
-  if (sub === 'settings') return <Settings crumbs={['Пауза']} onBack={() => setSub(null)} />;
+  if (sub === 'settings') return <Settings crumbs={['Пауза']} onBack={() => setSub(null)} locked={!!w.sr} />;
   const entries: { id: string; label: string; sub?: string; act: () => void }[] = [];
   entries.push({ id: 'resume', label: 'Продолжить', act: resume });
   if (!online) entries.push({ id: 'retry', label: 'Заново', act: onRetry });

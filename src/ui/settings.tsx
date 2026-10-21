@@ -1,5 +1,5 @@
 // «Настройки»: пять разделов (Звук, Экран, Управление, Игра, Прогресс) и экран переназначения клавиш.
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { ACTS, assignKey, keyName, resetKeys, type Act } from '../app/keys';
 import { applySettings } from '../app/apply';
 import { progress, settings, type SettingsData } from '../app/store';
@@ -13,11 +13,11 @@ export const SECS: [string, string, string][] = [['sound', 'Звук', 'гром
 
 const set = <K extends keyof SettingsData>(k: K, v: SettingsData[K]): void => { settings.set(k, v); applySettings(); };
 
-function Check({ id, label, sub, k }: { id: string; label: string; sub?: string; k: 'shake' | 'noflash' | 'outl' | 'vibro' | 'lefty' | 'easy' }) {
+function Check({ id, label, sub, k, disabled }: { id: string; label: string; sub?: string; k: 'shake' | 'noflash' | 'outl' | 'vibro' | 'lefty' | 'easy'; disabled?: boolean }) {
   const s = useSettings();
   return (
     <label class="opt" for={id}>
-      <input id={id} type="checkbox" checked={s[k]} onChange={(e) => { set(k, (e.currentTarget as HTMLInputElement).checked); }} />
+      <input id={id} type="checkbox" checked={s[k]} disabled={disabled} onChange={(e) => { set(k, (e.currentTarget as HTMLInputElement).checked); }} />
       <span class="optt">{label}{sub && <small>{sub}</small>}</span>
     </label>
   );
@@ -32,13 +32,13 @@ function Range({ id, label, k, min, max, step, beep }: { id: string; label: stri
     </label>
   );
 }
-function Seg<K extends 'bsize' | 'speed' | 'gfx'>({ name, label, k, opts }: { name: string; label: string; k: K; opts: [SettingsData[K], string][] }) {
+function Seg<K extends 'bsize' | 'speed' | 'gfx'>({ name, label, k, opts, disabled }: { name: string; label: string; k: K; opts: [SettingsData[K], string][]; disabled?: boolean }) {
   const s = useSettings();
   return (
     <div class="row">
       <span class="lbl">{label}</span>
       <span class="seg">
-        {opts.map(([v, t]) => (<label key={String(v)}><input type="radio" name={name} value={String(v)} checked={s[k] === v} onChange={() => set(k, v)} />{t}</label>))}
+        {opts.map(([v, t]) => (<label key={String(v)}><input type="radio" name={name} value={String(v)} checked={s[k] === v} disabled={disabled} onChange={() => set(k, v)} />{t}</label>))}
       </span>
     </div>
   );
@@ -58,7 +58,7 @@ function PadMap() {
   return <div class="padmap">{rows.map(([b, t]) => (<span key={b}><b>{b}</b> — {t}</span>))}</div>;
 }
 
-function Section({ id, onKeys }: { id: string; onKeys: () => void }) {
+function Section({ id, onKeys, locked }: { id: string; onKeys: () => void; locked?: boolean }) {
   const [fs, setFs] = useState(fsOn());
   const [armed, setArmed] = useState(false);
   const [done, setDone] = useState(false);
@@ -89,8 +89,9 @@ function Section({ id, onKeys }: { id: string; onKeys: () => void }) {
     </div>);
   if (id === 'game') return (
     <div class="st-box">
-      <Check id="st-easy" k="easy" label="Лёгкий режим" sub="8 бутонов здоровья вместо 5; включится со следующего боя" />
-      <Seg name="st-speed" label="Скорость игры" k="speed" opts={[[100, '100 %'], [80, '80 %'], [60, '60 %']]} />
+      {locked && <p class="note bad" id="st-srnote">Идёт забег: лёгкий режим и замедление игры заблокированы.</p>}
+      <Check id="st-easy" k="easy" label="Лёгкий режим" sub="8 бутонов здоровья вместо 5; включится со следующего боя" disabled={locked} />
+      <Seg name="st-speed" label="Скорость игры" k="speed" opts={[[100, '100 %'], [80, '80 %'], [60, '60 %']]} disabled={locked} />
       <span class="note">По сети скорость всегда 100 %. Лёгкий режим и замедление отключают спидран.</span>
     </div>);
   const p = progress.get();
@@ -102,7 +103,7 @@ function Section({ id, onKeys }: { id: string; onKeys: () => void }) {
     </div>);
 }
 
-export function Settings({ section, crumbs, onBack }: { section?: string; crumbs: string[]; onBack: () => void }) {
+export function Settings({ section, crumbs, onBack, locked }: { section?: string; crumbs: string[]; onBack: () => void; locked?: boolean }) {
   const [sec, setSec] = useState<string | null>(section ?? null);
   const [keys, setKeys] = useState(false);
   if (keys) return <KeysScreen crumbs={[...crumbs, 'Настройки', 'Управление']} onBack={() => setKeys(false)} />;
@@ -116,34 +117,33 @@ export function Settings({ section, crumbs, onBack }: { section?: string; crumbs
           {SECS.map(([id, name, sub], i) => <Item key={id} n={i + 1} label={name} sub={sub} id={`st-go-${id}`} onClick={() => setSec(id)} />)}
         </Screen>
       ) : (
-        <div class="st-page"><h2 class="scr-t">{cur[1]}</h2><Section id={cur[0]} onKeys={() => setKeys(true)} /></div>
+        <div class="st-page"><h2 class="scr-t">{cur[1]}</h2><Section id={cur[0]} onKeys={() => setKeys(true)} locked={locked} /></div>
       )}
     </Panel>
   );
 }
 
 function KeysScreen({ crumbs, onBack }: { crumbs: string[]; onBack: () => void }) {
-  const [listen, setListen] = useState<Act | null>(null);
+  const [listen, setListenState] = useState<Act | null>(null);
+  const listenRef = useRef<Act | null>(null);
   const [note, setNote] = useState('');
   const [, bump] = useState(0);
   useDevice();
-  useEffect(() => {
-    navLock.on = !!listen;
-    return () => { navLock.on = false; };
-  }, [listen]);
-  useEffect(() => {
-    if (!listen) return;
+  // «ждём клавишу» хранится и в ref: обработчик клавиш живёт всё время, нажатие сразу после щелчка не теряется
+  const setListen = (a: Act | null): void => { listenRef.current = a; navLock.on = !!a; setListenState(a); };
+  useLayoutEffect(() => {
     const h = (e: KeyboardEvent): void => {
+      const act = listenRef.current; if (!act) return;
       e.preventDefault(); e.stopPropagation();
       if (e.key === 'Escape') { setListen(null); setNote(''); return; }
       if (e.repeat) return;
-      const ok = assignKey(listen, e);
+      const ok = assignKey(act, e);
       setListen(null); bump((n) => n + 1);
       setNote(ok ? 'Клавиша назначена' : 'Эта клавиша занята игроком 2 или запасной раскладкой');
     };
     window.addEventListener('keydown', h, true);
-    return () => window.removeEventListener('keydown', h, true);
-  }, [listen]);
+    return () => { window.removeEventListener('keydown', h, true); navLock.on = false; };
+  }, []);
   return (
     <Panel crumbs={crumbs} onBack={onBack} hint={{ act: 'назначить', nums: ACTS.length }} digits={!listen} padlock={!!listen} label="Управление">
       <div class="st-page keys">
