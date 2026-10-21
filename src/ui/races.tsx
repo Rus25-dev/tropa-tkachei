@@ -68,7 +68,7 @@ export function OrgPanel({ races }: { races: Races }) {
   const links: [string, string, keyof typeof L][] = [['Игрокам', L.play, 'play'], ['Обсервер', L.watch, 'watch'], ['Для стрима', L.stream, 'stream'], ['OBS (фон прозрачный)', L.overlay, 'overlay']];
   const res = S.result;
   return (
-    <Panel crumbs={['Гонки Ткачей', 'Организатор']} onBack={() => races.setView(null)} digits={false} hint={{ act: 'нажать', extra: { kb: 'Esc — свернуть панель (комната работает)' } }} label="Организатор гонки" cls="rc">
+    <Panel crumbs={['Гонки Ткачей', 'Организатор']} onBack={() => races.setView(null)} digits={false} hint={{ act: 'нажать' }} label="Организатор гонки" cls="rc">
       <div class="st-page rcp">
         <div class="rc-head">
           <span class="rc-code" data-testid="org-code">{S.code}</span>

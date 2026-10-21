@@ -324,7 +324,7 @@ html.rw-stream, html.rw-stream body { cursor: none; }
 .rw-hud { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; color: #f1ecd8; font: 600 24px/1.25 var(--body); text-shadow: 0 2px 3px #000, 0 0 6px #000; }
 .rw-hud * { box-sizing: border-box; }
 .rw-hud .mid { position: absolute; left: 660px; width: 600px; top: 10px; display: grid; grid-template-columns: 1fr; gap: 2px; justify-items: center; background: rgba(5,12,11,.82); border: 2px solid #2c5246; border-radius: 14px; padding: 8px 14px 10px; }
-.rw-hud .mid.sub { top: 110px; width: auto; padding: 4px 24px; left: 50%; transform: translateX(-50%); max-width: 760px; }
+.rw-hud .mid.sub { top: 150px; width: auto; padding: 4px 24px; left: 50%; transform: translateX(-50%); max-width: 760px; }
 .rw-hud .tm { font: 800 64px/1 ui-monospace, Consolas, monospace; letter-spacing: .02em; }
 .rw-hud .df { font: 800 48px/1 ui-monospace, Consolas, monospace; } .rw-hud .df.p { color: #9ff0c8; } .rw-hud .df.n { color: #ff9a8a; }
 .rw-hud .names { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; width: 100%; align-items: center; font-size: 28px; font-weight: 800; }
