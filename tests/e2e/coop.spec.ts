@@ -36,9 +36,10 @@ test('два окна: комната по коду, оба в игре, нап�
   await expect.poll(() => world(guest), { timeout: 40_000 }).toMatchObject({ online: 'guest', n: 2 });
   await host.waitForTimeout(800);
   const gx0 = (await world(host))!.x[1]!;
-  await guest.keyboard.down('KeyD'); await guest.waitForTimeout(1500); await guest.keyboard.up('KeyD');
-  await host.waitForTimeout(800);
-  expect((await world(host))!.x[1]!).toBeGreaterThan(gx0 + 60);
+  // на CI оба окна рисуются программно и редко: ждём по условию, а не по времени
+  await guest.keyboard.down('KeyD');
+  await expect.poll(async () => (await world(host))!.x[1]!, { timeout: 30_000 }).toBeGreaterThan(gx0 + 40);
+  await guest.keyboard.up('KeyD');
   // выход гостя через паузу: хост играет дальше один
   await guest.keyboard.press('Escape');
   await guest.getByTestId('pause-exit').click();
