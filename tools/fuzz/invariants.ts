@@ -75,7 +75,7 @@ export class Monitor {
       // на паузе мир стоит: герой, замерший посреди подтягивания на уступ, остаётся в углу тайла, это не нарушение
       if (w.paused) continue;
       if (w.solidRect({ x: p.x + 1, y: p.y + 1, w: p.w - 2, h: p.h - 2 })) {
-        if (this.solidRun[i]! === 0) this.leash[i] = w.players.some((q, k) => k !== i && !q.downed && Math.abs(q.x - p.x) <= 24 && Math.abs(q.y - p.y) <= 2);
+        if (this.solidRun[i]! === 0) this.leash[i] = w.players.some((q, k) => k !== i && Math.abs(q.x - p.x) <= 24 && Math.abs(q.y - p.y) <= 2);
         if (this.solidRun[i]! === 0) this.gate[i] = w.gates.some((g) => g.closed && p.x + p.w > g.x * 32 && p.x < (g.x + 1) * 32 && p.y + p.h > g.y0 * 32 && p.y < (g.y1 + 1) * 32);
         this.solidRun[i]! += dtLogic;
         if (this.solidRun[i]! > SOLID_GRACE_S) {
