@@ -7,6 +7,7 @@ import { Client } from './client';
 import type { RaceEvent, RaceResult, RoomPlayer, RoomState } from './racecommon';
 import { cleanCode, defaultEnv, type Env, type Msg, type Transport } from './types';
 
+export const REPLAY_MS = 10000;
 export interface TelPoint { at: number; [k: string]: any }
 export interface WatchOpts { transport: Transport; env?: Env; version: string; key: string }
 const TAGS = SR_CATS.trail.tags;
@@ -15,6 +16,12 @@ export class RaceWatch {
   code = ''; S: RoomState | null = null; client: Client | null = null; connStatus = 'idle'; denied: string | undefined;
   feed: RaceEvent[] = []; tel: Record<number, TelPoint> = {}; hist: Record<number, TelPoint[]> = {}; stats: Record<number, any> = {};
   result: RaceResult | null = null; resultLite: any = null; cd: { n: number; at: number } | null = null; recvAt = 0;
+  /** повтор момента: последние REPLAY_MS телеметрии игрока проигрываются на его половине; null — эфир */
+  replay: { seat: number; frames: TelPoint[]; start: number } | null = null;
+  /** одна половина на весь экран (клавиши 1/2): место и время окончания; null — обе половины */
+  solo: { seat: number; until: number } | null = null;
+  /** лента заморожена (Space) */
+  frozen = false; hideBoard = false;
   private env: Env; private subs = new Set<() => void>();
   constructor(private o: WatchOpts) { this.env = o.env ?? defaultEnv(); }
   subscribe(f: () => void): () => void { this.subs.add(f); return () => { this.subs.delete(f); }; }
@@ -31,6 +38,25 @@ export class RaceWatch {
     });
     this.client.start(); this.changed();
     return null;
+  }
+  /** новое событие ленты (звук обсервера) */
+  onFeed: ((e: RaceEvent) => void) | null = null;
+  private frozenFeed: RaceEvent[] | null = null;
+  /** лента для показа: при заморозке — снимок на момент нажатия */
+  feedView(): RaceEvent[] { if (!this.frozen) { this.frozenFeed = null; return this.feed; } return (this.frozenFeed ??= this.feed.slice()); }
+  nowMs(): number { return this.env.now(); }
+  startReplay(seat: number): boolean {
+    const h = this.hist[seat]; if (!h || h.length < 2) return false;
+    this.replay = { seat, frames: h.slice(), start: this.env.now() }; this.changed(); return true;
+  }
+  stopReplay(): void { if (this.replay) { this.replay = null; this.changed(); } }
+  /** телеметрия игрока для рисования: в повторе — кадр из записи по ходу времени, иначе последняя принятая */
+  telFor(seat: number): TelPoint | undefined {
+    const r = this.replay;
+    if (!r || r.seat !== seat) return this.tel[seat];
+    const k = this.env.now() - r.start, f0 = r.frames[0]!, i = r.frames.findIndex((x) => x.at - f0.at > k);
+    if (i < 0) { this.replay = null; this.changed(); return this.tel[seat]; }
+    return { ...r.frames[Math.max(0, i - 1)]!, at: this.env.now() };
   }
   leave(): void { if (this.client) this.client.stop(true); this.client = null; this.S = null; this.connStatus = 'idle'; this.changed(); }
   bye(): void { this.client?.bye(); }
@@ -65,10 +91,10 @@ export class RaceWatch {
     const now = this.env.now();
     for (const o of (t && t.tl) || []) {
       this.tel[o.s] = { ...o, at: now };
-      const h = this.hist[o.s] || (this.hist[o.s] = []); h.push({ ...o, at: now }); while (h.length && now - h[0]!.at > 10000) h.shift();
+      const h = this.hist[o.s] || (this.hist[o.s] = []); h.push({ ...o, at: now }); while (h.length && now - h[0]!.at > REPLAY_MS) h.shift();
     }
   }
-  private addEv(e: RaceEvent): void { if (!e || (this.feed.length && this.feed[this.feed.length - 1]!.n >= e.n && e.n)) return; this.feed.push(e); if (this.feed.length > 200) this.feed.shift(); }
+  private addEv(e: RaceEvent): void { if (!e || (this.feed.length && this.feed[this.feed.length - 1]!.n >= e.n && e.n)) return; this.feed.push(e); if (this.feed.length > 200) this.feed.shift(); this.onFeed?.(e); }
 
   // ----- вычисления для табло -----
   /** время на табло: по часам организатора (не зависит от кадров и скрытого окна) */

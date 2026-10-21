@@ -318,7 +318,10 @@ html.lefty #touch .t-heal { left: 98px; } html.lefty #touch .t-tool { left: 166p
 /* обсервер: рабочая область 1920×1080 масштабируется в окно, табло — HTML поверх холста */
 html.rw-on, html.rw-on body { background: #050a09; }
 html.rw-overlay, html.rw-overlay body { background: transparent !important; } html.rw-overlay #game { opacity: 0; }
-html.rw-stream, html.rw-stream body { cursor: none; }
+html.rw-nocursor, html.rw-nocursor body { cursor: none; }
+.rw-vol { position: fixed; right: max(10px, var(--sr, 0px)); top: max(10px, var(--st)); z-index: 3; display: flex; gap: 8px; align-items: center; pointer-events: auto; opacity: .7; }
+.rw-vol .btn { min-height: 44px; }
+.rw-replay { position: absolute; left: 50%; top: 150px; transform: translateX(-50%); padding: 8px 28px; background: rgba(200, 40, 40, .88); color: #fff; font: 800 44px/1.1 var(--body); letter-spacing: .06em; border: 3px solid #fff; border-radius: 6px; z-index: 4; }
 .rw-wrap { position: fixed; inset: 0; z-index: 12; pointer-events: none; overflow: hidden; }
 .rw-exit { position: fixed; left: max(10px, var(--sl)); top: max(10px, var(--st)); z-index: 3; min-height: 44px; pointer-events: auto; opacity: .55; } .rw-exit:hover, .rw-exit:focus-visible { opacity: 1; }
 .rw-hud { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; color: #f1ecd8; font: 600 24px/1.25 var(--body); text-shadow: 0 2px 3px #000, 0 0 6px #000; }

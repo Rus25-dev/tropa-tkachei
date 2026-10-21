@@ -18,6 +18,7 @@ import { cleanCode, type Transport } from '../net/types';
 import type { Shared } from '../view/game';
 import type { LaunchParams, RcInfo } from './launch';
 import { violation } from './speedrun';
+import { WatchSound } from './watchsound';
 import * as jr from './journal';
 import { journalStore, playStore, raceStore, rcIds, sr as srStore } from './store';
 
@@ -94,7 +95,7 @@ export class Races {
     if (this.play && this.play.code) items.push({ label: 'Вернуться в комнату игрока', sub: `комната ${this.play.code} · ${this.play.name}`, act: () => this.setView('join') });
     else items.push({ label: 'Войти игроком по коду', sub: 'код или ссылка от организатора', act: () => this.openJoin('') });
     items.push({ label: 'Обсервер', sub: 'смотреть гонку: 1920×1080, две половины и табло', act: () => this.setView('watchjoin') });
-    items.push({ label: 'Архив гонок', sub: 'история, races.json (рейтинг — в версии 2.1)', act: () => this.setView('archive') });
+    items.push({ label: 'Архив гонок', sub: 'рейтинг Эло, история, races.json', act: () => this.setView('archive') });
     return items;
   }
   racesInfo(): string[] {
@@ -263,14 +264,18 @@ export class Races {
     const err = this.watch.join(code); this.note = err ?? ''; this.keepAlive(); this.bump();
     return err;
   }
+  /** звук обсервера (эффекты по событиям, музыка босса лидера) */
+  sound: WatchSound | null = null;
   private beginWatch(): void {
     this.watching = true; this.view = null;
+    this.sound?.stop(); this.sound = new WatchSound(this.watch!); this.sound.start();
     const g = this.o.game; g.registry.set('raceWatch', this.watch);
     document.documentElement.classList.add('rw-on'); document.documentElement.classList.toggle('rw-overlay', this.overlay); document.documentElement.classList.toggle('rw-stream', this.stream);
     for (const k of ['game', 'hud', 'bg']) if (g.scene.isActive(k)) g.scene.sleep(k);
     g.scene.start('watch');
   }
   leaveWatch(): void {
+    this.sound?.stop(); this.sound = null;
     this.watch?.leave(); this.watching = false; this.note = '';
     const g = this.o.game, cl = document.documentElement.classList; cl.remove('rw-on', 'rw-overlay', 'rw-stream');
     if (g.scene.isActive('watch')) g.scene.stop('watch');

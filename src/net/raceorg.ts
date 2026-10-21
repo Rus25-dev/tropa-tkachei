@@ -5,6 +5,7 @@
 // Класс не знает про DOM: транспорт, часы и хранилище подставляются (поэтому проверяется в Node на виртуальном времени).
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { SR_CATS } from '../core/balance';
+import { computeElo, nkey } from '../core/elo';
 import { fmt } from '../core/timefmt';
 import { Hub, type Seat } from './hub';
 import { DISC, norm, type Fin, type OrgSeat, type OrgState, type Phase, type RaceEvent, type RaceResult, type RaceStore, type ResultRow, type RoomState } from './racecommon';
@@ -236,8 +237,12 @@ export class RaceOrg {
     }
     rows.forEach((r, i) => { r.place = winner === 'draw' ? 1 : i + 1; });
     if (awardedSeat != null) { rows.sort((a, b) => Number(b.seat === awardedSeat) - Number(a.seat === awardedSeat)); rows.forEach((r, i) => { r.place = i + 1; }); }
-    return { id: S.id, date: new Date(this.wall()).toISOString(), version: this.o.version, discipline: S.disc, settings: { cat: S.disc, easy: false, speed: 100 }, seed: S.seed, players: rows, winner: winner === 'draw' ? 'draw' : winner == null ? null : this.nameOf(winner),
+    const res: RaceResult = { id: S.id, date: new Date(this.wall()).toISOString(), version: this.o.version, discipline: S.disc, settings: { cat: S.disc, easy: false, speed: 100 }, seed: S.seed, players: rows, winner: winner === 'draw' ? 'draw' : winner == null ? null : this.nameOf(winner),
       winnerSeat: winner, awarded: awardedSeat != null, gap, goAt: S.goAt, pauseMs: S.pause.total, events: S.events.slice(-400) };
+    // Эло по дисциплине: пересчёт всей истории вместе с этой гонкой (единственный источник правды)
+    const ch = computeElo([...this.archive().filter((x) => x.id !== res.id), res]).perRace[res.id];
+    if (ch) for (const p of rows) { const c = ch.disc[nkey(p.name)]; if (c) { p.eloBefore = c.before; p.eloAfter = c.after; } }
+    return res;
   }
   finish(awardedSeat: number | null): void {
     const S = this.S; if (!S || S.phase === 'done') return;

@@ -2,14 +2,17 @@
 // Все панели — на общих кирпичиках kit.tsx: «← Назад», хлебные крошки, клавиатура, геймпад и касание (кнопки не ниже 44 px).
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { SR_CATS } from '../core/balance';
+import { computeElo, ratingOf, winChances } from '../core/elo';
 import { fmt, fmtD } from '../core/timefmt';
 import type { Races } from '../app/races';
 import { fixRules, violation } from '../app/speedrun';
 import { rcIds, sr as srStore } from '../app/store';
 import { DISC, mergeNames, racesJson, type RaceEvent, type RaceResult, type RoomPlayer } from '../net/racecommon';
+import { mergeRaces, parseRaces } from '../net/racesfile';
 import { watchBox } from '../view/fit';
 import { useTick } from './ingame';
 import { Panel } from './kit';
+import { copyCard, downloadCard } from './racecard';
 
 const TAGS = SR_CATS.trail.tags;
 export function useRaces(r: Races): void {
@@ -47,7 +50,7 @@ export function OrgPanel({ races }: { races: Races }) {
   useLayoutEffect(() => { const l = logRef.current; if (l) l.scrollTop = l.scrollHeight; }, [S?.events.length]);
   useEffect(() => { if (ask) noBtn.current?.focus(); }, [ask]);
   if (!org || !S) return null;
-  const L = org.links(races.base()), ps = org.seatList(), f = fmt;
+  const L = org.links(races.base()), ps = org.seatList(), f = fmt, eloT = computeElo(org.archive());
   const srv = ({ open: 'сервер: на связи', opening: 'сервер: подключаемся…', busy: `сервер: прежний код ещё занят, ждём (${org.srvInfo?.tries ?? 0})`, error: 'сервер: ошибка связи', closed: 'закрыто', idle: '' } as Record<string, string>)[org.status] ?? org.status;
   const confirmThen = (text: string, fn: () => void): void => setAsk({ text, fn });
   const card = (i: number) => {
@@ -60,6 +63,7 @@ export function OrgPanel({ races }: { races: Races }) {
         <h3><span class={`dot ${p.online ? 'on' : ''}`} />{p.name}</h3>
         <div data-testid={`org-p${i + 1}-state`}>{ph}</div>
         <div class="lead">{p.online ? `пинг ${p.rtt != null ? Math.round(p.rtt) + ' мс' : '…'}` : 'нет связи'}{t && S.phase === 'run' ? ` · маски ${hp} · смертей ${t['dt']}` : ''}{p.restored ? ` · восстановлен ×${p.restored}` : ''}</div>
+        {S.phase === 'lobby' && ps.length === 2 && <div class="lead" data-testid={`org-p${i + 1}-chance`}>Эло {ratingOf(eloT, p.name, S.disc).rating} · шанс на победу {winChances(eloT, ps[0]!.name, ps[1]!.name, S.disc)[i]} %</div>}
         {p.splits.length > 0 && <div class="lead">{p.splits.map((s, k) => `${TAGS[k]} ${f(s)}`).join(' · ')}</div>}
       </div>
     );
@@ -134,6 +138,18 @@ export function ArchivePanel({ races }: { races: Races }) {
   const [msg, setMsg] = useState('');
   void n;
   const arch = races.archive();
+  const elo = computeElo(arch);
+  const load = async (f: File | undefined): Promise<void> => {
+    if (!f) return;
+    const r = parseRaces(await f.text());
+    if (!r.ok) { setMsg(r.error); return; }
+    const m = mergeRaces(races.archive(), r.races); races.saveArchive(m.races);
+    setMsg(`Загружено гонок: ${r.races.length}, новых: ${m.added}.`); bump((x) => x + 1);
+  };
+  const card = async (r: RaceResult, copy: boolean): Promise<void> => {
+    const ch = elo.perRace[r.id]?.disc, ok = copy ? await copyCard(r, ch) : await downloadCard(r, ch);
+    setMsg(ok ? (copy ? 'Картинка скопирована в буфер.' : 'Картинка сохранена.') : 'Не удалось получить картинку в этом браузере.');
+  };
   const names = [...new Set(arch.flatMap((r) => r.players.map((p) => p.name)))];
   const from = a || names[0] || '', to = b || names[0] || '';
   const merge = (): void => {
@@ -147,9 +163,10 @@ export function ArchivePanel({ races }: { races: Races }) {
     <Panel crumbs={['Гонки Ткачей', 'Архив']} onBack={() => races.setView(races.org?.S ? 'org' : null)} digits={false} hint={{ act: 'нажать' }} label="Архив гонок" cls="rc">
       <div class="st-page rcp">
         <h2 class="scr-t">Архив гонок</h2>
-        <p class="lead">Рейтинг Эло и общая страница появятся в версии 2.1; пока здесь хранится история, которую можно скачать как <b>races.json</b>.</p>
+        <p class="lead">История гонок и рейтинг Эло (старт 1000, пересчитывается по всей истории). Архив можно скачать как <b>races.json</b> и загрузить обратно.</p>
         <div class="row">
           <button type="button" class="btn primary" id="rca-dl" data-testid="arch-download" onClick={() => { if (!download('races.json', racesJson(arch, races.version, new Date().toISOString()))) setMsg('Не удалось скачать файл в этом браузере.'); }}>Скачать races.json</button>
+          <label class="btn" id="rca-load-l">Загрузить races.json<input type="file" id="rca-load" data-testid="arch-load" accept=".json,application/json" hidden onChange={(e) => { void load((e.currentTarget as HTMLInputElement).files?.[0]); (e.currentTarget as HTMLInputElement).value = ''; }} /></label>
           {ask ? (<span class="rc-ask">Стереть весь архив гонок? <button type="button" class="btn danger" id="rca-yes" onClick={clear}>Да</button> <button type="button" class="btn" onClick={() => setAsk(false)}>Нет</button></span>)
             : <button type="button" class="btn ghost" id="rca-clear" data-testid="arch-clear" onClick={() => setAsk(true)}>Очистить архив</button>}
         </div>
@@ -163,12 +180,23 @@ export function ArchivePanel({ races }: { races: Races }) {
           </div>
           <div id="rca-msg" role="status" class="lead">{msg}</div>
         </div>
+        {elo.all.length ? (
+          <div class="rc-box"><h3>Рейтинг Эло</h3>
+            <div class="tbl-wrap"><table data-testid="arch-rating">
+              <thead><tr><th>#</th><th>Игрок</th><th>Эло</th><th>Гонок</th><th>П / Н / Пор</th></tr></thead>
+              <tbody>{elo.all.map((x, i) => <tr key={x.key}><td>{i + 1}</td><td>{x.name}</td><td><b>{x.rating}</b></td><td>{x.games}</td><td>{x.wins} / {x.draws} / {x.losses}</td></tr>)}</tbody>
+            </table></div>
+            {Object.entries(elo.byDisc).map(([d, rows]) => <div key={d} class="lead">{DISC[d]?.name ?? d}: {rows.map((x) => ` ${x.rating}`).join(' · ')}</div>)}
+          </div>
+        ) : null}
         {arch.length ? (
           <div class="tbl-wrap"><table data-testid="arch-table">
-            <thead><tr><th>Дата</th><th>Дисциплина</th><th>Игроки и время</th><th>Победитель</th></tr></thead>
+            <thead><tr><th>Дата</th><th>Дисциплина</th><th>Игроки и время</th><th>Победитель</th><th>Эло</th><th>Картинка</th></tr></thead>
             <tbody>{arch.slice().reverse().map((r: RaceResult) => (
               <tr key={r.id}><td>{new Date(r.date).toLocaleString('ru-RU')}</td><td>{DISC[r.discipline]?.name ?? r.discipline}</td>
-                <td>{r.players.map((p) => `${p.name} ${p.dnf ? '—' : fmt(p.time ?? 0)}`).join(' · ')}</td><td>{r.winner === 'draw' ? 'ничья' : r.winner ?? '—'}{r.awarded ? ' (присуждено)' : ''}</td></tr>
+                <td>{r.players.map((p) => `${p.name} ${p.dnf ? '—' : fmt(p.time ?? 0)}`).join(' · ')}</td><td>{r.winner === 'draw' ? 'ничья' : r.winner ?? '—'}{r.awarded ? ' (присуждено)' : ''}</td>
+                <td>{r.players.map((p) => p.eloBefore != null && p.eloAfter != null ? `${p.eloAfter - p.eloBefore >= 0 ? '+' : '−'}${Math.abs(p.eloAfter - p.eloBefore)}` : '—').join(' / ')}</td>
+                <td><button type="button" class="btn ghost" onClick={() => void card(r, false)}>PNG</button> <button type="button" class="btn ghost" onClick={() => void card(r, true)}>Копировать</button></td></tr>
             ))}</tbody>
           </table></div>
         ) : <div class="lead" data-testid="arch-empty">Пока нет ни одной гонки.</div>}
@@ -260,10 +288,28 @@ export function WatchView({ races }: { races: Races }) {
     el.style.transform = `translate(${b.x}px,${b.y}px) scale(${b.scale})`;
   };
   useLayoutEffect(() => { fit(); window.addEventListener('resize', fit); return () => window.removeEventListener('resize', fit); }, []);
+  // горячие клавиши обсервера: H — табло, 1/2 — половина игрока на весь экран на 10 с, 0 — обе половины, R затем 1/2 — повтор последних 10 с, Space — заморозить ленту
   useEffect(() => {
-    if (races.stream) return undefined;
-    const k = (e: KeyboardEvent): void => { if (e.key === 'Escape') races.leaveWatch(); };
-    window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k);
+    let armed = 0, hide = 0;
+    const seatOf = (i: number): number | null => w.S?.players?.[i]?.seat ?? null;
+    const k = (e: KeyboardEvent): void => {
+      if ((e.target as HTMLElement | null)?.closest?.('input,select,textarea')) return;
+      const now = w.nowMs();
+      if (e.key === 'Escape' && !races.stream) { races.leaveWatch(); return; }
+      if (e.code === 'KeyH') w.hideBoard = !w.hideBoard;
+      else if (e.code === 'Space') { w.frozen = !w.frozen; e.preventDefault(); }
+      else if (e.code === 'KeyR') { armed = now + 1500; return; }
+      else if (e.code === 'KeyM') races.sound?.toggleMute();
+      else if (e.code === 'Digit0') { w.solo = null; w.stopReplay(); }
+      else if (e.code === 'Digit1' || e.code === 'Digit2') {
+        const s = seatOf(e.code === 'Digit1' ? 0 : 1); if (s == null) return;
+        if (now < armed) { armed = 0; w.startReplay(s); } else w.solo = { seat: s, until: now + 10000 };
+      } else return;
+      w.changed();
+    };
+    const mv = (): void => { document.documentElement.classList.remove('rw-nocursor'); clearTimeout(hide); if (races.stream) hide = window.setTimeout(() => document.documentElement.classList.add('rw-nocursor'), 2000); };
+    window.addEventListener('keydown', k); window.addEventListener('mousemove', mv); mv();
+    return () => { window.removeEventListener('keydown', k); window.removeEventListener('mousemove', mv); clearTimeout(hide); document.documentElement.classList.remove('rw-nocursor'); };
   }, [races.stream]);
   if (!S) return null;
   const ps = S.players || [], p1 = ps[0], p2 = ps[1], t1 = p1 && w.tel[p1.seat], t2 = p2 && w.tel[p2.seat], phase = S.phase, now = performance.now();
@@ -282,20 +328,27 @@ export function WatchView({ races }: { races: Races }) {
   return (
     <div class="rw-wrap" data-testid="watch-view">
       {!races.stream && <button type="button" class="btn rw-exit" data-testid="watch-exit" onClick={() => races.leaveWatch()}>← Выйти</button>}
+      {!races.stream && races.sound && (
+        <div class="rw-vol" data-testid="watch-audio">
+          <button type="button" class="btn" id="rw-mute" aria-pressed={races.sound.muted} onClick={() => races.sound?.toggleMute()}>{races.sound.muted ? 'Включить звук' : 'Без звука'}</button>
+          <input type="range" min={0} max={100} step={5} aria-label="Громкость обсервера" value={races.sound.muted ? 0 : races.sound.vol} onInput={(e) => races.sound?.setVolume(Number((e.currentTarget as HTMLInputElement).value))} />
+        </div>
+      )}
       <div class="rw-hud" ref={ref}>
-        <div class="mid" data-testid="watch-board">
+        <div class="mid" data-testid="watch-board" style={w.hideBoard ? { display: 'none' } : undefined}>
           <div class="names"><div class="a" style={{ color: '#8fe8d2' }}>{p1 ? p1.name : '—'}</div><div class="st">{phase === 'run' ? (S.pause.on ? 'ПАУЗА' : 'гонка') : phase === 'done' ? 'финиш' : ''}</div><div class="b" style={{ color: '#ffc46e' }}>{p2 ? p2.name : '—'}</div></div>
           <div class="tm" data-testid="watch-time">{phase === 'run' || phase === 'done' ? fmt(clock) : phase === 'count' || phase === 'prep' ? 'старт' : '0:00.00'}</div>
           <div class={`df ${lead && lead.ms < 0 ? 'p' : 'n'}`}>{lead ? (lead.ms === 0 ? '±0.0' : fmtD(lead.ms)) : ' '}</div><div class="st">{lead ? lead.txt : ' '}</div>
           <div class="names"><div class="a masks">{masks(t1)}</div><div class="st">{chap(t1, p1)}{t1 && t2 ? ' · ' : ''}{chap(t2, p2)}</div><div class="b masks">{masks(t2)}</div></div>
         </div>
+        {w.replay && <div class="rw-replay" data-testid="watch-replay">ПОВТОР · {w.S?.players?.find((p) => p.seat === w.replay!.seat)?.name}</div>}
         {w.connStatus !== 'online' && <div class="conn">нет связи с организатором, пробуем снова…</div>}
         {(phase === 'run') && !t1 && p1 && <div class="wait" style={{ left: '0px' }}>Ждём данные игрока…</div>}
         {(phase === 'run') && !t2 && p2 && <div class="wait" style={{ left: '960px' }}>Ждём данные игрока…</div>}
         {[[t1, 20], [t2, 980]].map(([t, x], i) => { const tt = t as Record<string, any> | undefined; return tt && tt['bs'] && tt['bs'].on ? ( // eslint-disable-line @typescript-eslint/no-explicit-any
           <div class="bar" key={i} style={{ left: `${(x as number) + 270}px` }}><span>{bossName(tt['bs'].k)} · фаза {tt['bs'].ph}</span><div class="hp"><i style={{ width: `${Math.max(0, Math.round(100 * tt['bs'].hp / tt['bs'].mh))}%` }} /></div></div>) : null; })}
         <div class="feed" data-testid="watch-feed">
-          {w.feed.length ? w.feed.slice(-4).map((e) => <div key={e.n} class={e.k}><span class="t">{e.t != null ? fmt(e.t) : '—:--'}</span>{e.x}</div>) : <div>Ждём событий…</div>}
+          {w.feed.length ? w.feedView().slice(-4).map((e) => <div key={e.n} class={e.k}><span class="t">{e.t != null ? fmt(e.t) : '—:--'}</span>{e.x}</div>) : <div>Ждём событий…</div>}
         </div>
         {showCards && (<>
           <div class="rw-cards">{card(p1)}{card(p2)}</div>

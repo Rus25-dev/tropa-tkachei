@@ -62,6 +62,15 @@ test('гонка: организатор, два игрока и обсерве�
   await expect(org.getByTestId('org-p2-state')).toContainText('Гл.', { timeout: 30_000 });
   await expect.poll(() => wp.evaluate(() => Object.keys(window.__tt!.races?.watch?.tel ?? {}).length), { timeout: 30_000 }).toBe(2);
   await expect.poll(() => wp.evaluate(() => { const sc = window.__tt!.game.scene as unknown as { getScene(k: string): { views?: Map<number, unknown> } }; return sc.getScene('watch').views?.size ?? 0; }), { timeout: 30_000 }).toBe(2);
+  // горячие клавиши обсервера: H — табло, 1 — половина игрока на весь экран, 0 — обе, R затем 1 — повтор
+  await expect.poll(() => wp.evaluate(() => (window.__tt!.races?.watch?.hist[Object.keys(window.__tt!.races.watch.hist)[0] as unknown as number]?.length ?? 0)), { timeout: 30_000 }).toBeGreaterThan(3);
+  await wp.keyboard.press('KeyH'); await expect(wp.getByTestId('watch-board')).toBeHidden();
+  await wp.keyboard.press('KeyH'); await expect(wp.getByTestId('watch-board')).toBeVisible();
+  await wp.keyboard.press('Digit1'); await expect.poll(() => wp.evaluate(() => !!window.__tt!.races?.watch?.solo)).toBe(true);
+  await wp.keyboard.press('Digit0'); await expect.poll(() => wp.evaluate(() => !!window.__tt!.races?.watch?.solo)).toBe(false);
+  await wp.keyboard.press('KeyR'); await wp.keyboard.press('Digit1');
+  await expect(wp.getByTestId('watch-replay')).toBeVisible({ timeout: 10_000 });
+  await wp.keyboard.press('Digit0'); await expect(wp.getByTestId('watch-replay')).toBeHidden();
   await p1.keyboard.up('KeyD'); await p2.keyboard.up('KeyD');
   // финиш: Ива быстрее
   await finish(p1, 120_000); await finish(p2, 125_000);
@@ -205,5 +214,29 @@ test('одиночный спидран: после перезагрузки «�
   const after = await page.evaluate(() => { const w = window.__tt!.shared.session!.world; return { tick: w['tickN'] as number, x: Math.round(w['players'][0].x), restored: w['sr'].restored | 0, paused: !!w['paused'], hold: !!w['sr'].hold }; });
   expect(after.restored).toBe(1); expect(after.paused).toBe(true); expect(after.hold).toBe(false);
   expect(after.tick).toBeGreaterThanOrEqual(before.tick - 125); expect(Math.abs(after.x - before.x)).toBeLessThan(80);
+  await ctx.close();
+});
+
+// Архив: загрузка races.json, таблица Эло и картинка итогов (одно окно, годится и для CI)
+test('архив: загрузка races.json даёт рейтинг Эло, неверный файл — понятную ошибку, PNG скачивается', async ({ browser }) => {
+  test.setTimeout(90_000);
+  const ctx = await ctxWith(browser), page = await ctx.newPage();
+  await boot(page, `/?${q}&race=org`);
+  await page.getByTestId('org-archive').click();
+  const row = (i: number, win: string) => ({
+    id: 'e' + i, date: `2026-02-0${i + 1}T10:00:00Z`, version: '2.0.0', discipline: 'trail', settings: { cat: 'trail', easy: false, speed: 100 }, seed: i,
+    players: ['Ива', 'Ярь'].map((name, k) => ({ seat: k + 1, name, dnf: false, time: 90000 + k * 2000, finalTime: 90000 + k * 2000, igt: 89000, deaths: 0, stats: null, splits: [20000, 40000, 60000, 90000], eloBefore: null, eloAfter: null, place: k + 1 })),
+    winner: win, winnerSeat: 1, awarded: false, gap: 2000, goAt: 0, pauseMs: 0, events: [],
+  });
+  const file = { format: 'tropa-tkachei/races', version: 1, game: '2.0.0', exported: '2026-02-05T00:00:00Z', races: [row(0, 'Ива'), row(1, 'Ива')] };
+  await page.getByTestId('arch-load').setInputFiles({ name: 'races.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(file)) });
+  await expect(page.locator('#rca-msg')).toContainText('новых: 2');
+  await expect(page.getByTestId('arch-rating')).toContainText('Ива');
+  expect(await page.getByTestId('arch-rating').locator('tbody tr').first().innerText()).toContain('Ива');
+  await page.getByTestId('arch-load').setInputFiles({ name: 'x.json', mimeType: 'application/json', buffer: Buffer.from('{"format":"чужой"}') });
+  await expect(page.locator('#rca-msg')).toContainText('не архив гонок');
+  const dl = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'PNG' }).first().click();
+  const d = await dl; expect(d.suggestedFilename()).toMatch(/\.png$/); await d.saveAs('test-results/race-card.png');
   await ctx.close();
 });
