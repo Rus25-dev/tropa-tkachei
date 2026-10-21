@@ -26,11 +26,11 @@ export interface Player extends Body {
   [k: string]: any;
 }
 export interface Enemy extends Body { type: string; face: number; flash: number; kbT: number; kbx: number; kby: number; dead: boolean; t: number; hp: number; beads: number; [k: string]: any }
-/** Вид удара (отбив 2.0): 'parry' — отбивается (как раньше); 'dodge' — отбив не работает, нужен рывок или уход; 'unblockable' — не отбить и не проскочить рывком, только уйти или перепрыгнуть. */
-export type HitKind = 'parry' | 'dodge' | 'unblockable';
-
 export interface Boss extends Body { posture?: boolean; hp: number; maxHp: number; state: string; t: number; face: number; flash: number; phase?: number; [k: string]: any }
-export interface Proj extends Rect { hk?: HitKind; kind: string; vx: number; vy: number; life: number; dead?: boolean; delay?: number; [k: string]: any }
+/** Тип удара (язык атак боссов, 2.5): parry — можно отбить; dodge — только уворот; unblockable — не отбивается и не гасится рывком, только избежать. */
+export type HitKind = 'parry' | 'dodge' | 'unblockable';
+/** hk — тип удара снаряда; без поля считается 'parry' (прежнее поведение). dmg — урон, если не задан: по виду снаряда (HEAVY_KINDS). */
+export interface Proj extends Rect { kind: string; vx: number; vy: number; life: number; dead?: boolean; delay?: number; hk?: HitKind; dmg?: number; [k: string]: any }
 export interface Bead extends Body { t: number; dead?: boolean }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 

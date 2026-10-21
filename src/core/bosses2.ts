@@ -1,6 +1,6 @@
 // Боссы 2.0 (legacy/src/bosses2.js): фазы, стойкость и оглушение, казнь, новые снаряды. Общие для всех боссов правила.
-import { KITS, P, PHASE_LINES, POISE_MAX, STAGGER_T, EXEC_FRAC, T, clamp } from './balance';
-import type { BossKey } from './balance';
+import { KITS, P, PHASE_LINES, POISE_MAX, STAGGER_T, EXEC_FRAC, T, clamp, dataIdx, dataKey } from './balance';
+import type { BossKey, BossRef } from './balance';
 import type { Boss, Player, Proj } from './types';
 import type { World } from './world';
 import { phaseOf } from './world';
@@ -9,9 +9,19 @@ import { poiseMul } from './weapons';
 import { rawBossDamage } from './damage';
 import { slowDt } from './status';
 import { statBegin } from './racestats';
+import { onStagger } from './boss/exec';
 
-export const bossOf = (sc: World, key: BossKey): Boss | null => (key === 'boss' ? sc.boss : sc[key]);
+export const bossOf = (sc: World, key: BossRef): Boss | null => (key === 'boss' ? sc.boss : key === 'vladik' || key === 'tima' ? sc[key] : sc.bosses[dataIdx(key)] ?? null);
 const NAMES: Record<BossKey, string> = { boss: 'Корнематка', vladik: 'Владик Скрипка', tima: 'Тима Пиво' };
+export const nameOf = (key: BossRef, b: Boss): string => NAMES[key as BossKey] ?? (b['name'] as string);
+/** все боссы мира с ключами: Корнематка, Владик, Тима и боссы на данных (Миша живёт отдельно) */
+export const bossRefs = (sc: World): [Boss, BossRef][] => {
+  const out: [Boss, BossRef][] = [[sc.boss, 'boss']];
+  if (sc.vladik) out.push([sc.vladik, 'vladik']);
+  if (sc.tima) out.push([sc.tima, 'tima']);
+  sc.bosses.forEach((b, i) => out.push([b, dataKey(i)]));
+  return out;
+};
 
 // ----- фазы -----
 /** вызывается после урона: если перешли порог — рёв, неуязвимость, отталкивание */
@@ -46,11 +56,12 @@ export function poiseAdd(sc: World, b: Boss | null, n0: number): void {
     sc.burst(24, b.x + b.w / 2, b.y + 10, 0xffd47a);
     sc.toastAll(sc._execHint ? 'Оглушён! Бей!' : 'Оглушён! Подойди и ударь вверх или вниз — казнь'); sc._execHint = true;
     for (const pr of sc.projs) if (pr.kind === 'spore' || pr.kind === 'letter') pr.dead = true;
+    if (b['d']) onStagger(b); // босс на данных: текущая атака обрывается
   }
 }
 
 /** обёртка шага босса: замедление (status.js, внешняя) и оглушение/спад стойкости (bosses2.js) */
-export function stepBossLayered(sc: World, key: BossKey, dt0: number, base: (sc: World, dt: number) => void): void {
+export function stepBossLayered(sc: World, key: BossRef, dt0: number, base: (sc: World, dt: number) => void): void {
   const b = bossOf(sc, key);
   const dt = slowDt(sc, b, dt0, true);
   if (b && b.stagger > 0) {
@@ -63,7 +74,7 @@ export function stepBossLayered(sc: World, key: BossKey, dt0: number, base: (sc:
   if (b) { b['poiseImmune'] = Math.max(0, (b['poiseImmune'] || 0) - dt); b['poiseT'] = (b['poiseT'] || 0) + dt; if (b['poiseT'] > 1.4 && b['poise'] > 0) { b['poise']--; b['poiseT'] = 0; } }
 }
 /** обёртка урона: двойной по оглушённому и рост стойкости (внутри — исходная функция RAW) */
-export function poiseWrapDamage(sc: World, key: BossKey, p: Player): void {
+export function poiseWrapDamage(sc: World, key: BossRef, p: Player): void {
   const b = bossOf(sc, key);
   const live = b && !['sleep', 'dead', 'gone', 'intro', 'rage'].includes(b.state);
   const was = b && b.hp;
@@ -71,7 +82,7 @@ export function poiseWrapDamage(sc: World, key: BossKey, p: Player): void {
   if (!live || b!.hp <= 0 || b!.hp === was) return;
   if (b!.stagger > 0) {
     // двойной урон по оглушённому
-    b!.hp -= 1; sc.bossBar(true, NAMES[key], Math.max(0, b!.hp) / b!.maxHp);
+    b!.hp -= 1; sc.bossBar(true, nameOf(key, b!), Math.max(0, b!.hp) / b!.maxHp);
     sc.burst(8, b!.x + b!.w / 2, b!.y + b!.h / 2, 0xffd47a);
     if (b!.hp <= 0) rawBossDamage(sc, key, p);
     return;
@@ -79,7 +90,7 @@ export function poiseWrapDamage(sc: World, key: BossKey, p: Player): void {
   poiseAdd(sc, b, 1);
 }
 
-export function bossHitSnd(sc: World, key: BossKey, p: Player | null): string {
+export function bossHitSnd(sc: World, key: BossRef, p: Player | null): string {
   const b = bossOf(sc, key);
   if (b && b.stagger > 0) return 'hitCrit';
   if (p && p['heavy']) return 'hitHeavy';
@@ -87,8 +98,10 @@ export function bossHitSnd(sc: World, key: BossKey, p: Player | null): string {
 }
 
 // ----- казнь -----
-function execTarget(sc: World, p: Player): (typeof KITS)[number] | null {
-  for (const kit of KITS) {
+type Kit = { key: BossRef; name: string };
+function execTarget(sc: World, p: Player): Kit | null {
+  const kits: Kit[] = [...KITS, ...sc.bosses.map((b, i) => ({ key: dataKey(i), name: b['name'] as string }))];
+  for (const kit of kits) {
     const b = bossOf(sc, kit.key);
     if (!b || !(b.stagger > 0.2) || b['executed'] || ['dead', 'gone', 'sleep', 'intro'].includes(b.state)) continue;
     if (Math.abs(b.x + b.w / 2 - (p.x + 7)) < b.w / 2 + 74 && p.y + 26 > b.y - 24 && p.y < b.y + b.h) return kit;
@@ -106,7 +119,7 @@ export function tryExecute(sc: World, p: Player, dir: string): boolean {
   return true;
 }
 /** execBoss: статистика (внешний слой) → оберег «Охотник» → база */
-export function execBoss(sc: World, p: Player, kit: { key: BossKey }, dir: string): void {
+export function execBoss(sc: World, p: Player, kit: { key: BossRef }, dir: string): void {
   const S = statBegin(sc);
   const cur0 = sc.testBoss() ?? sc.boss;
   const wasS = S && cur0 ? !!cur0['executed'] : false;
@@ -115,7 +128,7 @@ export function execBoss(sc: World, p: Player, kit: { key: BossKey }, dir: strin
   if (b && b['executed'] && !was && hasCharm(p, 'hunter')) { if (p.remote) { for (let i = 0; i < 3; i++) sc.sendEv({ k: 'silk', i: p.i }); } else p.silk = Math.min(sc.silkMax, p.silk + 3); }
   if (S && !wasS) { const b2 = sc.testBoss() ?? sc.boss; if (b2 && b2['executed']) S.execs++; }
 }
-function execBossBase(sc: World, p: Player, kit: { key: BossKey }, dir: string): void {
+function execBossBase(sc: World, p: Player, kit: { key: BossRef }, dir: string): void {
   const b = bossOf(sc, kit.key);
   if (!b || !(b.stagger > 0.15) || b['executed'] || ['dead', 'gone'].includes(b.state)) return;
   b['executed'] = true;

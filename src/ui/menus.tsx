@@ -3,6 +3,7 @@
 import type { ComponentChildren } from 'preact';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { CHAPTERS, SR_CATS } from '../core/balance';
+import { bossDef, DEV_BOSS_ID } from '../core/boss/registry';
 import { freshCamp, freshUp, type CampState } from '../core/campaign';
 import { fixRules, fmt, violation, SR_ABOUT } from '../app/speedrun';
 import { menuPlayers, progress, records, setMenuPlayers, sr as srStore, training } from '../app/store';
@@ -20,6 +21,9 @@ export const BOSSES = [
   { id: 'vladik', name: 'Владик Скрипка', about: 'Кидает скрипичные ключи и мажет шторы слизью. Бей иглой.' },
   { id: 'tima', name: 'Тима Пиво', about: 'Пиво, банкротство, приставка и волшебная пыль. Бей иглой.' },
 ];
+/** карточка разработчика (?dev=1): босс на данных «Манекен-наставник» (каркас 2.5); в обычной игре её нет */
+const DEV_BOSS = { id: DEV_BOSS_ID, name: 'Манекен-наставник (dev)', about: bossDef(DEV_BOSS_ID)?.about ?? '' };
+const devBosses = (): typeof BOSSES => (new URLSearchParams(location.search).get('dev') === '1' ? [...BOSSES, DEV_BOSS] : BOSSES);
 const fmtMin = (s: number): string => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
 const recLine = (id: string): string => {
   const r = records.get(id);
@@ -186,14 +190,15 @@ function Net({ ctl, go, back, crumbs, ctx }: P) {
 }
 
 function BossTest({ ctl, go, back, crumbs }: P) {
-  const [sel, setSel] = useState(pickIdx);
+  const list = devBosses();
+  const [sel, setSel] = useState(Math.min(pickIdx, list.length - 1));
   const [, bump] = useState(0);
-  const pick = (k: number): void => { pickIdx = (k + BOSSES.length) % BOSSES.length; setSel(pickIdx); };
-  const b = BOSSES[sel]!;
+  const pick = (k: number): void => { pickIdx = (k + list.length) % list.length; setSel(pickIdx); };
+  const b = list[sel]!;
   const cardsRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = cardsRef.current; if (!el) return;
-    const h = (e: Event): void => { const k = (pickIdx + (e as CustomEvent<number>).detail + BOSSES.length) % BOSSES.length; pick(k); el.querySelectorAll<HTMLElement>('.card')[k]?.focus({ preventScroll: true }); };
+    const h = (e: Event): void => { const k = (pickIdx + (e as CustomEvent<number>).detail + list.length) % list.length; pick(k); el.querySelectorAll<HTMLElement>('.card')[k]?.focus({ preventScroll: true }); };
     el.addEventListener('lr', h); return () => el.removeEventListener('lr', h);
   }, []);
   const toggleTrain = (): void => { training.on = !training.on; training.save(); bump((n) => n + 1); };
@@ -211,7 +216,7 @@ function BossTest({ ctl, go, back, crumbs }: P) {
         <Dim>{training.on ? `Тренировка: бесконечное здоровье, счётчик урона и DPS, сброс босса клавишей Y. Старт с фазы ${training.phase}. Рекорды не пишутся.` : 'Бой сразу с выбранным боссом.'}</Dim>
       </>}>
         <div class="cards" role="radiogroup" aria-label="Босс" ref={cardsRef}>
-          {BOSSES.map((x, k) => {
+          {list.map((x, k) => {
             const r = records.get(x.id);
             return (<button type="button" key={x.id} role="radio" aria-checked={k === sel} class={`card ${k === sel ? 'sel' : ''}`} data-testid={`boss-${x.id}`} data-lr="1" onFocus={() => pick(k)} onClick={() => pick(k)}>
               <span class="cn">{x.name}</span><span class="cr">{r.best ? 'рекорд ' + fmtMin(r.best) : 'нет рекорда'}</span>
@@ -220,7 +225,7 @@ function BossTest({ ctl, go, back, crumbs }: P) {
         </div>
         <Item n={1} id="bt-one" label="Один ткач" sub="в бой сразу" onClick={() => play(1)} />
         <Item n={2} id="bt-two" label="Двое за одним компьютером" onClick={() => play(2)} />
-        <Item n={3} id="bt-net" label="Вдвоём по сети" sub={training.on ? 'в тренировке — только вдвоём у одного компьютера' : 'создать комнату или войти по коду'} disabled={training.on} onClick={() => go('net', { mode: 'bosstest', boss: b.id })} />
+        <Item n={3} id="bt-net" label="Вдвоём по сети" sub={training.on ? 'в тренировке — только вдвоём у одного компьютера' : 'создать комнату или войти по коду'} disabled={training.on || b.id === DEV_BOSS_ID} onClick={() => go('net', { mode: 'bosstest', boss: b.id })} />
         <Item n={4} id="bt-train" label="Тренировка" sub="здоровье бесконечное, счётчик урона" value={training.on ? 'вкл' : 'выкл'} onClick={toggleTrain} onLR={() => toggleTrain()} />
         <Item n={5} id="bt-phase" label="Старт с фазы" sub={training.on ? 'только в тренировке' : 'включит тренировку'} value={String(training.phase)} onClick={() => phase()} onLR={(d) => phase(d)} />
       </Screen>

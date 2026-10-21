@@ -2,6 +2,7 @@
 // Это «база» без обёрток: слои оружия, оберегов, стойкости и статистики собраны в damage.ts.
 import { BAL, P, PARRY2, SLASH_KINDS, SPIKE, T, clamp } from './balance';
 import type { Boss, Enemy, HitKind, Player, Rect } from './types';
+import type { BossRef } from './balance';
 import type { World } from './world';
 import { inset, overlap } from './world';
 import { atkBox, wdef, type WeaponDef } from './weapons';
@@ -10,6 +11,8 @@ import { e2Blocked, spawnEnemies, e2Parry } from './enemies';
 import { makeBoss } from './korne';
 import { makeMisha, mishaNeedle, makeMishaIfAlive } from './misha';
 import { makeVladik } from './vladik';
+import { makeDataBoss } from './boss/exec';
+import { bossRefs } from './bosses2';
 import { makeTima, setRepo } from './tima';
 import { hitCollector } from './bosses2';
 import { campaignSave, campaignSaveName } from './campaign';
@@ -17,6 +20,9 @@ import { poiseAdd } from './bosses2';
 import { areaOf } from './coop';
 import { statParry } from './racestats';
 import { srDuelDefeat } from './speedrun';
+
+/** Владик, Тима и боссы на данных: удары игрока по ним разбираются одинаково */
+const dataRefs = (sc: World): [Boss | null, BossRef][] => [[sc.vladik, 'vladik'], [sc.tima, 'tima'], ...bossRefs(sc).filter(([, k]) => k.startsWith('d')) as [Boss, BossRef][]];
 
 // ---------- коробка удара (база) ----------
 export function atkBoxBase(_sc: World, p: Player, W: WeaponDef): Rect {
@@ -47,7 +53,7 @@ export function resolveAttackBase(sc: World, p: Player): void {
     if (local) { if (p.atkDir === 'd') pogo(); else if (p.atkDir === 'f') p.kbx = -p.face * 170; }
   }
   if (sc.misha && mishaNeedle(sc, p, box) && local) { if (p.atkDir === 'd') pogo(); else if (p.atkDir === 'f') p.kbx = -p.face * 190; }
-  for (const [vb, key] of [[sc.vladik, 'vladik'], [sc.tima, 'tima']] as const) {
+  for (const [vb, key] of dataRefs(sc)) {
     if (!vb || p.atkHits.has(vb) || ['dead', 'intro'].includes(vb.state) || !overlap(box, vb)) continue;
     p.atkHits.add(vb);
     if (auth) { damageBoss(sc, key, p); if (p['heavy'] && vb.state !== 'dead') damageBoss(sc, key, p); } else { vb.flash = 0.09; if (!p.remote) { sc.hitstop = 0.04; sc.snd('hit'); } }
@@ -145,6 +151,7 @@ export function respawnAll(sc: World): void {
   if (sc.misha && sc.misha.state !== 'dead') { makeMisha(sc); sc.bossBar(false); }
   if (sc.vladik && sc.vladik.state !== 'dead') { makeVladik(sc); sc.bossBar(false); }
   if (sc.tima && sc.tima.state !== 'dead') { sc.repoT = 0; makeTima(sc); sc.sendEv({ k: 'repo', on: 0 }); sc.bossBar(false); }
+  sc.bosses.forEach((b, i) => { if (b.state !== 'dead') { makeDataBoss(sc, (b['d'] as { id: string }).id, i); sc.bossBar(false); } });
   sc.sendEv({ k: 'respawn', x: sc.respawn.x, y: sc.respawn.y });
   respawnLocal(sc);
 }
@@ -194,7 +201,7 @@ export function parrySuccess(sc: World, p: Player, _srcX: number | null, hk?: Hi
 }
 /** стойкость босса за отбив: обычный +3 (как в v2.0; у боссов с posture:true — POSTURE_NORMAL_POISE), идеальный ×PERFECT_POISE_MUL. Шкала та же, что у ударов (poiseAdd) */
 export function parryPoise(sc: World, cx: number, cy: number, perfect = false): void {
-  for (const b of [sc.boss, sc.vladik, sc.tima]) if (b && Math.hypot(b.x + b.w / 2 - cx, b.y + b.h / 2 - cy) < 190) poiseAdd(sc, b, perfect ? 3 * PARRY2.PERFECT_POISE_MUL : b.posture ? PARRY2.POSTURE_NORMAL_POISE : 3);
+  for (const b of [sc.boss, sc.vladik, sc.tima, ...sc.bosses]) if (b && Math.hypot(b.x + b.w / 2 - cx, b.y + b.h / 2 - cy) < 190) poiseAdd(sc, b, perfect ? 3 * PARRY2.PERFECT_POISE_MUL : b.posture ? PARRY2.POSTURE_NORMAL_POISE : 3);
 }
 // нитяной всполох (↑ + кнопка нити): тратит BURST нити, бьёт всё вокруг и сбивает снаряды
 export function silkBurst(sc: World, p: Player): void {
@@ -212,7 +219,7 @@ export function silkBurstHit(sc: World, p: Player, cx: number, cy: number): void
     const R = 120; p['noSilkGain'] = true; // всполох нить не копит: иначе он оплачивал бы сам себя
     for (const pr of sc.projs) if (!pr.dead && pr.kind !== 'bomb' && Math.hypot(pr.x - cx, pr.y - cy) < R) pr.dead = true;
     for (const e of sc.enemies) if (!e.dead && Math.hypot(e.x + e.w / 2 - cx, e.y + e.h / 2 - cy) < R) { damageEnemy(sc, e, p); if (!e.dead) damageEnemy(sc, e, p); }
-    for (const [b, key] of [[sc.boss, 'boss'], [sc.vladik, 'vladik'], [sc.tima, 'tima']] as const) {
+    for (const [b, key] of bossRefs(sc)) {
       if (!b || ['dead', 'gone', 'sleep', 'intro'].includes(b.state)) continue;
       if (Math.hypot(b.x + b.w / 2 - cx, b.y + b.h / 2 - cy) < R + b.w / 2) { for (let i = 0; i < 3 && !['dead', 'gone'].includes(b.state); i++) damageBoss(sc, key, p); }
     }

@@ -2,6 +2,8 @@
 import { clamp } from '../../core/balance';
 import type { Boss } from '../../core/types';
 import type { World } from '../../core/world';
+import { liveBoxes, type DState } from '../../core/boss/exec';
+import { bossDef } from '../../core/boss/registry';
 import type { G } from './common';
 import { pts } from './common';
 
@@ -247,4 +249,61 @@ export function drawTima(v: Boss, g: G, now: number, say: Say, dustFx: (n: numbe
   }
   // реплика
   if (v['sayT'] > 0 && v['say']) say.show(v['say'], hx, hy - 24); else say.hide();
+}
+
+// ---------- боссы на данных (2.5): простая фигура и универсальный телеграф ----------
+/** цвет подсказки замаха и удара по типу: жёлтое — можно отбить, красное — только уворот, фиолетовое — не отбивается, белое — нейтральный замах */
+export const CUE_RGB: Record<string, number> = { yellow: 0xffd447, red: 0xff4a3a, purple: 0xb877ff, white: 0xffffff };
+export const HIT_RGB: Record<string, number> = { parry: CUE_RGB['yellow']!, dodge: CUE_RGB['red']!, unblockable: CUE_RGB['purple']! };
+
+/** Манекен: тело-столбик, голова, руки по позе. Телеграф рисуется по данным атаки, а не по виду босса: контур тела и места ударов цвета замаха, мигание ускоряется к концу замаха. */
+export function drawDataBoss(w: World, b: Boss, g: G, now: number): void {
+  g.clear();
+  const d = b['d'] as DState | undefined; if (!d) return;
+  const def = bossDef(d.id)!, f = b.face, cx = b.x + b.w / 2, fy = b.y + b.h, dead = b.state === 'dead';
+  g.setAlpha(dead ? clamp(b.t / (def.deathFrames / 60), 0, 1) : 1);
+  const fl = b.flash > 0, tell = b.state === 'tell' && d.cue, rgb = tell ? (CUE_RGB[d.cue!.color] ?? 0xffffff) : 0xffffff;
+  const body = fl ? 0xffffff : def.color, shade = fl ? 0xffffff : 0x5d5446;
+  const k = tell ? 1 - d.cue!.left / d.cue!.total : 0; // прогресс замаха 0..1
+  // подставка и ноги
+  g.fillStyle(0x23262e, 1); g.fillEllipse(cx, fy - 2, b.w + 14, 8);
+  g.lineStyle(5, shade, 1); g.lineBetween(cx - 8, fy - 22, cx - 8, fy - 3); g.lineBetween(cx + 8, fy - 22, cx + 8, fy - 3);
+  // туловище и голова
+  const lean = b.state === 'active' ? 5 * f : tell ? -4 * f * k : 0;
+  g.fillStyle(body, 1); g.fillRoundedRect(cx - b.w / 2 + 3 + lean, b.y + 24, b.w - 6, b.h - 44, 8);
+  g.fillStyle(shade, 1); g.fillRect(cx - 9 + lean, b.y + 38, 18, 3); g.fillRect(cx - 9 + lean, b.y + 46, 18, 3);
+  g.fillStyle(body, 1); g.fillCircle(cx + lean * 1.4, b.y + 14, 14);
+  g.fillStyle(0x1a1410, 1); g.fillRect(cx + lean * 1.4 + f * 3 - 6, b.y + 10, 4, 4); g.fillRect(cx + lean * 1.4 + f * 3 + 2, b.y + 10, 4, 4);
+  // руки: поднимаются в замахе, бьют вперёд в активных кадрах, висят в покое
+  const ang = tell ? -1.9 + k * 0.5 : b.state === 'active' ? 0.1 : b.state === 'recover' ? 1.1 : 0.8;
+  g.lineStyle(6, shade, 1);
+  for (const side of [-1, 1]) {
+    const sx = cx + side * 15 + lean, sy = b.y + 30, a = side * f > 0 ? ang : 0.9;
+    g.lineBetween(sx, sy, sx + Math.cos(a) * f * 30, sy + Math.sin(a) * 30);
+  }
+  // телеграф: мигающий контур тела и места будущих ударов
+  if (tell) {
+    const hz = 5 + k * 16, on = Math.sin(now * hz * Math.PI * 2) > -0.2;
+    if (on) { g.lineStyle(3, rgb, 0.95); g.strokeRoundedRect(cx - b.w / 2 - 2 + lean, b.y - 4, b.w + 4, b.h + 6, 10); }
+    for (const x of liveBoxes(w, b)) {
+      g.fillStyle(rgb, 0.05 + 0.2 * k); g.fillRect(x.r.x, x.r.y, x.r.w, x.r.h);
+      g.lineStyle(2, rgb, on ? 0.9 : 0.3); g.strokeRect(x.r.x, x.r.y, x.r.w, x.r.h);
+    }
+  } else if (b.state === 'active') {
+    for (const x of liveBoxes(w, b)) { const c = HIT_RGB[x.kind] ?? 0xffffff; g.fillStyle(c, 0.35); g.fillRect(x.r.x, x.r.y, x.r.w, x.r.h); g.lineStyle(2, c, 1); g.strokeRect(x.r.x, x.r.y, x.r.w, x.r.h); }
+  }
+  // окно наказания: зелёное кольцо у ног — бей сейчас
+  if (d.punish) { g.lineStyle(3, 0x7be39a, 0.5 + Math.sin(now * 14) * 0.3); g.strokeEllipse(cx, fy - 3, b.w + 30, 12); }
+  if (b.stagger > 0) { g.fillStyle(0xffe3a3, 0.9); for (let i = 0; i < 4; i++) g.fillCircle(cx + Math.cos(now * 5 + i * 1.6) * 24, b.y - 12 + Math.sin(now * 5 + i * 1.6) * 5, 2.5); }
+  if (b.state === 'rage') { g.lineStyle(3, 0xff8a5a, 0.6 + Math.sin(now * 30) * 0.3); g.strokeRoundedRect(cx - b.w / 2 - 6, b.y - 8, b.w + 12, b.h + 10, 12); }
+}
+
+/** Контуры снарядов боссов на данных по типу удара (универсальная подсказка поверх обычной отрисовки снаряда). */
+export function drawDataProjs(w: World, g: G, now: number): void {
+  for (const pr of w.projs) {
+    if (pr.dead || pr['src'] !== 'd') continue;
+    const c = HIT_RGB[pr.hk ?? 'parry'] ?? 0xffffff, blink = 0.55 + Math.sin(now * 18) * 0.3;
+    g.lineStyle(2, c, blink); g.strokeRect(pr.x - 2, pr.y - 2, pr.w + 4, pr.h + 4);
+    if (pr.kind === 'note' || pr.kind === 'glob') { g.fillStyle(c, 0.35); g.fillCircle(pr.x + pr.w / 2, pr.y + pr.h / 2, Math.max(pr.w, pr.h) / 2); }
+  }
 }

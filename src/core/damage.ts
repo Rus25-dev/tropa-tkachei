@@ -1,7 +1,7 @@
 // Слои урона. В v1.8 функции урона обёрнуты друг в друга по порядку загрузки модулей (база → оружие → оберегов → статистика);
 // здесь порядок вызовов записан явно. Внешний слой — статистика забега, внутренний — исходная функция (RAW).
-import { BAL, KITS, PARRY2 } from './balance';
-import type { BossKey } from './balance';
+import { BAL, PARRY2, dataIdx } from './balance';
+import type { BossRef } from './balance';
 import type { Boss, Enemy, HitKind, Player } from './types';
 import type { World } from './world';
 import { damageBossWeapons, damageEnemyWeapons, gainSilkWeapons } from './weapons';
@@ -12,14 +12,15 @@ import { killEnemy } from './combat';
 import { rawKorne } from './korne';
 import { rawVladik } from './vladik';
 import { rawTima } from './tima';
-import { poiseWrapDamage } from './bosses2';
+import { bossRefs, nameOf, poiseWrapDamage } from './bosses2';
+import { rawData } from './boss/exec';
 import { statBegin, statEndBoss, statEndEnemy, statHurt } from './racestats';
 
 // ---------- исходные функции урона по боссам (RAW) ----------
-export function rawBossDamage(sc: World, key: BossKey, p: Player): void {
-  if (key === 'boss') rawKorne(sc, p); else if (key === 'vladik') rawVladik(sc, p); else rawTima(sc, p);
+export function rawBossDamage(sc: World, key: BossRef, p: Player): void {
+  if (key === 'boss') rawKorne(sc, p); else if (key === 'vladik') rawVladik(sc, p); else if (dataIdx(key) >= 0) rawData(sc, key, p); else rawTima(sc, p);
 }
-const bossOf = (sc: World, key: BossKey): Boss | null => (key === 'boss' ? sc.boss : sc[key]);
+const bossOf = (sc: World, key: BossRef): Boss | null => (key === 'boss' ? sc.boss : key === 'vladik' || key === 'tima' ? sc[key] : sc.bosses[dataIdx(key)] ?? null);
 
 // ---------- нить ----------
 /** gainSilk: оберег «Быстрая нить» (внешний) → оружие (по урону) → база */
@@ -70,20 +71,20 @@ function damageEnemyCharms(sc: World, e: Enemy, p: Player): void {
 }
 
 // ---------- боссы: статистика → обереги → оружие → стойкость → RAW ----------
-export function damageBoss(sc: World, key: BossKey, p: Player): void {
+export function damageBoss(sc: World, key: BossRef, p: Player): void {
   const S = statBegin(sc);
   const cur = sc.testBoss() ?? sc.boss, h0 = cur ? cur.hp : 0;
   damageBossCharms(sc, key, p);
   if (S) statEndBoss(S, cur, h0);
 }
-function damageBossCharms(sc: World, key: BossKey, p: Player): void {
+function damageBossCharms(sc: World, key: BossRef, p: Player): void {
   const b = bossOf(sc, key), hp0 = b && b.hp, stag = !!b && b.stagger > 0;
   const ctr = !!b && counterOn(p, b);
   if (ctr) sc._cm = PARRY2.COUNTER_POISE_MUL; // контратака: стойкость за удар ×2 (poiseMul)
   try { damageBossWeapons(sc, b, p, () => poiseWrapDamage(sc, key, p)); } finally { sc._cm = 1; }
   if (ctr && b && b.hp < hp0! && b.hp > 0) { // и урон ×1.5: полхода добавки; если она добивает — настоящий удар
     const add = (stag ? 2 : 1) * (PARRY2.COUNTER_DMG - 1);
-    if (b.hp - add > 0) { b.hp -= add; sc.bossBar(true, KITS.find((k) => k.key === key)!.name, Math.max(0, b.hp) / b.maxHp); } else bossDamage(sc, key, p, 1);
+    if (b.hp - add > 0) { b.hp -= add; sc.bossBar(true, nameOf(key, b), Math.max(0, b.hp) / b.maxHp); } else bossDamage(sc, key, p, 1);
     sc.burst(12, b.x + b.w / 2, b.y + b.h / 2, 0xffd96a);
   }
   if (b && b.hp < hp0! && b.hp > 0 && sc.auth()) {
@@ -99,6 +100,7 @@ function damageBossCharms(sc: World, key: BossKey, p: Player): void {
 }
 
 // ---------- урон героям: статистика → обереги (колючий плащ) → тренировка → база ----------
+/** hk — тип удара (язык атак боссов 2.5): без него 'parry', как раньше */
 export function hurtPlayer(sc: World, p: Player, dmg: number, srcX: number | null, spike?: boolean, hk?: HitKind): void {
   const S = !p.remote ? statBegin(sc) : null;
   const h0 = p.hp, pd0 = (p['pdodge'] as number) || 0;
@@ -116,7 +118,7 @@ function hurtPlayerCharms(sc: World, p: Player, dmg: number, srcX: number | null
       e.kbT = 0.14; e.kbx = Math.sign(e.x + e.w / 2 - px) * 200; e.kby = -80;
       if (e.hp <= 0) killEnemy(sc, e);
     } else {
-      const key = (['boss', 'vladik', 'tima'] as BossKey[]).find((k) => { const b = bossOf(sc, k); return b && bossLive(b) && near(b); });
+      const key = bossRefs(sc).map(([, k]) => k).find((k) => { const b = bossOf(sc, k); return b && bossLive(b) && near(b); });
       if (key) { bossDamage(sc, key, p, 1); sc.burst(8, srcX, py, 0xd9a35a); }
     }
   }

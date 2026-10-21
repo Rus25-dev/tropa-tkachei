@@ -6,6 +6,7 @@ import { makeTima, setRepo } from './tima';
 import { makeVladik } from './vladik';
 import type { Boss } from './types';
 import { phaseOf, type World } from './world';
+import { currentAttackName, makeDataBoss } from './boss/exec';
 
 export interface TrainState {
   t: number; log: [number, number][]; total: number; first: number | null; tele: { name: string; win: number; at: number } | null;
@@ -25,6 +26,7 @@ export const TELE: Record<string, Record<string, string>> = {
 /** hp босса под порог фазы (фаза 2 — до 60 %, фаза 3 — до 30 %; у Миши вторая половина боя — с 50 %) */
 export function hpFor(b: Boss, kind: string, ph: number): number {
   if (ph <= 1) return b.maxHp;
+  if (b['thr']) return Math.max(1, Math.floor(b.maxHp * ((b['thr'] as number[])[Math.min(ph, 3) - 2] ?? 0.3))); // босс на данных: порог фазы из его описания
   if (ph === 2) return Math.max(1, Math.floor(b.maxHp * (kind === 'misha' ? 0.5 : 0.58)));
   return Math.max(1, Math.floor(b.maxHp * 0.28));
 }
@@ -42,6 +44,7 @@ export function resetBoss(sc: World): void {
   if (sc.misha) makeMisha(sc);
   if (sc.vladik) makeVladik(sc);
   if (sc.tima) { sc.repoT = 0; setRepo(sc, false); makeTima(sc); }
+  sc.bosses.forEach((b, i) => makeDataBoss(sc, (b['d'] as { id: string }).id, i));
   sc.bossBar(false); respawnLocal(sc);
   applyPhase(sc); tr.log = []; tr.total = 0; tr.first = null; tr.tele = null; tr.resets++;
   if (sc.paused) sc.togglePause();
@@ -55,7 +58,7 @@ export function trainTick(sc: World, dt: number): void {
   tr.lastHp = b.hp;
   while (tr.log.length && tr.log[0]![0] < tr.t - 10) tr.log.shift();
   if (b.state !== tr.prev) {
-    const nm = TELE[sc.bossKind]?.[b.state];
+    const nm = b['d'] ? (b.state === 'tell' ? currentAttackName(b) : null) : TELE[sc.bossKind]?.[b.state];
     if (nm) tr.tele = { name: nm, win: b.t, at: tr.t };
     tr.prev = b.state;
   }

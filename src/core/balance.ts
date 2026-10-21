@@ -38,6 +38,12 @@ export let STAGGER_T = J.STAGGER_T;
 export let EXEC_FRAC = J.EXEC_FRAC;
 export const KITS = [{ key: 'boss', name: 'Корнематка' }, { key: 'vladik', name: 'Владик Скрипка' }, { key: 'tima', name: 'Тима Пиво' }] as const;
 export type BossKey = 'boss' | 'vladik' | 'tima';
+/** боссы на данных (sc.bosses[i]) называются 'd0', 'd1', … */
+export type DataBossKey = `d${number}`;
+export type BossRef = BossKey | DataBossKey;
+export const dataKey = (i: number): DataBossKey => `d${i}`;
+/** индекс босса на данных по ключу или -1 */
+export const dataIdx = (k: string): number => (/^d\d+$/.test(k) ? +k.slice(1) : -1);
 
 // ----- состояния новых врагов (enemies2.js) -----
 export const E2_VULN = ['erupt', 'tell', 'pounce', 'tired']; // засадника можно бить только вне земли

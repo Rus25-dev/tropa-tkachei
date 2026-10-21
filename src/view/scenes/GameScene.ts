@@ -7,7 +7,8 @@ import type { Session } from '../../core/session';
 import type { World } from '../../core/world';
 import { drawClassroom, drawDen } from '../artRooms';
 import { drawLevelChunks } from '../art';
-import { drawCurtains, drawKorne, drawMisha, drawTima, drawVladik, type Say } from '../draw/bosses';
+import { drawCurtains, drawDataBoss, drawDataProjs, drawKorne, drawMisha, drawTima, drawVladik, type Say } from '../draw/bosses';
+import { bossDef } from '../../core/boss/registry';
 import { drawEnemy } from '../draw/enemies';
 import { drawPlayer, drawSwingArc } from '../draw/hero';
 import { drawBeads, drawHitKinds, drawItems, drawPoiseBars, drawProjectiles, drawStatus, type TextPool } from '../draw/projectiles';
@@ -50,6 +51,7 @@ export class GameScene extends Phaser.Scene {
   private gateG: G[] = []; private gateAnim: number[] = [];
   private entG = new Map<object, G>();
   private playerG: { g: G; tag: Phaser.GameObjects.Text }[] = [];
+  private dataG: G[] = [];
   private bossG: G | null = null; private mishaG: G | null = null; private vladikG: G | null = null; private timaG: G | null = null;
   private say = { misha: null as Phaser.GameObjects.Text | null, vladik: null as Phaser.GameObjects.Text | null, tima: null as Phaser.GameObjects.Text | null };
   private letters!: Pool; private big!: Pool; private stamps!: Pool;
@@ -103,6 +105,7 @@ export class GameScene extends Phaser.Scene {
     for (const p of this.playerG) { p.g.destroy(); p.tag.destroy(); } this.playerG = [];
     for (const g of [this.bossG, this.mishaG, this.vladikG, this.timaG]) g?.destroy();
     this.bossG = this.mishaG = this.vladikG = this.timaG = null;
+    for (const g of this.dataG) g.destroy(); this.dataG = [];
     for (const t of Object.values(this.say)) t?.destroy(); this.say = { misha: null, vladik: null, tima: null };
     for (const e of [this.smoke, this.paper, this.foam, this.dustFx]) e?.destroy(); this.smoke = this.paper = this.foam = this.dustFx = null;
     for (const t of this.stampTexts) t.destroy(); this.stampTexts = []; this.furnG?.destroy(); this.furnG = null;
@@ -193,6 +196,7 @@ export class GameScene extends Phaser.Scene {
       this.dustFx = dust('spark', { lifespan: 700, speed: { min: 20, max: 90 }, scale: { start: 0.9, end: 0 }, tint: [0xffe38a, 0xffffff, 0xffb6f0, 0x9ff0ff], blendMode: 'ADD' }, 7);
       this.foam = dust('dot', { lifespan: 500, speed: { min: 40, max: 180 }, scale: { start: 1.6, end: 0 }, tint: [0xfff6d8, 0xf2c14e], gravityY: 400 }, 7);
     }
+    this.dataG = w.bosses.map(() => this.add.graphics().setDepth(4)); // боссы на данных (2.5)
     // камера: сразу на героев
     const pts = w.alivePlayers().length ? w.alivePlayers() : w.players;
     this.camX = pts[0]!.x; this.camY = pts[0]!.y - 80; this.zoom = 1.18;
@@ -264,7 +268,7 @@ export class GameScene extends Phaser.Scene {
   }
   private musicTrack(w: World): string {
     if (w.won) return 'menu';
-    if (w.mode === 'bosstest') return w.bossKind;
+    if (w.mode === 'bosstest') return bossDef(w.bossKind)?.music ?? w.bossKind;
     const b = w.boss; return b && !['sleep', 'gone', 'dead'].includes(b.state) ? 'boss' : 'cave';
   }
 
@@ -361,11 +365,13 @@ export class GameScene extends Phaser.Scene {
     this.letters.begin(); this.big.begin(); this.stamps.begin();
     if (w.vladik && this.vladikG && this.say.vladik) { drawCurtains(w, this.curtainG, this.slimeG, now); drawVladik(w.vladik, this.vladikG, now, this.sayOf(this.say.vladik)); }
     if (w.tima && this.timaG && this.say.tima) drawTima(w.tima, this.timaG, now, this.sayOf(this.say.tima), (n, x, y) => this.dustFx?.explode(n, x, y));
+    w.bosses.forEach((db, i) => { const dg = this.dataG[i]; if (dg) drawDataBoss(w, db, dg, now); });
     // удары
     for (const p of w.players) drawSwingArc(w, p, fx);
     drawProjectiles(w, fx, fb, now, { letters: this.letters, big: this.big, stamps: this.stamps });
     drawPoiseBars(w, fx, now);
     drawHitKinds(w, fx, now, this.sh.gfx().outl && !w.td);
+    if (w.bosses.length) drawDataProjs(w, fx, now);
     drawBeads(w, fx);
     this.letters.end(); this.big.end(); this.stamps.end();
     if (w.sr?.race) this.drawGhost(w, dt);

@@ -1,7 +1,8 @@
 // Инструменты: метательная игла, капкан, нитяная бомба, нитяной крюк (legacy/src/tools.js).
 // Снаряды-инструменты живут в w.tl (не в projs: иначе их сбивали бы отбив/всполох и они ранили бы героев).
 import { FLY_TYPES, P, SOLID, PLAT, T, TOOL } from './balance';
-import type { BossKey } from './balance';
+import type { BossRef } from './balance';
+import { bossOf, bossRefs } from './bosses2';
 import type { Boss, Enemy, Player } from './types';
 import type { World } from './world';
 import { inset, overlap } from './world';
@@ -11,7 +12,6 @@ import { poiseAdd } from './bosses2';
 import { damageBoss } from './damage';
 
 type Q = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any -- сущности инструментов: мешок полей, как в v1.8
-const BOSS_FNS: [string, BossKey][] = [['boss', 'boss'], ['vladik', 'vladik'], ['tima', 'tima']];
 
 // направление броска / нити по вводу: ↑ — вверх, ↑ + сторона — диагональ, иначе вперёд
 function toolAim(p: Player): { dx: number; dy: number; f: number } {
@@ -63,8 +63,8 @@ function toolHurtEnemy(sc: World, e: Enemy, n: number, kdir: number, pierceArmor
 }
 const liveBoss = (b: Boss | null | undefined): boolean => !!b && !['dead', 'gone', 'sleep', 'intro'].includes(b.state);
 // урон боссу от инструмента — через те же damageBoss/Vladik/Tima, что и у всполоха (фазы, стойка, оглушение работают)
-export function toolHurtBoss(sc: World, key: BossKey, p: Player, n: number): void {
-  const b = key === 'boss' ? sc.boss : sc[key];
+export function toolHurtBoss(sc: World, key: BossRef, p: Player, n: number): void {
+  const b = bossOf(sc, key);
   p['noSilkGain'] = true;
   try { for (let i = 0; i < n && liveBoss(b); i++) damageBoss(sc, key, p); } finally { p['noSilkGain'] = false; }
 }
@@ -78,7 +78,7 @@ const tfxAdd = (sc: World, f: Q, send?: boolean): void => { sc.tfx.push(f); if (
 // ----- шаг сущностей -----
 export function stepTools(sc: World, dt: number): void {
   const tl = sc.tl as Q[]; if (!tl.length) return;
-  const bosses = BOSS_FNS.map(([key, k2]) => [sc[key as 'boss' | 'vladik' | 'tima'], k2] as const).filter(([b]) => b) as [Boss, BossKey][];
+  const bosses = bossRefs(sc);
   for (const q of tl) {
     if (q['dead']) continue;
     q['life'] -= dt; if (q['life'] <= 0) { q['dead'] = true; continue; }
@@ -88,7 +88,7 @@ export function stepTools(sc: World, dt: number): void {
   }
   sc.tl = tl.filter((q) => !q['dead']);
 }
-function stepToolNeedle(sc: World, q: Q, dt: number, bosses: [Boss, BossKey][]): void {
+function stepToolNeedle(sc: World, q: Q, dt: number, bosses: [Boss, BossRef][]): void {
   const owner = toolOwner(sc, q['owner']);
   if (q['st'] === 0) { // полёт: два подшага, чтобы не пролетать сквозь тонкие стены
     q['ft'] -= dt; if (q['ft'] <= 0) { q['st'] = 3; q['vx'] *= 0.2; q['vy'] = 0; }
@@ -136,7 +136,7 @@ function stepToolNeedle(sc: World, q: Q, dt: number, bosses: [Boss, BossKey][]):
     }
   }
 }
-function stepToolTrap(sc: World, q: Q, dt: number, bosses: [Boss, BossKey][]): void {
+function stepToolTrap(sc: World, q: Q, dt: number, bosses: [Boss, BossRef][]): void {
   q['vy'] = Math.min(q['vy'] + 1100 * dt, 800); q['vx'] = 0; sc.moveBody(q as never, dt);
   if (q['arm'] > 0) { q['arm'] -= dt; return; }
   q['tick'] -= dt;
@@ -160,7 +160,7 @@ function trapSnap(sc: World, q: Q, boss?: boolean): void {
   sc.burst(14, q['x'] + q['w'] / 2, q['y'], 0xffe3a3); tfxAdd(sc, { f: 'snap', x: q['x'] + q['w'] / 2, y: q['y'] + q['h'], t: 0.35, T: 0.35 }, true);
   if (boss) sc.toastAll('Капкан! Стойка босса растёт');
 }
-function stepToolBomb(sc: World, q: Q, dt: number, bosses: [Boss, BossKey][]): void {
+function stepToolBomb(sc: World, q: Q, dt: number, bosses: [Boss, BossRef][]): void {
   q['vy'] = Math.min(q['vy'] + 1100 * dt, 800); q['fuse'] -= dt;
   sc.moveBody(q as never, dt);
   if (q['onGround']) { q['vx'] *= 0.75; if (Math.abs(q['vy']) < 1) q['vy'] = 0; }
@@ -182,18 +182,18 @@ function toolExplode(sc: World, cx: number, cy: number, p: Player): void {
     if (e.dead || Math.hypot(e.x + e.w / 2 - cx, e.y + e.h / 2 - cy) > R) continue;
     toolHurtEnemy(sc, e, TOOL.BOMB_DMG, Math.sign(e.x + e.w / 2 - cx) || 1, true);
   }
-  for (const [key, k2] of BOSS_FNS) {
-    const b = sc[key as 'boss' | 'vladik' | 'tima']; if (!liveBoss(b)) continue;
-    if (Math.hypot(b!.x + b!.w / 2 - cx, b!.y + b!.h / 2 - cy) < R + b!.w / 2) toolHurtBoss(sc, k2, p, TOOL.BOMB_DMG);
+  for (const [b, k2] of bossRefs(sc)) {
+    if (!liveBoss(b)) continue;
+    if (Math.hypot(b.x + b.w / 2 - cx, b.y + b.h / 2 - cy) < R + b.w / 2) toolHurtBoss(sc, k2, p, TOOL.BOMB_DMG);
   }
 }
 
 // ----- нитяной крюк (считает владелец) -----
 function hookCast(sc: World, p: Player, a: { dx: number; dy: number; f: number }): void {
   const cx = p.x + 7, cy = p.y + 13;
-  type Hit = { k: 'tile'; x: number; y: number; tx: number; ty: number; plat: boolean } | { k: 'enemy'; x: number; y: number; e: Enemy } | { k: 'boss'; x: number; y: number; b: Boss; key: BossKey };
+  type Hit = { k: 'tile'; x: number; y: number; tx: number; ty: number; plat: boolean } | { k: 'enemy'; x: number; y: number; e: Enemy } | { k: 'boss'; x: number; y: number; b: Boss; key: BossRef };
   let hit: Hit | null = null, ex = cx + a.dx * TOOL.HOOK_R, ey = cy + a.dy * TOOL.HOOK_R;
-  const bosses = BOSS_FNS.map(([key, k2]) => [sc[key as 'boss' | 'vladik' | 'tima'], k2] as const).filter(([b]) => liveBoss(b)) as [Boss, BossKey][];
+  const bosses = bossRefs(sc).filter(([b]) => liveBoss(b));
   for (let d = 12; d <= TOOL.HOOK_R && !hit; d += 4) {
     const x = cx + a.dx * d, y = cy + a.dy * d, tx = Math.floor(x / T), ty = Math.floor(y / T), t = sc.tileAt(tx, ty);
     if (t === SOLID || t === PLAT) { hit = { k: 'tile', x, y, tx, ty, plat: t === PLAT }; break; }

@@ -1,0 +1,112 @@
+{
+  "id": "dummy",
+  "name": "Манекен-наставник",
+  "about": "Учебный босс каркаса 2.5: жёлтые удары отбиваются, красные — только уворот, фиолетовый не отбивается. После каждой связки есть окно, чтобы ударить.",
+  "arena": "vladik",
+  "size": { "w": 40, "h": 78 },
+  "hp": [24, 34],
+  "color": 9075306,
+  "intro": { "frames": 120, "say": "Смотри внимательно." },
+  "deathFrames": 150,
+  "idle": { "walkSpeed": 60, "keepDist": 90 },
+  "contact": { "dmg": 1, "kind": "dodge" },
+  "attacks": [
+    {
+      "id": "swing", "name": "Взмах",
+      "tell": { "frames": 26, "cue": { "color": "yellow", "sfx": "swing", "pose": "raise" } },
+      "active": [{ "from": 0, "to": 5, "hit": { "x": 6, "y": 14, "w": 72, "h": 56 }, "dmg": 1, "kind": "parry" }],
+      "recovery": { "frames": 32, "punishWindow": { "from": 6, "to": 27 } },
+      "requires": { "dist": [0, 130] }
+    },
+    {
+      "id": "thrust", "name": "Выпад",
+      "tell": { "frames": 24, "lockFace": true, "cue": { "color": "yellow", "sfx": "thrust", "pose": "crouch" } },
+      "move": [{ "from": 0, "to": 11, "vx": 520, "toward": "player" }],
+      "active": [{ "from": 0, "to": 11, "hit": { "x": -4, "y": 24, "w": 56, "h": 40 }, "dmg": 1, "kind": "parry" }],
+      "recovery": { "frames": 38, "punishWindow": { "from": 10, "to": 33 } },
+      "requires": { "dist": [90, 360] }
+    },
+    {
+      "id": "slam", "name": "Удар оземь",
+      "tell": { "frames": 34, "cue": { "color": "red", "sfx": "slam", "pose": "overhead" } },
+      "active": [{ "from": 0, "to": 3, "hit": { "x": -60, "y": 56, "w": 120, "h": 22 }, "dmg": 1, "kind": "dodge" }],
+      "spawn": [
+        { "at": 0, "proj": { "kind": "wave", "w": 24, "h": 18, "life": 150 }, "kind": "dodge", "ox": 30, "oy": 30, "vx": 320 },
+        { "at": 0, "proj": { "kind": "wave", "w": 24, "h": 18, "life": 150 }, "kind": "dodge", "ox": -30, "oy": 30, "vx": -320 }
+      ],
+      "recovery": { "frames": 36, "punishWindow": { "from": 8, "to": 31 } }
+    },
+    {
+      "id": "rain", "name": "Каменный дождь",
+      "tell": { "frames": 36, "cue": { "color": "red", "sfx": "rumble", "pose": "look_up" } },
+      "spawn": [
+        { "at": 0, "proj": { "kind": "rock", "w": 16, "h": 16, "life": 120 }, "kind": "dodge", "from": "target", "oy": -300 },
+        { "at": 14, "proj": { "kind": "rock", "w": 16, "h": 16, "life": 120 }, "kind": "dodge", "from": "target", "ox": -70, "oy": -300 },
+        { "at": 28, "proj": { "kind": "rock", "w": 16, "h": 16, "life": 120 }, "kind": "dodge", "from": "target", "ox": 70, "oy": -300 }
+      ],
+      "recovery": { "frames": 44, "punishWindow": { "from": 16, "to": 39 } },
+      "requires": { "dist": [60, 700] }
+    },
+    {
+      "id": "orb", "name": "Три шара",
+      "tell": { "frames": 28, "cue": { "color": "yellow", "sfx": "whoosh", "pose": "wind_up" } },
+      "spawn": [{ "at": 0, "proj": { "kind": "spore", "w": 12, "h": 12, "life": 180 }, "kind": "parry", "ox": 24, "oy": -10, "vx": 360, "vy": -300, "count": 3, "spread": 16 }],
+      "recovery": { "frames": 36, "punishWindow": { "from": 8, "to": 31 } }
+    },
+    {
+      "id": "crush", "name": "Сокрушение",
+      "tell": { "frames": 44, "lockFace": true, "cue": { "color": "purple", "sfx": "crush", "pose": "overhead_big" } },
+      "active": [{ "from": 0, "to": 7, "hit": { "x": 0, "y": 0, "w": 110, "h": 78 }, "dmg": 2, "kind": "unblockable", "knock": { "vx": 380, "vy": -300 } }],
+      "recovery": { "frames": 56, "punishWindow": { "from": 12, "to": 51 } }
+    },
+    {
+      "id": "dash", "name": "Рывок",
+      "tell": { "frames": 30, "cue": { "color": "red", "sfx": "dash", "pose": "lean" } },
+      "move": [{ "from": 0, "to": 20, "vx": 720, "toward": "player" }],
+      "active": [{ "from": 0, "to": 20, "hit": { "x": -23, "y": 26, "w": 46, "h": 52 }, "dmg": 1, "kind": "dodge" }],
+      "recovery": { "frames": 44, "punishWindow": { "from": 10, "to": 41 } },
+      "requires": { "dist": [150, 800] }
+    },
+    {
+      "id": "shove", "name": "Отталкивание",
+      "tell": { "frames": 30, "cue": { "color": "white", "sfx": "shove", "pose": "brace" } },
+      "active": [{ "from": 0, "to": 3, "hit": { "x": -70, "y": 30, "w": 140, "h": 48 }, "dmg": 1, "kind": "dodge", "knock": { "vx": 420, "vy": -320 } }],
+      "recovery": { "frames": 30, "punishWindow": { "from": 6, "to": 25 } }
+    }
+  ],
+  "chains": [
+    { "id": "c_combo", "steps": [{ "attack": "swing", "gapFrames": 14 }, { "attack": "thrust" }], "weight": 3, "requires": { "dist": [0, 140] } },
+    { "id": "c_lunge", "steps": [{ "attack": "thrust" }], "weight": 3 },
+    { "id": "c_slam_orb", "steps": [{ "attack": "slam", "gapFrames": 20 }, { "attack": "orb" }], "weight": 2 },
+    { "id": "c_rain", "steps": [{ "attack": "rain" }], "weight": 2 },
+    { "id": "c_dash", "steps": [{ "attack": "dash" }], "weight": 2 },
+    { "id": "c_crush", "steps": [{ "attack": "crush" }], "weight": 3, "requires": { "phase": [2], "dist": [0, 220] }, "cooldown": 240 },
+    { "id": "c_shove", "steps": [{ "attack": "shove" }], "weight": 1, "cooldown": 180 },
+    { "id": "c_enter", "steps": [{ "attack": "slam" }], "weight": 1 }
+  ],
+  "phases": [
+    {
+      "fromHp": 1,
+      "policy": {
+        "chains": ["c_combo", "c_lunge", "c_slam_orb", "c_rain", "c_dash"],
+        "noRepeat": 1,
+        "fatigue": { "factor": 0.6, "decay": 600 },
+        "restFrames": [30, 54],
+        "priority": [{ "chain": "c_shove", "closeDist": 70, "closeFrames": 150 }]
+      }
+    },
+    {
+      "fromHp": 0.55,
+      "rageFrames": 80,
+      "scene": { "frames": 90, "skippable": true, "say": "Теперь всерьёз." },
+      "enterChain": "c_enter",
+      "policy": {
+        "chains": ["c_combo", "c_lunge", "c_slam_orb", "c_rain", "c_dash", "c_crush"],
+        "noRepeat": 2,
+        "fatigue": { "factor": 0.6, "decay": 600 },
+        "restFrames": [18, 36],
+        "priority": [{ "chain": "c_shove", "closeDist": 70, "closeFrames": 120 }]
+      }
+    }
+  ]
+}
