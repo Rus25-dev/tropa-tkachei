@@ -1,83 +1,72 @@
-# Перенос разработки на локальную машину
+# Локальная разработка v2 (Windows PowerShell)
 
-## Зачем
-В облачной песочнице у браузера нет видеокарты: игра идёт на 3–8 кадрах в секунду, тесты экранов и спидрана медленные, нет реального звука, WebRTC, геймпада и iPhone. Локально всё это есть.
+Проект на ветке `v2`: **Phaser 4.2.1 + TypeScript (strict) + Vite + Preact**. Старая игра v1.8 лежит в `legacy/` со своими тестами и золотыми записями: пока она эталон поведения. Прежняя инструкция для v1.8 — `docs/LOCAL_SETUP_v1.8.md`.
 
 ## Установка (один раз)
-1. Поставьте: **Git**, **Node.js 20+**, **Python 3.10+**, **Google Chrome**, **Claude Code** (CLI или десктоп-приложение).
-2. Клонируйте и поставьте зависимости:
+1. Поставьте **Git**, **Node.js 22+** (проверено на 24), **Python 3.10+** (нужен только для старой игры: `legacy/build.py`) и **Google Chrome**.
+   ```powershell
+   winget install OpenJS.NodeJS.LTS
+   winget install Git.Git
    ```
+2. Склонируйте и поставьте зависимости:
+   ```powershell
    git clone https://github.com/Rus25-dev/tropa-tkachei.git
    cd tropa-tkachei
-   git checkout main
+   git checkout v2
    npm install
+   npm run legacy:install   # зависимости старой игры (Phaser 3.90, playwright-core, peer)
    ```
-3. Скажите тестам, где Chrome (переменная `CHROME`):
-   - macOS: `export CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"`
-   - Windows (PowerShell): `$env:CHROME="C:\Program Files\Google\Chrome\Application\chrome.exe"`
-   - Linux: `export CHROME=/usr/bin/google-chrome`
-4. Проверка: `npm test` (сборка + быстрые тесты, должно быть «ошибок: 0»).
+3. Скажите тестам, где Chrome (в каждой новой сессии PowerShell или один раз в профиле):
+   ```powershell
+   $env:CHROME = "C:\Program Files\Google\Chrome\Application\chrome.exe"
+   ```
+   Если Chrome не указан, `npm run test:e2e` использует браузер Playwright: `npx playwright install chromium`.
+4. Если PowerShell ругается на профиль («выполнение сценариев отключено»), это не мешает работе; чтобы убрать сообщение: `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
 
-## Windows: практические заметки (проверено на Windows 11)
-- Node.js: `winget install OpenJS.NodeJS.LTS` (путь `C:\Program Files
-odejs` попадает в системный PATH; в уже открытых терминалах — перезапустить).
-- Скрипты `package.json` зовут `python3`: на Windows положите копию `python.exe` под именем `python3.exe` рядом с `python.exe` (она есть в PATH).
-- Playwright использует установленный Chrome (`CHROME`). Дополнительно `npx playwright-core install webkit firefox` даёт WebKit (движок Safari/iPhone) для `tools/devices-shot.js`; Firefox в некоторых средах не стартует.
-- Реальный WebRTC без интернета: `npm run test:real` (поднимает локальный PeerJS-сервер из пакета `peer` и гоняет организатора, двух игроков и обсервера в Chrome). Руками: `npm run peer`, затем страницы с `?peer=localhost:9000`.
-- Не запускайте два набора тестов одновременно: нагрузка даёт ложные падения.
+## Команды
+| Команда | Что делает |
+|---|---|
+| `npm run dev` | сервер разработки http://localhost:5173 (горячая перезагрузка) |
+| `npm run build` | сборка в один `dist/index.html` (его публикует GitHub Pages) |
+| `npm run preview` | показать собранное на http://localhost:4173 |
+| `npm run typecheck` | проверка типов (`tsc`, strict) |
+| `npm run lint` | ESLint; в `src/core/**` запрещены `Math.random`, `Date`, `performance`, таймеры, DOM и Phaser |
+| `npm test` | Vitest (ядро, ввод, раскладка) |
+| `npm run test:e2e` | Playwright Test: экраны, ввод, масштаб на 5 размерах (поднимает `preview` сам, нужна сборка `npm run build`) |
+| `npm run test:full` | линт + типы + Vitest + сборка + e2e + золотые записи v1.8 |
+| `npm run legacy:golden` | золотые записи v1.8 (`tests/golden`) на старой игре |
+| `npm run legacy:test` | полный набор тестов старой игры |
+| `npm run verify` | линт + типы + Vitest + сборка + e2e (локально на видеокарте через установленный Chrome) |
+| `npm run sim`, `bot`, `fuzz`, `replay` | инструменты ядра: симуляция, ИИ-бот, фаззер, воспроизведение записей (README, «Инструменты разработчика») |
 
-## MCP-серверы для Claude Code (подключаются сами)
-В корне лежит `.mcp.json` — Claude Code подключает эти серверы в этом проекте автоматически:
-- **context7** — свежая документация библиотек (Phaser, Vite, PeerJS). Сверяйся с ней, а не пиши по памяти.
-- **playwright** — агент сам проходит игру в браузере, кликает, делает скриншоты.
-- **chrome-devtools** — консоль, производительность, эмуляция телефонов, замедление процессора, утечки памяти.
+Два набора тестов одновременно не запускайте: нагрузка даёт ложные падения.
 
-При первом запуске `claude` в папке проекта он спросит, доверять ли серверам из `.mcp.json` — ответьте «да».
-Проверка: `claude mcp list` (все три — ✓ connected) или команда `/mcp` внутри Claude Code.
-Нужен Node.js 20+ (`npx`). Файл записан для Windows (`cmd /c npx …`); на macOS/Linux замените
-`"command": "cmd", "args": ["/c", "npx", …]` на `"command": "npx", "args": […]`.
-Если какой-то из этих серверов у вас уже подключён глобально под тем же именем, приоритет у локального
-(на уровне проекта) — дублей не будет.
-
-## Ежедневная работа
-- Собрать игру: `npm run build` (создаёт `index.html` и `version.json` из `src/`).
-- Играть: `npm run serve` → http://localhost:8080 (или просто откройте `index.html`).
-- Быстрые тесты после каждой правки: `npm test`. Полный набор перед выкладкой: `npm run test:full`.
-- Таблица баланса ботом: `npm run bot`.
-- Ветки: работайте в отдельной ветке (`claude/…` или `feature/…`), в `main` — через pull request. `index.html` в `main` нужен для GitHub Pages; в рабочих ветках его можно не коммитить (меньше конфликтов), собирайте перед слиянием.
-
-## Что обязательно проверить руками локально (в облаке недоступно)
-1. Звук, плавность, вид эффектов боссов, оружия, инструментов.
-2. Геймпад: DualSense и Steam Deck (режим Gaming: браузер как стороннее приложение, шаблон «Геймпад»).
-3. Реальный WebRTC: два окна/два устройства — кооп, гонка 1×1, затем (с 1.8) «Гонки Ткачей» с организатором и обсервером.
-4. Телефон: iPhone/Android по локальной сети (`npm run serve`, адрес компьютера в сети); Chrome DevTools → эмуляция устройств, замедление процессора ×6/×12, поиск утечек памяти.
-5. Lighthouse и Performance в DevTools.
-
-## ПРОМТ ДЛЯ ЛОКАЛЬНОГО CLAUDE CODE (скопируйте и вставьте)
-
+## Структура
 ```
-Ты продолжаешь разработку игры «Тропа Ткачей» (Phaser 3, кооперативная метроидвания в браузере, GitHub Pages: https://rus25-dev.github.io/tropa-tkachei/). Репозиторий уже склонирован, ты в его корне. Отвечай и комментируй по-русски, стиль кода — как вокруг.
-
-Прочитай: README.md, docs/ROADMAP.md, docs/LOCAL_SETUP.md, build.py (порядок модулей), src/game.js (сцены), src/menu.js, src/loadout.js.
-
-Устройство проекта:
-- Исходники в src/*.js, склеиваются `python3 build.py` в index.html (+ version.json). Новые модули добавляй в список parts в build.py строкой выше "update.js" (по одному на строку).
-- Автотесты в tools/*.js (Playwright + Chrome, переменная CHROME). `npm test` — быстрый набор, `npm run test:full` — полный. Тесты без экрана крутят игру вручную: sc.update(...) / game.step.
-- Логика детерминирована по зерну (src/rng.js: this.rng(), this.rngFor('boss'|'loot'|'enemy')): одно зерно + одинаковый ввод по шагам = одинаковый исход. Не вводи Math.random в игровую логику (в визуальных эффектах можно).
-- Сеть: PeerJS/WebRTC, src/net.js; хост считает мир, гость рисует по снимку (packSnap/applySnap) и событиям (onEv).
-- Версию (GAME_VERSION) и CHANGELOG поднимай в src/game.js при каждом релизе.
-
-Текущее состояние: версия 1.7 (меню игры, пауза-меню, «Как играть», сидируемый ГСЧ). Дальше по плану:
-v1.8 — «Гонки Ткачей»: основа (организатор, 2 игрока, обсерверы, телеметрия 15 Гц, статистика, формат результата) + НАДЁЖНОСТЬ: реконнекты с номерами событий и догонкой, восстановление организатора после перезагрузки, восстановление забега игрока по журналу ввода (перевести смерть/респавн/переходы с delayedCall на счётчики кадров), обсервер не засыпает в скрытом окне;
-v1.9 — Эло, races.json, rating.html, PNG итогов, повтор момента, stream=1/overlay=1, звук обсервера;
-v1.10 — «Тропа целиком» (подсплиты), v1.11 — «Босс-раш», v1.12 — «Дуэль ткачей».
-Полное ТЗ по версиям 1.8–1.12 и сквозные требования (надёжность, восстановление забега по журналу ввода): docs/NEXT_VERSIONS.md.
-
-Что делать СЕЙЧАС, до разработки:
-1. `npm install`, выставить CHROME, `npm run test:full`. Составь список падений (ожидаемо: часть тестов в облаке падала из-за медленной песочницы — speedrun-test, bugs2-test, bugs3-test (кнопки у левши — может быть флейк по таймерам)). Каждое падение воспроизведи, определи: баг игры или хрупкий тест; чини.
-2. Играй сам через Chrome DevTools (скриншоты, консоль, Performance): все экраны меню, пауза, скамья, лавка, снаряжение, карта, каждый босс, спидран, гонка 1×1 в двух окнах. Составь список реальных проблем (звук, плавность, наложения, утечки) в docs/LOCAL_FINDINGS.md и исправь критичные.
-3. Проверь геймпад (если есть DualSense/Deck) по таблице в README и вибрацию.
-4. Затем продолжай по плану с v1.8. Работай этапами: после каждого — тесты, коммит, короткий отчёт мне. Выкладка: pull request в main и слияние, GitHub Pages подхватит.
-
-Правила: не ломай существующие режимы (кампания, босс-тест, спидран, гонка 1×1, кооп), старые сохранения (localStorage tt_*) должны читаться; всё, что создаётся в this.* лениво, сбрасывай в create() — объект сцены переиспользуется; не используй Date.now/Math.random в логике боя.
+src/core/    ядро: правила, физика, боссы, ГСЧ, шаг 1/60 (чистый TS, без Phaser и DOM)
+src/view/    отрисовка на Phaser 4 (читает состояние ядра)
+src/input/   клавиатура, геймпад, касание → InputFrame для ядра
+src/ui/      HTML-интерфейс на Preact поверх холста
+src/net/     сеть (PeerJS/WebRTC)
+data/        параметры боссов, врагов, баланса (JSON)
+levels/      уровни (LDtk)
+tests/       unit (Vitest), e2e (Playwright), golden (золотые записи v1.8), repro
+tools/       бот, фаззер, воспроизведение
+legacy/      игра v1.8 (Phaser 3) с тестами; эталон до релиза v2.0
 ```
+
+## Старая игра (legacy/)
+```powershell
+cd legacy
+npm run build            # python3 build.py → legacy/index.html
+npm test                 # быстрые тесты
+npm run test:full        # полный набор
+npm run golden           # золотые записи (из ../tests/golden)
+npm run peer             # локальный PeerJS-сервер для реальной сети
+npm run test:real        # реальный WebRTC на localhost (организатор, 2 игрока, обсервер)
+```
+`python3` на Windows: положите копию `python.exe` под именем `python3.exe` рядом с `python.exe`.
+
+## MCP-серверы для Claude Code
+В корне лежит `.mcp.json`: Context7 (документация библиотек), Playwright, Chrome DevTools. Проверка: `claude mcp list`.
+Навыки Phaser 4 для агентов — в `.claude/skills/` (16 штук из `phaserjs/phaser/skills`).
