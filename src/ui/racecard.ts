@@ -1,6 +1,8 @@
 // Картинка итогов гонки для Discord: PNG 1200×675 (победитель, время, разница, сплиты, изменение Эло). Рисуется на обычном 2D-холсте.
 import { nkey, type EloChange } from '../core/elo';
 import { fmt, fmtD } from '../core/timefmt';
+import { BOSS_INFO, fmtName } from '../core/duel';
+import { modsText } from '../core/duelmods';
 import { DISC, type RaceResult } from '../net/racecommon';
 import { tagsOf } from '../net/raceprog';
 
@@ -23,10 +25,12 @@ export function drawCard(g: CanvasRenderingContext2D, r: RaceResult, elo?: Recor
   g.fillStyle = '#b9c3d9'; g.font = `500 28px ${FONT}`; g.textAlign = 'right';
   g.fillText(`${DISC[r.discipline]?.name ?? r.discipline} · ${new Date(r.date).toLocaleDateString('ru-RU')}`, CARD_W - 48, 56);
   g.textAlign = 'left';
-  const win = r.winner === 'draw' ? 'Ничья' : r.winner ? `Победил ${r.winner}` : 'Без победителя';
+  const du = r.duel;
+  const win = du?.final && du.seriesWinner ? `Серия: победил ${du.seriesWinner}` : r.winner === 'draw' ? 'Ничья' : r.winner ? (du ? `Раунд: ${r.winner}` : `Победил ${r.winner}`) : du ? 'Раунд: ничья' : 'Без победителя';
   g.fillStyle = '#ffffff'; g.font = `800 64px ${FONT}`;
   g.fillText(fit(g, win, CARD_W - 96), 48, 190);
-  if (r.gap != null && r.winner !== 'draw') { g.fillStyle = '#7fe0a0'; g.font = `700 36px ${FONT}`; g.fillText(`отрыв ${fmtD(Math.abs(r.gap))}`, 48, 250); }
+  if (du) { g.fillStyle = '#7fe0a0'; g.font = `700 34px ${FONT}`; g.fillText(fit(g, `${fmtName(du.fmt)} · раунд ${r.round ?? du.slot + 1} · ${BOSS_INFO[du.boss as keyof typeof BOSS_INFO]?.name ?? du.boss} · счёт ${du.score[0]}:${du.score[1]} · ${modsText(du.mods as never)}`, CARD_W - 96), 48, 250); }
+  else if (r.gap != null && r.winner !== 'draw') { g.fillStyle = '#7fe0a0'; g.font = `700 36px ${FONT}`; g.fillText(`отрыв ${fmtD(Math.abs(r.gap))}`, 48, 250); }
   const n = r.players.length, colW = (CARD_W - 96 - 32 * (n - 1)) / Math.max(1, n);
   r.players.forEach((p, i) => {
     const x = 48 + i * (colW + 32), y = 290, top = p.place === 1 && r.winner !== 'draw';
@@ -34,7 +38,7 @@ export function drawCard(g: CanvasRenderingContext2D, r: RaceResult, elo?: Recor
     g.fillStyle = top ? '#7fe0a0' : '#b9c3d9'; g.font = `700 30px ${FONT}`;
     g.fillText(fit(g, `${p.place}. ${p.name}`, colW - 40), x + 20, y + 38);
     g.fillStyle = '#ffffff'; g.font = `800 72px ${FONT}`;
-    g.fillText(p.dnf ? 'сошёл' : fmt(p.time ?? 0), x + 20, y + 120);
+    g.fillText(p.dnf ? (du ? `снято ${Math.round(100 * (p.duel?.frac ?? 0))} %` : 'сошёл') : fmt(p.time ?? 0), x + 20, y + 120);
     g.font = `500 26px ${FONT}`; g.fillStyle = '#b9c3d9';
     const e = p.eloBefore != null && p.eloAfter != null ? { before: p.eloBefore, after: p.eloAfter } : elo?.[nkey(p.name)];
     if (e) {
@@ -44,7 +48,8 @@ export function drawCard(g: CanvasRenderingContext2D, r: RaceResult, elo?: Recor
       g.fillText(sgn(d), x + colW - 20 - g.measureText(sgn(d)).width, y + 180);
       g.font = `500 26px ${FONT}`; g.fillStyle = '#b9c3d9';
     }
-    p.splits.slice(0, 4).forEach((s, k) => g.fillText(`${tagsOf(r.discipline)[k] ?? k + 1}: ${fmt(s)}`, x + 20, y + 240 + k * 34));
+    if (du) { g.fillText(p.dnf ? 'босс не убит' : 'босс убит', x + 20, y + 240); if (p.duel) g.fillText(`урон боссу ${Math.round(p.duel.dmg)}`, x + 20, y + 274); }
+    else p.splits.slice(0, 4).forEach((s, k) => g.fillText(`${tagsOf(r.discipline)[k] ?? k + 1}: ${fmt(s)}`, x + 20, y + 240 + k * 34));
   });
 }
 /** собрать PNG; null — холст недоступен */

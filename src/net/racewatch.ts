@@ -2,6 +2,7 @@
 // получает состояние комнаты, ленту событий и телеметрию игроков пачками. В игре обсервера нет — картинка рисуется по телеметрии
 // (view/scenes/WatchScene.ts), табло — HTML (ui/races.tsx). Обсервер не засыпает в скрытом окне: состояние обновляется сообщениями, а не кадрами.
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { fracOf } from '../core/duel';
 import { Client } from './client';
 import type { RaceEvent, RaceResult, RoomPlayer, RoomState } from './racecommon';
 import { leadInfo, subLabel } from './raceprog';
@@ -19,6 +20,8 @@ export class RaceWatch {
   replay: { seat: number; frames: TelPoint[]; start: number } | null = null;
   /** одна половина на весь экран (клавиши 1/2): место и время окончания; null — обе половины */
   solo: { seat: number; until: number } | null = null;
+  /** дуэль: график погони — по игроку точки [мс забега, доля снятого здоровья босса ×1000] */
+  chase: Record<number, [number, number][]> = {}; private chaseAt: Record<number, number> = {};
   /** лента заморожена (Space) */
   frozen = false; hideBoard = false;
   /** таблица сплитов (клавиша T) и время, до которого она показана автоматически после сплита */
@@ -32,7 +35,7 @@ export class RaceWatch {
   join(codeIn: string): string | null {
     const code = cleanCode(codeIn); if (code.length < 4) return 'Введите код комнаты.';
     if (this.client) this.client.stop(true);
-    this.feed = []; this.tel = {}; this.hist = {}; this.S = null; this.stats = {}; this.result = null; this.resultLite = null; this.denied = undefined; this.code = code; this.connStatus = 'connecting';
+    this.feed = []; this.tel = {}; this.hist = {}; this.S = null; this.stats = {}; this.result = null; this.resultLite = null; this.denied = undefined; this.code = code; this.connStatus = 'connecting'; this.chase = {}; this.chaseAt = {};
     this.client = new Client({
       code, ns: 'race', key: this.o.key, role: 'watch', name: 'Обсервер', transport: this.o.transport, env: this.env, hello: () => ({ ver: this.o.version, room: code }),
       onWelcome: (w) => this.onWelcome(w), onMsg: (m) => this.onMsg(m), onTel: (t) => this.onTel(t), onStatus: (s, i) => this.onStatus(s, i),
@@ -70,14 +73,16 @@ export class RaceWatch {
     const S = this.S = w['snap'] as RoomState; this.recvAt = this.env.now();
     this.tel = {}; for (const id in (S.tel || {})) this.tel[Number(id)] = { ...S.tel![Number(id)], at: this.env.now() };
     if (w['resync'] || !this.feed.length) this.feed = (S.log || []).slice(-60);
-    this.stats = S.stats || {}; this.result = S.result || null; this.changed();
+    this.stats = S.stats || {}; this.result = S.result || null;
+    this.chase = {}; this.chaseAt = {}; for (const id in (S.chase || {})) { const a = S.chase![Number(id)]!.slice(); this.chase[Number(id)] = a; this.chaseAt[Number(id)] = a.length ? a[a.length - 1]![0] : -1e9; }
+    this.changed();
   }
   private onMsg(m: any): void {
     if (!m || !this.S) return;
     switch (m.k) {
       case 'state': {
         const p = this.S; this.S = { ...p, ...m.s, tel: p.tel, log: p.log, result: p.result }; this.recvAt = this.env.now();
-        if (m.s.phase === 'lobby') { this.result = null; this.stats = {}; this.tel = {}; this.hist = {}; }
+        if (m.s.phase === 'lobby' || m.s.phase === 'veto' || (m.s.phase === 'prep' && p.phase !== 'prep')) { this.result = null; this.stats = {}; this.tel = {}; this.hist = {}; this.chase = {}; this.chaseAt = {}; }
         break;
       }
       case 'ev': this.addEv(m.e); break;
@@ -92,6 +97,9 @@ export class RaceWatch {
     const now = this.env.now();
     for (const o of (t && t.tl) || []) {
       this.tel[o.s] = { ...o, at: now };
+      if (this.S && this.S.disc === 'duel' && this.S.phase === 'run' && o.bs && typeof o.el === 'number' && o.el - (this.chaseAt[o.s] ?? -1e9) >= 250) { // график погони
+        this.chaseAt[o.s] = o.el; const c = (this.chase[o.s] ??= []); c.push([o.el | 0, Math.round(1000 * fracOf(o.bs.hp, o.bs.mh))]); if (c.length > 4800) c.splice(0, c.length - 4800);
+      }
       const h = this.hist[o.s] || (this.hist[o.s] = []); h.push({ ...o, at: now }); while (h.length && now - h[0]!.at > REPLAY_MS) h.shift();
     }
   }

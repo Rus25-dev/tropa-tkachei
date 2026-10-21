@@ -17,6 +17,7 @@ import { RaceOrg } from '../net/raceorg';
 import { RacePlay, type RunBridge } from '../net/raceplay';
 import { RaceWatch } from '../net/racewatch';
 import { cleanCode, type Transport } from '../net/types';
+import { cleanMods } from '../core/duelmods';
 import type { Shared } from '../view/game';
 import type { LaunchParams, RcInfo } from './launch';
 import { violation } from './speedrun';
@@ -168,7 +169,7 @@ export class Races {
     rta: () => { const r = this.run(); return r ? runRta(r) : 0; },
     startRun: (p) => {
       this.view = null; this.setCd('Загрузка…', true);
-      const ses = this.o.start({ kind: p.cat === 'boss' ? 'boss' : 'trail', seed: p.seed, rc: { code: p.code, seat: p.seat, id: p.id, name: p.name } });
+      const ses = this.o.start({ kind: p.cat === 'boss' || p.cat === 'duel' ? 'boss' : 'trail', seed: p.seed, rc: { code: p.code, seat: p.seat, id: p.id, name: p.name, ...(p.cat === 'duel' && p.duel ? { duel: { ch: p.duel.ch, mods: cleanMods(p.duel.mods) } } : {}) } });
       this.hookRun(ses, 'rc'); this.bump();
     },
     countdown: (t) => { if (/^\d$/.test(t)) this.snd('bead'); this.setCd(t); },

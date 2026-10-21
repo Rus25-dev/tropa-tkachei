@@ -12,6 +12,7 @@ import { Snd } from '../view/audio/snd';
 import { Bench, Gear, MapTravel, Pause, Shop, TrainHud, Win, useTick, type WinSummary } from './ingame';
 import { Menu, type MenuCtl } from './menus';
 import { SrHud, SrResultScreen, Friends } from './speedrun';
+import { DuelResultScreen } from './duelplay';
 import { TouchPad } from './TouchPad';
 import { UpdateBanner } from './Update';
 import { anyPanel, initNav, setDevice, topPanel } from './nav';
@@ -133,7 +134,7 @@ export function App({ hub, version, build, start, stop, game, shared, online: ne
         {w.mt.open && <MapTravel ses={s} />}
         {gear && <Gear ses={s} onClose={() => setGear(false)} />}
         {win && !srRes && <Win ses={s} s={win} online={online} onNext={(next) => { setWin(null); s.campGo(next); }} onRetry={retry} onExit={exit} />}
-        {srRes && w.sr && !friends && <SrResultScreen res={srRes} run={w.sr} version={version} onAgain={retry} onMenu={exit} onFriends={() => setFriends(true)} banner={races.banner(srRes, w.sr)} />}
+        {srRes && w.sr && !friends && (w.sr.duel && srRes.duel ? <DuelResultScreen res={srRes} run={w.sr} races={races} onMenu={() => { exit(); races.setView('join'); }} /> : <SrResultScreen res={srRes} run={w.sr} version={version} onAgain={retry} onMenu={exit} onFriends={() => setFriends(true)} banner={races.banner(srRes, w.sr)} />)}
         {srRes && friends && <Friends crumbs={['Забег']} onBack={() => setFriends(false)} last={srRes} version={version} />}
       </>)}
       <div id="rotate" role="alert"><div><div class="ph" /><h3>Поверните телефон</h3><p>Игра идёт в горизонтальном положении. Пауза включена.</p></div></div>

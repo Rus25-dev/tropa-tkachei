@@ -16,6 +16,7 @@ import { campaignSave, campaignSaveName } from './campaign';
 import { poiseAdd } from './bosses2';
 import { areaOf } from './coop';
 import { statParry } from './racestats';
+import { srDuelDefeat } from './speedrun';
 
 // ---------- коробка удара (база) ----------
 export function atkBoxBase(_sc: World, p: Player, W: WeaponDef): Rect {
@@ -122,6 +123,7 @@ export function teamWipe(sc: World): void {
   sc.wiping = true; sc.deaths++;
   for (const p of sc.players) if (!p.remote) p.downed = true;
   if (sc.sr && !sc.sr.done) sc.sr.deaths++; // speedrun.js: счётчик обрывов
+  if (sc.sr?.duel) srDuelDefeat(sc); // дуэль: обрыв нити заканчивает раунд героя
   sc.sendEv({ k: 'wipe' });
   sc.emit('wipe');
   sc.toast('Нить оборвалась…');

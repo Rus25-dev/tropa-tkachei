@@ -6,7 +6,7 @@ import { Music } from '../view/audio/music';
 import { Snd } from '../view/audio/snd';
 
 /** событие ленты → звук синтезатора */
-export const EVENT_SOUND: Record<string, string> = { cd: 'bead', go: 'gate', split: 'coin', death: 'hurt', buy: 'pickup', parry: 'parry', exec: 'exec', phase: 'roar', stun: 'stagger', done: 'bossdie', dnf: 'hurt', pause: 'clink' };
+export const EVENT_SOUND: Record<string, string> = { veto: 'clink', cd: 'bead', go: 'gate', split: 'coin', death: 'hurt', buy: 'pickup', parry: 'parry', exec: 'exec', phase: 'roar', stun: 'stagger', done: 'bossdie', dnf: 'hurt', pause: 'clink' };
 /** ключ босса в телеметрии → трек музыки */
 export const BOSS_TRACK: Record<string, string> = { k: 'boss', m: 'misha', v: 'vladik', t: 'tima' };
 

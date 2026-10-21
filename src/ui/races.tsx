@@ -8,13 +8,16 @@ import type { Races } from '../app/races';
 import { openRating } from '../app/ratinglink';
 import { fixRules, violation } from '../app/speedrun';
 import { rcIds, sr as srStore } from '../app/store';
-import { DISC, mergeNames, racesJson, type RaceEvent, type RaceResult, type RoomPlayer } from '../net/racecommon';
+import { DISC, mergeNames, racesJson, type RaceEvent, type RaceResult, type RoomPlayer, type RoomState } from '../net/racecommon';
+import { BOSS_INFO, fmtName, vetoNow, type DuelBoss } from '../core/duel';
+import { bossName, chaseEnd, chaseLead, modsLine } from '../net/raceduel';
 import { isBoss, stageText, sumOfBest, tagsOf } from '../net/raceprog';
 import { mergeRaces, parseRaces } from '../net/racesfile';
 import { watchBox } from '../view/fit';
 import { useTick } from './ingame';
 import { Panel } from './kit';
 import { copyCard, downloadCard } from './racecard';
+import { BossCards, ChaseChart, DuelSetup, LastRound, ModChips, OrderStrip, PhaseTable, PlanLine, SeriesScore, VetoLog } from './duelui';
 import { BossTable, COL_A, COL_B, Ribbon, SplitsTable } from './racetables';
 
 export function useRaces(r: Races): void {
@@ -38,7 +41,7 @@ function Clock({ get }: { get: () => number }) {
   useTick(200);
   return <>{fmt(get())}</>;
 }
-const PHASE = (S: { phase: string; pause: { on: boolean } }): string => ({ lobby: 'ожидание игроков', prep: 'загрузка у игроков', count: 'отсчёт', run: S.pause.on ? 'ТЕХНИЧЕСКАЯ ПАУЗА' : 'гонка идёт', done: 'гонка окончена' } as Record<string, string>)[S.phase] ?? S.phase;
+const PHASE = (S: { phase: string; pause: { on: boolean } }): string => ({ lobby: 'ожидание игроков', veto: 'бан/пик боссов', prep: 'загрузка у игроков', count: 'отсчёт', run: S.pause.on ? 'ТЕХНИЧЕСКАЯ ПАУЗА' : 'гонка идёт', done: 'гонка окончена' } as Record<string, string>)[S.phase] ?? S.phase;
 
 // ===================== организатор =====================
 export function OrgPanel({ races }: { races: Races }) {
@@ -66,13 +69,18 @@ export function OrgPanel({ races }: { races: Races }) {
         <div data-testid={`org-p${i + 1}-state`}>{ph}</div>
         <div class="lead">{p.online ? `пинг ${p.rtt != null ? Math.round(p.rtt) + ' мс' : '…'}` : 'нет связи'}{t && S.phase === 'run' ? ` · маски ${hp} · смертей ${t['dt']}${p.lost ? ` (потеряно ${(p.lost / 1000).toFixed(1)} с)` : ''}` : ''}{p.restored ? ` · восстановлен ×${p.restored}` : ''}</div>
         {S.phase === 'lobby' && ps.length === 2 && <div class="lead" data-testid={`org-p${i + 1}-chance`}>Эло {ratingOf(eloT, p.name, S.disc).rating} · шанс на победу {winChances(eloT, ps[0]!.name, ps[1]!.name, S.disc)[i]} %</div>}
-        {p.splits.length > 0 && <div class="lead">{p.splits.map((s, k) => `${tagsOf(S.disc)[k]} ${f(s)}`).join(' · ')}</div>}
+        {p.splits.length > 0 && !duel && <div class="lead">{p.splits.map((s, k) => `${tagsOf(S.disc)[k]} ${f(s)}`).join(' · ')}</div>}
       </div>
     );
   };
   const aw = (i: number) => <button type="button" class="btn" id={`rco-aw${i + 1}`} data-testid={`org-aw${i + 1}`} disabled={!(S.phase === 'run' || S.phase === 'count') || !ps[i]} onClick={() => confirmThen(`Присудить победу: ${ps[i]!.name}?`, () => org.award(ps[i]!.id))}>Присудить: {ps[i] ? ps[i]!.name : '—'}</button>;
   const links: [string, string, keyof typeof L][] = [['Игрокам', L.play, 'play'], ['Обсервер', L.watch, 'watch'], ['Для стрима', L.stream, 'stream'], ['OBS (фон прозрачный)', L.overlay, 'overlay']];
   const res = S.result;
+  const duel = S.disc === 'duel', dpub = duel ? org.pub().duel ?? null : null, dplan = duel ? org.duelPlan() : null, dnow = dpub ? vetoNow(dpub.series) : null;
+  const dover = !!dpub && dpub.series.stage === 'over';
+  const startLabel = !duel ? (S.phase === 'prep' ? 'Начать без ожидания' : 'Старт гонки')
+    : S.phase === 'prep' ? 'Начать без ожидания' : !S.duel ? 'Начать серию (бан/пик)' : S.phase === 'veto' ? 'Бан/пик идёт' : `Старт раунда ${dplan?.n ?? ''}`;
+  const startOff = duel ? !((S.phase === 'lobby' && !S.duel && org.canStartSeries()) || (S.phase === 'lobby' && !!S.duel && org.canStart()) || (S.phase === 'prep' && ps.some((p) => p.online))) : !(org.canStart() || (S.phase === 'prep' && ps.some((p) => p.online)));
   return (
     <Panel crumbs={['Гонки Ткачей', 'Организатор']} onBack={() => races.setView(null)} digits={false} hint={{ act: 'нажать' }} label="Организатор гонки" cls="rc">
       <div class="st-page rcp">
@@ -96,28 +104,46 @@ export function OrgPanel({ races }: { races: Races }) {
                 {Object.entries(DISC).map(([id, d]) => <option key={id} value={id} disabled={!d.ready}>{d.name}{d.ready ? '' : ' — ' + d.note}</option>)}
               </select></label>
             <div class="lead" data-testid="org-rules">{DISC[S.disc]?.rules}</div>
-            <div class="lead">Одна гонка — одна дисциплина. Зерно общее: одинаковые враги и бусины у обоих. Зерно: <code>{S.seed}</code> {S.phase === 'lobby' && <button type="button" class="btn ghost" id="rco-seed" onClick={() => org.newSeedNow()}>другое</button>}</div>
+            {duel && <DuelSetup cfg={org.duelCfg()} locked={S.phase !== 'lobby' || !!S.duel} onChange={(c) => org.setDuelCfg(c)} />}
+            <div class="lead">Одна гонка — одна дисциплина. Зерно общее: одинаковые враги и бусины у обоих. Зерно: <code>{S.seed}</code> {S.phase === 'lobby' && !duel && <button type="button" class="btn ghost" id="rco-seed" onClick={() => org.newSeedNow()}>другое</button>}</div>
             <div class="lead">Лёгкий режим и замедление игры игроку запрещены. Версия игры у всех должна быть {races.version}.</div>
           </div>
         </div>
         <div class="rc-grid">{card(0)}{card(1)}</div>
-        {(S.phase === 'run' || S.phase === 'done') && ps.length === 2 && (
+        {duel && dpub && (
+          <div class="rc-box dl-orgbox" data-testid="org-duel-box"><h3>Серия</h3>
+            <SeriesScore d={dpub} /><PlanLine d={dpub} /><OrderStrip d={dpub} />
+            {S.phase === 'veto' && dnow && (<>
+              <div class="lead" data-testid="org-veto-turn">Ходит <b>{dpub.names[dnow.side]}</b>: {dnow.kind === 'ban' ? 'бан' : 'пик'} (ход {dnow.step + 1} из {dnow.of}). Осталось: {dnow.left.map((b) => BOSS_INFO[b].short).join(', ')}.</div>
+              <BossCards series={dpub.series} names={dpub.names} />
+              <div class="row"><button type="button" class="btn" id="rco-autoveto" data-testid="org-autoveto" onClick={() => org.autoVeto()}>Выбрать за {dpub.names[dnow.side]}</button></div>
+            </>)}
+            {S.phase !== 'veto' && dpub.series.stage !== 'veto' && <VetoLog d={dpub} />}
+            <LastRound d={dpub} />
+            {(S.phase === 'run' || S.phase === 'done') && ps.length === 2 && dplan && (<>
+              <ChaseChart names={dpub.names} a={org.chaseData()[dpub.seats[0]]} b={org.chaseData()[dpub.seats[1]]} pa={org.pub().players.find((p) => p.seat === dpub.seats[0])} pb={org.pub().players.find((p) => p.seat === dpub.seats[1])} id="org-duel-chase" />
+              <div class="tbl-wrap"><PhaseTable names={dpub.names} pa={org.pub().players.find((p) => p.seat === dpub.seats[0])} pb={org.pub().players.find((p) => p.seat === dpub.seats[1])} ch={dplan.ch} id="org-duel-phases" /></div>
+            </>)}
+          </div>
+        )}
+        {!duel && (S.phase === 'run' || S.phase === 'done') && ps.length === 2 && (
           <div class="rc-box rc-splits" data-testid="org-splits"><h3>{isBoss(S.disc) ? 'Боссы и подсплиты' : 'Сплиты и подсплиты'}</h3>
             {isBoss(S.disc) && <div class="tbl-wrap"><BossTable disc={S.disc} a={org.pub().players[0]} b={org.pub().players[1]} id="org-boss-table" /></div>}
             <div class="tbl-wrap"><SplitsTable disc={S.disc} a={org.pub().players[0]} b={org.pub().players[1]} mode="full" id="org-splits-table" /></div>
           </div>
         )}
         <div class="rc-actions">
-          <button type="button" class="btn primary" id="rco-start" data-testid="org-start" disabled={!(org.canStart() || (S.phase === 'prep' && ps.some((p) => p.online)))} onClick={() => (S.phase === 'prep' ? org.maybeCount(true) : org.start())}>{S.phase === 'prep' ? 'Начать без ожидания' : 'Старт гонки'}</button>
+          <button type="button" class="btn primary" id="rco-start" data-testid="org-start" disabled={startOff} onClick={() => (S.phase === 'prep' ? org.maybeCount(true) : org.start())}>{startLabel}</button>
+          {duel && S.phase === 'done' && <button type="button" class="btn primary" id="rco-next" data-testid="org-next" onClick={() => org.nextRound()}>{dover ? 'Новая серия' : 'Следующий раунд'}</button>}
           <button type="button" class="btn" id="rco-pause" data-testid="org-pause" disabled={S.phase !== 'run'} onClick={() => org.techPause()}>{S.pause.on ? 'Продолжить гонку' : 'Тех. пауза'}</button>
-          <button type="button" class="btn" id="rco-restart" data-testid="org-restart" disabled={S.phase === 'lobby'} onClick={() => confirmThen('Переиграть: все вернутся в комнату, зерно сменится.', () => org.restart())}>Переиграть</button>
+          <button type="button" class="btn" id="rco-restart" data-testid="org-restart" disabled={S.phase === 'lobby' || (duel && S.phase === 'done')} onClick={() => confirmThen(duel ? (S.phase === 'veto' ? 'Сбросить бан/пик и серию?' : 'Переиграть раунд: счёт серии не меняется, зерно новое.') : 'Переиграть: все вернутся в комнату, зерно сменится.', () => org.restart())}>{duel && S.phase === 'veto' ? 'Сбросить бан/пик' : duel ? 'Переиграть раунд' : 'Переиграть'}</button>
           {aw(0)}{aw(1)}
           <button type="button" class="btn" id="rco-undo" data-testid="org-undo" disabled={!S.acts.length} onClick={() => org.undo()}>Отменить действие</button>
           <button type="button" class="btn ghost" id="rco-cancel" data-testid="org-cancel" disabled={S.phase === 'lobby' || S.phase === 'done'} onClick={() => confirmThen('Отменить гонку без результата?', () => org.cancel())}>Отменить гонку</button>
         </div>
         {S.phase === 'done' && res && (
-          <div class="rc-box" data-testid="org-result"><h3>Итог</h3>
-            {res.players.map((p) => <div key={p.seat}>{p.place}. {p.name} — {p.dnf ? 'не финишировал' : f(p.time ?? 0)}{p.deaths != null ? ` · смертей ${p.deaths}` : ''}</div>)}
+          <div class="rc-box" data-testid="org-result"><h3>Итог{duel && res.round ? ` раунда ${res.round}` : ''}</h3>
+            {res.players.map((p) => <div key={p.seat}>{p.place}. {p.name} — {duel ? (p.dnf ? `босс не убит, снято ${Math.round(100 * (p.duel?.frac ?? 0))} %` : `убил босса за ${f(p.time ?? 0)}`) : p.dnf ? 'не финишировал' : f(p.time ?? 0)}{p.deaths != null ? ` · смертей ${p.deaths}` : ''}</div>)}
             <div class="lead">{res.winner === 'draw' ? 'Ничья' : res.winner ? 'Победитель: ' + res.winner : ''}{res.awarded ? ' (присуждено)' : ''}. Результат записан в архив.</div></div>
         )}
         <div class="rc-box"><h3>Лог</h3>
@@ -160,6 +186,7 @@ export function ArchivePanel({ races }: { races: Races }) {
     setMsg(ok ? (copy ? 'Картинка скопирована в буфер.' : 'Картинка сохранена.') : 'Не удалось получить картинку в этом браузере.');
   };
   const names = [...new Set(arch.flatMap((r) => r.players.map((p) => p.name)))];
+  const sno = new Map<string, number>(); for (const r of arch) if (r.seriesId && !sno.has(r.seriesId)) sno.set(r.seriesId, sno.size + 1);
   const from = a || names[0] || '', to = b || names[0] || '';
   const merge = (): void => {
     if (!from || !to || from === to) { setMsg('Выберите двух разных игроков.'); return; }
@@ -203,8 +230,9 @@ export function ArchivePanel({ races }: { races: Races }) {
           <div class="tbl-wrap"><table data-testid="arch-table">
             <thead><tr><th>Дата</th><th>Дисциплина</th><th>Игроки и время</th><th>Победитель</th><th>Эло</th><th>Картинка</th></tr></thead>
             <tbody>{arch.slice().reverse().map((r: RaceResult) => (
-              <tr key={r.id}><td>{new Date(r.date).toLocaleString('ru-RU')}</td><td>{DISC[r.discipline]?.name ?? r.discipline}</td>
-                <td>{r.players.map((p) => `${p.name} ${p.dnf ? '—' : fmt(p.time ?? 0)}`).join(' · ')}</td><td>{r.winner === 'draw' ? 'ничья' : r.winner ?? '—'}{r.awarded ? ' (присуждено)' : ''}</td>
+              <tr key={r.id} data-series={r.seriesId}><td>{new Date(r.date).toLocaleString('ru-RU')}</td><td>{DISC[r.discipline]?.name ?? r.discipline}{r.duel && <div class="lead" data-testid="arch-duel">Серия №{sno.get(r.seriesId ?? '') ?? '?'} · {fmtName(r.duel.fmt)} · раунд {r.round ?? r.duel.slot + 1} · {bossName(r.duel.boss as DuelBoss)} · {modsLine(r.duel.mods as never)}</div>}</td>
+                <td>{r.players.map((p) => (r.duel ? `${p.name} ${p.dnf ? `босс не убит (${Math.round(100 * (p.duel?.frac ?? 0))} %)` : fmt(p.time ?? 0)}` : `${p.name} ${p.dnf ? '—' : fmt(p.time ?? 0)}`)).join(' · ')}</td>
+                <td>{r.winner === 'draw' ? 'ничья' : r.winner ?? '—'}{r.awarded ? ' (присуждено)' : ''}{r.duel && <div class="lead">счёт {r.duel.score[0]}:{r.duel.score[1]}{r.duel.final ? ` · серия: ${r.duel.seriesWinner}` : ''}</div>}</td>
                 <td>{r.players.map((p) => p.eloBefore != null && p.eloAfter != null ? `${p.eloAfter - p.eloBefore >= 0 ? '+' : '−'}${Math.abs(p.eloAfter - p.eloBefore)}` : '—').join(' / ')}</td>
                 <td><button type="button" class="btn ghost" onClick={() => void card(r, false)}>PNG</button> <button type="button" class="btn ghost" onClick={() => void card(r, true)}>Копировать</button></td></tr>
             ))}</tbody>
@@ -226,7 +254,7 @@ export function JoinPanel({ races }: { races: Races }) {
   const leave = (): void => { races.leavePlay(); };
   const st = play?.state, v = violation();
   const conn = !play ? null : play.status === 'online' ? <span class="good">связь есть</span> : play.status === 'denied' ? <span class="bad">отказ: {play.denied}</span> : <span class="bad">нет связи, пробуем снова…</span>;
-  const ph: Record<string, string> = { lobby: 'ожидание игроков', prep: 'загрузка', count: 'отсчёт', run: 'гонка идёт', done: 'гонка окончена', cancel: 'отменена' };
+  const ph: Record<string, string> = { lobby: 'ожидание игроков', veto: 'бан/пик боссов', prep: 'загрузка', count: 'отсчёт', run: 'гонка идёт', done: 'гонка окончена', cancel: 'отменена' };
   const warn: string[] = [];
   if (v.length) warn.push(`Запрещено в гонке: ${v.join(', ')}.`);
   if (st && st.phase !== 'lobby' && !races.hasRc()) warn.push('Гонка уже идёт без вас: можно только смотреть.');
@@ -250,6 +278,7 @@ export function JoinPanel({ races }: { races: Races }) {
           <div class="rc-form">
             <div data-testid="join-status">Комната <b>{play!.code}</b> · вы: <b>{play!.name}</b> · {conn}{play!.client && play!.client.rtt != null ? ` · пинг ~${Math.round(play!.client.rtt)} мс` : ''}</div>
             {st && <div class="lead" data-testid="join-phase">{st.discName || 'Тропа целиком'} · {ph[st.phase] || st.phase}</div>}
+            {st && st.disc === 'duel' && st.duel && <DuelPlayerBox races={races} />}
             <div data-testid="join-players">{st ? st.players.map((p: RoomPlayer) => <div key={p.seat} class={p.ready ? 'good' : ''}>{p.seat === play!.seat ? '▸ ' : ''}{p.name || '—'}: {!p.online ? 'нет связи' : p.ready ? 'готов' : 'не готов'}</div>) : null}</div>
             {warn.length > 0 && <div class="bad">{warn.join(' ')}</div>}
             <div class="row">
@@ -262,6 +291,29 @@ export function JoinPanel({ races }: { races: Races }) {
         <div class="row"><button type="button" class="btn ghost" id="rcj-back" onClick={() => { if (inRoom) leave(); else races.setView(null); }}>{inRoom ? '← Выйти из комнаты' : '← Назад'}</button></div>
       </div>
     </Panel>
+  );
+}
+
+/** дуэль у игрока: счёт серии, бан/пик (выбор карточки и подтверждение), план раунда */
+function DuelPlayerBox({ races }: { races: Races }) {
+  const play = races.play!, st = play.state!, d = st.duel!;
+  const [sel, setSel] = useState<DuelBoss | null>(null);
+  const now = vetoNow(d.series), side = d.seats.indexOf(play.seat ?? -1), mine = !!now && side === now.side;
+  const verb = now ? (now.kind === 'ban' ? 'забанить' : 'выбрать') : '';
+  const pick = sel && now && now.left.includes(sel) ? sel : null;
+  return (
+    <div class="rc-box dl-playbox" data-testid="duel-box">
+      <SeriesScore d={d} />
+      {st.phase === 'veto' && now ? (<>
+        <div class={mine ? 'dl-turn me' : 'dl-turn'} role="status" data-testid="duel-turn">{mine ? `Ваш ход: ${verb} босса` : `Ходит ${d.names[now.side]}: ${now.kind === 'ban' ? 'бан' : 'пик'}…`} <span class="dim">(ход {now.step + 1} из {now.of})</span></div>
+        <div class="row"><button type="button" class="btn primary" id="rcj-veto" data-testid="duel-confirm" disabled={!mine || !pick} onClick={() => { if (pick) { play.veto(pick); setSel(null); } }}>{pick ? `Подтвердить: ${verb} ${BOSS_INFO[pick].short}` : mine ? `Выберите босса, которого хотите ${verb}` : 'Ждём соперника'}</button></div>
+        <BossCards series={d.series} names={d.names} selected={pick} onSelect={mine ? setSel : undefined} />
+        <VetoLog d={d} />
+      </>) : (<>
+        <PlanLine d={d} /><OrderStrip d={d} /><LastRound d={d} />
+        {st.phase === 'lobby' && d.plan && <div class="lead" data-testid="duel-ready-hint">Нажмите «Готов», когда готовы к раунду {d.plan.n}: {bossName(d.plan.boss)}, {modsLine(d.plan.mods)}.</div>}
+      </>)}
+    </div>
   );
 }
 
@@ -326,11 +378,15 @@ export function WatchView({ races }: { races: Races }) {
   const ps = S.players || [], p1 = ps[0], p2 = ps[1], t1 = p1 && w.tel[p1.seat], t2 = p2 && w.tel[p2.seat], phase = S.phase, now = performance.now();
   const masks = (t: Record<string, number> | undefined): string => (t ? '●'.repeat(Math.max(0, t['hp'] ?? 0)) + '○'.repeat(Math.max(0, (t['mh'] ?? 0) - (t['hp'] ?? 0))) : '');
   const chap = (t: Record<string, any> | undefined, p: RoomPlayer | undefined): string => (!t ? '' : stageText(S.disc, t, p?.subs, !!(p && p.fin))); // eslint-disable-line @typescript-eslint/no-explicit-any
-  const showTbl = (w.splitsOn || now < w.splitsUntil) && phase !== 'lobby' && phase !== 'prep' && phase !== 'count' && !!p1 && !!p2;
-  const lead = w.lead(), clock = w.clockMs();
+  const duel = S.disc === 'duel', dpub = duel ? S.duel ?? null : null;
+  const showTbl = !duel && (w.splitsOn || now < w.splitsUntil) && phase !== 'lobby' && phase !== 'veto' && phase !== 'prep' && phase !== 'count' && !!p1 && !!p2;
+  const lead = duel ? null : w.lead(), clock = w.clockMs();
+  const hpLead = duel && p1 && p2 ? chaseLead(w.chase[p1.seat], w.chase[p2.seat], chaseEnd(w.chase[p1.seat], w.chase[p2.seat])) : 0;
+  const duelSeat = (i: number): RoomPlayer | undefined => (dpub ? ps.find((p) => p.seat === dpub.seats[i]) : undefined);
   const bossName = (k: string): string => ({ k: 'Корнематка', m: 'Миша Додик', v: 'Владик Скрипка', t: 'Тима Пиво' } as Record<string, string>)[k] || 'Босс';
   const res = S.result || w.resultLite;
   const showCards = phase === 'lobby' || phase === 'prep' || phase === 'count';
+  const chart = duel && dpub && dpub.plan && (phase === 'run' || (phase === 'done' && !res)) ? dpub : null;
   const cdText = w.cd && w.cd.n > 0 && now - w.cd.at < 1500 ? String(w.cd.n) : w.cd && w.cd.n === 0 && now - w.cd.at < 900 ? 'ПОШЁЛ!' : '';
   const card = (p: RoomPlayer | undefined) => (
     <div class="rwc"><div class="nm">{p ? p.name : 'Ждём игрока…'}</div>
@@ -347,15 +403,30 @@ export function WatchView({ races }: { races: Races }) {
         </div>
       )}
       <div class="rw-hud" ref={ref}>
-        <div class="mid" data-testid="watch-board" style={w.hideBoard ? { display: 'none' } : undefined}>
+        <div class="mid" data-testid="watch-board" style={w.hideBoard || (duel && phase === 'veto') ? { display: 'none' } : undefined}>
           <div class="names"><div class="a" style={{ color: '#8fe8d2' }}>{p1 ? p1.name : '—'}</div><div class="st">{phase === 'run' ? (S.pause.on ? 'ПАУЗА' : 'гонка') : phase === 'done' ? 'финиш' : ''}</div><div class="b" style={{ color: '#ffc46e' }}>{p2 ? p2.name : '—'}</div></div>
           <div class="tm" data-testid="watch-time">{phase === 'run' || phase === 'done' ? fmt(clock) : phase === 'count' || phase === 'prep' ? 'старт' : '0:00.00'}</div>
-          <div class={`df ${lead && lead.ms < 0 ? 'p' : 'n'}`}>{lead ? (lead.ms === 0 ? '±0.0' : fmtD(lead.ms)) : ' '}</div><div class="st">{lead ? lead.txt : ' '}</div>
+          {duel ? (<><div class={`df ${hpLead > 0 ? 'p' : 'n'}`} data-testid="duel-hplead">{phase === 'run' || phase === 'done' ? (hpLead === 0 ? '±0 %' : `${hpLead > 0 ? '+' : '−'}${Math.abs(Math.round(hpLead))} %`) : ' '}</div><div class="st">{phase === 'run' || phase === 'done' ? 'снято здоровья босса, разница' : ' '}</div></>)
+            : (<><div class={`df ${lead && lead.ms < 0 ? 'p' : 'n'}`}>{lead ? (lead.ms === 0 ? '±0.0' : fmtD(lead.ms)) : ' '}</div><div class="st">{lead ? lead.txt : ' '}</div></>)}
           <div class="names"><div class="a masks">{masks(t1)}</div><div class="st" /><div class="b masks">{masks(t2)}</div></div>
           <div class="stage" data-testid="watch-stage"><div class="a" style={{ color: COL_A }}>{chap(t1, p1)}</div><div class="b" style={{ color: COL_B }}>{chap(t2, p2)}</div></div>
-          {(phase === 'run' || phase === 'done') && <Ribbon disc={S.disc} a={p1} b={p2} ta={t1} tb={t2} />}
+          {duel ? ((phase === 'run' || phase === 'done') && dpub && <div class="dl-strip"><SeriesScore d={dpub} compact /><PlanLine d={dpub} /></div>) : (phase === 'run' || phase === 'done') && <Ribbon disc={S.disc} a={p1} b={p2} ta={t1} tb={t2} />}
         </div>
         {showTbl && !(phase === 'done' && res) && <div class="rt-live" data-testid="watch-splits">{isBoss(S.disc) ? <><BossTable disc={S.disc} a={p1} b={p2} id="watch-boss-table" /><SplitsTable disc={S.disc} a={p1} b={p2} mode="cur" id="watch-splits-table" /></> : <SplitsTable disc={S.disc} a={p1} b={p2} mode="live" id="watch-splits-table" />}</div>}
+        {chart && dpub && (
+          <div class="dl-watch" data-testid="duel-watch">
+            <ChaseChart big names={dpub.names} a={w.chase[dpub.seats[0]]} b={w.chase[dpub.seats[1]]} pa={duelSeat(0)} pb={duelSeat(1)} ch={dpub.plan!.ch} />
+            {w.splitsOn && <PhaseTable names={dpub.names} pa={duelSeat(0)} pb={duelSeat(1)} ch={dpub.plan!.ch} />}
+          </div>
+        )}
+        {phase === 'veto' && dpub && (
+          <div class="dl-vetoscr" data-testid="duel-veto">
+            <h2>Бан/пик боссов · {`Bo${dpub.series.fmt}`}</h2>
+            <div class="turn" data-testid="duel-veto-turn">{(() => { const n = vetoNow(dpub.series); return n ? `Ходит ${dpub.names[n.side]}: ${n.kind === 'ban' ? 'бан' : 'пик'} · ход ${n.step + 1} из ${n.of}` : ''; })()}</div>
+            <BossCards big series={dpub.series} names={dpub.names} />
+            <VetoLog d={dpub} />
+          </div>
+        )}
         {w.replay && <div class="rw-replay" data-testid="watch-replay">ПОВТОР · {w.S?.players?.find((p) => p.seat === w.replay!.seat)?.name}</div>}
         {w.connStatus !== 'online' && <div class="conn">нет связи с организатором, пробуем снова…</div>}
         {(phase === 'run') && !t1 && p1 && <div class="wait" style={{ left: '0px' }}>Ждём данные игрока…</div>}
@@ -369,9 +440,25 @@ export function WatchView({ races }: { races: Races }) {
           <div class="rw-cards">{card(p1)}{card(p2)}</div>
           {cdText && <div class="big">{cdText}</div>}
           <div class="mid sub">{S.discName || 'Тропа целиком'} · комната {w.code}</div>
+          {duel && dpub && <div class="dl-lobbyinfo" data-testid="duel-lobbyinfo"><SeriesScore d={dpub} /><PlanLine d={dpub} /><OrderStrip d={dpub} /><LastRound d={dpub} /></div>}
         </>)}
-        {phase === 'done' && res && (w.splitsOn ? <div class="over full" data-testid="watch-over-splits"><h2>{isBoss(S.disc) ? 'Фазы боссов' : 'Сплиты и подсплиты'}</h2><SplitsTable disc={S.disc} a={p1} b={p2} mode="full" id="watch-splits-full" /></div> : <WatchOver w={w} />)}
+        {phase === 'done' && res && duel && dpub && <DuelOver w={w} d={dpub} a={duelSeat(0)} b={duelSeat(1)} />}
+        {phase === 'done' && res && !duel && (w.splitsOn ? <div class="over full" data-testid="watch-over-splits"><h2>{isBoss(S.disc) ? 'Фазы боссов' : 'Сплиты и подсплиты'}</h2><SplitsTable disc={S.disc} a={p1} b={p2} mode="full" id="watch-splits-full" /></div> : <WatchOver w={w} />)}
       </div>
+    </div>
+  );
+}
+/** итог раунда дуэли на табло: кто и почему победил, счёт серии, график погони и разница к фазам */
+function DuelOver({ w, d, a, b }: { w: NonNullable<Races['watch']>; d: NonNullable<RoomState['duel']>; a?: RoomPlayer; b?: RoomPlayer }) {
+  const l = d.last, over = d.series.stage === 'over';
+  return (
+    <div class="over dl-over" data-testid="duel-over">
+      <h2>{over ? `Серия: победил ${d.names[d.series.winner ?? 0]} ${d.series.score[0]}:${d.series.score[1]}` : l ? (l.winner === 'draw' ? 'Раунд: ничья' : `Раунд ${l.n}: ${d.names[l.winner === 'a' ? 0 : 1]}`) : 'Раунд окончен'}</h2>
+      <SeriesScore d={d} />
+      <LastRound d={d} />
+      <ChaseChart big names={d.names} a={w.chase[d.seats[0]]} b={w.chase[d.seats[1]]} pa={a} pb={b} ch={l ? BOSS_INFO[l.boss].ch : d.plan?.ch} id="duel-over-chase" />
+      <PhaseTable names={d.names} pa={a} pb={b} ch={l ? BOSS_INFO[l.boss].ch : d.plan?.ch ?? 1} id="duel-over-phases" />
+      {!over && d.plan && <div class="dl-next">Дальше: раунд {d.plan.n} · {BOSS_INFO[d.plan.boss].name} · <ModChips mods={d.plan.mods} /></div>}
     </div>
   );
 }

@@ -12,10 +12,11 @@ export const BOSS_NOM = ['Корнематка', 'Миша', 'Владик', 'Т
 const ROMAN = ['I', 'II', 'III', 'IV'];
 
 export const isBoss = (disc: string): boolean => disc === 'boss';
-/** подписи глав/боссов дисциплины для ленты и таблиц */
-export const tagsOf = (disc: string): readonly string[] => (isBoss(disc) ? SR_CATS.boss.tags : SR_CATS.trail.tags);
+export const isDuel = (disc: string): boolean => disc === 'duel';
+/** подписи глав/боссов дисциплины для ленты и таблиц (у дуэли — имена боссов) */
+export const tagsOf = (disc: string): readonly string[] => (isBoss(disc) || isDuel(disc) ? SR_CATS.boss.tags : SR_CATS.trail.tags);
 /** виды подсплитов, которые есть в дисциплине (в босс-раше нет коридора и скамьи), в порядке прохождения */
-export const kindsOf = (disc: string): Kind[] => (isBoss(disc) ? ['fight', 'ph2', 'ph3', 'kill'] : ['exit', 'bench', 'fight', 'ph2', 'ph3', 'kill']);
+export const kindsOf = (disc: string): Kind[] => (isBoss(disc) || isDuel(disc) ? ['fight', 'ph2', 'ph3', 'kill'] : ['exit', 'bench', 'fight', 'ph2', 'ph3', 'kill']);
 /** ключи, по которым считается отрыв: скамья необязательна, поэтому в сравнении гонки не участвует */
 const leadKinds = (disc: string): Kind[] => kindsOf(disc).filter((k) => k !== 'bench');
 export const subKey = (ch: number, k: string): string => `${ch}:${k}`;
@@ -79,6 +80,7 @@ export function ribbonPos(disc: string, p: { subs?: PSub[]; splits?: number[]; f
 /** «Гл. III · бой с Владиком, фаза 2» / «Гл. II · коридор» / «Миша · в лавке» */
 export function stageText(disc: string, t: Record<string, any> | undefined, subs: readonly PSub[] | undefined, fin: boolean): string { // eslint-disable-line @typescript-eslint/no-explicit-any
   if (fin) return 'финиш';
+  const bossy = isBoss(disc) || isDuel(disc);
   if (!t) return '';
   const ch = Math.max(1, Math.min(4, t['ch'] | 0 || 1)), tag = tagsOf(disc)[ch - 1] ?? '';
   const mine = (subs || []).filter((s) => s.ch === ch), has = (k: string): boolean => mine.some((s) => s.k === k);
@@ -86,10 +88,10 @@ export function stageText(disc: string, t: Record<string, any> | undefined, subs
   if (t['sh']) where = 'в лавке';
   else if (t['sit']) where = 'на скамье';
   else if (has('kill')) where = 'босс побеждён';
-  else if (has('fight')) where = `бой${isBoss(disc) ? '' : ' с ' + BOSS_WITH[ch - 1]}${has('ph3') ? ', фаза 3' : has('ph2') ? ', фаза 2' : ''}`;
-  else if (t['st'] === 'arena') where = isBoss(disc) ? 'перед боем' : `перед боем с ${BOSS_WITH[ch - 1]}`;
-  else where = isBoss(disc) ? 'к арене' : ch === 1 ? 'путь к боссу' : 'коридор';
-  return `${isBoss(disc) ? tag : 'Гл. ' + ROMAN[ch - 1]} · ${where}`;
+  else if (has('fight')) where = `бой${bossy ? '' : ' с ' + BOSS_WITH[ch - 1]}${has('ph3') ? ', фаза 3' : has('ph2') ? ', фаза 2' : ''}`;
+  else if (t['st'] === 'arena') where = bossy ? 'перед боем' : `перед боем с ${BOSS_WITH[ch - 1]}`;
+  else where = bossy ? 'к арене' : ch === 1 ? 'путь к боссу' : 'коридор';
+  return `${bossy ? tag : 'Гл. ' + ROMAN[ch - 1]} · ${where}`;
 }
 
 // ----- отрыв по подсплитам -----

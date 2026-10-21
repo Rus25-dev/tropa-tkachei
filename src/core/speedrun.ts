@@ -5,9 +5,12 @@ import { T } from './balance';
 import type { World } from './world';
 import { freshCamp, freshUp, go, snap, type CampState } from './campaign';
 import { statSub, statTick, type StatsData } from './racestats';
+import type { DuelRun } from './duelmods';
 
 export interface Split { rta: number; igt: number }
-export interface SrResult { cat: string; ver: string; rta: number; igt: number; deaths: number; splits: Split[]; taint: string | null; newPb: boolean; pbPrev: unknown }
+/** итог дуэльного раунда: убит ли босс, сколько здоровья у него осталось (hp из mh) и сколько урона нанесено */
+export interface DuelOutcome { kill: boolean; ch: number; hp: number; mh: number; dmg: number }
+export interface SrResult { cat: string; ver: string; rta: number; igt: number; deaths: number; splits: Split[]; taint: string | null; newPb: boolean; pbPrev: unknown; duel?: DuelOutcome }
 export interface SrRun {
   cat: 'trail' | 'boss';
   t0: number | null; end: number | null; igt: number; splits: Split[]; deaths: number; done: boolean; taint: string | null;
@@ -21,16 +24,23 @@ export interface SrRun {
   clock: () => number;
   /** воспроизведение журнала: сплиты берутся из записи, а не из часов воспроизведения */
   replay: { splits: (Split | null | undefined)[]; mem: boolean } | null;
+  /** дуэльный раунд (2.4): один босс и модификаторы; null — обычный забег */
+  duel: DuelRun | null;
 }
 
 export interface RunOpts { seed?: number; rc?: unknown; race?: unknown; ver?: string; clock?: () => number }
+/** дуэль лежит внутри сведений о комнате (rc.duel): так она попадает в журнал и поднимается при восстановлении забега */
+export function duelOf(rc: unknown): DuelRun | null {
+  const d = (rc as { duel?: DuelRun } | null | undefined)?.duel;
+  return d && d.ch >= 1 && d.ch <= 4 && Array.isArray(d.mods) ? { ch: d.ch | 0, mods: d.mods.slice() } : null;
+}
 export function newRun(cat: 'trail' | 'boss', opt: RunOpts = {}): SrRun {
   return { cat, t0: null, end: null, igt: 0, splits: [], deaths: 0, done: false, taint: null, hold: !!opt.race || !!opt.rc, race: opt.race ?? null, rc: opt.rc ?? null, result: null, restored: 0, downMs: 0,
-    ver: opt.ver ?? '', clock: opt.clock ?? (() => 0), replay: null };
+    ver: opt.ver ?? '', clock: opt.clock ?? (() => 0), replay: null, duel: cat === 'boss' ? duelOf(opt.rc) : null };
 }
-/** данные первой сцены забега */
-export function runStartData(cat: 'trail' | 'boss', seed: number): { players: 1; mode: 'story'; camp: CampState; seed: number } {
-  const camp: CampState = cat === 'boss' ? { ch: 1, st: 'level', beads: 0, abil: { double: true }, up: freshUp(), time: 0, deaths: 0 } : freshCamp();
+/** данные первой сцены забега; дуэль — арена одного босса (первый босс — в уровне, как в босс-раше) */
+export function runStartData(cat: 'trail' | 'boss', seed: number, duel?: DuelRun | null): { players: 1; mode: 'story'; camp: CampState; seed: number } {
+  const camp: CampState = cat === 'boss' ? { ch: duel ? duel.ch : 1, st: duel && duel.ch > 1 ? 'arena' : 'level', beads: 0, abil: { double: true }, up: freshUp(), time: 0, deaths: 0 } : freshCamp();
   return { players: 1, mode: 'story', camp, seed: seed >>> 0 };
 }
 
@@ -59,21 +69,35 @@ export function srOnTick(sc: World): void {
 /** сплит на смерти босса текущей главы; последняя глава завершает забег */
 export function srOnSplit(sc: World): void {
   const r = sc.sr; if (!r || r.done || r.t0 == null) return;
-  const i = Math.max(0, (sc.camp ? sc.camp.ch : 1) - 1);
+  const i = r.duel ? 0 : Math.max(0, (sc.camp ? sc.camp.ch : 1) - 1); // в дуэли один сплит: смерть босса раунда
   if (r.splits.length > i) return;
-  if (r.replay && r.replay.splits[i]) { r.splits[i] = { ...r.replay.splits[i]! }; statSub(sc, 'kill'); if (i >= 3 && r.replay.mem) srFinish(sc); return; } // при воспроизведении берём записанное
+  if (r.replay && r.replay.splits[i]) { r.splits[i] = { ...r.replay.splits[i]! }; statSub(sc, 'kill'); if ((i >= 3 || r.duel) && r.replay.mem) srFinish(sc); return; } // при воспроизведении берём записанное
   r.splits[i] = { rta: rta(r), igt: Math.round(r.igt) };
   statSub(sc, 'kill');
   sc.emit('srSplit', { i, split: { ...r.splits[i]! } });
-  if (i >= 3) srFinish(sc);
+  if (i >= 3 || r.duel) srFinish(sc);
+}
+/** здоровье босса сейчас и нанесённый ему урон: итог дуэльного раунда (hp из mh) */
+function duelOutcome(sc: World, kill: boolean): DuelOutcome {
+  const b = sc.testBoss() ?? sc.boss, mh = b && b.maxHp ? b.maxHp : 1, hp = kill ? 0 : Math.max(0, Math.min(mh, b ? b.hp : mh));
+  return { kill, ch: sc.camp ? sc.camp.ch : 1, hp: Math.round(hp * 100) / 100, mh, dmg: Math.round(((sc.sr?.stats?.bossDmg) ?? 0) * 10) / 10 };
 }
 export function srFinish(sc: World): void {
   const r = sc.sr!; r.done = true; r.end = r.clock();
   const t = rta(r); r.splits[r.splits.length - 1]!.rta = t;
   const res: SrResult = { cat: r.cat, ver: r.ver, rta: t, igt: Math.round(r.igt), deaths: r.deaths, splits: r.splits.map((s) => ({ ...s })), taint: r.taint, newPb: false, pbPrev: null };
+  if (r.duel) res.duel = duelOutcome(sc, true);
   r.result = res;
   sc.emit('srFinish', { result: res });
   sc.snd('win');
+}
+/** дуэль: нить оборвалась — раунд героя закончен поражением (босс остаётся с тем здоровьем, что есть); вне дуэли и до «пошёл» ничего не делает */
+export function srDuelDefeat(sc: World): void {
+  const r = sc.sr; if (!r || !r.duel || r.done || r.hold || r.t0 == null) return;
+  r.done = true; r.end = r.clock();
+  const res: SrResult = { cat: r.cat, ver: r.ver, rta: rta(r), igt: Math.round(r.igt), deaths: r.deaths, splits: [], taint: r.taint, newPb: false, pbPrev: null, duel: duelOutcome(sc, false) };
+  r.result = res;
+  sc.emit('srFinish', { result: res });
 }
 /** переход в следующую главу/к следующему боссу без экрана победы */
 export function srAdvance(sc: World): void {

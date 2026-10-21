@@ -1,6 +1,8 @@
 // Модель страницы рейтинга: разбор data/races.json, маршрутизация по хэшу, ряды для графика, профиль игрока, разбор гонки.
 // Только чистые функции (без DOM): их проверяют tests/unit/rating.test.ts. Эло считает computeElo из src/core/elo.ts — единственный источник правды.
 import { ELO_ALL, ELO_START, computeElo, nkey, scoreOf, type EloTables } from '../core/elo';
+import { BOSS_INFO, fmtName } from '../core/duel';
+import { modsText } from '../core/duelmods';
 import { DISC, type RaceResult } from '../net/racecommon';
 import { parseRaces } from '../net/racesfile';
 
@@ -35,6 +37,11 @@ export function readRatingResponse(status: number, text: string): RatingData {
 export const discName = (d: string): string => DISC[d]?.name ?? d;
 /** подписи отрезков (сплитов) по дисциплинам: то же, что SR_CATS.tags в игре; для неизвестных — номера */
 const TAGS: Record<string, string[]> = { trail: ['Гл. I', 'Гл. II', 'Гл. III', 'Гл. IV'], boss: ['Корнематка', 'Миша', 'Владик', 'Тима'] };
+/** подпись раунда дуэли: «Bo3 · раунд 2 · Миша Додик» (для остальных гонок пусто) */
+export const duelLabel = (r: RaceResult): string => (r.duel ? `${fmtName(r.duel.fmt)} · раунд ${r.round ?? r.duel.slot + 1} · ${BOSS_INFO[r.duel.boss as keyof typeof BOSS_INFO]?.name ?? r.duel.boss}` : '');
+export const duelMods = (r: RaceResult): string => (r.duel ? modsText(r.duel.mods as never) : '');
+/** все раунды серии по порядку (пусто, если запись не из серии) */
+export const seriesRounds = (races: readonly RaceResult[], r: RaceResult): RaceResult[] => (r.seriesId ? sortRaces(races.filter((x) => x.seriesId === r.seriesId)).sort((a, b) => (a.round ?? 0) - (b.round ?? 0)) : []);
 export const splitTags = (d: string, n: number): string[] => Array.from({ length: n }, (_, i) => TAGS[d]?.[i] ?? `Отрезок ${i + 1}`);
 /** дисциплины в порядке игры, затем неизвестные из файла */
 export function disciplines(tables: EloTables): string[] {
@@ -102,9 +109,10 @@ export function playerProfile(races: readonly RaceResult[], tables: EloTables, n
   let streak = 0, run = 0, bestGain: Profile['bestGain'] = null, shown = name;
   for (const r of mine) {
     const me = r.players.find((p) => nkey(p.name) === key)!; shown = me.name;
-    const t = timeOf(me);
+    const t = r.discipline === 'duel' ? null : timeOf(me); // время убийства босса в дуэли у разных боссов несравнимо: рекорды только в «Тропе» и «Босс-раше»
     if (t != null && t > 0) { const b = best.get(r.discipline); if (!b || t < b.time) best.set(r.discipline, { disc: r.discipline, time: t, raceId: r.id, date: r.date }); }
-    const win = r.winner != null && r.winner !== 'draw' && nkey(r.winner) === key;
+    if (r.duel && !r.duel.final) continue; // промежуточные раунды серии не считаются партией: серия побед и личные встречи идут по сериям
+    const win = (r.duel ? r.duel.seriesWinner : r.winner) != null && (r.duel ? r.duel.seriesWinner : r.winner) !== 'draw' && nkey((r.duel ? r.duel.seriesWinner : r.winner)!) === key;
     run = win ? run + 1 : 0; streak = Math.max(streak, run);
     const ch = tables.perRace[r.id]?.all[key];
     if (ch && ch.after - ch.before > (bestGain?.delta ?? 0)) bestGain = { delta: ch.after - ch.before, raceId: r.id };
@@ -119,7 +127,7 @@ export function playerProfile(races: readonly RaceResult[], tables: EloTables, n
   const order = disciplines(tables);
   return {
     key, name: shown, scopes, best: [...best.values()].sort((a, b) => order.indexOf(a.disc) - order.indexOf(b.disc)), streak, bestGain,
-    h2h: [...opp.values()].sort((a, b) => b.games - a.games || a.name.localeCompare(b.name)), recent: mine.slice(-10).reverse(), total: mine.length,
+    h2h: [...opp.values()].sort((a, b) => b.games - a.games || a.name.localeCompare(b.name)), recent: mine.slice(-10).reverse(), total: mine.filter((r) => !r.duel || r.duel.final).length,
   };
 }
 
@@ -127,7 +135,7 @@ export function playerProfile(races: readonly RaceResult[], tables: EloTables, n
 /** строка сплитов: накопленное время и время отрезка по игрокам; dCum и dSeg — разница первого и второго (отрицательная — первый быстрее) */
 export interface SplitRow { tag: string; cum: (number | null)[]; seg: (number | null)[]; dCum: number | null; dSeg: number | null }
 export function splitRows(r: RaceResult): SplitRow[] {
-  const n = Math.max(0, ...r.players.map((p) => p.splits.length)), tags = splitTags(r.discipline, n), rows: SplitRow[] = [];
+  const n = Math.max(0, ...r.players.map((p) => p.splits.length)), tags = r.duel ? [BOSS_INFO[r.duel.boss as keyof typeof BOSS_INFO]?.name ?? r.duel.boss] : splitTags(r.discipline, n), rows: SplitRow[] = [];
   const at = (pi: number, i: number): number | null => { const v = r.players[pi]?.splits[i]; return typeof v === 'number' ? v : null; };
   for (let i = 0; i < n; i++) {
     const cum = r.players.map((_, pi) => at(pi, i));

@@ -9,12 +9,20 @@ const row = z.object({
   // необязательные поля 2.2: старые записи без них читаются как раньше
   subs: z.array(z.object({ ch: num, k: z.string(), rta: num }).passthrough()).optional(), lost: num.optional(), deathList: z.array(z.any()).optional(), buys: z.array(z.any()).optional(),
   bosses: z.array(z.object({ ch: num, dmg: num }).passthrough()).optional(),
+  // необязательное поле 2.4: итог игрока в раунде дуэли
+  duel: z.object({ kill: z.boolean(), frac: num, dmg: num }).passthrough().optional(),
+}).passthrough();
+// необязательные поля 2.4: раунд серии дуэли (формат серии, босс, модификаторы, счёт после раунда, победитель серии в последнем раунде)
+const duelRec = z.object({
+  fmt: z.union([z.literal(1), z.literal(3), z.literal(5)]), boss: z.string(), mods: z.array(z.string()), slot: num, why: z.string(), score: z.tuple([num, num]),
+  final: z.boolean().optional(), seriesWinner: z.string().nullable().optional(),
 }).passthrough();
 const race = z.object({
   id: z.string().min(1), date: z.string().min(1), version: z.string(), discipline: z.string().min(1),
   settings: z.object({ cat: z.string(), easy: z.boolean(), speed: num }).passthrough(), seed: num,
   players: z.array(row).min(1).max(2), winner: z.string().nullable(), winnerSeat: z.union([num, z.literal('draw'), z.null()]),
   awarded: z.boolean(), gap: num.nullable(), goAt: num.nullable(), pauseMs: num, events: z.array(z.any()),
+  seriesId: z.string().min(1).optional(), round: num.optional(), duel: duelRec.optional(),
 }).passthrough();
 export const racesFile = z.object({ format: z.literal('tropa-tkachei/races'), version: z.literal(1), game: z.string().optional(), exported: z.string().optional(), races: z.array(race) });
 

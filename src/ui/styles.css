@@ -365,3 +365,63 @@ html.rw-nocursor, html.rw-nocursor body { cursor: none; }
 .rw-hud .feed .sub { color: #cfe8dc; } .rw-hud .feed .lost { color: #ff9a8a; }
 .rcp .rt { width: 100%; border-collapse: collapse; } .rcp .rt td, .rcp .rt th { padding: 4px 8px; text-align: right; } .rcp .rt td:first-child, .rcp .rt th:first-child { text-align: left; } .rcp .rt tr.main td { font-weight: 700; }
 .rw-hud .wait { position: absolute; top: 480px; width: 960px; text-align: center; font-size: 40px; color: #8fb8a8; }
+
+/* ----- «Дуэль ткачей» (2.4): карточки боссов, счёт серии, график погони ----- */
+.dl-cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 560px) { .dl-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.dl-card { display: grid; justify-items: center; align-content: start; gap: 2px; min-width: 0; padding: 8px 6px; border-radius: 10px; border: 2px solid #2c5246; background: #0d1d18; color: var(--bone); text-align: center; cursor: pointer; font: 600 14px/1.2 var(--body); }
+.dl-card:disabled { cursor: default; }
+.dl-card.st-free:not(:disabled):hover { border-color: #5f9a85; background: #12281f; }
+.dl-card.sel { border-color: var(--ember); box-shadow: 0 0 0 2px rgba(255, 212, 122, .4); background: #15291f; }
+.dl-card.st-ban { border-color: #8a3a32; background: #1a0f0e; } .dl-card.st-ban .dl-face { filter: grayscale(1); opacity: .5; } .dl-card.st-ban .nm { text-decoration: line-through; color: #c9948c; }
+.dl-card.st-pick { border-color: var(--sc, #67ad62); background: #10231c; }
+.dl-card.st-decider { border-color: var(--ember); border-style: dashed; }
+.dl-card .nm { font: 700 15px var(--body); overflow-wrap: anywhere; } .dl-card .nt { font-size: 12px; color: var(--dim); }
+.dl-card .bd { font: 800 12px var(--body); letter-spacing: .04em; min-height: 1.2em; color: var(--sc, var(--ember)); }
+.dl-face { display: block; max-width: 100%; height: auto; }
+@media (max-height: 460px) { .dl-card .nt { display: none; } .dl-card .dl-face { width: 44px; height: 44px; } .dl-card { padding: 4px 4px; } }
+.dl-mods { display: inline-flex; flex-wrap: wrap; gap: 4px; vertical-align: middle; }
+.dl-mod { display: inline-block; padding: 1px 9px; border-radius: 99px; background: #143029; border: 1px solid #3a6b5a; font: 600 12px/1.4 var(--body); color: var(--bone); white-space: nowrap; }
+.dl-mod.none { color: var(--dim); border-color: #24433a; background: transparent; }
+.dl-score { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: center; gap: 4px 14px; font: 700 18px var(--body); }
+.dl-score .n { max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dl-score .sc { font: 800 34px/1 var(--body); letter-spacing: .06em; color: var(--ember); } .dl-score .sc i { font-style: normal; }
+.dl-score .fm { flex-basis: 100%; text-align: center; font: 600 13px var(--body); color: var(--dim); }
+.dl-score.compact .sc { font-size: 28px; }
+.dl-plan { text-align: center; font: 600 15px/1.5 var(--body); } .dl-plan b { color: var(--ember); }
+.dl-order { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; list-style: none; margin: 0; padding: 0; }
+.dl-order li { display: grid; text-align: center; min-width: 74px; padding: 3px 10px; border: 1px solid #24433a; border-radius: 8px; font: 600 12px/1.3 var(--body); color: var(--dim); }
+.dl-order li .b { color: var(--bone); font-size: 13px; } .dl-order li.done { background: #10231c; } .dl-order li.cur { border-color: var(--ember); } .dl-order li.cur .w { color: var(--ember); }
+.dl-vlog { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; font: 13px/1.4 var(--body); color: var(--dim); } .dl-vlog b { color: var(--bone); } .dl-vlog li.decider { color: var(--ember); }
+.dl-last { text-align: center; font: 600 14px/1.4 var(--body); } .dl-last b { font-weight: 800; }
+.dl-turn { text-align: center; font: 700 17px/1.4 var(--body); padding: 6px 10px; border-radius: 8px; background: #0f1f19; border: 1px solid #24433a; } .dl-turn.me { background: #1c3a2c; border-color: var(--moss); color: var(--glow); }
+.dl-turn .dim { color: var(--dim); font-weight: 500; font-size: 13px; }
+.dl-setup { display: grid; gap: 8px; } .dl-setup .row { display: flex; flex-wrap: wrap; gap: 8px; }
+.dl-chase { display: grid; gap: 4px; min-width: 0; } .dl-chase svg { display: block; width: 100%; height: auto; background: #08130f; border: 1px solid #24433a; border-radius: 8px; }
+.dl-chase .hd { display: flex; justify-content: space-between; gap: 8px; font: 700 14px var(--body); } .dl-chase .hd .ti { color: var(--dim); font-weight: 500; }
+.dl-chase .ft { text-align: center; font: 600 13px/1.4 var(--body); color: var(--bone); } .dl-chase .ft .ph { color: var(--dim); font-weight: 500; }
+.dl-phases { width: 100%; border-collapse: collapse; font-size: 13px; } .dl-phases th, .dl-phases td { padding: 3px 8px; text-align: right; border-bottom: 1px solid #1d3630; } .dl-phases th:first-child, .dl-phases td:first-child { text-align: left; }
+.dl-phases .g { color: #7ff0a8; } .dl-phases .r { color: #ff8a7a; }
+.dl-orgbox, .dl-playbox { gap: 8px; }
+.srhud.duel .dl-hudmods { color: var(--ember); }
+/* табло обсервера (рабочая область 1920×1080) */
+.rw-hud .dl-strip { width: 100%; display: grid; gap: 0; justify-items: center; }
+.rw-hud .dl-score { font-size: 24px; flex-wrap: nowrap; } .rw-hud .dl-score .sc { font-size: 44px; } .rw-hud .dl-score .fm { flex-basis: auto; font-size: 20px; }
+.rw-hud .dl-score .n { max-width: 230px; }
+.rw-hud .dl-plan { font-size: 22px; line-height: 1.3; } .rw-hud .dl-mod { font-size: 18px; padding: 0 12px; }
+.rw-hud .dl-watch { position: absolute; left: 680px; width: 560px; top: 368px; background: rgba(5, 12, 11, .86); border: 2px solid #2c5246; border-radius: 14px; padding: 8px 12px; display: grid; gap: 6px; }
+.rw-hud .dl-chase .hd { font-size: 22px; } .rw-hud .dl-chase .ft { font-size: 20px; }
+.rw-hud .dl-phases { font-size: 21px; } .rw-hud .dl-phases th, .rw-hud .dl-phases td { padding: 2px 8px; text-align: right; }
+.rw-hud .dl-vetoscr { position: absolute; left: 130px; right: 130px; top: 120px; display: grid; gap: 14px; background: rgba(5, 12, 11, .94); border: 3px solid #3a6b5a; border-radius: 18px; padding: 20px 34px; }
+.rw-hud .dl-vetoscr h2 { margin: 0; text-align: center; font: 800 52px var(--body); } .rw-hud .dl-vetoscr .turn { text-align: center; font: 800 36px var(--body); color: var(--ember); }
+.rw-hud .dl-cards { gap: 22px; } .rw-hud .dl-card { padding: 16px 10px; gap: 6px; border-radius: 16px; font-size: 22px; }
+.rw-hud .dl-card .nm { font-size: 32px; } .rw-hud .dl-card .nt { font-size: 21px; } .rw-hud .dl-card .bd { font-size: 24px; min-height: 1.3em; }
+.rw-hud .dl-vlog { font-size: 24px; grid-template-columns: repeat(2, 1fr); gap: 2px 30px; }
+.rw-hud .dl-lobbyinfo { position: absolute; left: 50%; transform: translateX(-50%); top: 430px; width: 980px; display: grid; gap: 10px; justify-items: center; background: rgba(5, 12, 11, .88); border: 2px solid #2c5246; border-radius: 14px; padding: 12px 24px; }
+.rw-hud .dl-order li { font-size: 20px; min-width: 130px; padding: 4px 14px; } .rw-hud .dl-order li .b { font-size: 24px; }
+.rw-hud .dl-last { font-size: 24px; }
+.rw-hud .dl-over { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 26px; align-items: start; }
+.rw-hud .dl-over > h2, .rw-hud .dl-over > .dl-score, .rw-hud .dl-over > .dl-last, .rw-hud .dl-over > .dl-next { grid-column: 1 / -1; text-align: center; justify-self: center; }
+.rw-hud .dl-over .dl-next { font-size: 24px; }
+
+html.tt-mirror #game canvas { scale: -1 1; }

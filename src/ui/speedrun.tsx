@@ -6,6 +6,7 @@ import type { World } from '../core/world';
 import { boardRows, entryOf, fmt, fmtD, friends, friendsAdd, friendsSave, text, type ResultLike } from '../app/speedrun';
 import { sr as srStore } from '../app/store';
 import { Panel, Item } from './kit';
+import { DuelHud } from './duelplay';
 
 /** Таблица друзей: вставка строк «Скопировать результат», рекорд игрока и последний забег */
 export function Friends({ crumbs, onBack, last, version }: { crumbs: string[]; onBack: () => void; last: (ResultLike & { taint?: string | null }) | null; version?: string }) {
@@ -54,6 +55,7 @@ export function SrHud({ w, cd, rival }: { w: World; cd?: string; rival?: { text:
   const r = w.sr; if (!r) return null;
   if (r.done || r.result) return null;
   const big = cd ? <div class={`srcd ${cd.length > 3 ? 'sm' : ''}`} data-testid="sr-cd" role="status">{cd}</div> : null;
+  if (r.duel) return <>{big}<DuelHud run={r} time={fmt(runRta(r))}>{rival && <div class="srrival" data-testid="sr-rival" style={{ color: rival.col }}>{rival.text}</div>}</DuelHud></>;
   const cat = SR_CATS[r.cat], pb = srStore.rec(r.cat).pb, cur = r.splits.length, time = runRta(r);
   return (
     <>{big}<div class="srhud" data-testid="srhud" aria-live="off">

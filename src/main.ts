@@ -8,7 +8,7 @@ import * as jr from './app/journal';
 import { loadKeys } from './app/keys';
 import { flushRecording } from './app/record';
 import { initWatch } from './app/watch';
-import { srFinish } from './core/speedrun';
+import { srDuelDefeat, srFinish } from './core/speedrun';
 import { settings } from './app/store';
 import { Snd } from './view/audio/snd';
 import { InputHub } from './input/hub';
@@ -43,7 +43,7 @@ function start(p: LaunchParams): Session {
 }
 function stop(): void { flushRecording(shared.session); shared.session = null; game.events.emit('tt:session', null); }
 
-(window as unknown as { __tt?: unknown }).__tt = { game, shared, start, stop, debug: { srFinish } };
+(window as unknown as { __tt?: unknown }).__tt = { game, shared, start, stop, debug: { srFinish, srDuelDefeat } };
 if (new URLSearchParams(location.search).get('dev') === '1') void import('./ui/devtools').then((m) => m.initDev());
 const online = new Online({ version, start });
 const races = new Races({ version, start, stop, shared, game, snd: (n) => Snd.play(n) });
