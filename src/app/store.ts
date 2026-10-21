@@ -83,3 +83,13 @@ export const sr = {
   friends(): string[] { const a = read<unknown>('tt_sr_friends', []); return Array.isArray(a) ? (a as string[]) : []; },
   saveFriends(a: string[]): void { write('tt_sr_friends', a); },
 };
+
+// ----- тренировка босс-теста и выбранное число игроков в меню -----
+export const training = {
+  on: false, phase: 1,
+  load(): void { const o = read<{ on?: boolean; phase?: number }>('tt_train', {}); training.on = !!o.on; training.phase = [1, 2, 3].includes(o.phase ?? 0) ? o.phase! : 1; },
+  save(): void { write('tt_train', { on: training.on, phase: training.phase }); },
+};
+training.load();
+export const menuPlayers = (): 1 | 2 => { try { return localStorage.getItem('tt_players') === '2' ? 2 : 1; } catch { return 1; } };
+export const setMenuPlayers = (n: number): void => { try { localStorage.setItem('tt_players', String(n)); } catch { /* нет доступа */ } };

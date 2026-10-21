@@ -22,8 +22,8 @@ test('игра стартует на WebGL, версия на экране, ме
   page.on('pageerror', (e) => errors.push(e.message));
   await boot(page);
   expect(await page.evaluate(() => window.__tt!.game.renderer.type)).toBe(2); // Phaser.WEBGL
-  await expect(page.getByTestId('version')).toContainText('2.0.0-dev');
-  await expect(page.getByTestId('devmenu')).toBeVisible();
+  await expect(page.getByTestId('menu-version')).toContainText('2.0.0-dev');
+  await expect(page.getByTestId('panel-root')).toBeVisible();
   expect(errors).toEqual([]);
 });
 
@@ -86,10 +86,12 @@ test('касание: кнопка прыжка даёт прыжок, как к
   await ctx.close();
 });
 
-test('«В меню» возвращает на заставку', async ({ page }) => {
+test('пауза → «В главное меню» возвращает на заставку', async ({ page }) => {
   await boot(page); await start(page, { kind: 'bosstest', boss: 'tima' });
   await page.waitForTimeout(300);
-  await page.getByTestId('menu-back').click();
-  await expect(page.getByTestId('devmenu')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('pause-title')).toBeVisible();
+  await page.getByTestId('pause-exit').click();
+  await expect(page.getByTestId('panel-root')).toBeVisible();
   expect(await page.evaluate(() => window.__tt!.shared.session)).toBeNull();
 });

@@ -3,6 +3,7 @@
 import type { Player } from './types';
 import type { World } from './world';
 import { toolCast } from './tools';
+import { applyUp } from './campaign';
 import { WEAPONS } from './weapons';
 
 export const CHARM_SLOTS = 3;
@@ -70,7 +71,8 @@ export function applyLoadout(sc: World, eq: LoadoutState): void {
     if (p.remote) continue;
     p['weaponId'] = eq.weapon; p['toolId'] = eq.tool; p['charms'] = eq.charms.slice(); p['toolCd'] = 0;
   }
-  // charms.js: пересчитать здоровье под обереги (sc.up на момент вызова ещё не создан: пересчёт делает campaignSetup)
+  // charms.js: пересчитать здоровье под обереги (при создании мира sc.up ещё нет: пересчёт делает campaignSetup)
+  if (sc.up) applyUp(sc);
 }
 
 export function useTool(sc: World, p: Player): boolean {

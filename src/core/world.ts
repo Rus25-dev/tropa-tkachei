@@ -25,6 +25,7 @@ import { mapVisit, mapLoad, mapClose, type MapState } from './maptravel';
 import { benchClose } from './coop';
 import { srOnTick, srOnCreate, type SrRun } from './speedrun';
 import { winGame } from './win';
+import { applyPhase, newTrain, trainTick, type TrainState } from './training';
 
 
 export type Mode = 'story' | 'bosstest';
@@ -44,6 +45,8 @@ export interface WorldOpts {
   sr?: SrRun | null;
   /** режим тренировки босс-теста (без убыли здоровья) */
   train?: boolean;
+  /** фаза старта тренировки (1–3) */
+  trainPhase?: number;
   /** карта: посещённые клетки/скамьи из сохранения */
   mapSaved?: { v?: number[]; b?: number[] } | null;
   /** складывать ли события для отрисовки (в симуляциях и тестах выключено) */
@@ -79,7 +82,7 @@ export class World {
   respawn = { x: 0, y: 0 }; repoT = 0; repo = false;
   tickN = 0; acc = 0; tmr: Timer[] = []; slowT = 0; slowDur = 1; hitstop = 0; animT = 0;
   shopOpen = false; shopP: Player | null = null; benchMenuOpen: { p: Player; b: { x: number; y: number } } | null = null;
-  quiet = false; train: Record<string, unknown> | null = null;
+  quiet = false; train: TrainState | null = null;
   fightOn = false; fightT = 0; fightWon = false;
   mapV = new Set<number>(); mapB = new Set<number>(); mapDirty = false; mapSaveT = 0; mt!: MapState;
   bagHits = 0; needleHits = 0; timaHits = 0;
@@ -166,10 +169,11 @@ export class World {
     this.acc = 0; this.tickN = 0; this.tmr = []; this.slowT = 0; this.hitstop = 0; this.paused = false; this.wiping = false; this.won = false; this.animT = 0;
     this.areaIdx = -1;
     this.tl = []; this.tfx = [];
-    this.train = opts.train && this.mode === 'bosstest' ? { t: 0, hits: 0 } : null;
+    this.train = opts.train && this.mode === 'bosstest' ? newTrain(opts.trainPhase ?? 1) : null;
     this.benchMenuOpen = null;
     mapLoad(this, opts.mapSaved ?? null);
     srOnCreate(this); // босс-раш: сразу к арене Корнематки
+    if (this.train) applyPhase(this);
     this.emit('ready');
   }
 
@@ -321,7 +325,7 @@ export class World {
   step(dt: number): void {
     this.stepBase(dt);
     // qol.js: счётчик попыток и таймер боя
-    if (!this.train) this.qolFight(dt);
+    if (!this.train) this.qolFight(dt); else trainTick(this, dt);
     // maptravel.js
     mapVisit(this, dt);
     // tools.js

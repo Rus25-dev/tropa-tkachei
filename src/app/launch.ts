@@ -14,6 +14,9 @@ export interface LaunchParams {
   /** общее зерно (гонка, воспроизведение) */
   seed?: number;
   camp?: CampState | null;
+  /** тренировка босс-теста */
+  train?: boolean;
+  trainPhase?: number;
 }
 
 export const newSeed = (): number => (Math.random() * 4294967296) >>> 0;
@@ -24,7 +27,7 @@ export function createSession(p: LaunchParams, version: string): Session {
   const cfg = { easy: settings.s.easy && p.kind !== 'trail' && p.kind !== 'boss', loadoutSave: loadout.get(), progress: p.kind === 'story' && !p.fresh ? progress.get() : null, ver: version, clock: () => performance.now(), fx: true };
   let first: SceneData;
   let run: { cat: 'trail' | 'boss' } | undefined;
-  if (p.kind === 'bosstest') first = { seed, mode: 'bosstest', boss: p.boss ?? 'misha', players, camp: null };
+  if (p.kind === 'bosstest') first = { seed, mode: 'bosstest', boss: p.boss ?? 'misha', players, camp: null, train: !!p.train, trainPhase: p.trainPhase ?? 1 };
   else if (p.kind === 'trail' || p.kind === 'boss') { first = { seed, mode: 'story', players: 1, camp: null }; run = { cat: p.kind }; }
   else first = { seed, mode: 'story', players, camp: p.camp ?? (p.fresh ? freshCamp() : resumeCamp(cfg.progress)) };
   const s = new Session(cfg, first, run);
