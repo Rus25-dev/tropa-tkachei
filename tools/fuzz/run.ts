@@ -66,6 +66,12 @@ function cheat(ses: Session, id: number, x = 0, y = 0): void {
   f?.(w, x, y);
 }
 
+/** Герой — на выход этапа, на землю у выхода (ex 20): ex 2 из гонок ставит в воздух, над колючками главы I героя возвращает к безопасной точке */
+function exitCheat(ses: Session): void {
+  const e = ses.world.exitR;
+  if (e) cheat(ses, 20, e.x + 4, e.y + e.h - 27);
+}
+
 export function runFuzz(spec: FuzzSpec, opt: { replayCheck?: boolean; trace?: number[]; snap?: (w: World) => string; snaps?: string[]; collect?: Journal[] } = {}): FuzzResult {
   const clock = { ms: 0 };
   const stats: RunStats = { ticks: 0, scenes: 1, uiActs: 0, victories: 0, wipes: 0 };
@@ -131,14 +137,16 @@ export function runFuzz(spec: FuzzSpec, opt: { replayCheck?: boolean; trace?: nu
       if (auto && !w.won && !w.paused && stage !== 'done') {
         if (stage === 'play' && sceneTick >= budget) {
           if (w.L.boss && w.camp?.st === 'level' && !w.bossDead && w.boss.state === 'sleep' && spec.mode !== 'ch1') { cheat(ses, 10); stage = 'fight'; budget = sceneTick + 200 + Math.floor(R() * 1200); }
-          else if (w.camp?.st === 'road') { if (!w.players[0]!.downed && !w.wiping && w.exitR) { cheat(ses, 2); stage = 'leave'; stageAt = sceneTick; } }
+          else if (w.camp?.st === 'road') { if (!w.players[0]!.downed && !w.wiping && w.exitR) { exitCheat(ses); stage = 'leave'; stageAt = sceneTick; } }
           else if (!w.bossDead && (w.testBoss() || w.L.boss)) { cheat(ses, 1); stage = 'dying'; stageAt = sceneTick; }
-          else if (!w.players[0]!.downed && !w.wiping && w.exitR) { cheat(ses, 2); stage = 'leave'; stageAt = sceneTick; }
+          else if (!w.players[0]!.downed && !w.wiping && w.exitR) { exitCheat(ses); stage = 'leave'; stageAt = sceneTick; }
         } else if (stage === 'fight' && sceneTick >= budget) { cheat(ses, 1); stage = 'dying'; stageAt = sceneTick; }
-        else if (stage === 'dying' && w.bossDead && sceneTick >= stageAt + 90 && !w.players[0]!.downed && !w.wiping) { if (w.exitR) { cheat(ses, 2); stage = 'leave'; stageAt = sceneTick; } else stage = 'done'; }
+        else if (stage === 'dying' && w.bossDead && sceneTick >= stageAt + 90 && !w.players[0]!.downed && !w.wiping) { if (w.exitR) { exitCheat(ses); stage = 'leave'; stageAt = sceneTick; } else stage = 'done'; }
         else if (stage === 'dying' && sceneTick - stageAt > 3000 && !w.bossDead) {
           return finish({ invariant: 'transition', message: 'босс не умирает после последнего удара (3000 тиков)', tick: t });
-        } else if (stage === 'leave' && sceneTick - stageAt > 1500 && !w.leaving) {
+        } else if (stage === 'leave' && !w.leaving && !w.won && sceneTick > stageAt && (sceneTick - stageAt) % 90 === 0 && sceneTick - stageAt <= 1350 && !w.players[0]!.downed && !w.wiping) {
+          exitCheat(ses); // герой мог быть в хвате за уступ: хват возвращает его на место, поэтому перенос повторяется
+        } else if (stage === 'leave' && sceneTick - stageAt > 1500 && !w.leaving && !w.won) {
           return finish({ invariant: 'transition', message: `выход не сработал за 1500 тиков (сцена ${w.camp ? w.camp.ch + '/' + w.camp.st : w.mode})`, tick: t });
         }
       }

@@ -20,6 +20,8 @@ export interface Finding {
   message: string;
   /** номер тика забега (все сцены подряд), на котором нарушение замечено */
   tick: number;
+  /** уточнение класса находки (входит в её ключ): например solid у напарника — след поводка v1.8 */
+  cls?: string;
 }
 
 const CHECK_EVERY = 15;
@@ -65,7 +67,11 @@ export class Monitor {
       if (p.downed || p.remote) { this.solidRun[i] = 0; continue; }
       if (p.hp < 0 || p.hp > p.maxHp + 1e-9 || p.silk < -1e-9 || p.silk > w.silkMax + 1e-9) return f('range', `герой ${i}: hp=${p.hp}/${p.maxHp} silk=${p.silk}/${w.silkMax}`);
       if (w.solidRect({ x: p.x + 1, y: p.y + 1, w: p.w - 2, h: p.h - 2 })) {
-        if (++this.solidRun[i]! > SOLID_GRACE) return f('solid', `герой ${i} внутри тайла: x=${p.x.toFixed(1)} y=${p.y.toFixed(1)} (${this.solidRun[i]} тиков подряд)`);
+        if (++this.solidRun[i]! > SOLID_GRACE) {
+          // «поводок» v1.8 ставит отставшего напарника рядом с ведущим, не глядя на стены: отдельный класс
+          const near = w.players.some((q, k) => k !== i && !q.downed && Math.abs(q.x - p.x) <= 24 && Math.abs(q.y - p.y) <= 2);
+          return { ...f('solid', `герой ${i} внутри тайла${near ? ' рядом с напарником (поводок)' : ''}: x=${p.x.toFixed(1)} y=${p.y.toFixed(1)} (${this.solidRun[i]} тиков подряд)`), ...(near ? { cls: 'leash' } : {}) };
+        }
       } else this.solidRun[i] = 0;
       const L = w.L;
       if (p.x < -200 || p.x > L.W * 32 + 200 || p.y > L.H * 32 + 400 || p.y < -600) return f('outside', `герой ${i} вне уровня: x=${p.x.toFixed(0)} y=${p.y.toFixed(0)}`);

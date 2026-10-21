@@ -10,7 +10,7 @@ import type { Finding } from './invariants';
 import { scanJournal } from './scan';
 
 /** «класс» находки: по нему определяется, что воспроизвелась та же ошибка */
-export const findingKey = (f: Finding): string => f.invariant + (f.invariant === 'exception' ? ':' + f.message : '');
+export const findingKey = (f: Finding): string => f.invariant + (f.cls ? ':' + f.cls : '') + (f.invariant === 'exception' ? ':' + f.message : '');
 
 const expand = (seg: JournalSeg): number[] => { const out: number[] = []; for (let i = 0; i < seg.rle.length; i += 2) for (let k = 0; k < seg.rle[i + 1]!; k++) out.push(seg.rle[i]!); return out; };
 const compress = (vals: number[]): number[] => { const r: number[] = []; for (const v of vals) { const L = r.length; if (L && r[L - 2] === v) r[L - 1]!++; else r.push(v, 1); } return r; };

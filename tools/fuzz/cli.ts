@@ -7,7 +7,8 @@ import { availableParallelism } from 'node:os';
 import { Worker } from 'node:worker_threads';
 import pkg from '../../package.json' with { type: 'json' };
 import { INVARIANTS } from './invariants';
-import { makeRepro, reproName, saveRepro } from './repro';
+import { findingKey } from './minimize';
+import { loadRepros, makeRepro, reproName, saveRepro } from './repro';
 import { MODES, makeSpec, type ModeId } from './spec';
 import type { WorkResult } from './worker';
 
@@ -22,6 +23,9 @@ if (only) for (const m of only) if (!MODES.includes(m)) { console.error(`Неи�
 const save = !flag('no-save'), maxPerKey = +(opt('per-key', '2')!), budget = +(opt('minimize-ms', '45000')!);
 const stopOnFinding = flag('stop-on-finding');
 
+// особенности v1.8, уже разобранные и записанные в tests/repro со статусом known: их повтор не считается находкой
+const knownKeys = new Set(loadRepros().filter((x) => x.rep.repro.status === 'known').map((x) => x.rep.repro.key));
+let knownHits = 0;
 console.log(`Фаззер: ${seconds} с, зерно ${seed}, воркеров ${workersN}${only ? ', режимы: ' + only.join(',') : ''}`);
 const t0 = performance.now();
 let next = 0, done = 0, ticks = 0, scenes = 0, ui = 0, victories = 0, stopping = false;
@@ -35,6 +39,7 @@ let lastReport = 0;
 function onResult(w: Worker, r: WorkResult): void {
   done++; ticks += r.stats.ticks; scenes += r.stats.scenes; ui += r.stats.uiActs; victories += r.stats.victories;
   const m = perMode.get(r.spec.mode) ?? { runs: 0, ticks: 0, findings: 0 }; m.runs++; m.ticks += r.stats.ticks; perMode.set(r.spec.mode, m);
+  if (r.finding && knownKeys.has(findingKey(r.finding))) { knownHits++; r.finding = null; }
   if (r.finding) {
     m.findings++;
     const key = r.spec.mode + '|' + r.finding.invariant + '|' + r.finding.message.replace(/[-\d.]+/g, '#').slice(0, 80);
@@ -83,6 +88,7 @@ function summary(): void {
   console.log(`\nИтого: ${s.toFixed(0)} с, прогонов ${done}, тиков ${ticks} (${(ticks / 3600 / 60).toFixed(1)} ч игрового времени, ×${(ticks / 60 / s).toFixed(0)}), сцен ${scenes}, действий интерфейса ${ui}, побед ${victories}`);
   console.log('Режим                 прогонов   игровых минут   находок');
   for (const m of MODES) { const x = perMode.get(m); if (x) console.log(`${m.padEnd(20)} ${String(x.runs).padStart(9)} ${(x.ticks / 3600).toFixed(1).padStart(15)} ${String(x.findings).padStart(9)}`); }
+  if (knownHits) console.log(`Известных особенностей v1.8 (tests/repro, status known) встречено: ${knownHits}`);
   console.log(found.length ? `\nНаходок (уникальных): ${found.length}${save ? ' — записи в tests/repro/' : ''}` : '\nНаходок нет.');
   process.exitCode = found.length ? 1 : 0;
   clearInterval(watchdog);
