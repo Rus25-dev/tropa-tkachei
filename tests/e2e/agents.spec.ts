@@ -1,4 +1,5 @@
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
+import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import './tt';
 
@@ -6,6 +7,8 @@ import './tt';
 // на локальном PeerJS — без участия человека. Запуск локально (нужен пак public/agents/tkachi.json и `npm run build`).
 const require = createRequire(import.meta.url);
 const PORT = 9158;
+// веса нейросети лежат только локально (public/agents/ в .gitignore): без них (например, в CI) тесты агентов пропускаются
+test.skip(!existsSync('public/agents/tkachi.json'), 'нет локальных весов public/agents/tkachi.json');
 let server: { close?: () => void } | null = null;
 test.beforeAll(() => { const { PeerServer } = require('peer') as { PeerServer: (o: { port: number; path: string }) => { close?: () => void } }; server = PeerServer({ port: PORT, path: '/' }); });
 test.afterAll(() => { server?.close?.(); });
