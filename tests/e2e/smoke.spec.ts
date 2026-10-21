@@ -42,7 +42,8 @@ for (const [name, p] of [
     await boot(page); await start(page, p);
     await page.waitForTimeout(500);
     const a = await st(page); await page.waitForTimeout(1000); const b = await st(page);
-    expect(b.tick - a.tick).toBeGreaterThan(40);
+    // на CI кадры идут программно (SwiftShader) и редко, а длина кадра для логики ограничена 100 мс: тут проверяем лишь, что мир живёт; точный темп 60 тиков — в юнит-тестах
+    expect(b.tick - a.tick).toBeGreaterThan(15);
     expect(b.tick - a.tick).toBeLessThan(80);
     expect(errors).toEqual([]);
   });
