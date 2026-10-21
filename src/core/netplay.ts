@@ -285,3 +285,12 @@ export function guestProjHits(w: World): void {
   } finally { w.projs = w.projs.concat(keep); }
 }
 void SLASH_KINDS; void (undefined as unknown as Level);
+
+/** напарник пропал: хост продолжает один; если некому поднять героя в коконе — нить обрывается */
+export function partnerLost(w: World): void {
+  if (w.online !== 'host') return;
+  w.players = w.players.filter((p) => !p.remote);
+  w.online = null; w.nPlayers = 1;
+  w.toast('Связь с напарником потеряна. Игра продолжается в одиночку');
+  if (w.players.length && w.players.every((p) => p.downed)) w.teamWipe();
+}

@@ -3,7 +3,7 @@
 import { SHOP } from './balance';
 import { benchClose, benchPick, type BenchEntry } from './coop';
 import { benchRest } from './combat';
-import { buy, go as campaignGo, openShop, type CampState } from './campaign';
+import { buy, go as campaignGo, openShop, snap as campSnap, type CampState } from './campaign';
 import { TickClock } from './clock';
 import type { Inp, FxEvent } from './types';
 import { CHK, enc, EBITS, BITS, hash1, hash2, type Act, type Journal, type JournalSeg, tickValue } from './journal';
@@ -27,6 +27,15 @@ export interface SessionCfg {
   clock: () => number;
   /** нужны ли мирам события для отрисовки */
   fx: boolean;
+  /** сетевая игра вдвоём: роль этой сессии */
+  online?: 'host' | 'guest' | null;
+}
+/** Сетевой порт сессии (его даёт слой net/): события ядра напарнику и такт отправки поз и снимков */
+export interface NetPort {
+  sendEv(o: Record<string, unknown>): void;
+  tick(dtSec: number): void;
+  /** мир сменился (глава → арена): сбросить накопленное */
+  sceneChanged?(): void;
 }
 export type SceneData = Pick<WorldOpts, 'seed' | 'mode' | 'boss' | 'players' | 'camp' | 'train' | 'trainPhase'>;
 
@@ -65,6 +74,8 @@ export class Session {
   readonly on: Record<string, ((e: FxEvent, s: Session) => void)[]> = {};
   /** сколько сцен прошло в этой сессии (глава → арена → …) */
   scenes = 0;
+  /** сетевой порт; null — игра без сети */
+  net: NetPort | null = null;
 
   constructor(public cfg: SessionCfg, first: SceneData, run?: { cat: 'trail' | 'boss'; opt?: RunOpts }) {
     if (run) {
@@ -77,7 +88,7 @@ export class Session {
   }
 
   private spawn(data: SceneData): void {
-    this.world = new World({ ...data, easy: this.cfg.easy, loadoutSave: this.cfg.loadoutSave, progress: this.cfg.progress, sr: this.sr, fx: this.cfg.fx });
+    this.world = new World({ ...data, easy: this.cfg.easy, loadoutSave: this.cfg.loadoutSave, progress: this.cfg.progress, sr: this.sr, fx: this.cfg.fx, online: this.cfg.online ?? null });
     this.scenes++;
     if (this.rec && this.world.nPlayers === 1) this.rec.begin(this.world);
   }
@@ -95,7 +106,8 @@ export class Session {
     if (frozen) inputs = inputs.map(() => emptyFrame());
     // ввод с фронтами нажатий (накапливаются в p.pend до ближайшего тика)
     for (const p of w.players) {
-      const f = inputs[p.i] ?? inputs[0]; if (!f) continue;
+      if (p.remote) continue; // напарник по сети управляется своим состоянием через сообщения
+      const f = (w.online ? inputs[0] : inputs[p.i] ?? inputs[0]); if (!f) continue;
       const r = f.buttons as Inp, pd = p.pend, e = f.edges;
       pd.jumpP ||= e.jumpP; pd.atkP ||= e.atkP; pd.dashP ||= e.dashP; pd.healP ||= e.healP; pd.upP ||= e.upP; pd.bombP ||= e.bombP; pd.toolP ||= e.toolP;
       p.raw = { ...r }; p.prev = p.raw;
@@ -106,6 +118,7 @@ export class Session {
       this.world.tick();
     }
     this.afterTicks();
+    this.net?.tick(deltaMs / 1000 * w.slowK());
     return n;
   }
   /** множитель скорости времени из настроек доступности (Access.speed); 1 в забеге */
@@ -118,19 +131,21 @@ export class Session {
   afterTicks(): void {
     const w = this.world;
     if (w.fxq.length) {
-      for (const e of w.fxq) { this.dispatch(e); if (this.cfg.fx) this.fxq.push(e); }
+      for (const e of w.fxq) { this.dispatch(e); if (this.cfg.fx && e.k !== 'nev') this.fxq.push(e); }
       w.fxq.length = 0;
     }
     if (w.next) {
       const data = w.next; w.next = null;
       this.spawn({ seed: data.seed, mode: data.mode, boss: data.boss, players: data.players, camp: data.camp });
       this.dispatch({ k: 'scene' });
+      this.net?.sceneChanged?.();
     }
   }
   private dispatch(e: FxEvent): void {
     // внутренние события журнала
     if (e.k === 'srSplit' && this.rec) { this.rec.J.splits[e['i'] as number] = e['split'] as { rta: number; igt: number }; this.rec.dirty = true; }
     if (e.k === 'save') this.cfg.progress = e['progress'] as Progress;
+    if (e.k === 'nev') this.net?.sendEv(e['o'] as Record<string, unknown>);
     if (e.k === 'srFinish') this.dispatch({ k: 'runDone' });
     const hs = this.on[e.k]; if (hs) for (const h of hs) h(e, this);
   }
@@ -159,6 +174,12 @@ export class Session {
   campGo(camp: CampState): void { campaignGo(this.world, camp); }
   /** «Заново»: та же сцена с тем же зерном (в забеге спидрана перезапуск делает приложение) */
   retry(): void { if (this.sr) return; this.spawn({ ...this.world.startData } as SceneData); this.dispatch({ k: 'scene' }); }
+  /** напарник вернулся, пока хост доигрывал один: та же сцена парой (прогресс главы — из снимка) */
+  rejoinPair(): void {
+    const w = this.world; this.cfg.online = 'host';
+    this.spawn({ seed: w.seed, mode: w.startData.mode, boss: w.startData.boss, players: 2, camp: w.camp ? campSnap(w) : null });
+    this.dispatch({ k: 'scene' }); this.net?.sceneChanged?.();
+  }
   /** тренировка: сбросить босса (клавиша Y) */
   trainReset(): void { if (this.world.train) resetBoss(this.world); }
   techPause(on: boolean): void { this.rec?.act('tp', on ? 1 : 0); srTechPause(this.world, on); }

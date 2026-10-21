@@ -64,6 +64,8 @@ export class World {
   online: 'host' | 'guest' | null; localIdx: number; ping: number | null = null;
   /** у гостя: показана ли полоса босса (по снимкам) */
   _vb = false; _tb = false; _mb = false; _bb = false;
+  /** по сети пауза — только окно (мир идёт) */
+  uiPause = false;
   startData: WorldOpts; camp: CampState | null = null; sr: SrRun | null;
   progress: Progress | null;
   // ----- ГСЧ -----
@@ -294,6 +296,12 @@ export class World {
   /** Один тик логики. Ввод берётся из p.raw (удержание) и p.pend (фронты нажатий, пришедшие с прошлого тика); журнал пишет именно их. */
   tick(): void {
     this.tickN++;
+    // по сети мир идёт: удар, обрыв нити или победа закрывают меню скамьи и карту (Game.update / MapTravel.tick v1.8)
+    if (this.online) {
+      const bm = this.benchMenuOpen;
+      if (bm && (this.won || this.wiping || bm.p.downed || bm.p.hp <= 0 || bm.p.hurtT > 0)) benchClose(this);
+      if (this.mt.open) { const lp = this.players.find((q) => !q.remote); if (this.won || this.wiping || (lp && (lp.downed || lp.hurtT > 0))) mapClose(this); }
+    }
     if (this.slowT > 0) this.slowT -= STEP;
     const k = this.slowK(), dt = STEP * k;
     this.animT += dt;
@@ -404,6 +412,7 @@ export class World {
     if (this.mt.open) { mapClose(this); return; }
     if (this.mt.busy) return;
     if (this.won || this.shopOpen) return;
+    if (this.online) { this.uiPause = !this.uiPause; this.emit('pause', { on: this.uiPause }); return; } // по сети мир не останавливается
     this.paused = !this.paused;
     this.emit('pause', { on: this.paused });
   }
