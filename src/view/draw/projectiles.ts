@@ -253,7 +253,7 @@ function drawToolEntities(w: World, fx: G, now: number): void {
 
 /** шкала стойкости над боссом: видна, только пока стойкость копится или босс оглушён */
 export function drawPoiseBars(w: World, fx: G, now: number): void {
-  for (const [b, dy, wd] of [[w.boss, -24, 76], [w.vladik, -28, 70], [w.tima, -13, 70]] as const) {
+  for (const [b, dy, wd] of [[w.boss, -24, 76], [w.vladik, -28, 70], [w.tima, -13, 70], ...w.bosses.map((db) => [db, -20, 70] as const)] as const) {
     if (!b || ['dead', 'gone', 'sleep', 'intro'].includes(b.state) || b.y < -50) continue;
     const pz = b['poise'] || 0, sg = b.stagger || 0;
     if (pz <= 0 && sg <= 0) continue;
@@ -273,7 +273,7 @@ export function drawPoiseBars(w: World, fx: G, now: number): void {
 
 /** цветная вуаль статусов на цели и значки над головой */
 export function drawStatus(w: World, g: G, now: number, spawn: (col: number, x: number, y: number) => void): void {
-  for (const t of [...w.enemies, w.boss, w.vladik, w.tima] as (Q | null)[]) {
+  for (const t of [...w.enemies, w.boss, w.vladik, w.tima, ...w.bosses] as (Q | null)[]) {
     if (!t || t['dead'] || t['w'] < 2) continue;
     const s = t['status']; if (!s) continue;
     let m = 0; for (const k in s) if (s[k]) m |= STATUS_KINDS[k as keyof typeof STATUS_KINDS].bit;
