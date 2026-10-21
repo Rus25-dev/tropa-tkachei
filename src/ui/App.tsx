@@ -10,6 +10,7 @@ import { Bench, Gear, MapTravel, Pause, Shop, TrainHud, Win, useTick, type WinSu
 import { Menu, type MenuCtl } from './menus';
 import { SrHud, SrResultScreen, Friends } from './speedrun';
 import { TouchPad } from './TouchPad';
+import { UpdateBanner } from './Update';
 import { anyPanel, initNav, setDevice, topPanel } from './nav';
 import { useDevice } from './kit';
 
@@ -122,6 +123,7 @@ export function App({ hub, version, build, start, stop, game, shared, extra }: P
       </>)}
       <div id="rotate" role="alert"><div><div class="ph" /><h3>Поверните телефон</h3><p>Игра идёт в горизонтальном положении. Пауза включена.</p></div></div>
       <IosTip />
+      <UpdateBanner build={build} />
     </>
   );
 }

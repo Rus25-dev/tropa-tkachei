@@ -266,3 +266,7 @@ html.lefty #touch .t-heal { left: 98px; } html.lefty #touch .t-tool { left: 166p
 }
 @media (max-width: 760px) and (min-aspect-ratio: 5/4) { .scr { grid-template-columns: minmax(0, 40fr) minmax(0, 60fr); } }
 @media (max-height: 460px) { .pause-in { width: min(740px, 100%); } .pause-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } .pause-t { font-size: 26px; } .modal-in { padding: 10px 12px; } }
+
+/* плашка обновления */
+#update { position: fixed; z-index: 25; left: 50%; transform: translateX(-50%); top: calc(var(--st) + 10px); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: center; max-width: calc(100vw - 32px); background: var(--panel); border: 1px solid #3a6b5a; border-radius: 10px; padding: 8px 10px 8px 14px; box-shadow: 0 6px 30px rgba(0, 0, 0, .5); font: 13px var(--body); color: var(--bone); }
+#update .btn { min-height: 44px; }

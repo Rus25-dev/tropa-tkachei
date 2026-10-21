@@ -238,3 +238,23 @@ test('итог забега: время, сплиты, рекорд записа
   await page.locator('#sr-menu').click();
   await expect(page.getByTestId('panel-root')).toBeVisible();
 });
+
+test('поворот телефона: меню не пропадает, в игре включается пауза и «Поверните телефон»', async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 667, height: 375 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 });
+  const page = await ctx.newPage();
+  await boot(page);
+  // меню: поворот туда и обратно не прячет его
+  await page.setViewportSize({ width: 375, height: 667 });
+  await expect(page.locator('#rotate')).toBeVisible();
+  await page.setViewportSize({ width: 667, height: 375 });
+  await expect(page.locator('#rotate')).toBeHidden();
+  await expect(page.getByTestId('m-campaign')).toBeVisible();
+  // игра: поворот в портрет ставит паузу
+  await page.evaluate(() => window.__tt!.start({ kind: 'story', fresh: true }));
+  await page.waitForTimeout(800);
+  await page.setViewportSize({ width: 375, height: 667 });
+  await page.waitForTimeout(300);
+  await page.setViewportSize({ width: 667, height: 375 });
+  await expect(page.getByTestId('pause-title')).toBeVisible();
+  await ctx.close();
+});
