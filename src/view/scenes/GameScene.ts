@@ -264,6 +264,11 @@ export class GameScene extends Phaser.Scene {
     for (const e of s.fxq) {
       switch (e.k) {
         case 'snd': Snd.play(e['n'] as string); break;
+        case 'trainHit': { // тренировка: здоровье не убывает, но удар виден «-1»
+          const t = this.add.text(e['x'] as number, e['y'] as number, '-' + (e['n'] as number), { fontFamily: DISPLAY, fontSize: '26px', fontStyle: '700', color: '#ff8a7a', stroke: '#1a1410', strokeThickness: 5 }).setOrigin(0.5).setDepth(8.8);
+          this.tweens.add({ targets: t, y: t.y - 46, alpha: 0, duration: 800, ease: 'Cubic.easeOut', onComplete: () => t.destroy() });
+          break;
+        }
         case 'burst': case 'parts': this.parts.setParticleTint(e['c'] as number); this.parts.explode(Math.max(1, Math.round((e['n'] as number) * this.gov.particleMul)), e['x'] as number, e['y'] as number); break;
         case 'dust': this.dustE.explode(e['n'] as number, e['x'] as number, e['y'] as number); break;
         case 'smoke': this.smoke?.explode(e['n'] as number, e['x'] as number, e['y'] as number); break;
