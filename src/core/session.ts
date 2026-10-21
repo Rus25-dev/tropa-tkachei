@@ -3,13 +3,14 @@
 import { SHOP } from './balance';
 import { benchClose, benchPick, type BenchEntry } from './coop';
 import { benchRest } from './combat';
-import { buy, openShop } from './campaign';
+import { buy, go as campaignGo, openShop, type CampState } from './campaign';
 import { TickClock } from './clock';
 import type { Inp, FxEvent } from './types';
 import { CHK, enc, EBITS, BITS, hash1, hash2, type Act, type Journal, type JournalSeg, tickValue } from './journal';
 import { mapClose, mapGo, mapMove, mapShow } from './maptravel';
 import { newRun, runStartData, srRelease, srTechPause, type RunOpts, type SrRun } from './speedrun';
 import { World, type WorldOpts } from './world';
+import { resetBoss } from './training';
 import type { LoadoutSave } from './loadout';
 import type { Progress } from './campaign';
 import { BUTTONS, emptyFrame, type InputFrame } from './input';
@@ -27,7 +28,7 @@ export interface SessionCfg {
   /** нужны ли мирам события для отрисовки */
   fx: boolean;
 }
-export type SceneData = Pick<WorldOpts, 'seed' | 'mode' | 'boss' | 'players' | 'camp'>;
+export type SceneData = Pick<WorldOpts, 'seed' | 'mode' | 'boss' | 'players' | 'camp' | 'train' | 'trainPhase'>;
 
 /** Журнал забега: запись ввода по тикам и действий интерфейса (legacy/src/journal.js: rec, act, segBegin) */
 export class Recorder {
@@ -154,6 +155,12 @@ export class Session {
   mapClose(): void { this.act('mc', [0, 0, 0], () => mapClose(this.world)); }
   mapMove(d: number): void { this.act('mm', [d, 0, 0], () => mapMove(this.world, d)); }
   mapGo(): void { const w = this.world; this.act('mg', [w.mt.sel, 0, 0], () => mapGo(w)); }
+  /** экран победы главы: перейти к следующему этапу */
+  campGo(camp: CampState): void { campaignGo(this.world, camp); }
+  /** «Заново»: та же сцена с тем же зерном (в забеге спидрана перезапуск делает приложение) */
+  retry(): void { if (this.sr) return; this.spawn({ ...this.world.startData } as SceneData); this.dispatch({ k: 'scene' }); }
+  /** тренировка: сбросить босса (клавиша Y) */
+  trainReset(): void { if (this.world.train) resetBoss(this.world); }
   techPause(on: boolean): void { this.rec?.act('tp', on ? 1 : 0); srTechPause(this.world, on); }
   release(): void { const r = this.sr; if (r && r.hold) this.rec?.act('rel'); srRelease(this.world); }
   /** тик для тестов и симуляций: один тик с заданным вводом */

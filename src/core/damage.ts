@@ -105,6 +105,6 @@ function hurtPlayerTraining(sc: World, p: Player, dmg: number, srcX: number | nu
   const before = p.hp; p.hp = before + 99;
   hurtPlayerBase(sc, p, dmg, srcX, spike);
   const taken = before + 99 - p.hp; p.hp = before;
-  if (taken > 0) { (sc.train['hits'] as number)++; sc.emit('trainHit', { x: p.x + 7, y: p.y - 6, n: taken }); }
+  if (taken > 0) { sc.train.hits++; sc.emit('trainHit', { x: p.x + 7, y: p.y - 6, n: taken }); }
 }
 export { bossKey };

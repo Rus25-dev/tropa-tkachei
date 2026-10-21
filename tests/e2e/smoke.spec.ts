@@ -1,12 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 
+import './tt';
+
 // Игра v2 на Phaser 4 (WebGL): запуск, режимы, ввод, масштаб в родном разрешении, сенсорное управление.
-interface TT {
-  game: { renderer: { type: number }; canvas: HTMLCanvasElement; scene: { isActive(k: string): boolean }; loop: { actualFps: number } };
-  shared: { session: { world: { tickN: number; players: { x: number; y: number; hp: number; vy: number; onGround: boolean }[]; won: boolean } } | null };
-  start(p: unknown): void; stop(): void;
-}
-declare global { interface Window { __tt?: TT } }
 
 // Качество «низкое»: на CI графика идёт программно (SwiftShader), свечение и цветокоррекция роняют кадры ниже 10 в секунду, и тики логики (кадр ≤ 100 мс) отстают
 async function boot(page: Page, url = '/'): Promise<void> {
@@ -14,6 +10,9 @@ async function boot(page: Page, url = '/'): Promise<void> {
   await page.goto(url);
   await page.waitForFunction(() => !!window.__tt && window.__tt.game.scene.isActive('game'));
 }
+// Самая сильная отдача вверх за время наблюдения: на CI кадры редкие (5 в секунду), мгновенное vy можно «проскочить»
+const watchJump = (page: Page) => page.evaluate(() => { const w = window.__tt!.shared.session!.world, o = { min: 0 }; (window as unknown as { __jv: typeof o }).__jv = o; const id = setInterval(() => { o.min = Math.min(o.min, w['players'][0].vy); }, 5); setTimeout(() => clearInterval(id), 4000); });
+const jumpMin = (page: Page) => page.evaluate(() => (window as unknown as { __jv: { min: number } }).__jv.min);
 const start = (page: Page, p: object) => page.evaluate((x) => window.__tt!.start(x), p);
 const st = (page: Page) => page.evaluate(() => { const w = window.__tt!.shared.session!.world; return { tick: w.tickN, x: w.players[0]!.x, y: w.players[0]!.y, vy: w.players[0]!.vy, g: w.players[0]!.onGround, hp: w.players[0]!.hp }; });
 
@@ -22,8 +21,8 @@ test('игра стартует на WebGL, версия на экране, ме
   page.on('pageerror', (e) => errors.push(e.message));
   await boot(page);
   expect(await page.evaluate(() => window.__tt!.game.renderer.type)).toBe(2); // Phaser.WEBGL
-  await expect(page.getByTestId('version')).toContainText('2.0.0-dev');
-  await expect(page.getByTestId('devmenu')).toBeVisible();
+  await expect(page.getByTestId('menu-version')).toContainText('2.0.0-dev');
+  await expect(page.getByTestId('panel-root')).toBeVisible();
   expect(errors).toEqual([]);
 });
 
@@ -55,9 +54,10 @@ test('клавиатура: бег и прыжок', async ({ page }) => {
   const x0 = (await st(page)).x;
   await page.keyboard.down('KeyD'); await page.waitForTimeout(600); await page.keyboard.up('KeyD');
   expect((await st(page)).x).toBeGreaterThan(x0 + 80);
-  await page.keyboard.press('Space');
-  await page.waitForTimeout(120);
-  expect((await st(page)).vy).toBeLessThan(0);
+  await watchJump(page);
+  await page.keyboard.down('Space'); await page.waitForTimeout(500); await page.keyboard.up('Space');
+  await page.waitForTimeout(1200);
+  expect(await jumpMin(page)).toBeLessThan(0);
 });
 
 test('родное разрешение: холст = размер окна × devicePixelRatio, поле целиком на экране', async ({ browser }) => {
@@ -80,17 +80,21 @@ test('касание: кнопка прыжка даёт прыжок, как к
   await boot(page, '/?touch=1'); await start(page, { kind: 'story', fresh: true });
   await expect(page.getByTestId('touchpad')).toBeVisible();
   await page.waitForTimeout(600);
+  await watchJump(page);
   await page.locator('[data-btn=jump]').dispatchEvent('pointerdown', { pointerId: 1, isPrimary: true });
-  await page.waitForTimeout(100);
+  await page.waitForTimeout(500);
   await page.locator('[data-btn=jump]').dispatchEvent('pointerup', { pointerId: 1, isPrimary: true });
-  expect((await st(page)).vy).toBeLessThan(0);
+  await page.waitForTimeout(1200);
+  expect(await jumpMin(page)).toBeLessThan(0);
   await ctx.close();
 });
 
-test('«В меню» возвращает на заставку', async ({ page }) => {
+test('пауза → «В главное меню» возвращает на заставку', async ({ page }) => {
   await boot(page); await start(page, { kind: 'bosstest', boss: 'tima' });
   await page.waitForTimeout(300);
-  await page.getByTestId('menu-back').click();
-  await expect(page.getByTestId('devmenu')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('pause-title')).toBeVisible();
+  await page.getByTestId('pause-exit').click();
+  await expect(page.getByTestId('panel-root')).toBeVisible();
   expect(await page.evaluate(() => window.__tt!.shared.session)).toBeNull();
 });
