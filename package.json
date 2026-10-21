@@ -25,7 +25,10 @@
     "replay": "tsx --import ./tools/ldtk-register.mjs tools/replay.ts",
     "sim": "tsx --import ./tools/ldtk-register.mjs tools/sim.ts",
     "levels:export": "tsx tools/ldtk-export.ts",
-    "levels:check": "tsx tools/levels-check.ts"
+    "levels:check": "tsx tools/levels-check.ts",
+    "rl:env": "tsx --import ./tools/ldtk-register.mjs tools/rl/server.ts",
+    "rl:eval": "tsx --import ./tools/ldtk-register.mjs tools/rl/agent-eval.ts",
+    "rl:train": "ml/.venv-rl/Scripts/python.exe ml/rl/train.py"
   },
   "dependencies": {
     "idb-keyval": "6.3.0",

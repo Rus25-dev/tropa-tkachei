@@ -7,10 +7,10 @@ export type Phase = 'lobby' | 'prep' | 'count' | 'run' | 'done';
 export const norm = (n: string): string => String(n || '').toLowerCase().replace(/\s+/g, '');
 
 export interface DiscDef { name: string; ready: boolean; note?: string }
-/** дисциплины: пока готова одна — «Тропа целиком» (остальные в версиях 2.3 и 2.4 по docs/V2_PROMPT.md) */
+/** дисциплины: «Тропа целиком» и «Босс-раш» (четыре босса подряд; забег игрока уже умеет обе категории); «Дуэль ткачей» — в версии 2.4 */
 export const DISC: Record<string, DiscDef> = {
   trail: { name: 'Тропа целиком', ready: true },
-  boss: { name: 'Босс-раш', ready: false, note: 'в версии 2.3' },
+  boss: { name: 'Босс-раш', ready: true },
   duel: { name: 'Дуэль ткачей', ready: false, note: 'в версии 2.4' },
 };
 

@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><title>Тропа Ткачей — обучение нейросети</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root{--bg:#0b1412;--card:#12201c;--line:#24403a;--fg:#e4eee8;--mut:#86a79a;--a:#67ad62;--b:#e8b04a;--c:#5aa7d6;--d:#d9685a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.4 "Segoe UI",system-ui,sans-serif}
+header{display:flex;gap:14px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+h1{font-size:17px;margin:0;font-weight:600}select,button{background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:5px 10px;font:inherit;cursor:pointer}
+button:hover{border-color:var(--a)}button.on{background:#1e3a30;border-color:var(--a)}
+.kpis{display:flex;gap:18px;flex-wrap:wrap;margin-left:auto}.kpi b{display:block;font-size:18px}.kpi span{color:var(--mut);font-size:12px}
+main{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:12px;padding:12px}
+@media(max-width:1100px){main{grid-template-columns:1fr}}
+.charts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.card h3{margin:0 0 4px;font-size:13px;font-weight:600;color:var(--mut)}canvas{width:100%;height:150px;display:block}
+.leg{font-size:12px;color:var(--mut);display:flex;gap:10px;flex-wrap:wrap}.leg i{display:inline-block;width:10px;height:3px;margin-right:4px;vertical-align:middle}
+#game{width:100%;aspect-ratio:16/9;border:1px solid var(--line);border-radius:8px;background:#000}
+.bar{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+table{border-collapse:collapse;width:100%;font-size:12.5px}th,td{padding:3px 6px;border-bottom:1px solid var(--line);text-align:right}th:first-child,td:first-child{text-align:left}th{color:var(--mut);font-weight:500}
+.ok{color:var(--a)}.bad{color:var(--d)}.note{color:var(--mut);font-size:12px}
+.prog{margin:12px 12px 0;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 16px}
+.prog h2{margin:0 0 4px;font-size:19px}.prog .seq{color:var(--mut);margin-bottom:10px}
+.qrow{display:grid;grid-template-columns:minmax(210px,1.2fr) 120px minmax(160px,1.4fr) 1.6fr;gap:10px;align-items:center;padding:5px 0;border-top:1px solid var(--line);font-size:15px}
+.st{font-weight:600}.st.done{color:var(--a)}.st.run{color:var(--b)}.st.wait{color:var(--mut)}
+.pb{height:12px;background:#0b1412;border:1px solid var(--line);border-radius:6px;overflow:hidden}.pb i{display:block;height:100%;background:var(--b)}
+.cur{margin-top:10px;padding:10px 12px;background:#0f1b18;border-radius:8px;font-size:15px;line-height:1.6}.cur b{color:var(--fg)}
+.help{cursor:help;border-bottom:1px dotted var(--mut)}
+@media(max-width:900px){.qrow{grid-template-columns:1fr 1fr}}
+.rb{margin:12px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 16px;display:none}
+.rb.on{display:block}.rb h2{margin:0 0 6px;font-size:19px}
+.rbtop{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
+.rb details{margin:4px 0 8px;color:var(--mut);font-size:13px}.rb summary{cursor:pointer}
+.watchwrap{display:flex;justify-content:center}
+.watch{height:clamp(240px,calc(100vh - 520px),720px);aspect-ratio:16/9;max-width:100%;border:1px solid var(--line);border-radius:8px;background:#000;display:block}
+.cap{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:8px auto 0}.cap div{background:#0f1b18;border-radius:8px;padding:6px 10px;font-size:15px}
+.rstat{font-size:16px;margin:8px 0;text-align:center}.rstat b{color:var(--b)}
+.diag{margin:8px 0;padding:8px 12px;background:#0f1b18;border:1px solid var(--line);border-radius:8px;font-size:14px;line-height:1.7}
+.diag .ok{color:var(--a)}.diag .wt{color:var(--b)}.diag .bad{color:var(--d);font-weight:600}
+.part{margin-top:10px}.part h3{margin:0 0 6px;font-size:15px;color:var(--mut)}
+.minis{display:grid;grid-template-columns:repeat(3,minmax(360px,1fr));gap:10px;overflow-x:auto}
+.mini{background:#0f1b18;border:1px solid var(--line);border-radius:8px;padding:6px;min-width:360px}
+.mini iframe{width:100%;height:220px;border:0;background:#000;border-radius:4px;display:block}.mini div{font-size:13px;color:var(--mut);margin-top:3px}
+</style></head><body>
+<header>
+<h1>Тропа Ткачей · обучение нейросети-игрока</h1>
+<select id="run"></select>
+<span id="status" class="note">подключение…</span>
+<div class="kpis" id="kpis"></div>
+</header>
+<section class="rb" id="racebox"><h2>Гонка Ткачей: две нейросети (полная гонка на локальном PeerJS)</h2>
+<div class="rbtop">
+ <label>Дисциплина <select id="rdisc"><option value="boss">Босс-раш — четыре босса подряд</option><option value="trail" disabled>Тропа целиком — агенты пока не проходят дистанцию</option></select></label>
+ <label>Игрок 1 <select id="rp1"></select></label><label>Игрок 2 <select id="rp2"></select></label>
+ <button id="ragain">Ещё гонка (новое зерно)</button><button id="rrestart">Перезапустить все окна</button><button id="rclose">Закрыть</button>
+</div>
+<details><summary>Как это устроено и чего нет</summary>Организатор запускается сам (комната, ожидание двух игроков, «Готов», старт, отсчёт). Крупно показан обсервер: две равные половины, табло и лента. «Тропа целиком» недоступна: модели обучены боям с боссами, пробегать уровни агенты не умеют, поэтому гонка идёт в «Босс-раше». Выбор отдельного босса и скорость просмотра движок гонок не поддерживает (скорость игры у всех одна, 1×). Окна участников ниже должны оставаться на экране: браузер замедляет окна, которых не видно.</details>
+<div class="rstat" id="rstat">…</div>
+<div class="diag" id="rdiag"></div>
+<div class="watchwrap"><iframe class="watch" id="fwatch" allow="autoplay"></iframe></div>
+<div class="cap"><div id="cap1"></div><div id="cap2"></div></div>
+<div class="part"><h3>Окна участников (игроки играют сами; организатор — автомат)</h3>
+<div class="minis"><div class="mini"><iframe id="forg"></iframe><div>Организатор (автомат)</div></div><div class="mini"><iframe id="fp1" allow="autoplay"></iframe><div id="lp1">Игрок 1</div></div><div class="mini"><iframe id="fp2" allow="autoplay"></iframe><div id="lp2">Игрок 2</div></div></div></div>
+</section>
+<section class="prog" id="prog"><h2>Прогресс обучения</h2>
+<div class="seq">Боссы обучаются <b>по очереди, один за другим, не параллельно</b>: у каждого запуска свой лимит времени и своё условие остановки.</div>
+<div id="queue"></div><div class="cur" id="curbox">загрузка…</div></section>
+<main>
+<section class="charts" id="charts"></section>
+<section>
+ <div class="card"><h3>Агент играет (настоящая игра, запись боя текущей политикой)</h3>
+  <iframe id="game" allow="autoplay"></iframe>
+  <div class="bar">
+   <button data-d="latest">Последний бой</button><button data-d="best">Лучший бой</button><button data-d="round_best">Лучший из круга</button>
+   <button id="now">Показательный бой сейчас</button><button id="race">Запустить гонку двух агентов</button>
+  </div>
+  <div class="note" id="demoinfo">Запись обновляется после каждого круга оценки; бой идёт со скоростью игры (60 тиков/с).</div>
+  <div class="note" id="raceinfo"></div>
+ </div>
+ <div class="card" style="margin-top:10px"><h3>Круги оценки <span class="help" title="Круг оценки — серия показательных боёв текущей версии нейросети на одних и тех же зёрнах (15 боёв, зёрна те же, что у бота мастерства 0,6) плюс один демо-бой, который записывается и показывается справа. Круг проходит каждые --eval-every секунд обучения; обучение на это время приостанавливается.">(что это?)</span></h3><div style="max-height:220px;overflow:auto"><table id="evals"></table></div></div>
+ <div class="card" style="margin-top:10px"><h3>Нейросеть против эвристического бота (таблица tools/bot, 200 боёв, 95% интервал Уилсона)</h3><table id="base"></table><div class="note" id="basenote"></div></div>
+</section>
+</main>
+<script>
+const $=s=>document.querySelector(s);
+let run=null, M=[], E=[], cfg={}, base=null, es=null, demo='latest', lastDemoKey='';
+const COL=['#67ad62','#e8b04a','#5aa7d6','#d9685a'];
+const CH=[
+ {t:'Награда эпизода',s:[['ep_ret','награда',0]]},
+ {t:'Доля побед',s:[['win','обучение (300 боёв)',0],['ev:win_rate','оценка',1]],pct:1,ymax:1},
+ {t:'Здоровье босса к концу боя / потеря нити',s:[['boss_frac','доля HP босса',0],['hp_lost','потеря HP героя',1]]},
+ {t:'Длительность боя, с',s:[['ep_sec','обучение',0],['ev:mean_sec','оценка',1]]},
+ {t:'Потери',s:[['pi_loss','политика',0],['v_loss','критик',1]]},
+ {t:'Энтропия и KL',s:[['entropy','энтропия',0],['kl','KL ×100',1,100]]},
+ {t:'Шагов среды в секунду',s:[['sps','шагов/с',0]]},
+ {t:'Видеокарта: загрузка % и память ГБ',s:[['gpu_util','GPU %',0],['gpu_mem_mb','память ГБ',1,1/1024]],ymax:100}];
+$('#charts').innerHTML=CH.map((c,i)=>`<div class="card"><h3>${c.t}</h3><canvas id="c${i}" width="520" height="300"></canvas><div class="leg">${c.s.map((s,j)=>`<span><i style="background:${COL[s[2]]}"></i>${s[1]}</span>`).join('')}</div></div>`).join('');
+function ema(a,k){let o=[],m=null;for(const v of a){if(v==null){o.push(null);continue}m=m==null?v:m+(v-m)*k;o.push(m)}return o}
+function draw(i){const c=CH[i],cv=$('#c'+i),g=cv.getContext('2d'),W=cv.width,H=cv.height,pl=44,pb=22;g.clearRect(0,0,W,H);
+ const sers=c.s.map(s=>{const key=s[0],k=s[3]||1;let pts;if(key.startsWith('ev:'))pts=E.map(e=>[e.steps,e[key.slice(3)]==null?null:e[key.slice(3)]*k]);else{pts=M.map(m=>[m.steps,m[key]==null?null:m[key]*k]);const sm=ema(pts.map(p=>p[1]),0.08);pts=pts.map((p,j)=>[p[0],sm[j]])}return {pts:pts.filter(p=>p[1]!=null),col:COL[s[2]]}});
+ let xs=sers.flatMap(s=>s.pts.map(p=>p[0])),ys=sers.flatMap(s=>s.pts.map(p=>p[1]));if(!xs.length)return;
+ let x0=0,x1=Math.max(...xs)||1,y0=Math.min(...ys),y1=Math.max(...ys);if(c.ymax!=null)y1=Math.max(y1,c.ymax);if(c.pct||y0>0&&y0<y1*0.5)y0=Math.min(y0,0);if(y1===y0){y1=y0+1}
+ const pad=(y1-y0)*0.05;y1+=pad;if(y0<0||!c.pct)y0-=pad*(y0<0?1:0);
+ const X=v=>pl+(v-x0)/(x1-x0||1)*(W-pl-8),Y=v=>H-pb-(v-y0)/(y1-y0)*(H-pb-8);
+ g.strokeStyle='#24403a';g.fillStyle='#86a79a';g.font='20px sans-serif';g.lineWidth=1;
+ for(let j=0;j<=4;j++){const v=y0+(y1-y0)*j/4,y=Y(v);g.beginPath();g.moveTo(pl,y);g.lineTo(W-8,y);g.stroke();g.fillText(Math.abs(v)>=1000?(v/1000).toFixed(0)+'k':(Math.abs(v)<10?v.toFixed(2):v.toFixed(0)),2,y+6)}
+ g.fillText((x1/1e6).toFixed(1)+' М шагов',W-150,H-4);
+ for(const s of sers){g.strokeStyle=s.col;g.lineWidth=2.5;g.beginPath();s.pts.forEach((p,j)=>{j?g.lineTo(X(p[0]),Y(p[1])):g.moveTo(X(p[0]),Y(p[1]))});g.stroke();
+  if(s.pts.length<40)for(const p of s.pts){g.fillStyle=s.col;g.beginPath();g.arc(X(p[0]),Y(p[1]),3.5,0,7);g.fill()}}
+ if(i===1&&base){const bc=base.cells||[];const cols={0.3:'#7a8f88',0.6:'#e8b04a',0.95:'#d9685a'};g.setLineDash([8,6]);g.lineWidth=1.5;for(const b of bc){if(b.boss!=='misha'&&b.boss!==cfg.boss)continue;g.strokeStyle=cols[b.skill]||'#888';g.beginPath();g.moveTo(pl,Y(b.winRate));g.lineTo(W-8,Y(b.winRate));g.stroke();g.fillStyle=g.strokeStyle;g.fillText('бот '+b.skill,pl+4,Y(b.winRate)-4)}g.setLineDash([])}
+}
+function render(){CH.forEach((_,i)=>draw(i));
+ const m=M[M.length-1]||{},e=E[E.length-1];
+ const k=(l,v)=>`<div class="kpi"><b>${v}</b><span>${l}</span></div>`;
+ $('#kpis').innerHTML=k('шагов',m.steps?(m.steps/1e6).toFixed(1)+' М':'—')+k('шагов/с',m.sps||'—')+k('побед (300)',m.win==null?'—':(m.win*100).toFixed(0)+'%')+k('оценка',e&&e.win_rate!=null?(e.win_rate*100).toFixed(0)+'%':'—')+k('GPU',m.gpu_util!=null?m.gpu_util+'% · '+(m.gpu_mem_mb/1024).toFixed(1)+' ГБ':'—')+k('время',m.elapsed?Math.floor(m.elapsed/60)+' мин':'—');
+ $('#evals').innerHTML='<tr><th title="номер круга">круг</th><th title="сколько обновлений весов сделано к этому кругу">шаг обучения</th><th title="миллионов шагов среды (решений агента) за всё обучение">опыт, млн шагов</th><th title="побед в круге из 15 боёв">побед в круге</th><th title="средняя длительность боя, игровых секунд">время боя, с</th><th title="сколько здоровья босса осталось к концу боя">осталось у босса</th><th title="демо-бой этого круга">демо-бой</th></tr>'+E.slice(-12).map((e,i,a)=>[e,E.length-a.length+i+1]).reverse().map(([e,n])=>`<tr><td>${n}</td><td>${e.update}</td><td>${(e.steps/1e6).toFixed(1)}</td><td>${e.wins}/${e.n} (${(e.win_rate*100).toFixed(0)}%)</td><td>${e.mean_sec==null?'—':e.mean_sec.toFixed(0)}</td><td>${e.boss_frac==null?'—':(e.boss_frac*100).toFixed(0)+'%'}</td><td class="${e.demo.won?'ok':'bad'}">${e.demo.won?'победа':'поражение'} ${e.demo.sec==null?'':e.demo.sec.toFixed(0)+' с'}</td></tr>`).join('');
+ const bc=(base&&base.cells||[]).filter(c=>c.boss===(cfg.boss||'misha'));
+ const nn=window.FINAL;
+ $('#base').innerHTML='<tr><th>Игрок</th><th>Побед</th><th>Побед % [95%]</th><th>Время победы, с</th></tr>'+(nn?`<tr><td><b>Нейросеть ${nn.name}</b></td><td>${nn.wins}/${nn.n}</td><td>${nn.pct} [${nn.ci}]</td><td>${nn.time}</td></tr>`:'')+bc.map(c=>`<tr><td>бот, мастерство ${c.skill}</td><td>${c.wins}/${c.n}</td><td>${(c.winRate*100).toFixed(0)}% [${(c.winCI[0]*100).toFixed(0)}–${(c.winCI[1]*100).toFixed(0)}]</td><td>${c.winTime.mean.toFixed(0)}</td></tr>`).join('');
+ $('#basenote').textContent=base?'':'Таблица бота ещё считается или не запускалась (ml/rl/runs/baseline-<босс>.json).';
+ const ev=E[E.length-1];if(ev&&ev.demo&&demo==='latest'){const key=run+':'+ev.update;if(key!==lastDemoKey&&(!lastDemoKey||document.hidden===false)){lastDemoKey=key;load(demo)}}
+}
+function load(d){demo=d;document.querySelectorAll('[data-d]').forEach(b=>b.classList.toggle('on',b.dataset.d===d));
+ const f=`/runs/${run}/demos/${d}.ttrec?t=${Date.now()}`;$('#game').src=`/game/index.html?watch=${encodeURIComponent(f)}`;$('#demoinfo').textContent='Показывается: '+({latest:'последний демо-бой',best:'лучший бой за обучение',round_best:'лучший бой последнего круга'}[d])}
+document.querySelectorAll('[data-d]').forEach(b=>b.onclick=()=>load(b.dataset.d));
+$('#now').onclick=async()=>{await fetch('/api/demo-now?run='+run,{method:'POST'});$('#demoinfo').textContent='Запрошен показательный бой: обучение выполнит его в ближайшие секунды…';lastDemoKey=''};
+async function pick(r){run=r;lastDemoKey='';const st=await (await fetch('/api/state?run='+r)).json();M=st.metrics;E=st.evals;cfg=st.config;base=st.baseline;render();
+ if(es)es.close();es=new EventSource('/events?run='+r);let tmr=null;const sched=()=>{if(!tmr)tmr=setTimeout(()=>{tmr=null;render()},400)};
+ es.addEventListener('metric',e=>{M.push(JSON.parse(e.data));sched()});es.addEventListener('eval',e=>{E.push(JSON.parse(e.data));sched()});
+ es.onopen=()=>$('#status').textContent='обучение: '+r+' · '+(cfg.boss||'')+' · '+(cfg.persona||'');es.onerror=()=>$('#status').textContent='связь потеряна, переподключение…';
+ fetch('/runs/'+r+'/final.json').then(x=>x.ok?x.json():null).then(j=>{window.FINAL=j;render()}).catch(()=>{});
+ load('latest')}
+(async()=>{const rs=await (await fetch('/api/runs')).json();$('#run').innerHTML=rs.map(r=>`<option>${r}</option>`).join('');$('#run').onchange=()=>pick($('#run').value);if(rs.length)pick(rs[0]);else $('#status').textContent='нет прогонов: запустите train.py'})();
+
+function fmtT(s){s=Math.max(0,Math.round(s));const m=Math.floor(s/60);return m>=60?Math.floor(m/60)+' ч '+(m%60)+' мин':m+' мин '+(s%60)+' с'}
+const BN={misha:'Миша',vladik:'Владик',tima:'Тима',korne:'Корнематка'},PN={average:'обычный',careful:'осторожный',aggressive:'агрессивный',novice:'новичок'};
+const ST={done:'готово',run:'идёт сейчас',wait:'ждёт'};
+async function prog(){try{const p=await (await fetch('/api/progress')).json();
+ $('#queue').innerHTML=p.queue.map(r=>`<div class="qrow"><div><b>${BN[r.boss]||r.boss||r.name}</b> · ${PN[r.persona]||r.persona||''}<div class="note">${r.name}${r.note?' — '+r.note:''}</div></div><div class="st ${r.status}">${ST[r.status]}</div>
+ <div>${r.status==='run'&&r.progress!=null?`<div class="pb"><i style="width:${(r.progress*100).toFixed(0)}%"></i></div><span class="note">${(r.progress*100).toFixed(0)}% лимита</span>`:r.status==='done'?`побед ${r.win==null?'—':(r.win*100).toFixed(0)+'%'} · бой ${r.ep_sec==null?'—':r.ep_sec.toFixed(0)+' с'}`:'—'}</div>
+ <div class="note">${r.status==='wait'?'':`${(r.steps/1e6).toFixed(1)} млн шагов · ${(r.episodes||0).toLocaleString('ru-RU')} боёв · ${fmtT(r.elapsed||0)}`}${r.limits&&r.limits.length?' · '+r.limits.join(', '):''}</div></div>`).join('');
+ const c=p.current;$('#curbox').innerHTML=c?`<b>Сейчас: ${BN[c.boss]||c.boss} · ${PN[c.persona]||c.persona}</b> (${c.name}). Прошло <b>${(c.episodes||0).toLocaleString('ru-RU')}</b> боёв с начала запуска, <b>${(c.steps/1e6).toFixed(2)}</b> млн шагов, <b>${fmtT(c.elapsed)}</b>. Ограничения: ${(c.limits||[]).join('; ')||'нет'}${c.eta_sec!=null?`. До конца по лимиту примерно <b>${fmtT(c.eta_sec)}</b>`:''}. Побед за последние 300 боёв: <b>${c.win==null?'—':(c.win*100).toFixed(0)+'%'}</b>.<br>
+ <span class="help" title="Круг оценки — серия показательных боёв текущей версии нейросети на одних и тех же зёрнах плюс один демо-бой, который записывается и показывается в окне «Агент играет». Обучение на это время приостанавливается.">Круг оценки</span>: ${c.eval.per_lap} боёв (15 на фиксированных зёрнах + 1 демо), каждые ${c.eval.every} с обучения. Пройдено кругов: <b>${c.eval.laps}</b>${c.eval.last?` (последний: побед ${c.eval.last.wins} из ${c.eval.last.n}, ${c.eval.last.mean_sec==null?'—':c.eval.last.mean_sec.toFixed(0)} с)`:''}, следующий (№${c.eval.laps+1}) примерно через <b>${fmtT(c.eval.next_in)}</b>.`:'Сейчас обучение не идёт (все запуски готовы или ждут). Последний запуск виден в очереди выше.'}catch(e){}}
+prog();setInterval(prog,2500);
+
+const PERS={average:'обычный',careful:'осторожный',aggressive:'агрессивный',novice:'новичок'};
+for(const id of ['rp1','rp2'])$('#'+id).innerHTML=Object.entries(PERS).map(([k,v])=>`<option value="${k}">${v}</option>`).join('');
+$('#rp1').value='careful';$('#rp2').value='aggressive';
+let RC=null,racePoll=null,attempts=0,sig='',sigAt=0,rid='';
+const PH={lobby:'ожидание игроков',prep:'загрузка забегов',count:'отсчёт',run:'гонка идёт',done:'гонка окончена'};
+const fmt=ms=>{const s=Math.floor((ms||0)/1000);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')};
+const SRV={open:'на связи',opening:'подключается к PeerJS…',busy:'прежний код ещё занят, ждём',error:'ОШИБКА СВЯЗИ с PeerJS (сервер сигналов не отвечает)',closed:'закрыт',idle:'ещё не запущен'};
+function steps(st){ // шаги запуска: что уже сделано, на чём застряли
+ const seats=(st&&st.seats)||[],names=['Ива','Ярь'],out=[];
+ out.push(['Организатор: окно загружено',!!(st&&st.code)]);
+ out.push(['Организатор: PeerJS '+(SRV[st&&st.srv]||'…')+(st&&st.code?', комната '+st.code:''),!!(st&&st.srv==='open')]);
+ names.forEach((n,i)=>{const s=seats.find(x=>x.name===n),a=st&&st.agents&&st.agents[n];
+  out.push([`Игрок ${i+1} (${n}): окно загружено`,!!a]);
+  out.push([`Игрок ${i+1}: подключён к комнате`,!!(s&&s.online)]);
+  out.push([`Игрок ${i+1}: нажал «Готов»`,!!(s&&(s.ready||st.phase!=='lobby'))]);
+  out.push([`Игрок ${i+1}: забег загружен`,!!(s&&s.loaded)||['count','run','done'].includes(st&&st.phase)])});
+ out.push(['Обсервер: подключён',!!(st&&st.watchers>0)]);
+ out.push(['Отсчёт и старт',['run','done'].includes(st&&st.phase)]);
+ return out}
+function drawDiag(st){const sp=steps(st),first=sp.findIndex(x=>!x[1]);
+ const sg=JSON.stringify(sp.map(x=>x[1]))+(st&&st.phase);if(sg!==sig){sig=sg;sigAt=Date.now()}
+ const stuck=(Date.now()-sigAt)/1000,done=first<0,running=st&&['run','done'].includes(st.phase);
+ let msg='';
+ if(!done&&!running&&stuck>25){ if(attempts<3){attempts++;msg=`Застряли на шаге «${sp[first][0]}» больше 25 с — автоматический перезапуск окон (попытка ${attempts} из 3)…`;setTimeout(()=>startRace(true),100)}
+  else msg=`Не удалось запустить: застряли на шаге «${sp[first][0]}». Проверьте, что панель открыта в видимой вкладке, и нажмите «Перезапустить все окна».`}
+ else if(!done&&!running&&stuck>8)msg=`Ждём шаг «${sp[first][0]}» (${Math.round(stuck)} с)…`;
+ if(running)attempts=0;
+ if(running){const slow=Object.values(st.agents||{}).filter(a=>Date.now()-a.at<5000&&a.fps<10).map(a=>a.name);if(slow.length)msg=`Окна игроков (${slow.join(', ')}) замедлены браузером: они не видны на экране. Прокрутите страницу так, чтобы блок «Окна участников» был виден (хотя бы частично).`}
+ $('#rdiag').innerHTML=sp.map(x=>`<span class="${x[1]?'ok':x===sp[first]?'wt':''}">${x[1]?'✓':x===sp[first]?'…':'○'} ${x[0]}</span>`).join(' &nbsp; ')+(msg?`<br><span class="${attempts>=3&&!running?'bad':'wt'}">${msg}</span>`:'')}
+async function startRace(auto){
+ clearInterval(racePoll);
+ if(!auto)attempts=0;
+ $('#raceinfo').textContent='Подготовка площадки…';
+ const r=await (await fetch('/api/race?run='+run+'&port='+location.port,{method:'POST'})).json();
+ if(!r.ok){$('#raceinfo').textContent='Не удалось: '+(r.error||'');$('#rdiag').innerHTML='<span class="bad">Не удалось подготовить площадку: '+(r.error||'')+'</span>';$('#racebox').classList.add('on');return}
+ RC=r;rid=r.rid;sig='';sigAt=Date.now();$('#racebox').classList.add('on');if(!auto)$('#racebox').scrollIntoView({behavior:'smooth',block:'start'});
+ ['fwatch','forg','fp1','fp2'].forEach(i=>$('#'+i).src='about:blank');$('#rstat').textContent='Запускаю организатора…';
+ const p=r.peer,disc=$('#rdisc').value;
+ $('#forg').src=`${r.origins.org}/game/index.html?peer=${p}&race=org&orgauto=1&disc=${disc}&rid=${rid}`;
+ let code=null;
+ racePoll=setInterval(async()=>{try{
+  const st=await (await fetch('/api/race-state?rid='+rid)).json();
+  if(st&&st.code&&!code){code=st.code;
+   const mk=(o,pers,name,seed)=>`${o}/game/index.html?peer=${p}&race=play&room=${code}&agent=${r.pack}&persona=${pers}&aname=${encodeURIComponent(name)}&aseed=${seed}&rid=${rid}`;
+   $('#fp1').src=mk(r.origins.p1,$('#rp1').value,'Ива',11);
+   setTimeout(()=>{$('#fp2').src=mk(r.origins.p2,$('#rp2').value,'Ярь',22)},1500);
+   setTimeout(()=>{$('#fwatch').src=`${r.origins.watch}/game/index.html?peer=${p}&race=watch&room=${code}&stream=1&rid=${rid}`},3000);
+  }
+  drawDiag(st);if(st)drawRace(st);}catch(e){}},1000);
+ $('#raceinfo').textContent='Гонка запущена — окна ниже.';
+}
+function drawRace(st){
+ const names=['Ива','Ярь'];const pers=[$('#rp1').value,$('#rp2').value];
+ const seats=(st.seats||[]);let line=`Комната <b>${st.code}</b> · ${PH[st.phase]||st.phase} · зерно ${st.seed} · время гонки <b>${fmt(st.elapsed)}</b> · наблюдателей ${st.watchers}`;
+ if(st.result){const w=st.result.winner;line+=` · <b>${w==='draw'?'ничья':w?'победитель: '+w:'без победителя'}</b>`+(st.result.gap?` (разрыв ${fmt(st.result.gap)})`:'')}
+ $('#rstat').innerHTML=line;
+ [1,2].forEach(i=>{const s=seats.find(x=>x.name===names[i-1])||{};const t=s.tel||{};
+  const prog=s.fin?`финиш ${fmt(s.fin.rta)}`:s.dnf?'сошёл':`боссов побеждено: ${s.sp??0} из 4`+(t.el!=null?` · ${fmt(t.el)}`:'');
+  const a=(st.agents||{})[names[i-1]];const live=a&&Date.now()-a.at<5000?` · бой: ${a.boss||'—'}${a.bossFrac!=null?', у босса '+Math.round(a.bossFrac*100)+'% здоровья':''} · здоровье героя ${a.hp??'—'} · игра ${a.fps} кадр/с`:'';
+  $('#cap'+i).innerHTML=`<b>${names[i-1]}</b> · ${PERS[pers[i-1]]} · ${s.online?(s.ready||st.phase!=='lobby'?'готов':'в комнате'):'подключается…'}<br>${s.name?prog:'ещё не вошёл'}${live}`;
+  $('#lp'+i).textContent=`${names[i-1]} · ${PERS[pers[i-1]]}`+(a&&Date.now()-a.at<5000?` · ${a.fps} кадр/с · ${a.boss||'—'}`:'');})
+}
+$('#race').onclick=()=>startRace(false);$('#rrestart').onclick=()=>startRace(false);
+$('#ragain').onclick=()=>fetch('/api/race-cmd?cmd=again&rid='+rid,{method:'POST'});
+$('#rdisc').onchange=()=>fetch('/api/race-cmd?cmd=disc&disc='+$('#rdisc').value+'&rid='+rid,{method:'POST'});
+$('#rclose').onclick=()=>{clearInterval(racePoll);['fwatch','forg','fp1','fp2'].forEach(i=>$('#'+i).src='about:blank');$('#racebox').classList.remove('on')};
+</script></body></html>
