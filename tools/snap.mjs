@@ -1,5 +1,6 @@
 // Снимок игры в нужной сцене: node tools/snap.mjs <имя.png> '<json параметров start>' [кадры=120] [ширина=1280] [высота=720] [клавиши: Space:30,KeyD:60 …]
 // Нужна сборка (npm run build). Сервер preview поднимается сам; Chrome — из $env:CHROME или из Playwright.
+import { chromeExe } from './chrome.mjs';
 import { chromium } from '@playwright/test';
 import { spawn } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
@@ -9,7 +10,7 @@ const [out = 'shots/snap.png', params = '{"kind":"bosstest","boss":"misha"}', fr
 mkdirSync(dirname(out), { recursive: true });
 const port = 4190;
 const server = spawn(process.platform === 'win32' ? 'npx.cmd' : 'npx', ['vite', 'preview', '--port', String(port), '--strictPort'], { stdio: 'ignore', shell: process.platform === 'win32' });
-const browser = await chromium.launch({ executablePath: process.env.CHROME || undefined, args: ['--ignore-gpu-blocklist'] });
+const browser = await chromium.launch({ executablePath: chromeExe(), args: ['--ignore-gpu-blocklist'] });
 try {
   for (let i = 0; i < 60; i++) { try { const r = await fetch(`http://localhost:${port}/`); if (r.ok) break; } catch { /* сервер поднимается */ } await new Promise((r) => setTimeout(r, 250)); }
   const page = await browser.newPage({ viewport: { width: +W, height: +H } });

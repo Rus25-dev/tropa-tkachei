@@ -2,6 +2,7 @@
 // Замеры производительности v2: кадры в секунду, время кадра (среднее и 95-й процентиль), время логики и отрисовки из ?perf=1.
 // node tools/perf.mjs [ширина×высота] [замедление CPU: 1,4,6] [качество: low|mid|high|auto] > docs/perf-<имя>.json
 // Нужна сборка (npm run build). Chrome — из $env:CHROME. Сцены: заставка меню, глава I, босс-тест (фаза 3 тренировки), вдвоём, вдвоём + бой.
+import { chromeExe } from './chrome.mjs';
 import { chromium } from '@playwright/test';
 import { spawn } from 'node:child_process';
 
@@ -9,7 +10,7 @@ const [size = '1280x720', throttle = '1', quality = 'auto', dpr = '1'] = process
 const [W, H] = size.split('x').map(Number);
 const port = 4193;
 const server = spawn(process.platform === 'win32' ? 'npx.cmd' : 'npx', ['vite', 'preview', '--port', String(port), '--strictPort'], { stdio: 'ignore', shell: process.platform === 'win32' });
-const browser = await chromium.launch({ executablePath: process.env.CHROME || undefined, args: ['--ignore-gpu-blocklist'] });
+const browser = await chromium.launch({ executablePath: chromeExe(), args: ['--ignore-gpu-blocklist'] });
 const scenes = [
   ['заставка меню', null],
   ['глава I (один)', { kind: 'story', fresh: true }],

@@ -1,12 +1,13 @@
 /* global performance, requestAnimationFrame */
 // Те же замеры для v1.8 (legacy/index.html, Phaser 3 + Canvas/WebGL): node tools/perf-legacy.mjs [ширина×высота] [замедление CPU] [dpr]
+import { chromeExe } from './chrome.mjs';
 import { chromium } from '@playwright/test';
 import { pathToFileURL } from 'node:url';
 import { resolve } from 'node:path';
 
 const [size = '1280x720', throttle = '1', dpr = '1'] = process.argv.slice(2);
 const [W, H] = size.split('x').map(Number);
-const browser = await chromium.launch({ executablePath: process.env.CHROME || undefined, args: ['--ignore-gpu-blocklist'] });
+const browser = await chromium.launch({ executablePath: chromeExe(), args: ['--ignore-gpu-blocklist'] });
 const scenes = [
   ['заставка меню', null],
   ['глава I (один)', 'm.go(1)'],

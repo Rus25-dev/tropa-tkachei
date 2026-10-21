@@ -2,6 +2,7 @@
 // Снимки экранов интерфейса на разных размерах + проверка переполнения: node tools/uishots.mjs [ширина×высота,…] [папка]
 // Нужна сборка (npm run build). Для каждого размера проходит по всем экранам меню, паузе и внутриигровым окнам и сохраняет png в папку.
 // Проверяет: нет горизонтальной прокрутки страницы, нет кнопок меньше 44 px по высоте, нет шрифтов мельче 11 px.
+import { chromeExe } from './chrome.mjs';
 import { chromium } from '@playwright/test';
 import { spawn } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
@@ -11,7 +12,7 @@ const dir = process.argv[3] || 'shots/ui';
 mkdirSync(dir, { recursive: true });
 const port = 4191;
 const server = spawn(process.platform === 'win32' ? 'npx.cmd' : 'npx', ['vite', 'preview', '--port', String(port), '--strictPort'], { stdio: 'ignore', shell: process.platform === 'win32' });
-const browser = await chromium.launch({ executablePath: process.env.CHROME || undefined, args: ['--ignore-gpu-blocklist'] });
+const browser = await chromium.launch({ executablePath: chromeExe(), args: ['--ignore-gpu-blocklist'] });
 const problems = [];
 try {
   for (let i = 0; i < 60; i++) { try { const r = await fetch(`http://localhost:${port}/`); if (r.ok) break; } catch { /* сервер поднимается */ } await new Promise((r) => setTimeout(r, 250)); }
