@@ -28,6 +28,8 @@ import { duelSetup } from './duelmods';
 import { winGame } from './win';
 import { guestProjHits } from './netplay';
 import { applyPhase, newTrain, trainTick, type TrainState } from './training';
+import { bossDef } from './boss/registry';
+import { makeDataBoss, stepDataBoss } from './boss/exec';
 
 
 export type Mode = 'story' | 'bosstest';
@@ -76,6 +78,8 @@ export class World {
   L!: Level; grid!: number[][];
   players: Player[] = []; enemies: Enemy[] = []; boss!: Boss;
   misha: Boss | null = null; vladik: Boss | null = null; tima: Boss | null = null;
+  /** боссы на данных (data/bosses/*.json), 2.5; пока в босс-тесте, мульти-боссы — на будущее */
+  bosses: Boss[] = [];
   projs: Proj[] = []; beadsArr: Rect[] & { vx?: number }[] = [] as never; benches: { x: number; y: number }[] = []; gates: Gate[] = [];
   curtains: { x: number; w: number; y: number; h: number; slime: number; wet: number; drip: number }[] | null = null;
   puddles: { x: number; w: number; y: number; t: number }[] | null = null;
@@ -145,7 +149,9 @@ export class World {
   private create(opts: WorldOpts): void {
     this.initRng();
     this.enemies = []; this.boss = undefined as unknown as Boss;
-    this.L = campaignLevel(this) ?? (this.mode === 'bosstest' ? (ARENAS[this.bossKind] ?? ARENAS['misha']!)() : buildLevel());
+    const dd = this.mode === 'bosstest' ? bossDef(this.bossKind) : undefined; // босс на данных: арена берётся из его описания
+    this.L = campaignLevel(this) ?? (this.mode === 'bosstest' ? (ARENAS[dd ? dd.arena : this.bossKind] ?? ARENAS['misha']!)() : buildLevel());
+    this.bosses = [];
     this.misha = null; this.crates = null; this.vladik = null; this.tima = null; this.curtains = null; this.puddles = null; this.repoT = 0;
     const L = this.L;
     this.grid = L.grid;
@@ -169,7 +175,8 @@ export class World {
     this.enemies = []; spawnEnemies(this);
     this.bossDead = this.mode === 'bosstest'; makeBoss(this);
     this.projs = []; this.beadsArr = [];
-    if (this.mode === 'bosstest') {
+    if (dd && !this.camp) makeDataBoss(this, dd.id, 0);
+    else if (this.mode === 'bosstest') {
       if (this.bossKind === 'vladik') setupVladikArena(this);
       else if (this.bossKind === 'tima') setupTimaArena(this);
       else setupMishaArena(this);
@@ -193,7 +200,7 @@ export class World {
     this.emit('ready');
   }
 
-  testBoss(): Boss | null { return this.misha ?? this.vladik ?? this.tima; }
+  testBoss(): Boss | null { return this.misha ?? this.vladik ?? this.tima ?? this.bosses[0] ?? null; }
   alivePlayers(): Player[] { return this.players.filter((p) => !p.downed); }
   nearestPlayer(x: number, y: number): [Player | null, number] {
     let best: Player | null = null, bd = 1e9;
@@ -384,6 +391,7 @@ export class World {
       if (this.misha) stepMisha(this, dt);
       if (this.vladik) stepVladik(this, dt);
       if (this.tima) stepTima(this, dt);
+      for (let i = 0; i < this.bosses.length; i++) stepDataBoss(this, i, dt);
       stepProjs(this, dt);
       stepBeads(this, dt);
       stepItems(this);
@@ -401,6 +409,10 @@ export class World {
       if (m && p.inv <= 0 && !['dead', 'intro', 'cough'].includes(m.state) && overlap(pr, inset(m, 8))) hurtPlayer(this, p, HEAVY_STATES.has(m.state) ? 2 : 1, m.x + m.w / 2);
       const vb = this.vladik ?? this.tima;
       if (vb && p.inv <= 0 && !(vb.stagger > 0) && !['dead', 'intro'].includes(vb.state) && overlap(pr, inset(vb, 8))) hurtPlayer(this, p, HEAVY_STATES.has(vb.state) ? 2 : 1, vb.x + vb.w / 2);
+      for (const db of this.bosses) {
+        const ct = bossDef((db['d'] as { id: string }).id)?.contact;
+        if (ct && p.inv <= 0 && !(db.stagger > 0) && !['dead', 'intro', 'rage'].includes(db.state) && overlap(pr, inset(db, 8))) hurtPlayer(this, p, ct.dmg, db.x + db.w / 2, false, ct.kind);
+      }
       if (this.curtains && p.inv <= 0) for (const c of this.curtains) if (c.slime > 0 && overlap(pr, curtainHazard(c))) { hurtPlayer(this, p, 1, c.x + c.w / 2); break; }
     }
     // выход
@@ -436,6 +448,11 @@ export class World {
 export const overlap = (a: Rect, b: Rect): boolean => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 export const inset = (r: Rect, d: number): Rect => ({ x: r.x + d, y: r.y + d, w: r.w - 2 * d, h: r.h - 2 * d });
 export const curtainHazard = (c: { x: number; w: number; y: number; h: number }): Rect => ({ x: c.x + 4, y: c.y, w: c.w - 8, h: c.h });
-export const phaseOf = (b: { hp: number; maxHp: number }): number => { const f = b.hp / b.maxHp; return f <= 0.3 ? 3 : f <= 0.6 ? 2 : 1; };
+/** номер фазы по доле здоровья; пороги у боссов на данных лежат в b.thr (убывающие доли для фаз 2, 3), у остальных — 0.6 и 0.3 */
+export const phaseOf = (b: { hp: number; maxHp: number; thr?: number[] }): number => {
+  const f = b.hp / b.maxHp, th = b.thr ?? [0.6, 0.3];
+  let ph = 1; for (let i = 0; i < th.length; i++) if (f <= th[i]!) ph = i + 2;
+  return ph;
+};
 
 export { CHAPTERS, clamp, applyUp };

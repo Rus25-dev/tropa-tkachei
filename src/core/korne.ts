@@ -136,8 +136,8 @@ function killBossBase(sc: World): void {
 
 // ---------- обвязка смерти боссов ----------
 // Слои v1.8, снаружи внутрь: спидран (сплит) → движение 2 (парус за Владика) → снаряжение (награда) → рекорды (qol) → исходная функция.
-export type BossDeathKind = 'killBoss' | 'mishaDie' | 'vladikDie' | 'timaDie';
-const REWARD_ID: Record<BossDeathKind, string> = { killBoss: 'korn', mishaDie: 'misha', vladikDie: 'vladik', timaDie: 'tima' };
+export type BossDeathKind = 'killBoss' | 'mishaDie' | 'vladikDie' | 'timaDie' | 'dataDie';
+const REWARD_ID: Record<BossDeathKind, string> = { killBoss: 'korn', mishaDie: 'misha', vladikDie: 'vladik', timaDie: 'tima', dataDie: '' };
 export function bossDeath(sc: World, kind: BossDeathKind, base: (sc: World) => void): void {
   const was = sc.boss && sc.boss.state;
   if (kind === 'vladikDie') {
@@ -148,7 +148,7 @@ export function bossDeath(sc: World, kind: BossDeathKind, base: (sc: World) => v
       if (sc.mode !== 'bosstest' || sc.camp) sc.toast('Паутинный парус: держи прыжок в падении — планируй', 5);
     }
   }
-  if (!sc.sr && sc.online !== 'guest') sc.emit('bossReward', { id: REWARD_ID[kind] });
+  if (!sc.sr && sc.online !== 'guest' && REWARD_ID[kind]) sc.emit('bossReward', { id: REWARD_ID[kind] }); // у боссов на данных награды пока нет
   // qol.js: запись победы в рекорды боссов
   if (sc.fightOn && !sc.fightWon && !sc.train) {
     sc.fightWon = true;
