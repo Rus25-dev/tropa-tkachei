@@ -1,0 +1,81 @@
+// Снаряжение (legacy/src/loadout.js, charms.js, tools.js): реестры инструментов и оберегов, надетое снаряжение героя.
+// Хранение (localStorage tt_loadout) — задача сессии/интерфейса; ядро получает уже готовый набор LoadoutState.
+import type { Player } from './types';
+import type { World } from './world';
+import { toolCast } from './tools';
+import { WEAPONS } from './weapons';
+
+export const CHARM_SLOTS = 3;
+
+export interface LoadoutState { weapon: string; tool: string; charms: string[] }
+export const defaultLoadout = (): LoadoutState => ({ weapon: 'needle', tool: '', charms: [] });
+
+export interface ToolDef { id: string; name: string; desc: string; cost: number; cd: number; unlock: string; use: (sc: World, p: Player) => boolean }
+export const TOOLS: Record<string, ToolDef> = {
+  throwneedle: { id: 'throwneedle', name: 'Метательная игла', desc: 'Летит по прямой (↑ или ↑+→ — вверх и по диагонали), пробивает слабых врагов, втыкается в стену и в босса на 3 с. Урон 2. Подбери — вернёт нить.', cost: 1, cd: 0.5, unlock: 'boss:korn', use: (sc, p) => toolCast(sc, 'throwneedle', p) },
+  trap: { id: 'trap', name: 'Капкан', desc: 'Ставится у ног на 8 с. Враг, наступивший на него, замирает на 2 с; босс копит стойку (+3), но не замирает. Не больше двух.', cost: 2, cd: 1.5, unlock: 'shop:50', use: (sc, p) => toolCast(sc, 'trap', p) },
+  threadbomb: { id: 'threadbomb', name: 'Нитяная бомба', desc: 'Бросок дугой. Взрыв радиусом 90: урон 3 врагам и боссу, отброс, сбивает снаряды.', cost: 3, cd: 2, unlock: 'shop:70', use: (sc, p) => toolCast(sc, 'threadbomb', p) },
+  hook: { id: 'hook', name: 'Нитяной крюк', desc: 'Нить на 260 px в сторону ввода (↑, вперёд, диагональ). В стену или платформу — притянет героя, во врага — подтянет и оглушит мелкого, в оглушённого босса — удар.', cost: 1, cd: 0.9, unlock: 'boss:tima', use: (sc, p) => toolCast(sc, 'hook', p) },
+};
+
+export interface CharmDef { id: string; name: string; desc: string; unlock: string; slots: number; col: number }
+export const CHARMS: Record<string, CharmDef> = {
+  sting: { id: 'sting', name: 'Жало', desc: 'Удары иглы отравляют: 1 урона раз в 1.2 с, 4 раза. Боссов яд берёт вдвое слабее.', unlock: 'boss:misha', slots: 1, col: 0x86e05a },
+  ember: { id: 'ember', name: 'Угольная нить', desc: 'Тяжёлый удар (третий в комбо) поджигает врага: 3 тика ожога, огонь перекидывается на соседей.', unlock: 'shop:45', slots: 1, col: 0xff8a3c },
+  heart: { id: 'heart', name: 'Паучье сердце', desc: '+1 бутон здоровья. Тяжёлый оберег: занимает два слота.', unlock: 'shop:60', slots: 2, col: 0xff6a7a },
+  swift: { id: 'swift', name: 'Быстрая нить', desc: 'Нить копится на 50 % быстрее: каждый второй набор даёт лишнюю единицу.', unlock: 'boss:korn', slots: 1, col: 0x9ff0c8 },
+  stride: { id: 'stride', name: 'Тихий шаг', desc: 'Рывок перезаряжается на 25 % быстрее.', unlock: 'shop:40', slots: 1, col: 0xb9d4c8 },
+  window: { id: 'window', name: 'Широкое окно', desc: 'Окно отбива шире на 50 % (0.2 → 0.3 с).', unlock: 'boss:vladik', slots: 1, col: 0xffffff },
+  thorns: { id: 'thorns', name: 'Колючий плащ', desc: 'Когда враг ранит вас касанием, он получает 1 урона в ответ.', unlock: 'shop:55', slots: 1, col: 0xd9a35a },
+  call: { id: 'call', name: 'Зов нити', desc: 'Бусины тянутся к вам издалека (в ~2.5 раза дальше).', unlock: 'shop:30', slots: 1, col: 0xffd47a },
+  hunter: { id: 'hunter', name: 'Охотник', desc: '+15 % урона по оглушённым врагам и боссам; казнь даёт вдвое больше нити.', unlock: 'boss:tima', slots: 1, col: 0xe8e2cf },
+};
+
+export const slotsOf = (id: string): number => { const c = CHARMS[id]; return c ? (c.slots | 0) || 1 : 1; };
+export const slotsUsed = (list: string[]): number => list.reduce((s, id) => s + slotsOf(id), 0);
+export const canFit = (list: string[], id: string): boolean => slotsUsed(list) + slotsOf(id) <= CHARM_SLOTS;
+
+// ----- хранилище снаряжения (данные tt_loadout), чистые функции: запись в localStorage делает слой выше -----
+export interface LoadoutSave { weapon: string; tool: string; charms: string[]; have: { weapons: string[]; tools: string[]; charms: string[] } }
+export const normalizeSave = (raw: unknown): LoadoutSave => {
+  const d = (raw && typeof raw === 'object' ? { ...(raw as Record<string, unknown>) } : {}) as Partial<LoadoutSave>;
+  const have = (d.have && typeof d.have === 'object' ? d.have : { weapons: ['needle'], tools: [], charms: [] }) as LoadoutSave['have'];
+  for (const k of ['weapons', 'tools', 'charms'] as const) if (!Array.isArray(have[k])) have[k] = [];
+  return { weapon: d.weapon || 'needle', tool: d.tool || '', charms: Array.isArray(d.charms) ? d.charms : [], have };
+};
+type Kind = 'weapons' | 'tools' | 'charms';
+const reg = (kind: Kind): Record<string, { unlock: string }> => ({ weapons: WEAPONS, tools: TOOLS, charms: CHARMS })[kind];
+/** всё доступно в босс-тесте (кроме забегов спидрана — там честное стартовое снаряжение) */
+export const openAll = (mode: string, hasCamp: boolean, inRun: boolean): boolean => mode === 'bosstest' && !hasCamp && !inRun;
+export function owned(kind: Kind, id: string, d: LoadoutSave, all: boolean): boolean {
+  const e = reg(kind)[id]; if (!e) return false;
+  return e.unlock === 'start' || all || d.have[kind].includes(id);
+}
+/** что надето у игрока (Loadout.equipped с поправкой на слоты) */
+export function equipped(d: LoadoutSave, all: boolean, inRun: boolean): LoadoutState {
+  if (inRun) return defaultLoadout();
+  const weapon = owned('weapons', d.weapon, d, all) ? d.weapon : 'needle';
+  const tool = d.tool && owned('tools', d.tool, d, all) ? d.tool : '';
+  const list = d.charms.filter((c) => owned('charms', c, d, all)).slice(0, CHARM_SLOTS);
+  const keep: string[] = [];
+  for (const c of list) if (canFit(keep, c)) keep.push(c);
+  return { weapon, tool, charms: keep };
+}
+
+export const hasCharm = (p: Player | null | undefined, id: string): boolean => !!(p && p['charms'] && (p['charms'] as string[]).includes(id));
+
+/** надеть сохранённое снаряжение на локальных героев */
+export function applyLoadout(sc: World, eq: LoadoutState): void {
+  for (const p of sc.players) {
+    if (p.remote) continue;
+    p['weaponId'] = eq.weapon; p['toolId'] = eq.tool; p['charms'] = eq.charms.slice(); p['toolCd'] = 0;
+  }
+  // charms.js: пересчитать здоровье под обереги (sc.up на момент вызова ещё не создан: пересчёт делает campaignSetup)
+}
+
+export function useTool(sc: World, p: Player): boolean {
+  const T_ = TOOLS[p['toolId'] as string]; if (!T_ || p.downed || (p['toolCd'] as number) > 0 || p.hurtT > 0 || p.sit) return false;
+  if (p.silk < (T_.cost || 0)) { if (!p.remote) sc.snd('clink'); return false; }
+  if (!T_.use(sc, p)) return false;
+  p.silk -= T_.cost || 0; p['toolCd'] = T_.cd || 0.5; return true;
+}

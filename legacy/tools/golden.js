@@ -30,6 +30,18 @@ const SCENARIOS = [
   { name: 'road-ch4', kind: 'road', ch: 4, expect: 'win', seeds: range(360, 390), max: 14000 },
   { name: 'chapter1-full', kind: 'chapter1', expect: 'win', skill: 0.95, seeds: range(400, 440), max: 60000 },
 ];
+SCENARIOS.push({ name: 'ui-level1', kind: 'ui', item: true, expect: 'ui', seeds: [7500], max: 330 }, { name: 'ui-road2', kind: 'ui', ch: 2, expect: 'ui', seeds: [7501], max: 330 }, { name: 'ui-road4', kind: 'ui', ch: 4, expect: 'ui', seeds: [7502], max: 330 });
+// Фаззинг ввода: случайный (но с зерном) ввод всех кнопок при разном снаряжении. Нужен, чтобы проверять перенос оружия, инструментов, оберегов,
+// статусов и врагов, до которых бот сам не дотягивается. Исход не важен (expect: 'fuzz'): запись фиксирует, что сделала старая игра.
+const WEAPONS_ALL = ['needle', 'twin', 'sickle', 'mace', 'lance'], TOOLS_ALL = ['throwneedle', 'trap', 'threadbomb', 'hook'];
+const CHARMS_ALL = ['sting', 'ember', 'heart', 'swift', 'stride', 'window', 'thorns', 'call', 'hunter'];
+const loadoutFor = (k) => ({ weapon: WEAPONS_ALL[k % 5], tool: TOOLS_ALL[k % 4], charms: [CHARMS_ALL[k % 9], CHARMS_ALL[(k * 2 + 3) % 9]].filter((c, i, a) => a.indexOf(c) === i && c !== 'heart'), have: { weapons: WEAPONS_ALL, tools: TOOLS_ALL, charms: CHARMS_ALL } });
+let fi = 0;
+for (const boss of ['misha', 'vladik', 'tima', 'korne']) for (let w = 0; w < 5; w++) { fi++; SCENARIOS.push({ name: 'fuzz-' + boss + '-' + w, kind: 'fuzz', boss, expect: 'fuzz', seeds: [7000 + fi], max: 3200, loadout: loadoutFor(w + fi) }); }
+for (const where of ['level', 'road2', 'road3', 'road4']) for (let w = 0; w < 2; w++) { fi++; SCENARIOS.push({ name: 'fuzz-' + where + '-' + w, kind: 'fuzz', boss: where, expect: 'fuzz', seeds: [7100 + fi], max: 3600, loadout: loadoutFor(w * 2 + fi) }); }
+for (const boss of ['vladik', 'tima']) { fi++; SCENARIOS.push({ name: 'fuzz-coop-' + boss, kind: 'fuzz', boss, players: 2, expect: 'fuzz', seeds: [7200 + fi], max: 3200, loadout: loadoutFor(fi) }); }
+// отдельные записи с Паучьим сердцем (занимает два слота, поэтому в общий набор не попадает)
+for (const boss of ['tima', 'korne']) { fi++; SCENARIOS.push({ name: 'fuzz-heart-' + boss, kind: 'fuzz', boss, expect: 'fuzz', seeds: [7300 + fi], max: 3200, loadout: { weapon: 'mace', tool: 'hook', charms: ['heart', 'swift'], have: { weapons: WEAPONS_ALL, tools: TOOLS_ALL, charms: CHARMS_ALL } } }); }
 
 // Действия-«подготовки» записей (Journal.ext), одинаковые при записи и проверке:
 //   10 — Корнематка: герои у арены с двойным прыжком; 11 — выдать двойной прыжок (как подобранный предмет); 20 (x, y) — перенос героя в точку (бегун застрял), обнуляет скорость
@@ -39,6 +51,7 @@ const EXT_SRC = `(() => {
       sc.players.forEach((p, i) => { p.x = (tr + 1) * 32 + i * 20; p.y = (sc.L.boss.y + 1) * 32 - 26; p.vx = p.vy = 0; p.safeX = p.x; p.safeY = p.y; });
       sc.respawn = { x: (tr - 1) * 32, y: (sc.L.boss.y + 1) * 32 }; },
     11: (sc) => { sc.abil = { ...sc.abil, double: true }; },
+    12: (sc) => { sc.beads += 70; },
     20: (sc, x, y) => { const p = sc.players[0]; p.x = x; p.y = y; p.vx = p.vy = 0; p.safeX = x; p.safeY = y; },
   };
 })()`;
@@ -51,8 +64,15 @@ async function recordInPage(scn) {
   Snd.play = () => { }; Music.play = () => { };
   const camp = (ch) => ({ ch, st: 'road', beads: 0, abil: { double: true }, up: { hp: 0, dmg: 0, silk: 0 }, time: 0, deaths: 0 });
   Journal.startMem({ name: scn.name, expect: scn.expect, skill: scn.skill });
+  if (scn.loadout) localStorage.setItem('tt_loadout', JSON.stringify(scn.loadout)); else localStorage.removeItem('tt_loadout');
   let data;
-  if (scn.kind === 'road') data = { players: 1, mode: 'story', camp: camp(scn.ch), seed: scn.seed };
+  if (scn.kind === 'ui') data = scn.ch ? { players: 1, mode: 'story', camp: camp(scn.ch), seed: scn.seed } : { players: 1, mode: 'story', seed: scn.seed };
+  else if (scn.kind === 'fuzz') {
+    const m = /^road(\d)$/.exec(scn.boss);
+    if (m) data = { players: 1, mode: 'story', camp: camp(+m[1]), seed: scn.seed };
+    else if (scn.boss === 'korne' || scn.boss === 'level') data = { players: scn.players || 1, mode: 'story', seed: scn.seed };
+    else data = { players: scn.players || 1, mode: 'bosstest', boss: scn.boss, seed: scn.seed };
+  } else if (scn.kind === 'road') data = { players: 1, mode: 'story', camp: camp(scn.ch), seed: scn.seed };
   else if (scn.kind === 'rush') data = Speedrun.begin('boss', null, { seed: scn.seed });
   else if (scn.kind === 'chapter1' || scn.boss === 'korne') data = { players: scn.players || 1, mode: 'story', seed: scn.seed };
   else data = { players: scn.players || 1, mode: 'bosstest', boss: scn.boss, seed: scn.seed };
@@ -67,8 +87,48 @@ async function recordInPage(scn) {
   const ext = (id, x, y) => { Journal.act(sc, 'ex', id, x, y); Journal.ext[id](sc, x, y); };
   const mkBrains = () => sc.players.map((p, i) => new window.BotBrain(sc, i, scn.skill, scn.seed * 31 + i * 7 + 1));
   let brains = null, runner = null, fight = scn.kind === 'boss';
-  if (scn.boss === 'korne' && scn.kind === 'boss') ext(10);
+  if (scn.boss === 'korne' && (scn.kind === 'boss' || scn.kind === 'fuzz')) ext(10);
+  if (scn.kind === 'fuzz' && (scn.boss === 'level' || /^road/.test(scn.boss))) ext(11);
   if (fight) brains = mkBrains();
+  // фаззер ввода: у каждой кнопки своя «плотность» и средняя длина нажатия (двухсостояний марковская цепь), направление чаще к боссу
+  // сценарий «интерфейс»: скамья (меню), лавка, покупки, карта и телепорт, подбор предмета; действия идут через журналируемые вызовы (acts)
+  let uiStep = null;
+  if (scn.kind === 'ui') {
+    const b0 = sc.benches[0], b1 = sc.benches[1] || sc.benches[0], at = (b) => [b.x - 7, b.y - 26], P0 = sc.players[0];
+    let up = -1, right = -1;
+    const S = {
+      6: () => { if (scn.item) ext(20, 1929, 383); },
+      30: () => ext(12),
+      32: () => ext(20, ...at(b0)),
+      36: () => { up = 39; },
+      50: () => { sc.benchClose(true); sc.benchRest(P0, b0, true); Campaign.openShop(sc, P0); },
+      54: () => Campaign.buy(sc, 'hp'), 56: () => Campaign.buy(sc, 'dmg'), 58: () => Campaign.buy(sc, 'silk'), 60: () => Campaign.buy(sc, 'hp'), 62: () => Campaign.buy(sc, 'hp'), 64: () => Campaign.buy(sc, 'hp'),
+      70: () => Campaign.closeShop(sc),
+      80: () => { right = 100; },
+      110: () => ext(20, ...at(b1)),
+      114: () => { up = 117; },
+      130: () => { sc.benchClose(true); sc.benchRest(P0, b1, true); },
+      140: () => MapTravel.show(sc),
+      145: () => MapTravel.move(sc, -1),
+      150: () => MapTravel.go(sc),
+      240: () => ext(20, ...at(b1)),
+      244: () => { up = 247; },
+      260: () => { sc.benchClose(); },
+    };
+    uiStep = (f) => { if (S[f]) S[f](); return { up: f <= up && f >= up - 3, right: f <= right }; };
+  }
+  let fz = null;
+  if (scn.kind === 'fuzz') {
+    const R = mulberry32((scn.seed * 2654435761) >>> 0), st = sc.players.map(() => ({ dir: 0, dirT: 0, on: {} }));
+    const BTN = { jump: [0.3, 28], atk: [0.4, 14], dash: [0.06, 6], heal: [0.12, 24], bomb: [0.05, 6], tool: [0.1, 8], up: [0.16, 18], down: [0.1, 18] };
+    fz = (i) => {
+      const s = st[i], p = sc.players[i], b = sc.testBoss() || sc.boss;
+      if (--s.dirT <= 0) { s.dirT = 6 + Math.floor(R() * 40); const toward = b && b.state !== 'gone' && R() < 0.65 ? Math.sign(b.x + b.w / 2 - (p.x + 7)) : (R() < 0.5 ? -1 : 1); s.dir = R() < 0.12 ? 0 : toward; }
+      const out = { left: s.dir < 0, right: s.dir > 0, up: false, down: false, jump: false, atk: false, dash: false, heal: false, bomb: false, tool: false };
+      for (const k in BTN) { const [duty, hold] = BTN[k], was = !!s.on[k], pOff = 1 / hold, pOn = (duty * pOff) / (1 - duty); const on = was ? !(R() < pOff) : R() < pOn; s.on[k] = on; out[k] = on; }
+      return out;
+    };
+  }
   const tileOf = (x, y) => ({ x: Math.floor(x / 32), y: Math.floor(y / 32) });
   const exitTile = () => ({ x: sc.L.exit.x, y: sc.L.exit.y });
   if (scn.kind === 'road') runner = new window.TTRunner(sc, exitTile());
@@ -80,6 +140,8 @@ async function recordInPage(scn) {
   if (scn.kind === 'rush') { brains = mkBrains(); }
   for (; frame < scn.max; frame++) {
     const p0 = sc.players[0];
+    if (fz) for (let i = 0; i < sc.players.length; i++) sc._bots[i] = fz(i);
+    if (uiStep) sc._bots[0] = uiStep(frame);
     if (runner && phase === 'run') {
       if (scn.kind === 'chapter1' && sc.boss && !['sleep', 'dead', 'gone'].includes(sc.boss.state)) { phase = 'fight'; phaseAt = frame; brains = mkBrains(); }
       else sc._bots[0] = runner.act(frame, ext);
@@ -93,7 +155,8 @@ async function recordInPage(scn) {
       g.step(frame * 16.667, 16.667);
     } else sc.update(frame * 16.667, 16.667);
     if (tail < 0) {
-      if (scn.kind === 'rush') { const r = Speedrun.run; if (r && r.done) { tail = 60; result = 'win'; } else if (!r) { return { error: 'забег прерван' }; } }
+      if (scn.kind === 'fuzz' || scn.kind === 'ui') { if (frame >= scn.max - 1) { tail = 1; result = scn.expect; } }
+      else if (scn.kind === 'rush') { const r = Speedrun.run; if (r && r.done) { tail = 60; result = 'win'; } else if (!r) { return { error: 'забег прерван' }; } }
       else if (scn.kind === 'road') { if (sc.leaving) { tail = 25; result = 'win'; } }
       else if (scn.kind === 'chapter1') { if (sc.won) { tail = 60; result = 'win'; } else if (frame - phaseAt > 9000 && phase === 'fight') { return { error: 'бой слишком долгий' }; } }
       else {
@@ -116,6 +179,7 @@ function verifyInPage(rec) {
     Snd.play = () => { }; Music.play = () => { };
     const t0 = performance.now();
     setTimeout(() => resolve({ ok: false, why: 'таймаут' }), 180000);
+    if (rec.loadout) localStorage.setItem('tt_loadout', JSON.stringify(rec.loadout)); else localStorage.removeItem('tt_loadout');
     Journal.restoreMem(JSON.parse(JSON.stringify(rec.journal)), { budget: 300, onDone: (gs) => resolve({ ok: true, outcome: Journal.outcome(gs), ms: Math.round(performance.now() - t0) }), onFail: (why) => resolve({ ok: false, why }) });
   });
 }
@@ -149,7 +213,7 @@ const diff = (a, b, p) => { p = p || ''; const out = []; if (typeof a !== 'objec
         await page.close();
         if (r.error) { console.log(`  ${scn.name} зерно ${seed}: ${r.error}`, JSON.stringify({ ...r, error: undefined })); continue; }
         console.log(`  ${scn.name} зерно ${seed}: ${r.result} за ${r.frames} кадров, переносов бегуна ${r.tele || 0} (${((Date.now() - t0) / 1000).toFixed(1)} с)`);
-        if (r.result === scn.expect) { rec = { name: scn.name, kind: scn.kind, version: ver, seed, expect: r.outcome, journal: r.journal }; break; }
+        if (r.result === scn.expect) { rec = { name: scn.name, kind: scn.kind, version: ver, seed, expect: r.outcome, journal: r.journal, ...(scn.loadout ? { loadout: scn.loadout } : {}) }; break; }
       }
       if (!rec) { fails++; console.log(`ПРОВАЛ ${scn.name}: не удалось получить исход «${scn.expect}»`); continue; }
       const file = path.join(outDir, scn.name + '.json'); fs.writeFileSync(file, JSON.stringify(rec));
