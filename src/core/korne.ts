@@ -144,11 +144,11 @@ export function bossDeath(sc: World, kind: BossDeathKind, base: (sc: World) => v
     const first = !sc.abil['glide'] && sc.abil['glide'] !== false;
     if (first) {
       sc.abil['glide'] = true;
-      if (!sc.sr && sc.mode !== 'bosstest') saveProgress(sc, { ...(sc.progress || { bench: 0, beads: sc.beads }), abil: sc.abil });
+      if (!sc.sr && sc.online !== 'guest' && sc.mode !== 'bosstest') saveProgress(sc, { ...(sc.progress || { bench: 0, beads: sc.beads }), abil: sc.abil });
       if (sc.mode !== 'bosstest' || sc.camp) sc.toast('Паутинный парус: держи прыжок в падении — планируй', 5);
     }
   }
-  if (!sc.sr) sc.emit('bossReward', { id: REWARD_ID[kind] });
+  if (!sc.sr && sc.online !== 'guest') sc.emit('bossReward', { id: REWARD_ID[kind] });
   // qol.js: запись победы в рекорды боссов
   if (sc.fightOn && !sc.fightWon && !sc.train) {
     sc.fightWon = true;

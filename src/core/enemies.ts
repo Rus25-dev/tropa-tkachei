@@ -3,6 +3,14 @@ import { E2_UNDER, E2_VULN, P, T, clamp } from './balance';
 import type { Enemy, Player } from './types';
 import type { World } from './world';
 import { stepFrozen } from './tools';
+
+/** порядок состояний «врагов 2» — по индексу они уходят в снимок гостю */
+export const E2_STATES: Record<string, string[]> = {
+  spitter: ['idle', 'flee', 'hop', 'wind', 'recover'],
+  shell: ['walk', 'wind', 'rush', 'spin', 'tire', 'stun'],
+  bat: ['roost', 'hover', 'wind', 'dive', 'rise'],
+  lurker: ['hidden', 'track', 'warn', 'erupt', 'tell', 'pounce', 'tired', 'dig'],
+};
 import { slowDt } from './status';
 
 type D = { type: string; x: number; y: number };
@@ -38,7 +46,7 @@ function spawnEnemy2(sc: World, d: D, base: Omit<Enemy, 'w' | 'h' | 'x' | 'y' | 
 }
 
 // ----- броня и неуязвимость: true — удар не засчитан -----
-export function e2Blocked(sc: World, e: Enemy, p: Player): boolean {
+export function e2Blocked(sc: World, e: Enemy, p: Player, guest?: boolean): boolean {
   if (!e['e2']) return false;
   if (e.type === 'lurker') return !E2_VULN.includes(e['state']);
   if (e.type !== 'shell' || e['armorT'] > 0 || sc._e2burst || p['heavy'] || p.atkDir === 'd') return false;
@@ -47,6 +55,7 @@ export function e2Blocked(sc: World, e: Enemy, p: Player): boolean {
   sc.snd('clink');
   const fx = e.x + e.w / 2 + Math.sign(p.x + 7 - (e.x + e.w / 2)) * e.w * 0.4, fy = e.y + e.h * 0.45;
   sc.parts(8, fx, fy, 0xffe3a3);
+  if (!guest && !p.remote && sc.online === 'host') { sc.sendEv({ k: 'snd', n: 'clink' }); sc.sendEv({ k: 'burst', n: 8, x: Math.round(fx), y: Math.round(fy), c: 0xffe3a3 }); }
   if (!p.remote) sc.hitstop = 0.03;
   if (!sc._shellHint && !p.remote) { sc._shellHint = true; sc.toast('Панцирь не пробить обычным ударом: нужен тяжёлый (3-й удар), удар вниз или отбив'); }
   return true;

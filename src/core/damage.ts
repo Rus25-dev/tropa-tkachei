@@ -29,7 +29,7 @@ export function gainSilk(sc: World, p: Player, boss?: boolean): void {
   const gained = !boss || ((p['bossHits'] as number) | 0) % BAL.silkEvery === 0;
   if (!gained) return;
   p['_sf'] = ((p['_sf'] as number) || 0) + 0.5;
-  if ((p['_sf'] as number) >= 1) { (p['_sf'] as number) -= 1; p.silk = Math.min(sc.silkMax, p.silk + 1); }
+  if ((p['_sf'] as number) >= 1) { (p['_sf'] as number) -= 1; if (p.remote) sc.sendEv({ k: 'silk', i: p.i }); else p.silk = Math.min(sc.silkMax, p.silk + 1); }
 }
 export { gainSilkBase };
 
@@ -43,7 +43,7 @@ export function damageEnemy(sc: World, e: Enemy, p: Player): void {
 function damageEnemyCharms(sc: World, e: Enemy, p: Player): void {
   const hp0 = e.hp, stunned = e['state'] === 'stun';
   damageEnemyWeapons(sc, e, p);
-  if (e.hp < hp0 && !e.dead) {
+  if (e.hp < hp0 && !e.dead && sc.auth()) {
     if (!p['noSilkGain'] && p.atkT > 0 && !!p.atkHits) {
       if (hasCharm(p, 'sting')) applyStatus(sc, e, 'poison', null, p);
       if (hasCharm(p, 'ember') && p['heavy'] && p.atkDir === 'f') applyStatus(sc, e, 'burn', null, p);
@@ -65,7 +65,7 @@ export function damageBoss(sc: World, key: BossKey, p: Player): void {
 function damageBossCharms(sc: World, key: BossKey, p: Player): void {
   const b = bossOf(sc, key), hp0 = b && b.hp, stag = !!b && b.stagger > 0;
   damageBossWeapons(sc, b, p, () => poiseWrapDamage(sc, key, p));
-  if (b && b.hp < hp0! && b.hp > 0) {
+  if (b && b.hp < hp0! && b.hp > 0 && sc.auth()) {
     if (!p['noSilkGain'] && p.atkT > 0 && !!p.atkHits) {
       if (hasCharm(p, 'sting')) applyStatus(sc, b, 'poison', null, p);
       if (hasCharm(p, 'ember') && p['heavy'] && p.atkDir === 'f') applyStatus(sc, b, 'burn', null, p);
@@ -87,7 +87,7 @@ export function hurtPlayer(sc: World, p: Player, dmg: number, srcX: number | nul
 function hurtPlayerCharms(sc: World, p: Player, dmg: number, srcX: number | null, spike?: boolean): void {
   const hp0 = p.hp;
   hurtPlayerTraining(sc, p, dmg, srcX, spike);
-  if (!spike && srcX != null && p.hp < hp0 && hasCharm(p, 'thorns')) {
+  if (!spike && srcX != null && p.hp < hp0 && sc.auth() && hasCharm(p, 'thorns')) {
     const px = p.x + 7, py = p.y + 13, near = (o: { x: number; y: number; w: number; h: number }): boolean => Math.abs(o.x + o.w / 2 - srcX) < 1.5 && Math.abs(o.y + o.h / 2 - py) < 60 + o.h / 2 && Math.abs(o.x + o.w / 2 - px) < 60 + o.w / 2;
     const e = sc.enemies.find((o) => !o.dead && near(o));
     if (e) {

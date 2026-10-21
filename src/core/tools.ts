@@ -24,11 +24,14 @@ export function toolCast(sc: World, id: string, p: Player): boolean {
   if (id === 'hook') { hookCast(sc, p, a); return true; }
   const msg = { k: 'tool', id, i: p.i, x: Math.round(p.x + 7), y: Math.round(id === 'trap' ? p.y + 26 : p.y + 13), dx: Math.round(a.dx * 1000) / 1000, dy: Math.round(a.dy * 1000) / 1000, f: a.f };
   sc.snd(id === 'trap' ? 'pickup' : 'throw');
-  toolSpawn(sc, msg);
+  if (sc.auth()) toolSpawn(sc, msg); else sc.sendEv(msg);
   return true;
 }
-interface ToolMsg { id: string; i: number; x: number; y: number; dx: number; dy: number; f: number }
-function toolSpawn(sc: World, m: ToolMsg): void {
+/** снаряды-инструменты у гостя приходят в снимке строками снарядов этих видов */
+export const TOOL_KIND: Record<string, [number, number]> = { tneedle: [12, 12], ttrap: [26, 10], tbomb: [12, 12] };
+export const isToolKind = (k: string): boolean => k === 'tneedle' || k === 'ttrap' || k === 'tbomb';
+export interface ToolMsg { id: string; i: number; x: number; y: number; dx: number; dy: number; f: number }
+export function toolSpawn(sc: World, m: ToolMsg): void {
   const tl = sc.tl as Q[];
   if (m.id === 'throwneedle') {
     tl.push({ kind: 'tneedle', x: m.x + m.dx * 14 - 6, y: m.y + m.dy * 14 - 6, w: 12, h: 12, vx: m.dx * TOOL.NEEDLE_SPD, vy: m.dy * TOOL.NEEDLE_SPD, st: 0, ft: 0.65, life: 25, owner: m.i, hit: new Set(), ang: Math.atan2(m.dy, m.dx) });
@@ -60,17 +63,17 @@ function toolHurtEnemy(sc: World, e: Enemy, n: number, kdir: number, pierceArmor
 }
 const liveBoss = (b: Boss | null | undefined): boolean => !!b && !['dead', 'gone', 'sleep', 'intro'].includes(b.state);
 // урон боссу от инструмента — через те же damageBoss/Vladik/Tima, что и у всполоха (фазы, стойка, оглушение работают)
-function toolHurtBoss(sc: World, key: BossKey, p: Player, n: number): void {
+export function toolHurtBoss(sc: World, key: BossKey, p: Player, n: number): void {
   const b = key === 'boss' ? sc.boss : sc[key];
   p['noSilkGain'] = true;
   try { for (let i = 0; i < n && liveBoss(b); i++) damageBoss(sc, key, p); } finally { p['noSilkGain'] = false; }
 }
-function freezeEnemy(sc: World, e: Enemy | undefined, t: number): void {
+export function freezeEnemy(sc: World, e: Enemy | undefined, t: number): void {
   if (!e || e.dead) return;
   e['frozenT'] = Math.max((e['frozenT'] as number) || 0, t); e.kbT = 0; e.flash = 0.12;
   sc.burst(8, e.x + e.w / 2, e.y + e.h / 2, 0xffe3a3);
 }
-const tfxAdd = (sc: World, f: Q): void => { sc.tfx.push(f); };
+const tfxAdd = (sc: World, f: Q, send?: boolean): void => { sc.tfx.push(f); if (send) sc.sendEv({ k: 'tfx', ...f, t: f['t'] }); };
 
 // ----- шаг сущностей -----
 export function stepTools(sc: World, dt: number): void {
@@ -128,7 +131,7 @@ function stepToolNeedle(sc: World, q: Q, dt: number, bosses: [Boss, BossKey][]):
     const r = { x: q['x'] - 22, y: q['y'] - 22, w: 56, h: 56 };
     if (overlap(owner, r)) {
       q['dead'] = true; sc.snd('pickup');
-      owner.silk = Math.min(sc.silkMax, owner.silk + 1);
+      if (owner.remote) sc.sendEv({ k: 'silk', i: owner.i }); else owner.silk = Math.min(sc.silkMax, owner.silk + 1);
       sc.burst(6, q['x'] + 6, q['y'] + 6, owner.pal.accent);
     }
   }
@@ -154,7 +157,7 @@ function stepToolTrap(sc: World, q: Q, dt: number, bosses: [Boss, BossKey][]): v
 }
 function trapSnap(sc: World, q: Q, boss?: boolean): void {
   q['dead'] = true; sc.sfx('slam'); sc.shake(80, 0.004);
-  sc.burst(14, q['x'] + q['w'] / 2, q['y'], 0xffe3a3); tfxAdd(sc, { f: 'snap', x: q['x'] + q['w'] / 2, y: q['y'] + q['h'], t: 0.35, T: 0.35 });
+  sc.burst(14, q['x'] + q['w'] / 2, q['y'], 0xffe3a3); tfxAdd(sc, { f: 'snap', x: q['x'] + q['w'] / 2, y: q['y'] + q['h'], t: 0.35, T: 0.35 }, true);
   if (boss) sc.toastAll('Капкан! Стойка босса растёт');
 }
 function stepToolBomb(sc: World, q: Q, dt: number, bosses: [Boss, BossKey][]): void {
@@ -173,7 +176,7 @@ function toolExplode(sc: World, cx: number, cy: number, p: Player): void {
   const R = TOOL.BOMB_R;
   sc.sfx('slam'); sc.shake(220, 0.01); sc.hitstop = Math.max(sc.hitstop || 0, 0.05);
   sc.burst(30, cx, cy, p && p.pal ? p.pal.accent : 0xffe3a3); sc.burst(14, cx, cy, 0xffffff);
-  tfxAdd(sc, { f: 'boom', x: cx, y: cy, t: 0.45, T: 0.45 });
+  tfxAdd(sc, { f: 'boom', x: cx, y: cy, t: 0.45, T: 0.45 }, true);
   for (const pr of sc.projs) if (!pr.dead && pr.kind !== 'bomb' && !(pr.kind === 'tneedle' || pr.kind === 'ttrap' || pr.kind === 'tbomb') && Math.hypot(pr.x - cx, pr.y - cy) < R) pr.dead = true;
   for (const e of sc.enemies) {
     if (e.dead || Math.hypot(e.x + e.w / 2 - cx, e.y + e.h / 2 - cy) > R) continue;
@@ -207,17 +210,17 @@ function hookCast(sc: World, p: Player, a: { dx: number; dy: number; f: number }
   } else if (hit && hit.k === 'enemy') {
     const e = hit.e, small = e.hp <= 3 && e.type !== 'shell' && e.type !== 'beetle';
     sc.snd('clink');
-    freezeEnemy(sc, e, small ? TOOL.HOOK_STUN : 0.2);
+    if (sc.auth()) freezeEnemy(sc, e, small ? TOOL.HOOK_STUN : 0.2); else sc.sendEv({ k: 'thook', i: p.i, t: 'e', idx: sc.enemies.indexOf(e), s: small ? 1 : 0 });
     if (small) { const ecx = e.x + e.w / 2, ecy = e.y + e.h / 2, k = e.w / 2 + 14; pull = { x: ecx - a.dx * k, y: ecy - a.dy * k }; }
   } else if (hit && hit.k === 'boss') {
     const b = hit.b;
     if (b.stagger > 0 && !b.executed) {
       sc.snd('hitCrit');
-      toolHurtBoss(sc, hit.key, p, 1);
+      if (sc.auth()) toolHurtBoss(sc, hit.key, p, 1); else sc.sendEv({ k: 'thook', i: p.i, t: 'b', key: hit.key });
       const k = b.w / 2 + 14; pull = { x: b.x + b.w / 2 - a.dx * k, y: b.y + b.h / 2 - a.dy * k };
     } else sc.snd('clink');
   }
-  tfxAdd(sc, { f: 'hook', x: cx, y: cy, x1: ex, y1: ey, t: 0.28, T: 0.28, i: p.i });
+  tfxAdd(sc, { f: 'hook', x: cx, y: cy, x1: ex, y1: ey, t: 0.28, T: 0.28, i: p.i }, true);
   if (pull) p['hk'] = { tx: pull.x, ty: pull.y, ax: ex, ay: ey, t: 0.5, stuck: 0 };
 }
 function hookEnd(p: Player): void {
