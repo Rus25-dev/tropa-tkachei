@@ -1,4 +1,4 @@
-/* global window, performance, requestAnimationFrame */
+/* global performance, requestAnimationFrame */
 // Те же замеры для v1.8 (legacy/index.html, Phaser 3 + Canvas/WebGL): node tools/perf-legacy.mjs [ширина×высота] [замедление CPU] [dpr]
 import { chromium } from '@playwright/test';
 import { pathToFileURL } from 'node:url';

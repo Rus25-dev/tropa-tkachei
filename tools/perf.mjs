@@ -1,4 +1,4 @@
-/* global window, performance, requestAnimationFrame */
+/* global performance, requestAnimationFrame, localStorage, document */
 // Замеры производительности v2: кадры в секунду, время кадра (среднее и 95-й процентиль), время логики и отрисовки из ?perf=1.
 // node tools/perf.mjs [ширина×высота] [замедление CPU: 1,4,6] [качество: low|mid|high|auto] > docs/perf-<имя>.json
 // Нужна сборка (npm run build). Chrome — из $env:CHROME. Сцены: заставка меню, глава I, босс-тест (фаза 3 тренировки), вдвоём, вдвоём + бой.
