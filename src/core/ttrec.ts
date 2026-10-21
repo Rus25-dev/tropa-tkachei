@@ -94,7 +94,7 @@ export function ttrecError(r: unknown): string | null {
 
 export function parseTtrec(text: string): Ttrec {
   let r: unknown;
-  try { r = JSON.parse(text); } catch (e) { throw new Error('не JSON: ' + (e as Error).message); }
+  try { r = JSON.parse(text); } catch (e) { throw new Error('не JSON: ' + (e as Error).message, { cause: e }); }
   const err = ttrecError(r);
   if (err) throw new Error(err);
   return r as Ttrec;
