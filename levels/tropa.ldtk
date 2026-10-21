@@ -1,0 +1,6072 @@
+{
+	"__header__": {
+		"fileType": "LDtk Project JSON",
+		"app": "LDtk",
+		"doc": "https://ldtk.io/json",
+		"schema": "https://ldtk.io/files/JSON_SCHEMA.json",
+		"appAuthor": "Sebastien 'deepnight' Benard",
+		"appVersion": "1.5.3",
+		"url": "https://ldtk.io"
+	},
+	"iid": "e96f9f9b-5670-4630-aa85-b3daec777268",
+	"jsonVersion": "1.5.3",
+	"appBuildId": 473703,
+	"nextUid": 2017,
+	"identifierStyle": "Capitalize",
+	"toc": [],
+	"worldLayout": "Free",
+	"worldGridWidth": 256,
+	"worldGridHeight": 256,
+	"defaultLevelWidth": 256,
+	"defaultLevelHeight": 256,
+	"defaultPivotX": 0,
+	"defaultPivotY": 0,
+	"defaultGridSize": 32,
+	"defaultEntityWidth": 32,
+	"defaultEntityHeight": 32,
+	"bgColor": "#40465B",
+	"defaultLevelBgColor": "#696A79",
+	"minifyJson": false,
+	"externalLevels": false,
+	"exportTiled": false,
+	"simplifiedExport": false,
+	"imageExportMode": "None",
+	"exportLevelBg": true,
+	"pngFilePattern": null,
+	"backupOnSave": false,
+	"backupLimit": 10,
+	"backupRelPath": null,
+	"levelNamePattern": "Level_%idx",
+	"tutorialDesc": null,
+	"customCommands": [],
+	"flags": [],
+	"defs": {
+		"layers": [
+			{
+				"__type": "Entities",
+				"identifier": "Entities",
+				"type": "Entities",
+				"uid": 2,
+				"gridSize": 32,
+				"guideGridWid": 0,
+				"guideGridHei": 0,
+				"displayOpacity": 1,
+				"inactiveOpacity": 0.6,
+				"hideInList": false,
+				"hideFieldsWhenInactive": true,
+				"canSelectWhenInactive": true,
+				"renderInWorldView": true,
+				"pxOffsetX": 0,
+				"pxOffsetY": 0,
+				"parallaxFactorX": 0,
+				"parallaxFactorY": 0,
+				"parallaxScaling": true,
+				"requiredTags": [],
+				"excludedTags": [],
+				"uiFilterTags": [],
+				"useAsyncRender": false,
+				"doc": null,
+				"uiColor": null,
+				"intGridValues": [],
+				"intGridValuesGroups": [],
+				"autoRuleGroups": [],
+				"autoSourceLayerDefUid": null,
+				"tilesetDefUid": null,
+				"tilePivotX": 0,
+				"tilePivotY": 0,
+				"biomeFieldUid": null
+			},
+			{
+				"__type": "IntGrid",
+				"identifier": "Tiles",
+				"type": "IntGrid",
+				"uid": 1,
+				"gridSize": 32,
+				"guideGridWid": 0,
+				"guideGridHei": 0,
+				"displayOpacity": 1,
+				"inactiveOpacity": 0.6,
+				"hideInList": false,
+				"hideFieldsWhenInactive": true,
+				"canSelectWhenInactive": true,
+				"renderInWorldView": true,
+				"pxOffsetX": 0,
+				"pxOffsetY": 0,
+				"parallaxFactorX": 0,
+				"parallaxFactorY": 0,
+				"parallaxScaling": true,
+				"requiredTags": [],
+				"excludedTags": [],
+				"uiFilterTags": [],
+				"useAsyncRender": false,
+				"doc": null,
+				"uiColor": null,
+				"intGridValues": [
+					{
+						"value": 1,
+						"identifier": "Solid",
+						"color": "#8a7a64",
+						"tile": null,
+						"groupUid": 0
+					},
+					{
+						"value": 2,
+						"identifier": "Plat",
+						"color": "#4fa3a5",
+						"tile": null,
+						"groupUid": 0
+					},
+					{
+						"value": 3,
+						"identifier": "Spike",
+						"color": "#d9534f",
+						"tile": null,
+						"groupUid": 0
+					}
+				],
+				"intGridValuesGroups": [],
+				"autoRuleGroups": [],
+				"autoSourceLayerDefUid": null,
+				"tilesetDefUid": null,
+				"tilePivotX": 0,
+				"tilePivotY": 0,
+				"biomeFieldUid": null
+			}
+		],
+		"entities": [
+			{
+				"identifier": "Spawn",
+				"uid": 10,
+				"tags": [],
+				"exportToToc": false,
+				"allowOutOfBounds": false,
+				"doc": "Точка появления героев (клетка, где стоят ноги — нижняя клетка героя).",
+				"width": 32,
+				"height": 32,
+				"resizableX": false,
+				"resizableY": false,
+				"minWidth": null,
+				"maxWidth": null,
+				"minHeight": null,
+				"maxHeight": null,
+				"keepAspectRatio": false,
+				"tileOpacity": 1,
+				"fillOpacity": 0.35,
+				"lineOpacity": 1,
+				"hollow": false,
+				"color": "#2fbf71",
+				"renderMode": "Rectangle",
+				"showName": true,
+				"tilesetId": null,
+				"tileRenderMode": "FitInside",
+				"tileRect": null,
+				"uiTileRect": null,
+				"nineSliceBorders": [],
+				"maxCount": 1,
+				"limitScope": "PerLevel",
+				"limitBehavior": "DiscardOldOnes",
+				"pivotX": 0,
+				"pivotY": 0,
+				"fieldDefs": []
+			},
+			{
+				"identifier": "Exit",
+				"uid": 11,
+				"tags": [],
+				"exportToToc": false,
+				"allowOutOfBounds": false,
+				"doc": "Выход из уровня. В аренах боссов его нет.",
+				"width": 32,
+				"height": 32,
+				"resizableX": false,
+				"resizableY": false,
+				"minWidth": null,
+				"maxWidth": null,
+				"minHeight": null,
+				"maxHeight": null,
+				"keepAspectRatio": false,
+				"tileOpacity": 1,
+				"fillOpacity": 0.35,
+				"lineOpacity": 1,
+				"hollow": false,
+				"color": "#e8c84a",
+				"renderMode": "Rectangle",
+				"showName": true,
+				"tilesetId": null,
+				"tileRenderMode": "FitInside",
+				"tileRect": null,
+				"uiTileRect": null,
+				"nineSliceBorders": [],
+				"maxCount": 1,
+				"limitScope": "PerLevel",
+				"limitBehavior": "DiscardOldOnes",
+				"pivotX": 0,
+				"pivotY": 0,
+				"fieldDefs": []
+			},
+			{
+				"identifier": "Bench",
+				"uid": 12,
+				"tags": [],
+				"exportToToc": false,
+				"allowOutOfBounds": false,
+				"doc": "Скамья: отдых, лавка, карта.",
+				"width": 32,
+				"height": 32,
+				"resizableX": false,
+				"resizableY": false,
+				"minWidth": null,
+				"maxWidth": null,
+				"minHeight": null,
+				"maxHeight": null,
+				"keepAspectRatio": false,
+				"tileOpacity": 1,
+				"fillOpacity": 0.35,
+				"lineOpacity": 1,
+				"hollow": false,
+				"color": "#c28a4a",
+				"renderMode": "Rectangle",
+				"showName": true,
+				"tilesetId": null,
+				"tileRenderMode": "FitInside",
+				"tileRect": null,
+				"uiTileRect": null,
+				"nineSliceBorders": [],
+				"maxCount": 0,
+				"limitScope": "PerLevel",
+				"limitBehavior": "MoveLastOne",
+				"pivotX": 0,
+				"pivotY": 0,
+				"fieldDefs": []
+			},
+			{
+				"identifier": "Sign",
+				"uid": 13,
+				"tags": [],
+				"exportToToc": false,
+				"allowOutOfBounds": false,
+				"doc": "Табличка с подсказкой.",
+				"width": 32,
+				"height": 32,
+				"resizableX": false,
+				"resizableY": false,
+				"minWidth": null,
+				"maxWidth": null,
+				"minHeight": null,
+				"maxHeight": null,
+				"keepAspectRatio": false,
+				"tileOpacity": 1,
+				"fillOpacity": 0.35,
+				"lineOpacity": 1,
+				"hollow": false,
+				"color": "#9fb2c8",
+				"renderMode": "Rectangle",
+				"showName": true,
+				"tilesetId": null,
+				"tileRenderMode": "FitInside",
+				"tileRect": null,
+				"uiTileRect": null,
+				"nineSliceBorders": [],
+				"maxCount": 0,
+				"limitScope": "PerLevel",
+				"limitBehavior": "MoveLastOne",
+				"pivotX": 0,
+				"pivotY": 0,
+				"fieldDefs": [
+					{
+						"identifier": "text",
+						"doc": "Текст таблички (ПК/геймпад). Перенос строки — Enter.",
+						"__type": "Multilines",
+						"uid": 1000,
+						"type": "F_Text",
+						"isArray": false,
+						"canBeNull": false,
+						"arrayMinLength": null,
+						"arrayMaxLength": null,
+						"editorDisplayMode": "Hidden",
+						"editorDisplayScale": 1,
+						"editorDisplayPos": "Above",
+						"editorLinkStyle": "StraightArrow",
+						"editorDisplayColor": null,
+						"editorAlwaysShow": false,
+						"editorShowInWorld": true,
+						"editorCutLongValues": true,
+						"editorTextSuffix": null,
+						"editorTextPrefix": null,
+						"useForSmartColor": false,
+						"exportToToc": false,
+						"searchable": false,
+						"min": null,
+						"max": null,
+						"regex": null,
+						"acceptFileTypes": null,
+						"defaultOverride": null,
+						"textLanguageMode": null,
+						"symmetricalRef": false,
+						"autoChainRef": true,
+						"allowOutOfLevelRef": true,
+						"allowedRefs": "OnlySame",
+						"allowedRefsEntityUid": null,
+						"allowedRefTags": [],
+						"tilesetUid": null
+					},
+					{
+						"identifier": "touch",
+						"doc": "Текст для сенсорного управления; пусто — показывается обычный.",
+						"__type": "Multilines",
+						"uid": 1001,
+						"type": "F_Text",
+						"isArray": false,
+						"canBeNull": true,
+						"arrayMinLength": null,
+						"arrayMaxLength": null,
+						"editorDisplayMode": "Hidden",
+						"editorDisplayScale": 1,
+						"editorDisplayPos": "Above",
+						"editorLinkStyle": "StraightArrow",
+						"editorDisplayColor": null,
+						"editorAlwaysShow": false,
+						"editorShowInWorld": true,
+						"editorCutLongValues": true,
+						"editorTextSuffix": null,
+						"editorTextPrefix": null,
+						"useForSmartColor": false,
+						"exportToToc": false,
+						"searchable": false,
+						"min": null,
+						"max": null,
+						"regex": null,
+						"acceptFileTypes": null,
+						"defaultOverride": null,
+						"textLanguageMode": null,
+						"symmetricalRef": false,
+						"autoChainRef": true,
+						"allowOutOfLevelRef": true,
+						"allowedRefs": "OnlySame",
+						"allowedRefsEntityUid": null,
+						"allowedRefTags": [],
+						"tilesetUid": null
+					}
+				]
+			},
+			{
+				"identifier": "Enemy",
+				"uid": 14,
+				"tags": [],
+				"exportToToc": false,
+				"allowOutOfBounds": false,
+				"doc": "Враг; клетка — на какой клетке он стоит.",
+				"width": 32,
+				"height": 32,
+				"resizableX": false,
+				"resizableY": false,
+				"minWidth": null,
+				"maxWidth": null,
+				"minHeight": null,
+				"maxHeight": null,
+				"keepAspectRatio": false,
+				"tileOpacity": 1,
+				"fillOpacity": 0.35,
+				"lineOpacity": 1,
+				"hollow": false,
+				"color": "#d9534f",
+				"renderMode": "Rectangle",
+				"showName": true,
+				"tilesetId": null,
+				"tileRenderMode": "FitInside",
+				"tileRect": null,
+				"uiTileRect": null,
+				"nineSliceBorders": [],
+				"maxCount": 0,
+				"limitScope": "PerLevel",
+				"limitBehavior": "MoveLastOne",
+				"pivotX": 0,
+				"pivotY": 0,
+				"fieldDefs": [
+					{
+						"identifier": "type",
+						"doc": "Вид врага.",
+						"__type": "LocalEnum.EnemyType",
+						"uid": 1002,
+						"type": "F_Enum(100)",
+						"isArray": false,
+						"canBeNull": false,
+						"arrayMinLength": null,
+						"arrayMaxLength": null,
+						"editorDisplayMode": "ValueOnly",
+						"editorDisplayScale": 1,
+						"editorDisplayPos": "Above",
+						"editorLinkStyle": "StraightArrow",
+						"editorDisplayColor": null,
+						"editorAlwaysShow": false,
+						"editorShowInWorld": true,
+						"editorCutLongValues": true,
+						"editorTextSuffix": null,
+						"editorTextPrefix": null,
+						"useForSmartColor": false,
+						"exportToToc": false,
+						"searchable": false,
+						"min": null,
+						"max": null,
+						"regex": null,
+						"acceptFileTypes": null,
+						"defaultOverride": null,
+						"textLanguageMode": null,
+						"symmetricalRef": false,
+						"autoChainRef": true,
+						"allowOutOfLevelRef": true,
+						"allowedRefs": "OnlySame",
+						"allowedRefsEntityUid": null,
+						"allowedRefTags": [],
+						"tilesetUid": null
+					}
+				]
+			},
+			{
+				"identifier": "Item",
+				"uid": 15,
+				"tags": [],
+				"exportToToc": false,
+				"allowOutOfBounds": false,
+				"doc": "Предмет способности.",
+				"width": 32,
+				"height": 32,
+				"resizableX": false,
+				"resizableY": false,
+				"minWidth": null,
+				"maxWidth": null,
+				"minHeight": null,
+				"maxHeight": null,
+				"keepAspectRatio": false,
+				"tileOpacity": 1,
+				"fillOpacity": 0.35,
+				"lineOpacity": 1,
+				"hollow": false,
+				"color": "#8e6bd8",
+				"renderMode": "Rectangle",
+				"showName": true,
+				"tilesetId": null,
+				"tileRenderMode": "FitInside",
+				"tileRect": null,
+				"uiTileRect": null,
+				"nineSliceBorders": [],
+				"maxCount": 0,
+				"limitScope": "PerLevel",
+				"limitBehavior": "MoveLastOne",
+				"pivotX": 0,
+				"pivotY": 0,
+				"fieldDefs": [
+					{
+						"identifier": "ability",
+						"doc": "Ключ способности (double — двойной прыжок).",
+						"__type": "String",
+						"uid": 1003,
+						"type": "F_String",
+						"isArray": false,
+						"canBeNull": false,
+						"arrayMinLength": null,
+						"arrayMaxLength": null,
+						"editorDisplayMode": "ValueOnly",
+						"editorDisplayScale": 1,
+						"editorDisplayPos": "Above",
+						"editorLinkStyle": "StraightArrow",
+						"editorDisplayColor": null,
+						"editorAlwaysShow": false,
+						"editorShowInWorld": true,
+						"editorCutLongValues": true,
+						"editorTextSuffix": null,
+						"editorTextPrefix": null,
+						"useForSmartColor": false,
+						"exportToToc": false,
+						"searchable": false,
+						"min": null,
+						"max": null,
+						"regex": null,
+						"acceptFileTypes": null,
+						"defaultOverride": null,
+						"textLanguageMode": null,
+						"symmetricalRef": false,
+						"autoChainRef": true,
+						"allowOutOfLevelRef": true,
+						"allowedRefs": "OnlySame",
+						"allowedRefsEntityUid": null,
+						"allowedRefTags": [],
+						"tilesetUid": null
+					},
+					{
+						"identifier": "text",
+						"doc": "Что показать при подборе.",
+						"__type": "Multilines",
+						"uid": 1004,
+						"type": "F_Text",
+						"isArray": false,
+						"canBeNull": false,
+						"arrayMinLength": null,
+						"arrayMaxLength": null,
+						"editorDisplayMode": "Hidden",
+						"editorDisplayScale": 1,
+						"editorDisplayPos": "Above",
+						"editorLinkStyle": "StraightArrow",
+						"editorDisplayColor": null,
+						"editorAlwaysShow": false,
+						"editorShowInWorld": true,
+						"editorCutLongValues": true,
+						"editorTextSuffix": null,
+						"editorTextPrefix": null,
+						"useForSmartColor": false,
+						"exportToToc": false,
+						"searchable": false,
+						"min": null,
+						"max": null,
+						"regex": null,
+						"acceptFileTypes": null,
+						"defaultOverride": null,
+						"textLanguageMode": null,
+						"symmetricalRef": false,
+						"autoChainRef": true,
+						"allowOutOfLevelRef": true,
+						"allowedRefs": "OnlySame",
+						"allowedRefsEntityUid": null,
+						"allowedRefTags": [],
+						"tilesetUid": null
+					}
+				]
+			},
+			{
+				"identifier": "GateIn",
+				"uid": 16,
+				"tags": [],
+				"exportToToc": false,
+				"allowOutOfBounds": false,
+				"doc": "Ворота входа в арену босса (закрываются в бою). Высота — по числу клеток.",
+				"width": 32,
+				"height": 32,
+				"resizableX": false,
+				"resizableY": true,
+				"minWidth": null,
+				"maxWidth": null,
+				"minHeight": null,
+				"maxHeight": null,
+				"keepAspectRatio": false,
+				"tileOpacity": 1,
+				"fillOpacity": 0.35,
+				"lineOpacity": 1,
+				"hollow": false,
+				"color": "#b5651d",
+				"renderMode": "Rectangle",
+				"showName": true,
+				"tilesetId": null,
+				"tileRenderMode": "FitInside",
+				"tileRect": null,
+				"uiTileRect": null,
+				"nineSliceBorders": [],
+				"maxCount": 1,
+				"limitScope": "PerLevel",
+				"limitBehavior": "DiscardOldOnes",
+				"pivotX": 0,
+				"pivotY": 0,
+				"fieldDefs": []
+			},
+			{
+				"identifier": "GateOut",
+				"uid": 17,
+				"tags": [],
+				"exportToToc": false,
+				"allowOutOfBounds": false,
+				"doc": "Ворота выхода (открываются после победы над боссом).",
+				"width": 32,
+				"height": 32,
+				"resizableX": false,
+				"resizableY": true,
+				"minWidth": null,
+				"maxWidth": null,
+				"minHeight": null,
+				"maxHeight": null,
+				"keepAspectRatio": false,
+				"tileOpacity": 1,
+				"fillOpacity": 0.35,
+				"lineOpacity": 1,
+				"hollow": false,
+				"color": "#7a3f10",
+				"renderMode": "Rectangle",
+				"showName": true,
+				"tilesetId": null,
+				"tileRenderMode": "FitInside",
+				"tileRect": null,
+				"uiTileRect": null,
+				"nineSliceBorders": [],
+				"maxCount": 1,
+				"limitScope": "PerLevel",
+				"limitBehavior": "DiscardOldOnes",
+				"pivotX": 0,
+				"pivotY": 0,
+				"fieldDefs": []
+			},
+			{
+				"identifier": "BossArena",
+				"uid": 18,
+				"tags": [],
+				"exportToToc": false,
+				"allowOutOfBounds": false,
+				"doc": "Арена босса главы I: клетка — где появится босс.",
+				"width": 32,
+				"height": 32,
+				"resizableX": false,
+				"resizableY": false,
+				"minWidth": null,
+				"maxWidth": null,
+				"minHeight": null,
+				"maxHeight": null,
+				"keepAspectRatio": false,
+				"tileOpacity": 1,
+				"fillOpacity": 0.35,
+				"lineOpacity": 1,
+				"hollow": false,
+				"color": "#ff4081",
+				"renderMode": "Rectangle",
+				"showName": true,
+				"tilesetId": null,
+				"tileRenderMode": "FitInside",
+				"tileRect": null,
+				"uiTileRect": null,
+				"nineSliceBorders": [],
+				"maxCount": 1,
+				"limitScope": "PerLevel",
+				"limitBehavior": "DiscardOldOnes",
+				"pivotX": 0,
+				"pivotY": 0,
+				"fieldDefs": [
+					{
+						"identifier": "arenaX0",
+						"doc": "Левая граница арены (клетка).",
+						"__type": "Int",
+						"uid": 1005,
+						"type": "F_Int",
+						"isArray": false,
+						"canBeNull": false,
+						"arrayMinLength": null,
+						"arrayMaxLength": null,
+						"editorDisplayMode": "Hidden",
+						"editorDisplayScale": 1,
+						"editorDisplayPos": "Above",
+						"editorLinkStyle": "StraightArrow",
+						"editorDisplayColor": null,
+						"editorAlwaysShow": false,
+						"editorShowInWorld": true,
+						"editorCutLongValues": true,
+						"editorTextSuffix": null,
+						"editorTextPrefix": null,
+						"useForSmartColor": false,
+						"exportToToc": false,
+						"searchable": false,
+						"min": null,
+						"max": null,
+						"regex": null,
+						"acceptFileTypes": null,
+						"defaultOverride": null,
+						"textLanguageMode": null,
+						"symmetricalRef": false,
+						"autoChainRef": true,
+						"allowOutOfLevelRef": true,
+						"allowedRefs": "OnlySame",
+						"allowedRefsEntityUid": null,
+						"allowedRefTags": [],
+						"tilesetUid": null
+					},
+					{
+						"identifier": "arenaX1",
+						"doc": "Правая граница арены (клетка).",
+						"__type": "Int",
+						"uid": 1006,
+						"type": "F_Int",
+						"isArray": false,
+						"canBeNull": false,
+						"arrayMinLength": null,
+						"arrayMaxLength": null,
+						"editorDisplayMode": "Hidden",
+						"editorDisplayScale": 1,
+						"editorDisplayPos": "Above",
+						"editorLinkStyle": "StraightArrow",
+						"editorDisplayColor": null,
+						"editorAlwaysShow": false,
+						"editorShowInWorld": true,
+						"editorCutLongValues": true,
+						"editorTextSuffix": null,
+						"editorTextPrefix": null,
+						"useForSmartColor": false,
+						"exportToToc": false,
+						"searchable": false,
+						"min": null,
+						"max": null,
+						"regex": null,
+						"acceptFileTypes": null,
+						"defaultOverride": null,
+						"textLanguageMode": null,
+						"symmetricalRef": false,
+						"autoChainRef": true,
+						"allowOutOfLevelRef": true,
+						"allowedRefs": "OnlySame",
+						"allowedRefsEntityUid": null,
+						"allowedRefTags": [],
+						"tilesetUid": null
+					},
+					{
+						"identifier": "trigger",
+						"doc": "Клетка X, с которой начинается бой.",
+						"__type": "Int",
+						"uid": 1007,
+						"type": "F_Int",
+						"isArray": false,
+						"canBeNull": false,
+						"arrayMinLength": null,
+						"arrayMaxLength": null,
+						"editorDisplayMode": "Hidden",
+						"editorDisplayScale": 1,
+						"editorDisplayPos": "Above",
+						"editorLinkStyle": "StraightArrow",
+						"editorDisplayColor": null,
+						"editorAlwaysShow": false,
+						"editorShowInWorld": true,
+						"editorCutLongValues": true,
+						"editorTextSuffix": null,
+						"editorTextPrefix": null,
+						"useForSmartColor": false,
+						"exportToToc": false,
+						"searchable": false,
+						"min": null,
+						"max": null,
+						"regex": null,
+						"acceptFileTypes": null,
+						"defaultOverride": null,
+						"textLanguageMode": null,
+						"symmetricalRef": false,
+						"autoChainRef": true,
+						"allowOutOfLevelRef": true,
+						"allowedRefs": "OnlySame",
+						"allowedRefsEntityUid": null,
+						"allowedRefTags": [],
+						"tilesetUid": null
+					},
+					{
+						"identifier": "floorY",
+						"doc": "Строка пола арены; пусто — берётся по телу босса.",
+						"__type": "Int",
+						"uid": 1008,
+						"type": "F_Int",
+						"isArray": false,
+						"canBeNull": true,
+						"arrayMinLength": null,
+						"arrayMaxLength": null,
+						"editorDisplayMode": "Hidden",
+						"editorDisplayScale": 1,
+						"editorDisplayPos": "Above",
+						"editorLinkStyle": "StraightArrow",
+						"editorDisplayColor": null,
+						"editorAlwaysShow": false,
+						"editorShowInWorld": true,
+						"editorCutLongValues": true,
+						"editorTextSuffix": null,
+						"editorTextPrefix": null,
+						"useForSmartColor": false,
+						"exportToToc": false,
+						"searchable": false,
+						"min": null,
+						"max": null,
+						"regex": null,
+						"acceptFileTypes": null,
+						"defaultOverride": null,
+						"textLanguageMode": null,
+						"symmetricalRef": false,
+						"autoChainRef": true,
+						"allowOutOfLevelRef": true,
+						"allowedRefs": "OnlySame",
+						"allowedRefsEntityUid": null,
+						"allowedRefTags": [],
+						"tilesetUid": null
+					}
+				]
+			},
+			{
+				"identifier": "Area",
+				"uid": 19,
+				"tags": [],
+				"exportToToc": false,
+				"allowOutOfBounds": false,
+				"doc": "Начало области: с этой клетки X и правее показывается название.",
+				"width": 32,
+				"height": 32,
+				"resizableX": false,
+				"resizableY": false,
+				"minWidth": null,
+				"maxWidth": null,
+				"minHeight": null,
+				"maxHeight": null,
+				"keepAspectRatio": false,
+				"tileOpacity": 1,
+				"fillOpacity": 0.35,
+				"lineOpacity": 1,
+				"hollow": false,
+				"color": "#4aa3df",
+				"renderMode": "Rectangle",
+				"showName": true,
+				"tilesetId": null,
+				"tileRenderMode": "FitInside",
+				"tileRect": null,
+				"uiTileRect": null,
+				"nineSliceBorders": [],
+				"maxCount": 0,
+				"limitScope": "PerLevel",
+				"limitBehavior": "MoveLastOne",
+				"pivotX": 0,
+				"pivotY": 0,
+				"fieldDefs": [
+					{
+						"identifier": "name",
+						"doc": "Название области.",
+						"__type": "String",
+						"uid": 1009,
+						"type": "F_String",
+						"isArray": false,
+						"canBeNull": false,
+						"arrayMinLength": null,
+						"arrayMaxLength": null,
+						"editorDisplayMode": "ValueOnly",
+						"editorDisplayScale": 1,
+						"editorDisplayPos": "Above",
+						"editorLinkStyle": "StraightArrow",
+						"editorDisplayColor": null,
+						"editorAlwaysShow": false,
+						"editorShowInWorld": true,
+						"editorCutLongValues": true,
+						"editorTextSuffix": null,
+						"editorTextPrefix": null,
+						"useForSmartColor": false,
+						"exportToToc": false,
+						"searchable": false,
+						"min": null,
+						"max": null,
+						"regex": null,
+						"acceptFileTypes": null,
+						"defaultOverride": null,
+						"textLanguageMode": null,
+						"symmetricalRef": false,
+						"autoChainRef": true,
+						"allowOutOfLevelRef": true,
+						"allowedRefs": "OnlySame",
+						"allowedRefsEntityUid": null,
+						"allowedRefTags": [],
+						"tilesetUid": null
+					}
+				]
+			},
+			{
+				"identifier": "Crate",
+				"uid": 20,
+				"tags": [],
+				"exportToToc": false,
+				"allowOutOfBounds": false,
+				"doc": "Ящик с дымовухами (арена Миши).",
+				"width": 32,
+				"height": 32,
+				"resizableX": false,
+				"resizableY": false,
+				"minWidth": null,
+				"maxWidth": null,
+				"minHeight": null,
+				"maxHeight": null,
+				"keepAspectRatio": false,
+				"tileOpacity": 1,
+				"fillOpacity": 0.35,
+				"lineOpacity": 1,
+				"hollow": false,
+				"color": "#8b5a2b",
+				"renderMode": "Rectangle",
+				"showName": true,
+				"tilesetId": null,
+				"tileRenderMode": "FitInside",
+				"tileRect": null,
+				"uiTileRect": null,
+				"nineSliceBorders": [],
+				"maxCount": 0,
+				"limitScope": "PerLevel",
+				"limitBehavior": "MoveLastOne",
+				"pivotX": 0,
+				"pivotY": 0,
+				"fieldDefs": []
+			},
+			{
+				"identifier": "Misha",
+				"uid": 21,
+				"tags": [],
+				"exportToToc": false,
+				"allowOutOfBounds": false,
+				"doc": "Миша Додик: позиция в арене.",
+				"width": 32,
+				"height": 32,
+				"resizableX": false,
+				"resizableY": false,
+				"minWidth": null,
+				"maxWidth": null,
+				"minHeight": null,
+				"maxHeight": null,
+				"keepAspectRatio": false,
+				"tileOpacity": 1,
+				"fillOpacity": 0.35,
+				"lineOpacity": 1,
+				"hollow": false,
+				"color": "#ff9800",
+				"renderMode": "Rectangle",
+				"showName": true,
+				"tilesetId": null,
+				"tileRenderMode": "FitInside",
+				"tileRect": null,
+				"uiTileRect": null,
+				"nineSliceBorders": [],
+				"maxCount": 1,
+				"limitScope": "PerLevel",
+				"limitBehavior": "DiscardOldOnes",
+				"pivotX": 0,
+				"pivotY": 0,
+				"fieldDefs": []
+			},
+			{
+				"identifier": "Vladik",
+				"uid": 22,
+				"tags": [],
+				"exportToToc": false,
+				"allowOutOfBounds": false,
+				"doc": "Владик Скрипка: позиция в арене.",
+				"width": 32,
+				"height": 32,
+				"resizableX": false,
+				"resizableY": false,
+				"minWidth": null,
+				"maxWidth": null,
+				"minHeight": null,
+				"maxHeight": null,
+				"keepAspectRatio": false,
+				"tileOpacity": 1,
+				"fillOpacity": 0.35,
+				"lineOpacity": 1,
+				"hollow": false,
+				"color": "#9c27b0",
+				"renderMode": "Rectangle",
+				"showName": true,
+				"tilesetId": null,
+				"tileRenderMode": "FitInside",
+				"tileRect": null,
+				"uiTileRect": null,
+				"nineSliceBorders": [],
+				"maxCount": 1,
+				"limitScope": "PerLevel",
+				"limitBehavior": "DiscardOldOnes",
+				"pivotX": 0,
+				"pivotY": 0,
+				"fieldDefs": []
+			},
+			{
+				"identifier": "Tima",
+				"uid": 23,
+				"tags": [],
+				"exportToToc": false,
+				"allowOutOfBounds": false,
+				"doc": "Тима Пиво: позиция в арене.",
+				"width": 32,
+				"height": 32,
+				"resizableX": false,
+				"resizableY": false,
+				"minWidth": null,
+				"maxWidth": null,
+				"minHeight": null,
+				"maxHeight": null,
+				"keepAspectRatio": false,
+				"tileOpacity": 1,
+				"fillOpacity": 0.35,
+				"lineOpacity": 1,
+				"hollow": false,
+				"color": "#795548",
+				"renderMode": "Rectangle",
+				"showName": true,
+				"tilesetId": null,
+				"tileRenderMode": "FitInside",
+				"tileRect": null,
+				"uiTileRect": null,
+				"nineSliceBorders": [],
+				"maxCount": 1,
+				"limitScope": "PerLevel",
+				"limitBehavior": "DiscardOldOnes",
+				"pivotX": 0,
+				"pivotY": 0,
+				"fieldDefs": []
+			},
+			{
+				"identifier": "Window",
+				"uid": 24,
+				"tags": [],
+				"exportToToc": false,
+				"allowOutOfBounds": false,
+				"doc": "Окно класса: растяните по ширине (клетки X0…X1).",
+				"width": 32,
+				"height": 32,
+				"resizableX": true,
+				"resizableY": false,
+				"minWidth": null,
+				"maxWidth": null,
+				"minHeight": null,
+				"maxHeight": null,
+				"keepAspectRatio": false,
+				"tileOpacity": 1,
+				"fillOpacity": 0.35,
+				"lineOpacity": 1,
+				"hollow": false,
+				"color": "#80deea",
+				"renderMode": "Rectangle",
+				"showName": true,
+				"tilesetId": null,
+				"tileRenderMode": "FitInside",
+				"tileRect": null,
+				"uiTileRect": null,
+				"nineSliceBorders": [],
+				"maxCount": 0,
+				"limitScope": "PerLevel",
+				"limitBehavior": "MoveLastOne",
+				"pivotX": 0,
+				"pivotY": 0,
+				"fieldDefs": []
+			},
+			{
+				"identifier": "Curtain",
+				"uid": 25,
+				"tags": [],
+				"exportToToc": false,
+				"allowOutOfBounds": false,
+				"doc": "Штора класса: растяните по ширине (клетки X0…X1).",
+				"width": 32,
+				"height": 32,
+				"resizableX": true,
+				"resizableY": false,
+				"minWidth": null,
+				"maxWidth": null,
+				"minHeight": null,
+				"maxHeight": null,
+				"keepAspectRatio": false,
+				"tileOpacity": 1,
+				"fillOpacity": 0.35,
+				"lineOpacity": 1,
+				"hollow": false,
+				"color": "#a5d6a7",
+				"renderMode": "Rectangle",
+				"showName": true,
+				"tilesetId": null,
+				"tileRenderMode": "FitInside",
+				"tileRect": null,
+				"uiTileRect": null,
+				"nineSliceBorders": [],
+				"maxCount": 0,
+				"limitScope": "PerLevel",
+				"limitBehavior": "MoveLastOne",
+				"pivotX": 0,
+				"pivotY": 0,
+				"fieldDefs": []
+			},
+			{
+				"identifier": "Furniture",
+				"uid": 26,
+				"tags": [],
+				"exportToToc": false,
+				"allowOutOfBounds": false,
+				"doc": "Мебель берлоги (кладётся и в слой Tiles как платформа): ширина — X0…X1, строка — Y.",
+				"width": 32,
+				"height": 32,
+				"resizableX": true,
+				"resizableY": false,
+				"minWidth": null,
+				"maxWidth": null,
+				"minHeight": null,
+				"maxHeight": null,
+				"keepAspectRatio": false,
+				"tileOpacity": 1,
+				"fillOpacity": 0.35,
+				"lineOpacity": 1,
+				"hollow": false,
+				"color": "#bcaaa4",
+				"renderMode": "Rectangle",
+				"showName": true,
+				"tilesetId": null,
+				"tileRenderMode": "FitInside",
+				"tileRect": null,
+				"uiTileRect": null,
+				"nineSliceBorders": [],
+				"maxCount": 0,
+				"limitScope": "PerLevel",
+				"limitBehavior": "MoveLastOne",
+				"pivotX": 0,
+				"pivotY": 0,
+				"fieldDefs": [
+					{
+						"identifier": "kind",
+						"doc": "Вид мебели.",
+						"__type": "LocalEnum.FurnitureKind",
+						"uid": 1010,
+						"type": "F_Enum(101)",
+						"isArray": false,
+						"canBeNull": false,
+						"arrayMinLength": null,
+						"arrayMaxLength": null,
+						"editorDisplayMode": "ValueOnly",
+						"editorDisplayScale": 1,
+						"editorDisplayPos": "Above",
+						"editorLinkStyle": "StraightArrow",
+						"editorDisplayColor": null,
+						"editorAlwaysShow": false,
+						"editorShowInWorld": true,
+						"editorCutLongValues": true,
+						"editorTextSuffix": null,
+						"editorTextPrefix": null,
+						"useForSmartColor": false,
+						"exportToToc": false,
+						"searchable": false,
+						"min": null,
+						"max": null,
+						"regex": null,
+						"acceptFileTypes": null,
+						"defaultOverride": null,
+						"textLanguageMode": null,
+						"symmetricalRef": false,
+						"autoChainRef": true,
+						"allowOutOfLevelRef": true,
+						"allowedRefs": "OnlySame",
+						"allowedRefsEntityUid": null,
+						"allowedRefTags": [],
+						"tilesetUid": null
+					}
+				]
+			}
+		],
+		"tilesets": [],
+		"enums": [
+			{
+				"identifier": "EnemyType",
+				"uid": 100,
+				"values": [
+					{
+						"id": "crawler",
+						"tileRect": null,
+						"color": 0
+					},
+					{
+						"id": "gnat",
+						"tileRect": null,
+						"color": 0
+					},
+					{
+						"id": "beetle",
+						"tileRect": null,
+						"color": 0
+					},
+					{
+						"id": "spitter",
+						"tileRect": null,
+						"color": 0
+					},
+					{
+						"id": "shell",
+						"tileRect": null,
+						"color": 0
+					},
+					{
+						"id": "lurker",
+						"tileRect": null,
+						"color": 0
+					},
+					{
+						"id": "bats",
+						"tileRect": null,
+						"color": 0
+					}
+				],
+				"iconTilesetUid": null,
+				"externalRelPath": null,
+				"externalFileChecksum": null,
+				"tags": []
+			},
+			{
+				"identifier": "FurnitureKind",
+				"uid": 101,
+				"values": [
+					{
+						"id": "couch",
+						"tileRect": null,
+						"color": 0
+					},
+					{
+						"id": "shelf",
+						"tileRect": null,
+						"color": 0
+					},
+					{
+						"id": "crates",
+						"tileRect": null,
+						"color": 0
+					}
+				],
+				"iconTilesetUid": null,
+				"externalRelPath": null,
+				"externalFileChecksum": null,
+				"tags": []
+			}
+		],
+		"externalEnums": [],
+		"levelFields": [
+			{
+				"identifier": "region",
+				"doc": "Название региона на экране (пусто — не задано).",
+				"__type": "String",
+				"uid": 1011,
+				"type": "F_String",
+				"isArray": false,
+				"canBeNull": true,
+				"arrayMinLength": null,
+				"arrayMaxLength": null,
+				"editorDisplayMode": "Hidden",
+				"editorDisplayScale": 1,
+				"editorDisplayPos": "Above",
+				"editorLinkStyle": "StraightArrow",
+				"editorDisplayColor": null,
+				"editorAlwaysShow": false,
+				"editorShowInWorld": true,
+				"editorCutLongValues": true,
+				"editorTextSuffix": null,
+				"editorTextPrefix": null,
+				"useForSmartColor": false,
+				"exportToToc": false,
+				"searchable": false,
+				"min": null,
+				"max": null,
+				"regex": null,
+				"acceptFileTypes": null,
+				"defaultOverride": null,
+				"textLanguageMode": null,
+				"symmetricalRef": false,
+				"autoChainRef": true,
+				"allowOutOfLevelRef": true,
+				"allowedRefs": "OnlySame",
+				"allowedRefsEntityUid": null,
+				"allowedRefTags": [],
+				"tilesetUid": null
+			},
+			{
+				"identifier": "theme",
+				"doc": "Тема оформления: class — класс, den — берлога; пусто — обычная.",
+				"__type": "String",
+				"uid": 1012,
+				"type": "F_String",
+				"isArray": false,
+				"canBeNull": true,
+				"arrayMinLength": null,
+				"arrayMaxLength": null,
+				"editorDisplayMode": "Hidden",
+				"editorDisplayScale": 1,
+				"editorDisplayPos": "Above",
+				"editorLinkStyle": "StraightArrow",
+				"editorDisplayColor": null,
+				"editorAlwaysShow": false,
+				"editorShowInWorld": true,
+				"editorCutLongValues": true,
+				"editorTextSuffix": null,
+				"editorTextPrefix": null,
+				"useForSmartColor": false,
+				"exportToToc": false,
+				"searchable": false,
+				"min": null,
+				"max": null,
+				"regex": null,
+				"acceptFileTypes": null,
+				"defaultOverride": null,
+				"textLanguageMode": null,
+				"symmetricalRef": false,
+				"autoChainRef": true,
+				"allowOutOfLevelRef": true,
+				"allowedRefs": "OnlySame",
+				"allowedRefsEntityUid": null,
+				"allowedRefTags": [],
+				"tilesetUid": null
+			},
+			{
+				"identifier": "road",
+				"doc": "Номер главы коридора (2–4); пусто — это не коридор.",
+				"__type": "Int",
+				"uid": 1013,
+				"type": "F_Int",
+				"isArray": false,
+				"canBeNull": true,
+				"arrayMinLength": null,
+				"arrayMaxLength": null,
+				"editorDisplayMode": "Hidden",
+				"editorDisplayScale": 1,
+				"editorDisplayPos": "Above",
+				"editorLinkStyle": "StraightArrow",
+				"editorDisplayColor": null,
+				"editorAlwaysShow": false,
+				"editorShowInWorld": true,
+				"editorCutLongValues": true,
+				"editorTextSuffix": null,
+				"editorTextPrefix": null,
+				"useForSmartColor": false,
+				"exportToToc": false,
+				"searchable": false,
+				"min": null,
+				"max": null,
+				"regex": null,
+				"acceptFileTypes": null,
+				"defaultOverride": null,
+				"textLanguageMode": null,
+				"symmetricalRef": false,
+				"autoChainRef": true,
+				"allowOutOfLevelRef": true,
+				"allowedRefs": "OnlySame",
+				"allowedRefsEntityUid": null,
+				"allowedRefTags": [],
+				"tilesetUid": null
+			},
+			{
+				"identifier": "ceilY",
+				"doc": "Строка потолка арены Миши.",
+				"__type": "Int",
+				"uid": 1014,
+				"type": "F_Int",
+				"isArray": false,
+				"canBeNull": true,
+				"arrayMinLength": null,
+				"arrayMaxLength": null,
+				"editorDisplayMode": "Hidden",
+				"editorDisplayScale": 1,
+				"editorDisplayPos": "Above",
+				"editorLinkStyle": "StraightArrow",
+				"editorDisplayColor": null,
+				"editorAlwaysShow": false,
+				"editorShowInWorld": true,
+				"editorCutLongValues": true,
+				"editorTextSuffix": null,
+				"editorTextPrefix": null,
+				"useForSmartColor": false,
+				"exportToToc": false,
+				"searchable": false,
+				"min": null,
+				"max": null,
+				"regex": null,
+				"acceptFileTypes": null,
+				"defaultOverride": null,
+				"textLanguageMode": null,
+				"symmetricalRef": false,
+				"autoChainRef": true,
+				"allowOutOfLevelRef": true,
+				"allowedRefs": "OnlySame",
+				"allowedRefsEntityUid": null,
+				"allowedRefTags": [],
+				"tilesetUid": null
+			},
+			{
+				"identifier": "floorY",
+				"doc": "Строка пола арены Владика/Тимы.",
+				"__type": "Int",
+				"uid": 1015,
+				"type": "F_Int",
+				"isArray": false,
+				"canBeNull": true,
+				"arrayMinLength": null,
+				"arrayMaxLength": null,
+				"editorDisplayMode": "Hidden",
+				"editorDisplayScale": 1,
+				"editorDisplayPos": "Above",
+				"editorLinkStyle": "StraightArrow",
+				"editorDisplayColor": null,
+				"editorAlwaysShow": false,
+				"editorShowInWorld": true,
+				"editorCutLongValues": true,
+				"editorTextSuffix": null,
+				"editorTextPrefix": null,
+				"useForSmartColor": false,
+				"exportToToc": false,
+				"searchable": false,
+				"min": null,
+				"max": null,
+				"regex": null,
+				"acceptFileTypes": null,
+				"defaultOverride": null,
+				"textLanguageMode": null,
+				"symmetricalRef": false,
+				"autoChainRef": true,
+				"allowOutOfLevelRef": true,
+				"allowedRefs": "OnlySame",
+				"allowedRefsEntityUid": null,
+				"allowedRefTags": [],
+				"tilesetUid": null
+			},
+			{
+				"identifier": "noGates",
+				"doc": "Арена без ворот: явный пустой список ворот (иначе игра возьмёт GateIn/GateOut).",
+				"__type": "Bool",
+				"uid": 1016,
+				"type": "F_Bool",
+				"isArray": false,
+				"canBeNull": false,
+				"arrayMinLength": null,
+				"arrayMaxLength": null,
+				"editorDisplayMode": "Hidden",
+				"editorDisplayScale": 1,
+				"editorDisplayPos": "Above",
+				"editorLinkStyle": "StraightArrow",
+				"editorDisplayColor": null,
+				"editorAlwaysShow": false,
+				"editorShowInWorld": true,
+				"editorCutLongValues": true,
+				"editorTextSuffix": null,
+				"editorTextPrefix": null,
+				"useForSmartColor": false,
+				"exportToToc": false,
+				"searchable": false,
+				"min": null,
+				"max": null,
+				"regex": null,
+				"acceptFileTypes": null,
+				"defaultOverride": {
+					"id": "V_Bool",
+					"params": [false]
+				},
+				"textLanguageMode": null,
+				"symmetricalRef": false,
+				"autoChainRef": true,
+				"allowOutOfLevelRef": true,
+				"allowedRefs": "OnlySame",
+				"allowedRefsEntityUid": null,
+				"allowedRefTags": [],
+				"tilesetUid": null
+			}
+		]
+	},
+	"levels": [
+		{
+			"identifier": "Ch1",
+			"iid": "8dcb11cb-16f8-4a86-a35d-7019cbbca96b",
+			"uid": 500,
+			"worldX": 0,
+			"worldY": 0,
+			"worldDepth": 0,
+			"pxWid": 7680,
+			"pxHei": 1280,
+			"__bgColor": "#696A79",
+			"bgColor": null,
+			"useAutoIdentifier": false,
+			"bgRelPath": null,
+			"bgPos": null,
+			"bgPivotX": 0.5,
+			"bgPivotY": 0.5,
+			"__smartColor": "#ADADB5",
+			"__bgPos": null,
+			"externalRelPath": null,
+			"fieldInstances": [
+				{
+					"__identifier": "region",
+					"__type": "String",
+					"__value": null,
+					"__tile": null,
+					"defUid": 1011,
+					"realEditorValues": []
+				},
+				{
+					"__identifier": "theme",
+					"__type": "String",
+					"__value": null,
+					"__tile": null,
+					"defUid": 1012,
+					"realEditorValues": []
+				},
+				{
+					"__identifier": "road",
+					"__type": "Int",
+					"__value": null,
+					"__tile": null,
+					"defUid": 1013,
+					"realEditorValues": []
+				},
+				{
+					"__identifier": "ceilY",
+					"__type": "Int",
+					"__value": null,
+					"__tile": null,
+					"defUid": 1014,
+					"realEditorValues": []
+				},
+				{
+					"__identifier": "floorY",
+					"__type": "Int",
+					"__value": null,
+					"__tile": null,
+					"defUid": 1015,
+					"realEditorValues": []
+				},
+				{
+					"__identifier": "noGates",
+					"__type": "Bool",
+					"__value": false,
+					"__tile": null,
+					"defUid": 1016,
+					"realEditorValues": []
+				}
+			],
+			"layerInstances": [
+				{
+					"__identifier": "Entities",
+					"__type": "Entities",
+					"__cWid": 240,
+					"__cHei": 40,
+					"__gridSize": 32,
+					"__opacity": 1,
+					"__pxTotalOffsetX": 0,
+					"__pxTotalOffsetY": 0,
+					"__tilesetDefUid": null,
+					"__tilesetRelPath": null,
+					"iid": "2890ce2a-af6b-4282-a414-e683ae5c2077",
+					"levelId": 500,
+					"layerDefUid": 2,
+					"pxOffsetX": 0,
+					"pxOffsetY": 0,
+					"visible": true,
+					"optionalRules": [],
+					"intGridCsv": [],
+					"autoLayerTiles": [],
+					"seed": 1,
+					"overrideTilesetUid": null,
+					"gridTiles": [],
+					"entityInstances": [
+						{
+							"__identifier": "Spawn",
+							"__grid": [4, 33],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#2fbf71",
+							"__worldX": 128,
+							"__worldY": 1056,
+							"iid": "5cabd9c3-8701-4a2d-a576-5547b06978d5",
+							"width": 32,
+							"height": 32,
+							"defUid": 10,
+							"px": [128, 1056],
+							"fieldInstances": []
+						},
+						{
+							"__identifier": "Exit",
+							"__grid": [235, 33],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#e8c84a",
+							"__worldX": 7520,
+							"__worldY": 1056,
+							"iid": "fbac0ccb-40a8-49fe-a5ee-2474c47b20f2",
+							"width": 32,
+							"height": 32,
+							"defUid": 11,
+							"px": [7520, 1056],
+							"fieldInstances": []
+						},
+						{
+							"__identifier": "Bench",
+							"__grid": [104, 33],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#c28a4a",
+							"__worldX": 3328,
+							"__worldY": 1056,
+							"iid": "3a398cc4-d0aa-4bed-ab01-da098194e203",
+							"width": 32,
+							"height": 32,
+							"defUid": 12,
+							"px": [3328, 1056],
+							"fieldInstances": []
+						},
+						{
+							"__identifier": "Sign",
+							"__grid": [6, 31],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#9fb2c8",
+							"__worldX": 192,
+							"__worldY": 992,
+							"iid": "95fa1bdd-53f4-4d2c-a88c-719c60f5cbef",
+							"width": 32,
+							"height": 32,
+							"defUid": 13,
+							"px": [192, 992],
+							"fieldInstances": [
+								{
+									"__identifier": "text",
+									"__type": "Multilines",
+									"__value": "A / D — идти\nПробел — прыжок (держи — выше)",
+									"__tile": null,
+									"defUid": 1000,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["A / D — идти\nПробел — прыжок (держи — выше)"]
+										}
+									]
+								},
+								{
+									"__identifier": "touch",
+									"__type": "Multilines",
+									"__value": "Стик слева — идти\nПрыжок (держи — выше)",
+									"__tile": null,
+									"defUid": 1001,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["Стик слева — идти\nПрыжок (держи — выше)"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Sign",
+							"__grid": [19, 31],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#9fb2c8",
+							"__worldX": 608,
+							"__worldY": 992,
+							"iid": "d0145eb8-3851-49f1-a659-6433b0712bc6",
+							"width": 32,
+							"height": 32,
+							"defUid": 13,
+							"px": [608, 992],
+							"fieldInstances": [
+								{
+									"__identifier": "text",
+									"__type": "Multilines",
+									"__value": "Колючки ранят.\nУпал — вернёшься на край",
+									"__tile": null,
+									"defUid": 1000,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["Колючки ранят.\nУпал — вернёшься на край"]
+										}
+									]
+								},
+								{
+									"__identifier": "touch",
+									"__type": "Multilines",
+									"__value": null,
+									"__tile": null,
+									"defUid": 1001,
+									"realEditorValues": []
+								}
+							]
+						},
+						{
+							"__identifier": "Sign",
+							"__grid": [27, 31],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#9fb2c8",
+							"__worldX": 864,
+							"__worldY": 992,
+							"iid": "755fe1bd-3296-46fb-acd7-68045e16117a",
+							"width": 32,
+							"height": 32,
+							"defUid": 13,
+							"px": [864, 992],
+							"fieldInstances": [
+								{
+									"__identifier": "text",
+									"__type": "Multilines",
+									"__value": "F — удар иглой\nКаждый удар копит нить",
+									"__tile": null,
+									"defUid": 1000,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["F — удар иглой\nКаждый удар копит нить"]
+										}
+									]
+								},
+								{
+									"__identifier": "touch",
+									"__type": "Multilines",
+									"__value": "Кнопка «Удар» — игла\nКаждый удар копит нить",
+									"__tile": null,
+									"defUid": 1001,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["Кнопка «Удар» — игла\nКаждый удар копит нить"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Sign",
+							"__grid": [40, 31],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#9fb2c8",
+							"__worldX": 1280,
+							"__worldY": 992,
+							"iid": "df92dec7-4991-4562-a533-f41c9e0677a5",
+							"width": 32,
+							"height": 32,
+							"defUid": 13,
+							"px": [1280, 992],
+							"fieldInstances": [
+								{
+									"__identifier": "text",
+									"__type": "Multilines",
+									"__value": "Q — связать рану\n(полная катушка нити → +3)",
+									"__tile": null,
+									"defUid": 1000,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["Q — связать рану\n(полная катушка нити → +3)"]
+										}
+									]
+								},
+								{
+									"__identifier": "touch",
+									"__type": "Multilines",
+									"__value": "«Лечить» — связать рану\n(полная катушка нити → +3)",
+									"__tile": null,
+									"defUid": 1001,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["«Лечить» — связать рану\n(полная катушка нити → +3)"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Sign",
+							"__grid": [47, 31],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#9fb2c8",
+							"__worldX": 1504,
+							"__worldY": 992,
+							"iid": "0e5cda35-2e4b-43c9-a1e1-049c41a151e1",
+							"width": 32,
+							"height": 32,
+							"defUid": 13,
+							"px": [1504, 992],
+							"fieldInstances": [
+								{
+									"__identifier": "text",
+									"__type": "Multilines",
+									"__value": "Прыгай от стен,\nчтобы подняться",
+									"__tile": null,
+									"defUid": 1000,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["Прыгай от стен,\nчтобы подняться"]
+										}
+									]
+								},
+								{
+									"__identifier": "touch",
+									"__type": "Multilines",
+									"__value": null,
+									"__tile": null,
+									"defUid": 1001,
+									"realEditorValues": []
+								}
+							]
+						},
+						{
+							"__identifier": "Sign",
+							"__grid": [64, 10],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#9fb2c8",
+							"__worldX": 2048,
+							"__worldY": 320,
+							"iid": "e0d0f3dc-ca79-4e31-ae66-59024536de04",
+							"width": 32,
+							"height": 32,
+							"defUid": 13,
+							"px": [2048, 320],
+							"fieldInstances": [
+								{
+									"__identifier": "text",
+									"__type": "Multilines",
+									"__value": "G — рывок, даже в воздухе",
+									"__tile": null,
+									"defUid": 1000,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["G — рывок, даже в воздухе"]
+										}
+									]
+								},
+								{
+									"__identifier": "touch",
+									"__type": "Multilines",
+									"__value": "«Рывок» — даже в воздухе",
+									"__tile": null,
+									"defUid": 1001,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["«Рывок» — даже в воздухе"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Sign",
+							"__grid": [101, 31],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#9fb2c8",
+							"__worldX": 3232,
+							"__worldY": 992,
+							"iid": "249f2175-d854-4770-a08a-b007c3bdeb12",
+							"width": 32,
+							"height": 32,
+							"defUid": 13,
+							"px": [3232, 992],
+							"fieldInstances": [
+								{
+									"__identifier": "text",
+									"__type": "Multilines",
+									"__value": "Скамья: ↑ — меню: отдых (здесь ты очнёшься), лавка, карта.\nНа скамье ↓ — сразу лавка (бусины → улучшения)\nУступ: падая у края, жми к нему, ↑ — подтянуться.\nПарус (за Владика): держи прыжок в падении",
+									"__tile": null,
+									"defUid": 1000,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["Скамья: ↑ — меню: отдых (здесь ты очнёшься), лавка, карта.\nНа скамье ↓ — сразу лавка (бусины → улучшения)\nУступ: падая у края, жми к нему, ↑ — подтянуться.\nПарус (за Владика): держи прыжок в падении"]
+										}
+									]
+								},
+								{
+									"__identifier": "touch",
+									"__type": "Multilines",
+									"__value": "Скамья: стик вверх — меню: отдых, лавка, карта.\nНа скамье стик вниз — лавка улучшений\nУступ: падая у края, жми к нему, вверх — подтянуться.\nПарус (за Владика): держи прыжок в падении",
+									"__tile": null,
+									"defUid": 1001,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["Скамья: стик вверх — меню: отдых, лавка, карта.\nНа скамье стик вниз — лавка улучшений\nУступ: падая у края, жми к нему, вверх — подтянуться.\nПарус (за Владика): держи прыжок в падении"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Sign",
+							"__grid": [109, 31],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#9fb2c8",
+							"__worldX": 3488,
+							"__worldY": 992,
+							"iid": "b542ecbb-ea45-45a2-ae86-1a2d61c6b656",
+							"width": 32,
+							"height": 32,
+							"defUid": 13,
+							"px": [3488, 992],
+							"fieldInstances": [
+								{
+									"__identifier": "text",
+									"__type": "Multilines",
+									"__value": "Q без полной нити — отбив:\nокно 0.2 с, сбивает снаряды, копит нить",
+									"__tile": null,
+									"defUid": 1000,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["Q без полной нити — отбив:\nокно 0.2 с, сбивает снаряды, копит нить"]
+										}
+									]
+								},
+								{
+									"__identifier": "touch",
+									"__type": "Multilines",
+									"__value": "«Нить» без полной катушки — отбив:\nокно 0.2 с, сбивает снаряды",
+									"__tile": null,
+									"defUid": 1001,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["«Нить» без полной катушки — отбив:\nокно 0.2 с, сбивает снаряды"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Sign",
+							"__grid": [113, 31],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#9fb2c8",
+							"__worldX": 3616,
+							"__worldY": 992,
+							"iid": "9abe190f-ddff-454a-a2c3-de75f4b72171",
+							"width": 32,
+							"height": 32,
+							"defUid": 13,
+							"px": [3616, 992],
+							"fieldInstances": [
+								{
+									"__identifier": "text",
+									"__type": "Multilines",
+									"__value": "Стик/↑ + Q (от 4 нити) — всполох:\nбьёт всех вокруг. Рывок сквозь удар — уворот",
+									"__tile": null,
+									"defUid": 1000,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["Стик/↑ + Q (от 4 нити) — всполох:\nбьёт всех вокруг. Рывок сквозь удар — уворот"]
+										}
+									]
+								},
+								{
+									"__identifier": "touch",
+									"__type": "Multilines",
+									"__value": "Стик вверх + «Нить» (от 4 нити) — всполох.\nРывок сквозь удар — идеальный уворот",
+									"__tile": null,
+									"defUid": 1001,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["Стик вверх + «Нить» (от 4 нити) — всполох.\nРывок сквозь удар — идеальный уворот"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Sign",
+							"__grid": [155, 31],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#9fb2c8",
+							"__worldX": 4960,
+							"__worldY": 992,
+							"iid": "d800b32d-d07e-456a-a546-00665f83bd56",
+							"width": 32,
+							"height": 32,
+							"defUid": 13,
+							"px": [4960, 992],
+							"fieldInstances": [
+								{
+									"__identifier": "text",
+									"__type": "Multilines",
+									"__value": "В прыжке S + F — удар вниз:\nотскок от колючек и врагов",
+									"__tile": null,
+									"defUid": 1000,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["В прыжке S + F — удар вниз:\nотскок от колючек и врагов"]
+										}
+									]
+								},
+								{
+									"__identifier": "touch",
+									"__type": "Multilines",
+									"__value": "В прыжке стик вниз + удар:\nотскок от колючек и врагов",
+									"__tile": null,
+									"defUid": 1001,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["В прыжке стик вниз + удар:\nотскок от колючек и врагов"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Enemy",
+							"__grid": [29, 33],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#d9534f",
+							"__worldX": 928,
+							"__worldY": 1056,
+							"iid": "e78a6a32-704e-4e36-a532-93084ed76664",
+							"width": 32,
+							"height": 32,
+							"defUid": 14,
+							"px": [928, 1056],
+							"fieldInstances": [
+								{
+									"__identifier": "type",
+									"__type": "LocalEnum.EnemyType",
+									"__value": "crawler",
+									"__tile": null,
+									"defUid": 1002,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["crawler"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Enemy",
+							"__grid": [41, 33],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#d9534f",
+							"__worldX": 1312,
+							"__worldY": 1056,
+							"iid": "bf6ce6b1-1d68-42b4-a7f5-e3090621773e",
+							"width": 32,
+							"height": 32,
+							"defUid": 14,
+							"px": [1312, 1056],
+							"fieldInstances": [
+								{
+									"__identifier": "type",
+									"__type": "LocalEnum.EnemyType",
+									"__value": "crawler",
+									"__tile": null,
+									"defUid": 1002,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["crawler"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Enemy",
+							"__grid": [62, 8],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#d9534f",
+							"__worldX": 1984,
+							"__worldY": 256,
+							"iid": "38b056df-f2e0-407c-a3b2-e27874d0860d",
+							"width": 32,
+							"height": 32,
+							"defUid": 14,
+							"px": [1984, 256],
+							"fieldInstances": [
+								{
+									"__identifier": "type",
+									"__type": "LocalEnum.EnemyType",
+									"__value": "gnat",
+									"__tile": null,
+									"defUid": 1002,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["gnat"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Enemy",
+							"__grid": [90, 7],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#d9534f",
+							"__worldX": 2880,
+							"__worldY": 224,
+							"iid": "e86d934d-ae69-4a0d-a689-bdfbd3abcf52",
+							"width": 32,
+							"height": 32,
+							"defUid": 14,
+							"px": [2880, 224],
+							"fieldInstances": [
+								{
+									"__identifier": "type",
+									"__type": "LocalEnum.EnemyType",
+									"__value": "gnat",
+									"__tile": null,
+									"defUid": 1002,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["gnat"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Enemy",
+							"__grid": [80, 12],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#d9534f",
+							"__worldX": 2560,
+							"__worldY": 384,
+							"iid": "c92d07a6-5afa-4468-a1ef-f84d1fb73c8c",
+							"width": 32,
+							"height": 32,
+							"defUid": 14,
+							"px": [2560, 384],
+							"fieldInstances": [
+								{
+									"__identifier": "type",
+									"__type": "LocalEnum.EnemyType",
+									"__value": "crawler",
+									"__tile": null,
+									"defUid": 1002,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["crawler"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Enemy",
+							"__grid": [120, 33],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#d9534f",
+							"__worldX": 3840,
+							"__worldY": 1056,
+							"iid": "e5a23487-7bc9-4a4f-a854-6eba3ec4b6ea",
+							"width": 32,
+							"height": 32,
+							"defUid": 14,
+							"px": [3840, 1056],
+							"fieldInstances": [
+								{
+									"__identifier": "type",
+									"__type": "LocalEnum.EnemyType",
+									"__value": "crawler",
+									"__tile": null,
+									"defUid": 1002,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["crawler"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Enemy",
+							"__grid": [128, 33],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#d9534f",
+							"__worldX": 4096,
+							"__worldY": 1056,
+							"iid": "a4bb72eb-fd05-40f8-a37f-c84f93bf84ad",
+							"width": 32,
+							"height": 32,
+							"defUid": 14,
+							"px": [4096, 1056],
+							"fieldInstances": [
+								{
+									"__identifier": "type",
+									"__type": "LocalEnum.EnemyType",
+									"__value": "beetle",
+									"__tile": null,
+									"defUid": 1002,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["beetle"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Enemy",
+							"__grid": [140, 33],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#d9534f",
+							"__worldX": 4480,
+							"__worldY": 1056,
+							"iid": "4d3f9c8b-56dc-4243-abba-e1b4e6b2c41a",
+							"width": 32,
+							"height": 32,
+							"defUid": 14,
+							"px": [4480, 1056],
+							"fieldInstances": [
+								{
+									"__identifier": "type",
+									"__type": "LocalEnum.EnemyType",
+									"__value": "crawler",
+									"__tile": null,
+									"defUid": 1002,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["crawler"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Enemy",
+							"__grid": [127, 18],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#d9534f",
+							"__worldX": 4064,
+							"__worldY": 576,
+							"iid": "347dea22-2f70-45f3-a631-3bbfcf3c77db",
+							"width": 32,
+							"height": 32,
+							"defUid": 14,
+							"px": [4064, 576],
+							"fieldInstances": [
+								{
+									"__identifier": "type",
+									"__type": "LocalEnum.EnemyType",
+									"__value": "gnat",
+									"__tile": null,
+									"defUid": 1002,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["gnat"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Enemy",
+							"__grid": [146, 14],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#d9534f",
+							"__worldX": 4672,
+							"__worldY": 448,
+							"iid": "999f048c-7e75-41f1-a3de-5a96e4c5e902",
+							"width": 32,
+							"height": 32,
+							"defUid": 14,
+							"px": [4672, 448],
+							"fieldInstances": [
+								{
+									"__identifier": "type",
+									"__type": "LocalEnum.EnemyType",
+									"__value": "gnat",
+									"__tile": null,
+									"defUid": 1002,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["gnat"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Enemy",
+							"__grid": [176, 28],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#d9534f",
+							"__worldX": 5632,
+							"__worldY": 896,
+							"iid": "7db4d062-7714-452f-aa36-89a79d3dbe07",
+							"width": 32,
+							"height": 32,
+							"defUid": 14,
+							"px": [5632, 896],
+							"fieldInstances": [
+								{
+									"__identifier": "type",
+									"__type": "LocalEnum.EnemyType",
+									"__value": "gnat",
+									"__tile": null,
+									"defUid": 1002,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["gnat"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Enemy",
+							"__grid": [57, 12],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#d9534f",
+							"__worldX": 1824,
+							"__worldY": 384,
+							"iid": "76740db0-ff73-466e-a96c-06c3c3b8fbdd",
+							"width": 32,
+							"height": 32,
+							"defUid": 14,
+							"px": [1824, 384],
+							"fieldInstances": [
+								{
+									"__identifier": "type",
+									"__type": "LocalEnum.EnemyType",
+									"__value": "lurker",
+									"__tile": null,
+									"defUid": 1002,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["lurker"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Enemy",
+							"__grid": [67, 4],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#d9534f",
+							"__worldX": 2144,
+							"__worldY": 128,
+							"iid": "56336b26-f529-4260-afcc-5aefd73f6a79",
+							"width": 32,
+							"height": 32,
+							"defUid": 14,
+							"px": [2144, 128],
+							"fieldInstances": [
+								{
+									"__identifier": "type",
+									"__type": "LocalEnum.EnemyType",
+									"__value": "bats",
+									"__tile": null,
+									"defUid": 1002,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["bats"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Enemy",
+							"__grid": [92, 12],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#d9534f",
+							"__worldX": 2944,
+							"__worldY": 384,
+							"iid": "b8cc8243-a624-4524-a030-6bd0cffc735d",
+							"width": 32,
+							"height": 32,
+							"defUid": 14,
+							"px": [2944, 384],
+							"fieldInstances": [
+								{
+									"__identifier": "type",
+									"__type": "LocalEnum.EnemyType",
+									"__value": "spitter",
+									"__tile": null,
+									"defUid": 1002,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["spitter"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Enemy",
+							"__grid": [115, 27],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#d9534f",
+							"__worldX": 3680,
+							"__worldY": 864,
+							"iid": "50e3ddab-c491-4b5c-ab8a-977a996afa38",
+							"width": 32,
+							"height": 32,
+							"defUid": 14,
+							"px": [3680, 864],
+							"fieldInstances": [
+								{
+									"__identifier": "type",
+									"__type": "LocalEnum.EnemyType",
+									"__value": "spitter",
+									"__tile": null,
+									"defUid": 1002,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["spitter"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Enemy",
+							"__grid": [134, 33],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#d9534f",
+							"__worldX": 4288,
+							"__worldY": 1056,
+							"iid": "7654ac4e-8a90-4f65-ab64-30e3ab391307",
+							"width": 32,
+							"height": 32,
+							"defUid": 14,
+							"px": [4288, 1056],
+							"fieldInstances": [
+								{
+									"__identifier": "type",
+									"__type": "LocalEnum.EnemyType",
+									"__value": "shell",
+									"__tile": null,
+									"defUid": 1002,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["shell"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Enemy",
+							"__grid": [125, 8],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#d9534f",
+							"__worldX": 4000,
+							"__worldY": 256,
+							"iid": "d122855d-4a4b-4142-a568-934339cdf708",
+							"width": 32,
+							"height": 32,
+							"defUid": 14,
+							"px": [4000, 256],
+							"fieldInstances": [
+								{
+									"__identifier": "type",
+									"__type": "LocalEnum.EnemyType",
+									"__value": "bats",
+									"__tile": null,
+									"defUid": 1002,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["bats"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Enemy",
+							"__grid": [146, 33],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#d9534f",
+							"__worldX": 4672,
+							"__worldY": 1056,
+							"iid": "4a197684-3d38-4d0d-a309-9ead02a72bb5",
+							"width": 32,
+							"height": 32,
+							"defUid": 14,
+							"px": [4672, 1056],
+							"fieldInstances": [
+								{
+									"__identifier": "type",
+									"__type": "LocalEnum.EnemyType",
+									"__value": "lurker",
+									"__tile": null,
+									"defUid": 1002,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["lurker"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Enemy",
+							"__grid": [153, 33],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#d9534f",
+							"__worldX": 4896,
+							"__worldY": 1056,
+							"iid": "6673c3fb-3095-449d-a04f-2e30dd844c07",
+							"width": 32,
+							"height": 32,
+							"defUid": 14,
+							"px": [4896, 1056],
+							"fieldInstances": [
+								{
+									"__identifier": "type",
+									"__type": "LocalEnum.EnemyType",
+									"__value": "lurker",
+									"__tile": null,
+									"defUid": 1002,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["lurker"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Enemy",
+							"__grid": [158, 24],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#d9534f",
+							"__worldX": 5056,
+							"__worldY": 768,
+							"iid": "e0a766e5-6c06-48a0-a397-a6b605b5f1b8",
+							"width": 32,
+							"height": 32,
+							"defUid": 14,
+							"px": [5056, 768],
+							"fieldInstances": [
+								{
+									"__identifier": "type",
+									"__type": "LocalEnum.EnemyType",
+									"__value": "bats",
+									"__tile": null,
+									"defUid": 1002,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["bats"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Enemy",
+							"__grid": [175, 33],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#d9534f",
+							"__worldX": 5600,
+							"__worldY": 1056,
+							"iid": "a882fc4d-9c92-4e60-a761-6ec3f30dcfaf",
+							"width": 32,
+							"height": 32,
+							"defUid": 14,
+							"px": [5600, 1056],
+							"fieldInstances": [
+								{
+									"__identifier": "type",
+									"__type": "LocalEnum.EnemyType",
+									"__value": "shell",
+									"__tile": null,
+									"defUid": 1002,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["shell"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Enemy",
+							"__grid": [183, 33],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#d9534f",
+							"__worldX": 5856,
+							"__worldY": 1056,
+							"iid": "93e1ab89-e0b7-427b-adf4-6ae68063649c",
+							"width": 32,
+							"height": 32,
+							"defUid": 14,
+							"px": [5856, 1056],
+							"fieldInstances": [
+								{
+									"__identifier": "type",
+									"__type": "LocalEnum.EnemyType",
+									"__value": "spitter",
+									"__tile": null,
+									"defUid": 1002,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["spitter"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Item",
+							"__grid": [60, 12],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#8e6bd8",
+							"__worldX": 1920,
+							"__worldY": 384,
+							"iid": "33378336-158e-492f-ac8f-73ee00863e90",
+							"width": 32,
+							"height": 32,
+							"defUid": 15,
+							"px": [1920, 384],
+							"fieldInstances": [
+								{
+									"__identifier": "ability",
+									"__type": "String",
+									"__value": "double",
+									"__tile": null,
+									"defUid": 1003,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["double"]
+										}
+									]
+								},
+								{
+									"__identifier": "text",
+									"__type": "Multilines",
+									"__value": "Плащ-парус: прыжок в воздухе — ещё один прыжок",
+									"__tile": null,
+									"defUid": 1004,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["Плащ-парус: прыжок в воздухе — ещё один прыжок"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "GateIn",
+							"__grid": [186, 24],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#b5651d",
+							"__worldX": 5952,
+							"__worldY": 768,
+							"iid": "d9a33bd7-39ed-4dcf-adee-206182417d9a",
+							"width": 32,
+							"height": 320,
+							"defUid": 16,
+							"px": [5952, 768],
+							"fieldInstances": []
+						},
+						{
+							"__identifier": "GateOut",
+							"__grid": [226, 30],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#7a3f10",
+							"__worldX": 7232,
+							"__worldY": 960,
+							"iid": "28c6dad7-644a-4e1e-adef-d35b2b02b451",
+							"width": 32,
+							"height": 128,
+							"defUid": 17,
+							"px": [7232, 960],
+							"fieldInstances": []
+						},
+						{
+							"__identifier": "BossArena",
+							"__grid": [214, 33],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#ff4081",
+							"__worldX": 6848,
+							"__worldY": 1056,
+							"iid": "fd4f8634-3be3-4263-a982-6247eb621529",
+							"width": 32,
+							"height": 32,
+							"defUid": 18,
+							"px": [6848, 1056],
+							"fieldInstances": [
+								{
+									"__identifier": "arenaX0",
+									"__type": "Int",
+									"__value": 187,
+									"__tile": null,
+									"defUid": 1005,
+									"realEditorValues": [
+										{
+											"id": "V_Int",
+											"params": [187]
+										}
+									]
+								},
+								{
+									"__identifier": "arenaX1",
+									"__type": "Int",
+									"__value": 225,
+									"__tile": null,
+									"defUid": 1006,
+									"realEditorValues": [
+										{
+											"id": "V_Int",
+											"params": [225]
+										}
+									]
+								},
+								{
+									"__identifier": "trigger",
+									"__type": "Int",
+									"__value": 190,
+									"__tile": null,
+									"defUid": 1007,
+									"realEditorValues": [
+										{
+											"id": "V_Int",
+											"params": [190]
+										}
+									]
+								},
+								{
+									"__identifier": "floorY",
+									"__type": "Int",
+									"__value": null,
+									"__tile": null,
+									"defUid": 1008,
+									"realEditorValues": []
+								}
+							]
+						},
+						{
+							"__identifier": "Area",
+							"__grid": [0, 0],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#4aa3df",
+							"__worldX": 0,
+							"__worldY": 0,
+							"iid": "f8b81131-1430-4f3a-a6cd-14ee1d3c2721",
+							"width": 32,
+							"height": 32,
+							"defUid": 19,
+							"px": [0, 0],
+							"fieldInstances": [
+								{
+									"__identifier": "name",
+									"__type": "String",
+									"__value": "Пещера пробуждения",
+									"__tile": null,
+									"defUid": 1009,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["Пещера пробуждения"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Area",
+							"__grid": [45, 0],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#4aa3df",
+							"__worldX": 1440,
+							"__worldY": 0,
+							"iid": "6d2689e1-9004-4f6a-af0e-f3182ec62184",
+							"width": 32,
+							"height": 32,
+							"defUid": 19,
+							"px": [1440, 0],
+							"fieldInstances": [
+								{
+									"__identifier": "name",
+									"__type": "String",
+									"__value": "Шахта корней",
+									"__tile": null,
+									"defUid": 1009,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["Шахта корней"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Area",
+							"__grid": [53, 0],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#4aa3df",
+							"__worldX": 1696,
+							"__worldY": 0,
+							"iid": "c7b70bb8-f2dc-41d2-a11d-339359204a02",
+							"width": 32,
+							"height": 32,
+							"defUid": 19,
+							"px": [1696, 0],
+							"fieldInstances": [
+								{
+									"__identifier": "name",
+									"__type": "String",
+									"__value": "Верхний ход",
+									"__tile": null,
+									"defUid": 1009,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["Верхний ход"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Area",
+							"__grid": [96, 0],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#4aa3df",
+							"__worldX": 3072,
+							"__worldY": 0,
+							"iid": "61f96d7e-0a80-4f1e-ae35-7a57f63932c2",
+							"width": 32,
+							"height": 32,
+							"defUid": 19,
+							"px": [3072, 0],
+							"fieldInstances": [
+								{
+									"__identifier": "name",
+									"__type": "String",
+									"__value": "Зал светляков",
+									"__tile": null,
+									"defUid": 1009,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["Зал светляков"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Area",
+							"__grid": [151, 0],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#4aa3df",
+							"__worldX": 4832,
+							"__worldY": 0,
+							"iid": "1c001ffc-2d29-42d5-a7b1-caec46b206a7",
+							"width": 32,
+							"height": 32,
+							"defUid": 19,
+							"px": [4832, 0],
+							"fieldInstances": [
+								{
+									"__identifier": "name",
+									"__type": "String",
+									"__value": "Поле колючек",
+									"__tile": null,
+									"defUid": 1009,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["Поле колючек"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Area",
+							"__grid": [186, 0],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#4aa3df",
+							"__worldX": 5952,
+							"__worldY": 0,
+							"iid": "9041db18-22d7-46a6-aa1b-dc3f8673814b",
+							"width": 32,
+							"height": 32,
+							"defUid": 19,
+							"px": [5952, 0],
+							"fieldInstances": [
+								{
+									"__identifier": "name",
+									"__type": "String",
+									"__value": "Логово Корнематки",
+									"__tile": null,
+									"defUid": 1009,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["Логово Корнематки"]
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"__identifier": "Tiles",
+					"__type": "IntGrid",
+					"__cWid": 240,
+					"__cHei": 40,
+					"__gridSize": 32,
+					"__opacity": 1,
+					"__pxTotalOffsetX": 0,
+					"__pxTotalOffsetY": 0,
+					"__tilesetDefUid": null,
+					"__tilesetRelPath": null,
+					"iid": "64ee0cbb-2c15-476a-a072-2935b445947d",
+					"levelId": 500,
+					"layerDefUid": 1,
+					"pxOffsetX": 0,
+					"pxOffsetY": 0,
+					"visible": true,
+					"optionalRules": [],
+					"intGridCsv": [
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,2,2,2,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,3,3,3,3,3,3,3,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,2,2,2,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,2,2,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,2,2,2,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,2,2,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,2,2,2,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,2,2,2,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,2,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,2,2,2,2,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,2,2,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,3,3,3,3,0,0,0,3,3,3,3,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,3,3,3,3,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+					],
+					"autoLayerTiles": [],
+					"seed": 1,
+					"overrideTilesetUid": null,
+					"gridTiles": [],
+					"entityInstances": []
+				}
+			],
+			"__neighbours": []
+		},
+		{
+			"identifier": "Road2",
+			"iid": "f6b35d48-0f45-4872-ad3c-2349c5451da8",
+			"uid": 501,
+			"worldX": 0,
+			"worldY": 1536,
+			"worldDepth": 0,
+			"pxWid": 2304,
+			"pxHei": 704,
+			"__bgColor": "#696A79",
+			"bgColor": null,
+			"useAutoIdentifier": false,
+			"bgRelPath": null,
+			"bgPos": null,
+			"bgPivotX": 0.5,
+			"bgPivotY": 0.5,
+			"__smartColor": "#ADADB5",
+			"__bgPos": null,
+			"externalRelPath": null,
+			"fieldInstances": [
+				{
+					"__identifier": "region",
+					"__type": "String",
+					"__value": "Глава II · Старая типография",
+					"__tile": null,
+					"defUid": 1011,
+					"realEditorValues": [
+						{
+							"id": "V_String",
+							"params": ["Глава II · Старая типография"]
+						}
+					]
+				},
+				{
+					"__identifier": "theme",
+					"__type": "String",
+					"__value": null,
+					"__tile": null,
+					"defUid": 1012,
+					"realEditorValues": []
+				},
+				{
+					"__identifier": "road",
+					"__type": "Int",
+					"__value": 2,
+					"__tile": null,
+					"defUid": 1013,
+					"realEditorValues": [
+						{
+							"id": "V_Int",
+							"params": [2]
+						}
+					]
+				},
+				{
+					"__identifier": "ceilY",
+					"__type": "Int",
+					"__value": null,
+					"__tile": null,
+					"defUid": 1014,
+					"realEditorValues": []
+				},
+				{
+					"__identifier": "floorY",
+					"__type": "Int",
+					"__value": null,
+					"__tile": null,
+					"defUid": 1015,
+					"realEditorValues": []
+				},
+				{
+					"__identifier": "noGates",
+					"__type": "Bool",
+					"__value": false,
+					"__tile": null,
+					"defUid": 1016,
+					"realEditorValues": []
+				}
+			],
+			"layerInstances": [
+				{
+					"__identifier": "Entities",
+					"__type": "Entities",
+					"__cWid": 72,
+					"__cHei": 22,
+					"__gridSize": 32,
+					"__opacity": 1,
+					"__pxTotalOffsetX": 0,
+					"__pxTotalOffsetY": 0,
+					"__tilesetDefUid": null,
+					"__tilesetRelPath": null,
+					"iid": "7678a136-7b53-42fc-a08b-82f037d5753d",
+					"levelId": 501,
+					"layerDefUid": 2,
+					"pxOffsetX": 0,
+					"pxOffsetY": 0,
+					"visible": true,
+					"optionalRules": [],
+					"intGridCsv": [],
+					"autoLayerTiles": [],
+					"seed": 1,
+					"overrideTilesetUid": null,
+					"gridTiles": [],
+					"entityInstances": [
+						{
+							"__identifier": "Spawn",
+							"__grid": [3, 17],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#2fbf71",
+							"__worldX": 96,
+							"__worldY": 2080,
+							"iid": "e0c8ebfb-8edc-4496-adb8-da625f1401b5",
+							"width": 32,
+							"height": 32,
+							"defUid": 10,
+							"px": [96, 544],
+							"fieldInstances": []
+						},
+						{
+							"__identifier": "Exit",
+							"__grid": [69, 17],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#e8c84a",
+							"__worldX": 2208,
+							"__worldY": 2080,
+							"iid": "9d25f7c3-dd76-45af-a91d-d57f31ab2d4b",
+							"width": 32,
+							"height": 32,
+							"defUid": 11,
+							"px": [2208, 544],
+							"fieldInstances": []
+						},
+						{
+							"__identifier": "Bench",
+							"__grid": [7, 17],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#c28a4a",
+							"__worldX": 224,
+							"__worldY": 2080,
+							"iid": "fdf709f1-a509-468c-afb0-1cad10ddf027",
+							"width": 32,
+							"height": 32,
+							"defUid": 12,
+							"px": [224, 544],
+							"fieldInstances": []
+						},
+						{
+							"__identifier": "Bench",
+							"__grid": [65, 17],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#c28a4a",
+							"__worldX": 2080,
+							"__worldY": 2080,
+							"iid": "765e947c-75e1-43b2-a50c-de6c0f292adc",
+							"width": 32,
+							"height": 32,
+							"defUid": 12,
+							"px": [2080, 544],
+							"fieldInstances": []
+						},
+						{
+							"__identifier": "Sign",
+							"__grid": [4, 17],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#9fb2c8",
+							"__worldX": 128,
+							"__worldY": 2080,
+							"iid": "9b2610ef-1a15-488e-ae03-c8ac6f7fd0c1",
+							"width": 32,
+							"height": 32,
+							"defUid": 13,
+							"px": [128, 544],
+							"fieldInstances": [
+								{
+									"__identifier": "text",
+									"__type": "Multilines",
+									"__value": "Скамья: ↑ — меню: отдых, лавка, карта.\nНа скамье ↓ — сразу лавка: маски, игла, катушка",
+									"__tile": null,
+									"defUid": 1000,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["Скамья: ↑ — меню: отдых, лавка, карта.\nНа скамье ↓ — сразу лавка: маски, игла, катушка"]
+										}
+									]
+								},
+								{
+									"__identifier": "touch",
+									"__type": "Multilines",
+									"__value": "Скамья: стик вверх — меню: отдых, лавка, карта.\nНа скамье стик вниз — лавка улучшений",
+									"__tile": null,
+									"defUid": 1001,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["Скамья: стик вверх — меню: отдых, лавка, карта.\nНа скамье стик вниз — лавка улучшений"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Sign",
+							"__grid": [12, 17],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#9fb2c8",
+							"__worldX": 384,
+							"__worldY": 2080,
+							"iid": "60b3e193-804b-4d2f-afe0-9a2cd962506d",
+							"width": 32,
+							"height": 32,
+							"defUid": 13,
+							"px": [384, 544],
+							"fieldInstances": [
+								{
+									"__identifier": "text",
+									"__type": "Multilines",
+									"__value": "Враги дают бусины.\nБусины тратятся в лавке на скамье",
+									"__tile": null,
+									"defUid": 1000,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["Враги дают бусины.\nБусины тратятся в лавке на скамье"]
+										}
+									]
+								},
+								{
+									"__identifier": "touch",
+									"__type": "Multilines",
+									"__value": null,
+									"__tile": null,
+									"defUid": 1001,
+									"realEditorValues": []
+								}
+							]
+						},
+						{
+							"__identifier": "Sign",
+							"__grid": [62, 17],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#9fb2c8",
+							"__worldX": 1984,
+							"__worldY": 2080,
+							"iid": "df524467-62e6-4b7d-ac2f-589f4c3867a2",
+							"width": 32,
+							"height": 32,
+							"defUid": 13,
+							"px": [1984, 544],
+							"fieldInstances": [
+								{
+									"__identifier": "text",
+									"__type": "Multilines",
+									"__value": "Дальше — арена.\nЗагляни в лавку перед боем",
+									"__tile": null,
+									"defUid": 1000,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["Дальше — арена.\nЗагляни в лавку перед боем"]
+										}
+									]
+								},
+								{
+									"__identifier": "touch",
+									"__type": "Multilines",
+									"__value": null,
+									"__tile": null,
+									"defUid": 1001,
+									"realEditorValues": []
+								}
+							]
+						},
+						{
+							"__identifier": "Enemy",
+							"__grid": [16, 17],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#d9534f",
+							"__worldX": 512,
+							"__worldY": 2080,
+							"iid": "37241bc2-3360-4a0d-ab8c-5edf236b5873",
+							"width": 32,
+							"height": 32,
+							"defUid": 14,
+							"px": [512, 544],
+							"fieldInstances": [
+								{
+									"__identifier": "type",
+									"__type": "LocalEnum.EnemyType",
+									"__value": "crawler",
+									"__tile": null,
+									"defUid": 1002,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["crawler"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Enemy",
+							"__grid": [34, 17],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#d9534f",
+							"__worldX": 1088,
+							"__worldY": 2080,
+							"iid": "ab7e2bcb-f4ce-4783-a553-7b51d4293094",
+							"width": 32,
+							"height": 32,
+							"defUid": 14,
+							"px": [1088, 544],
+							"fieldInstances": [
+								{
+									"__identifier": "type",
+									"__type": "LocalEnum.EnemyType",
+									"__value": "crawler",
+									"__tile": null,
+									"defUid": 1002,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["crawler"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Enemy",
+							"__grid": [48, 17],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#d9534f",
+							"__worldX": 1536,
+							"__worldY": 2080,
+							"iid": "3202c070-a91f-4ce2-a300-9a7f43bc8f5c",
+							"width": 32,
+							"height": 32,
+							"defUid": 14,
+							"px": [1536, 544],
+							"fieldInstances": [
+								{
+									"__identifier": "type",
+									"__type": "LocalEnum.EnemyType",
+									"__value": "crawler",
+									"__tile": null,
+									"defUid": 1002,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["crawler"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Enemy",
+							"__grid": [62, 17],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#d9534f",
+							"__worldX": 1984,
+							"__worldY": 2080,
+							"iid": "99819123-a103-4703-a538-bd8af335a61f",
+							"width": 32,
+							"height": 32,
+							"defUid": 14,
+							"px": [1984, 544],
+							"fieldInstances": [
+								{
+									"__identifier": "type",
+									"__type": "LocalEnum.EnemyType",
+									"__value": "crawler",
+									"__tile": null,
+									"defUid": 1002,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["crawler"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Enemy",
+							"__grid": [28, 12],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#d9534f",
+							"__worldX": 896,
+							"__worldY": 1920,
+							"iid": "5801b2d8-87b0-4d7e-aa62-8db8185a123c",
+							"width": 32,
+							"height": 32,
+							"defUid": 14,
+							"px": [896, 384],
+							"fieldInstances": [
+								{
+									"__identifier": "type",
+									"__type": "LocalEnum.EnemyType",
+									"__value": "gnat",
+									"__tile": null,
+									"defUid": 1002,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["gnat"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Enemy",
+							"__grid": [56, 10],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#d9534f",
+							"__worldX": 1792,
+							"__worldY": 1856,
+							"iid": "5ad99a2c-70de-4d5b-ac56-f398895dcc13",
+							"width": 32,
+							"height": 32,
+							"defUid": 14,
+							"px": [1792, 320],
+							"fieldInstances": [
+								{
+									"__identifier": "type",
+									"__type": "LocalEnum.EnemyType",
+									"__value": "gnat",
+									"__tile": null,
+									"defUid": 1002,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["gnat"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Area",
+							"__grid": [0, 0],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#4aa3df",
+							"__worldX": 0,
+							"__worldY": 1536,
+							"iid": "b770862a-b87b-4563-a8f7-b9dc1805fdf6",
+							"width": 32,
+							"height": 32,
+							"defUid": 19,
+							"px": [0, 0],
+							"fieldInstances": [
+								{
+									"__identifier": "name",
+									"__type": "String",
+									"__value": "Коридор типографии",
+									"__tile": null,
+									"defUid": 1009,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["Коридор типографии"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Area",
+							"__grid": [36, 0],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#4aa3df",
+							"__worldX": 1152,
+							"__worldY": 1536,
+							"iid": "756c3947-a697-480a-a693-a9710f482831",
+							"width": 32,
+							"height": 32,
+							"defUid": 19,
+							"px": [1152, 0],
+							"fieldInstances": [
+								{
+									"__identifier": "name",
+									"__type": "String",
+									"__value": "Склад шрифтов",
+									"__tile": null,
+									"defUid": 1009,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["Склад шрифтов"]
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"__identifier": "Tiles",
+					"__type": "IntGrid",
+					"__cWid": 72,
+					"__cHei": 22,
+					"__gridSize": 32,
+					"__opacity": 1,
+					"__pxTotalOffsetX": 0,
+					"__pxTotalOffsetY": 0,
+					"__tilesetDefUid": null,
+					"__tilesetRelPath": null,
+					"iid": "3c1d3dc0-8f40-40c4-a017-6e84e75c1cf7",
+					"levelId": 501,
+					"layerDefUid": 1,
+					"pxOffsetX": 0,
+					"pxOffsetY": 0,
+					"visible": true,
+					"optionalRules": [],
+					"intGridCsv": [
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,2,2,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,2,2,2,2,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,2,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,3,3,3,1,1,1,1,1,1,1,1,1,1,1,1,1,3,3,3,3,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+					],
+					"autoLayerTiles": [],
+					"seed": 1,
+					"overrideTilesetUid": null,
+					"gridTiles": [],
+					"entityInstances": []
+				}
+			],
+			"__neighbours": []
+		},
+		{
+			"identifier": "Road3",
+			"iid": "7bca2f5b-43ca-4814-a45f-d9d6e757900f",
+			"uid": 502,
+			"worldX": 0,
+			"worldY": 2496,
+			"worldDepth": 0,
+			"pxWid": 2304,
+			"pxHei": 704,
+			"__bgColor": "#696A79",
+			"bgColor": null,
+			"useAutoIdentifier": false,
+			"bgRelPath": null,
+			"bgPos": null,
+			"bgPivotX": 0.5,
+			"bgPivotY": 0.5,
+			"__smartColor": "#ADADB5",
+			"__bgPos": null,
+			"externalRelPath": null,
+			"fieldInstances": [
+				{
+					"__identifier": "region",
+					"__type": "String",
+					"__value": "Глава III · Кабинет музыки",
+					"__tile": null,
+					"defUid": 1011,
+					"realEditorValues": [
+						{
+							"id": "V_String",
+							"params": ["Глава III · Кабинет музыки"]
+						}
+					]
+				},
+				{
+					"__identifier": "theme",
+					"__type": "String",
+					"__value": null,
+					"__tile": null,
+					"defUid": 1012,
+					"realEditorValues": []
+				},
+				{
+					"__identifier": "road",
+					"__type": "Int",
+					"__value": 3,
+					"__tile": null,
+					"defUid": 1013,
+					"realEditorValues": [
+						{
+							"id": "V_Int",
+							"params": [3]
+						}
+					]
+				},
+				{
+					"__identifier": "ceilY",
+					"__type": "Int",
+					"__value": null,
+					"__tile": null,
+					"defUid": 1014,
+					"realEditorValues": []
+				},
+				{
+					"__identifier": "floorY",
+					"__type": "Int",
+					"__value": null,
+					"__tile": null,
+					"defUid": 1015,
+					"realEditorValues": []
+				},
+				{
+					"__identifier": "noGates",
+					"__type": "Bool",
+					"__value": false,
+					"__tile": null,
+					"defUid": 1016,
+					"realEditorValues": []
+				}
+			],
+			"layerInstances": [
+				{
+					"__identifier": "Entities",
+					"__type": "Entities",
+					"__cWid": 72,
+					"__cHei": 22,
+					"__gridSize": 32,
+					"__opacity": 1,
+					"__pxTotalOffsetX": 0,
+					"__pxTotalOffsetY": 0,
+					"__tilesetDefUid": null,
+					"__tilesetRelPath": null,
+					"iid": "c5b833f8-2996-4daf-afad-17c73b7e6f09",
+					"levelId": 502,
+					"layerDefUid": 2,
+					"pxOffsetX": 0,
+					"pxOffsetY": 0,
+					"visible": true,
+					"optionalRules": [],
+					"intGridCsv": [],
+					"autoLayerTiles": [],
+					"seed": 1,
+					"overrideTilesetUid": null,
+					"gridTiles": [],
+					"entityInstances": [
+						{
+							"__identifier": "Spawn",
+							"__grid": [3, 17],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#2fbf71",
+							"__worldX": 96,
+							"__worldY": 3040,
+							"iid": "57e5a05d-e2ee-4089-a4af-838230d390ee",
+							"width": 32,
+							"height": 32,
+							"defUid": 10,
+							"px": [96, 544],
+							"fieldInstances": []
+						},
+						{
+							"__identifier": "Exit",
+							"__grid": [69, 17],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#e8c84a",
+							"__worldX": 2208,
+							"__worldY": 3040,
+							"iid": "ad6eae4c-1e63-4661-a1f3-7beaa59c3330",
+							"width": 32,
+							"height": 32,
+							"defUid": 11,
+							"px": [2208, 544],
+							"fieldInstances": []
+						},
+						{
+							"__identifier": "Bench",
+							"__grid": [7, 17],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#c28a4a",
+							"__worldX": 224,
+							"__worldY": 3040,
+							"iid": "dd80e192-c82e-42b8-ae0b-b03e98e9d1be",
+							"width": 32,
+							"height": 32,
+							"defUid": 12,
+							"px": [224, 544],
+							"fieldInstances": []
+						},
+						{
+							"__identifier": "Bench",
+							"__grid": [65, 17],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#c28a4a",
+							"__worldX": 2080,
+							"__worldY": 3040,
+							"iid": "3f9ab293-a112-4c62-aed4-a04ea4c4bb24",
+							"width": 32,
+							"height": 32,
+							"defUid": 12,
+							"px": [2080, 544],
+							"fieldInstances": []
+						},
+						{
+							"__identifier": "Sign",
+							"__grid": [4, 17],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#9fb2c8",
+							"__worldX": 128,
+							"__worldY": 3040,
+							"iid": "3b568317-e12f-47fb-af9c-196cfb23731a",
+							"width": 32,
+							"height": 32,
+							"defUid": 13,
+							"px": [128, 544],
+							"fieldInstances": [
+								{
+									"__identifier": "text",
+									"__type": "Multilines",
+									"__value": "Скамья: ↑ — меню: отдых, лавка, карта.\nНа скамье ↓ — сразу лавка: маски, игла, катушка",
+									"__tile": null,
+									"defUid": 1000,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["Скамья: ↑ — меню: отдых, лавка, карта.\nНа скамье ↓ — сразу лавка: маски, игла, катушка"]
+										}
+									]
+								},
+								{
+									"__identifier": "touch",
+									"__type": "Multilines",
+									"__value": "Скамья: стик вверх — меню: отдых, лавка, карта.\nНа скамье стик вниз — лавка улучшений",
+									"__tile": null,
+									"defUid": 1001,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["Скамья: стик вверх — меню: отдых, лавка, карта.\nНа скамье стик вниз — лавка улучшений"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Sign",
+							"__grid": [12, 17],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#9fb2c8",
+							"__worldX": 384,
+							"__worldY": 3040,
+							"iid": "32a9f076-9bac-49bf-a514-d22e336ed840",
+							"width": 32,
+							"height": 32,
+							"defUid": 13,
+							"px": [384, 544],
+							"fieldInstances": [
+								{
+									"__identifier": "text",
+									"__type": "Multilines",
+									"__value": "Враги дают бусины.\nБусины тратятся в лавке на скамье",
+									"__tile": null,
+									"defUid": 1000,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["Враги дают бусины.\nБусины тратятся в лавке на скамье"]
+										}
+									]
+								},
+								{
+									"__identifier": "touch",
+									"__type": "Multilines",
+									"__value": null,
+									"__tile": null,
+									"defUid": 1001,
+									"realEditorValues": []
+								}
+							]
+						},
+						{
+							"__identifier": "Sign",
+							"__grid": [62, 17],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#9fb2c8",
+							"__worldX": 1984,
+							"__worldY": 3040,
+							"iid": "cc0f75c9-1f67-48b0-a03e-2a9c40e41586",
+							"width": 32,
+							"height": 32,
+							"defUid": 13,
+							"px": [1984, 544],
+							"fieldInstances": [
+								{
+									"__identifier": "text",
+									"__type": "Multilines",
+									"__value": "Дальше — арена.\nЗагляни в лавку перед боем",
+									"__tile": null,
+									"defUid": 1000,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["Дальше — арена.\nЗагляни в лавку перед боем"]
+										}
+									]
+								},
+								{
+									"__identifier": "touch",
+									"__type": "Multilines",
+									"__value": null,
+									"__tile": null,
+									"defUid": 1001,
+									"realEditorValues": []
+								}
+							]
+						},
+						{
+							"__identifier": "Enemy",
+							"__grid": [15, 17],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#d9534f",
+							"__worldX": 480,
+							"__worldY": 3040,
+							"iid": "9a5896d8-b290-43d9-aef8-f2375bfcd61a",
+							"width": 32,
+							"height": 32,
+							"defUid": 14,
+							"px": [480, 544],
+							"fieldInstances": [
+								{
+									"__identifier": "type",
+									"__type": "LocalEnum.EnemyType",
+									"__value": "crawler",
+									"__tile": null,
+									"defUid": 1002,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["crawler"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Enemy",
+							"__grid": [26, 17],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#d9534f",
+							"__worldX": 832,
+							"__worldY": 3040,
+							"iid": "87a62e1d-36a8-464d-ac36-16c8d2b368c2",
+							"width": 32,
+							"height": 32,
+							"defUid": 14,
+							"px": [832, 544],
+							"fieldInstances": [
+								{
+									"__identifier": "type",
+									"__type": "LocalEnum.EnemyType",
+									"__value": "crawler",
+									"__tile": null,
+									"defUid": 1002,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["crawler"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Enemy",
+							"__grid": [45, 17],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#d9534f",
+							"__worldX": 1440,
+							"__worldY": 3040,
+							"iid": "ad2321a2-6883-4fdb-af54-5321150e9593",
+							"width": 32,
+							"height": 32,
+							"defUid": 14,
+							"px": [1440, 544],
+							"fieldInstances": [
+								{
+									"__identifier": "type",
+									"__type": "LocalEnum.EnemyType",
+									"__value": "crawler",
+									"__tile": null,
+									"defUid": 1002,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["crawler"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Enemy",
+							"__grid": [33, 17],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#d9534f",
+							"__worldX": 1056,
+							"__worldY": 3040,
+							"iid": "432144e8-6efd-475f-a4ac-d7b379deb810",
+							"width": 32,
+							"height": 32,
+							"defUid": 14,
+							"px": [1056, 544],
+							"fieldInstances": [
+								{
+									"__identifier": "type",
+									"__type": "LocalEnum.EnemyType",
+									"__value": "beetle",
+									"__tile": null,
+									"defUid": 1002,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["beetle"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Enemy",
+							"__grid": [57, 17],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#d9534f",
+							"__worldX": 1824,
+							"__worldY": 3040,
+							"iid": "32bc9cd3-fe73-44f7-aa96-cc1eebd22169",
+							"width": 32,
+							"height": 32,
+							"defUid": 14,
+							"px": [1824, 544],
+							"fieldInstances": [
+								{
+									"__identifier": "type",
+									"__type": "LocalEnum.EnemyType",
+									"__value": "crawler",
+									"__tile": null,
+									"defUid": 1002,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["crawler"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Enemy",
+							"__grid": [65, 17],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#d9534f",
+							"__worldX": 2080,
+							"__worldY": 3040,
+							"iid": "6c07e620-95d2-45f4-a113-ccb3e39b762b",
+							"width": 32,
+							"height": 32,
+							"defUid": 14,
+							"px": [2080, 544],
+							"fieldInstances": [
+								{
+									"__identifier": "type",
+									"__type": "LocalEnum.EnemyType",
+									"__value": "beetle",
+									"__tile": null,
+									"defUid": 1002,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["beetle"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Enemy",
+							"__grid": [40, 11],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#d9534f",
+							"__worldX": 1280,
+							"__worldY": 2848,
+							"iid": "2a36512b-9dff-4f00-a0b7-25a627dbd3a7",
+							"width": 32,
+							"height": 32,
+							"defUid": 14,
+							"px": [1280, 352],
+							"fieldInstances": [
+								{
+									"__identifier": "type",
+									"__type": "LocalEnum.EnemyType",
+									"__value": "gnat",
+									"__tile": null,
+									"defUid": 1002,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["gnat"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Enemy",
+							"__grid": [56, 10],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#d9534f",
+							"__worldX": 1792,
+							"__worldY": 2816,
+							"iid": "7d0f9bb3-098a-4986-a9dc-305afe0b1f07",
+							"width": 32,
+							"height": 32,
+							"defUid": 14,
+							"px": [1792, 320],
+							"fieldInstances": [
+								{
+									"__identifier": "type",
+									"__type": "LocalEnum.EnemyType",
+									"__value": "gnat",
+									"__tile": null,
+									"defUid": 1002,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["gnat"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Area",
+							"__grid": [0, 0],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#4aa3df",
+							"__worldX": 0,
+							"__worldY": 2496,
+							"iid": "89f9bbc7-ebca-4bf1-a9ff-5bfca3419d3a",
+							"width": 32,
+							"height": 32,
+							"defUid": 19,
+							"px": [0, 0],
+							"fieldInstances": [
+								{
+									"__identifier": "name",
+									"__type": "String",
+									"__value": "Школьный коридор",
+									"__tile": null,
+									"defUid": 1009,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["Школьный коридор"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Area",
+							"__grid": [36, 0],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#4aa3df",
+							"__worldX": 1152,
+							"__worldY": 2496,
+							"iid": "f509e3f1-beef-4a9d-a8d8-09b945e285b8",
+							"width": 32,
+							"height": 32,
+							"defUid": 19,
+							"px": [1152, 0],
+							"fieldInstances": [
+								{
+									"__identifier": "name",
+									"__type": "String",
+									"__value": "Лестница к кабинету",
+									"__tile": null,
+									"defUid": 1009,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["Лестница к кабинету"]
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"__identifier": "Tiles",
+					"__type": "IntGrid",
+					"__cWid": 72,
+					"__cHei": 22,
+					"__gridSize": 32,
+					"__opacity": 1,
+					"__pxTotalOffsetX": 0,
+					"__pxTotalOffsetY": 0,
+					"__tilesetDefUid": null,
+					"__tilesetRelPath": null,
+					"iid": "15def2b3-d799-4785-ab1d-a75b2927e05b",
+					"levelId": 502,
+					"layerDefUid": 1,
+					"pxOffsetX": 0,
+					"pxOffsetY": 0,
+					"visible": true,
+					"optionalRules": [],
+					"intGridCsv": [
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,2,2,2,2,2,0,0,0,0,0,0,0,0,0,0,2,2,2,2,2,2,0,0,0,0,0,0,0,0,2,2,2,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,3,3,3,3,1,1,1,1,1,1,1,1,1,1,1,1,3,3,3,3,1,1,1,1,1,1,1,1,1,1,3,3,3,3,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+					],
+					"autoLayerTiles": [],
+					"seed": 1,
+					"overrideTilesetUid": null,
+					"gridTiles": [],
+					"entityInstances": []
+				}
+			],
+			"__neighbours": []
+		},
+		{
+			"identifier": "Road4",
+			"iid": "566033af-dee3-4833-aaf0-f1f47e9ef060",
+			"uid": 503,
+			"worldX": 0,
+			"worldY": 3456,
+			"worldDepth": 0,
+			"pxWid": 2304,
+			"pxHei": 704,
+			"__bgColor": "#696A79",
+			"bgColor": null,
+			"useAutoIdentifier": false,
+			"bgRelPath": null,
+			"bgPos": null,
+			"bgPivotX": 0.5,
+			"bgPivotY": 0.5,
+			"__smartColor": "#ADADB5",
+			"__bgPos": null,
+			"externalRelPath": null,
+			"fieldInstances": [
+				{
+					"__identifier": "region",
+					"__type": "String",
+					"__value": "Глава IV · Берлога Тимы",
+					"__tile": null,
+					"defUid": 1011,
+					"realEditorValues": [
+						{
+							"id": "V_String",
+							"params": ["Глава IV · Берлога Тимы"]
+						}
+					]
+				},
+				{
+					"__identifier": "theme",
+					"__type": "String",
+					"__value": null,
+					"__tile": null,
+					"defUid": 1012,
+					"realEditorValues": []
+				},
+				{
+					"__identifier": "road",
+					"__type": "Int",
+					"__value": 4,
+					"__tile": null,
+					"defUid": 1013,
+					"realEditorValues": [
+						{
+							"id": "V_Int",
+							"params": [4]
+						}
+					]
+				},
+				{
+					"__identifier": "ceilY",
+					"__type": "Int",
+					"__value": null,
+					"__tile": null,
+					"defUid": 1014,
+					"realEditorValues": []
+				},
+				{
+					"__identifier": "floorY",
+					"__type": "Int",
+					"__value": null,
+					"__tile": null,
+					"defUid": 1015,
+					"realEditorValues": []
+				},
+				{
+					"__identifier": "noGates",
+					"__type": "Bool",
+					"__value": false,
+					"__tile": null,
+					"defUid": 1016,
+					"realEditorValues": []
+				}
+			],
+			"layerInstances": [
+				{
+					"__identifier": "Entities",
+					"__type": "Entities",
+					"__cWid": 72,
+					"__cHei": 22,
+					"__gridSize": 32,
+					"__opacity": 1,
+					"__pxTotalOffsetX": 0,
+					"__pxTotalOffsetY": 0,
+					"__tilesetDefUid": null,
+					"__tilesetRelPath": null,
+					"iid": "b75d31c5-9448-4095-ae18-cc2c71ecd6d1",
+					"levelId": 503,
+					"layerDefUid": 2,
+					"pxOffsetX": 0,
+					"pxOffsetY": 0,
+					"visible": true,
+					"optionalRules": [],
+					"intGridCsv": [],
+					"autoLayerTiles": [],
+					"seed": 1,
+					"overrideTilesetUid": null,
+					"gridTiles": [],
+					"entityInstances": [
+						{
+							"__identifier": "Spawn",
+							"__grid": [3, 17],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#2fbf71",
+							"__worldX": 96,
+							"__worldY": 4000,
+							"iid": "e42f4ede-cae8-4ed0-a56b-c2af3a6c57ff",
+							"width": 32,
+							"height": 32,
+							"defUid": 10,
+							"px": [96, 544],
+							"fieldInstances": []
+						},
+						{
+							"__identifier": "Exit",
+							"__grid": [69, 17],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#e8c84a",
+							"__worldX": 2208,
+							"__worldY": 4000,
+							"iid": "44106f89-8bdf-4c81-a37c-5a6d2eaa5a1e",
+							"width": 32,
+							"height": 32,
+							"defUid": 11,
+							"px": [2208, 544],
+							"fieldInstances": []
+						},
+						{
+							"__identifier": "Bench",
+							"__grid": [7, 17],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#c28a4a",
+							"__worldX": 224,
+							"__worldY": 4000,
+							"iid": "85ccffca-f59f-44cc-aad4-c528bd16048e",
+							"width": 32,
+							"height": 32,
+							"defUid": 12,
+							"px": [224, 544],
+							"fieldInstances": []
+						},
+						{
+							"__identifier": "Bench",
+							"__grid": [65, 17],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#c28a4a",
+							"__worldX": 2080,
+							"__worldY": 4000,
+							"iid": "3323e588-e536-4927-a21c-a46e267a3f2c",
+							"width": 32,
+							"height": 32,
+							"defUid": 12,
+							"px": [2080, 544],
+							"fieldInstances": []
+						},
+						{
+							"__identifier": "Sign",
+							"__grid": [4, 17],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#9fb2c8",
+							"__worldX": 128,
+							"__worldY": 4000,
+							"iid": "6b2d5d15-8cd6-46a8-a58b-f4c4744dd3d3",
+							"width": 32,
+							"height": 32,
+							"defUid": 13,
+							"px": [128, 544],
+							"fieldInstances": [
+								{
+									"__identifier": "text",
+									"__type": "Multilines",
+									"__value": "Скамья: ↑ — меню: отдых, лавка, карта.\nНа скамье ↓ — сразу лавка: маски, игла, катушка",
+									"__tile": null,
+									"defUid": 1000,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["Скамья: ↑ — меню: отдых, лавка, карта.\nНа скамье ↓ — сразу лавка: маски, игла, катушка"]
+										}
+									]
+								},
+								{
+									"__identifier": "touch",
+									"__type": "Multilines",
+									"__value": "Скамья: стик вверх — меню: отдых, лавка, карта.\nНа скамье стик вниз — лавка улучшений",
+									"__tile": null,
+									"defUid": 1001,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["Скамья: стик вверх — меню: отдых, лавка, карта.\nНа скамье стик вниз — лавка улучшений"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Sign",
+							"__grid": [12, 17],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#9fb2c8",
+							"__worldX": 384,
+							"__worldY": 4000,
+							"iid": "6c1f3049-00b3-4ee9-a50f-953e2730afe4",
+							"width": 32,
+							"height": 32,
+							"defUid": 13,
+							"px": [384, 544],
+							"fieldInstances": [
+								{
+									"__identifier": "text",
+									"__type": "Multilines",
+									"__value": "Враги дают бусины.\nБусины тратятся в лавке на скамье",
+									"__tile": null,
+									"defUid": 1000,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["Враги дают бусины.\nБусины тратятся в лавке на скамье"]
+										}
+									]
+								},
+								{
+									"__identifier": "touch",
+									"__type": "Multilines",
+									"__value": null,
+									"__tile": null,
+									"defUid": 1001,
+									"realEditorValues": []
+								}
+							]
+						},
+						{
+							"__identifier": "Sign",
+							"__grid": [62, 17],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#9fb2c8",
+							"__worldX": 1984,
+							"__worldY": 4000,
+							"iid": "61cafda3-fbbe-4ee0-ab49-47dd1177b63a",
+							"width": 32,
+							"height": 32,
+							"defUid": 13,
+							"px": [1984, 544],
+							"fieldInstances": [
+								{
+									"__identifier": "text",
+									"__type": "Multilines",
+									"__value": "Дальше — арена.\nЗагляни в лавку перед боем",
+									"__tile": null,
+									"defUid": 1000,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["Дальше — арена.\nЗагляни в лавку перед боем"]
+										}
+									]
+								},
+								{
+									"__identifier": "touch",
+									"__type": "Multilines",
+									"__value": null,
+									"__tile": null,
+									"defUid": 1001,
+									"realEditorValues": []
+								}
+							]
+						},
+						{
+							"__identifier": "Enemy",
+							"__grid": [14, 17],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#d9534f",
+							"__worldX": 448,
+							"__worldY": 4000,
+							"iid": "8df3c89a-1d4e-4479-a53d-6420f9c37c3e",
+							"width": 32,
+							"height": 32,
+							"defUid": 14,
+							"px": [448, 544],
+							"fieldInstances": [
+								{
+									"__identifier": "type",
+									"__type": "LocalEnum.EnemyType",
+									"__value": "crawler",
+									"__tile": null,
+									"defUid": 1002,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["crawler"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Enemy",
+							"__grid": [37, 17],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#d9534f",
+							"__worldX": 1184,
+							"__worldY": 4000,
+							"iid": "8c936234-cc53-476c-a7fb-90f42dc3cb13",
+							"width": 32,
+							"height": 32,
+							"defUid": 14,
+							"px": [1184, 544],
+							"fieldInstances": [
+								{
+									"__identifier": "type",
+									"__type": "LocalEnum.EnemyType",
+									"__value": "beetle",
+									"__tile": null,
+									"defUid": 1002,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["beetle"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Enemy",
+							"__grid": [44, 17],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#d9534f",
+							"__worldX": 1408,
+							"__worldY": 4000,
+							"iid": "e09fde76-b628-422b-a375-bc800fe7255a",
+							"width": 32,
+							"height": 32,
+							"defUid": 14,
+							"px": [1408, 544],
+							"fieldInstances": [
+								{
+									"__identifier": "type",
+									"__type": "LocalEnum.EnemyType",
+									"__value": "crawler",
+									"__tile": null,
+									"defUid": 1002,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["crawler"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Enemy",
+							"__grid": [52, 17],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#d9534f",
+							"__worldX": 1664,
+							"__worldY": 4000,
+							"iid": "2dc4b4e7-ee8a-48fa-a8ad-b4d50269e924",
+							"width": 32,
+							"height": 32,
+							"defUid": 14,
+							"px": [1664, 544],
+							"fieldInstances": [
+								{
+									"__identifier": "type",
+									"__type": "LocalEnum.EnemyType",
+									"__value": "beetle",
+									"__tile": null,
+									"defUid": 1002,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["beetle"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Enemy",
+							"__grid": [62, 17],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#d9534f",
+							"__worldX": 1984,
+							"__worldY": 4000,
+							"iid": "cc313f31-4cec-41b1-ab81-0da7131f9bce",
+							"width": 32,
+							"height": 32,
+							"defUid": 14,
+							"px": [1984, 544],
+							"fieldInstances": [
+								{
+									"__identifier": "type",
+									"__type": "LocalEnum.EnemyType",
+									"__value": "crawler",
+									"__tile": null,
+									"defUid": 1002,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["crawler"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Enemy",
+							"__grid": [38, 11],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#d9534f",
+							"__worldX": 1216,
+							"__worldY": 3808,
+							"iid": "8bb85ee3-7e03-4b3c-a6b9-19df975d11d7",
+							"width": 32,
+							"height": 32,
+							"defUid": 14,
+							"px": [1216, 352],
+							"fieldInstances": [
+								{
+									"__identifier": "type",
+									"__type": "LocalEnum.EnemyType",
+									"__value": "gnat",
+									"__tile": null,
+									"defUid": 1002,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["gnat"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Enemy",
+							"__grid": [54, 10],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#d9534f",
+							"__worldX": 1728,
+							"__worldY": 3776,
+							"iid": "aee3c46d-b8f8-461d-a921-a6efaade48d3",
+							"width": 32,
+							"height": 32,
+							"defUid": 14,
+							"px": [1728, 320],
+							"fieldInstances": [
+								{
+									"__identifier": "type",
+									"__type": "LocalEnum.EnemyType",
+									"__value": "gnat",
+									"__tile": null,
+									"defUid": 1002,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["gnat"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Enemy",
+							"__grid": [63, 12],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#d9534f",
+							"__worldX": 2016,
+							"__worldY": 3840,
+							"iid": "89e0bae0-92c2-4c2b-aa74-c7bfe50a70b4",
+							"width": 32,
+							"height": 32,
+							"defUid": 14,
+							"px": [2016, 384],
+							"fieldInstances": [
+								{
+									"__identifier": "type",
+									"__type": "LocalEnum.EnemyType",
+									"__value": "gnat",
+									"__tile": null,
+									"defUid": 1002,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["gnat"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Area",
+							"__grid": [0, 0],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#4aa3df",
+							"__worldX": 0,
+							"__worldY": 3456,
+							"iid": "bd2f63be-8525-4ed7-a635-dee589506ffb",
+							"width": 32,
+							"height": 32,
+							"defUid": 19,
+							"px": [0, 0],
+							"fieldInstances": [
+								{
+									"__identifier": "name",
+									"__type": "String",
+									"__value": "Подъезд",
+									"__tile": null,
+									"defUid": 1009,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["Подъезд"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Area",
+							"__grid": [36, 0],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#4aa3df",
+							"__worldX": 1152,
+							"__worldY": 3456,
+							"iid": "50ea7fca-f069-4b93-a0f6-77828b31b277",
+							"width": 32,
+							"height": 32,
+							"defUid": 19,
+							"px": [1152, 0],
+							"fieldInstances": [
+								{
+									"__identifier": "name",
+									"__type": "String",
+									"__value": "Лестница к берлоге",
+									"__tile": null,
+									"defUid": 1009,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["Лестница к берлоге"]
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"__identifier": "Tiles",
+					"__type": "IntGrid",
+					"__cWid": 72,
+					"__cHei": 22,
+					"__gridSize": 32,
+					"__opacity": 1,
+					"__pxTotalOffsetX": 0,
+					"__pxTotalOffsetY": 0,
+					"__tilesetDefUid": null,
+					"__tilesetRelPath": null,
+					"iid": "0f0eca10-e4a0-4d2e-a9f0-756ccd70a24f",
+					"levelId": 503,
+					"layerDefUid": 1,
+					"pxOffsetX": 0,
+					"pxOffsetY": 0,
+					"visible": true,
+					"optionalRules": [],
+					"intGridCsv": [
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,2,2,2,2,2,0,0,0,0,2,2,2,2,2,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,1,1,1,1,1,1,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,3,3,3,3,1,1,1,1,1,1,1,1,1,1,1,3,3,3,3,1,1,1,1,1,1,3,3,3,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+					],
+					"autoLayerTiles": [],
+					"seed": 1,
+					"overrideTilesetUid": null,
+					"gridTiles": [],
+					"entityInstances": []
+				}
+			],
+			"__neighbours": []
+		},
+		{
+			"identifier": "ArenaMisha",
+			"iid": "d478dfae-fd53-4899-a60e-424578405180",
+			"uid": 504,
+			"worldX": 0,
+			"worldY": 4416,
+			"worldDepth": 0,
+			"pxWid": 1408,
+			"pxHei": 704,
+			"__bgColor": "#696A79",
+			"bgColor": null,
+			"useAutoIdentifier": false,
+			"bgRelPath": null,
+			"bgPos": null,
+			"bgPivotX": 0.5,
+			"bgPivotY": 0.5,
+			"__smartColor": "#ADADB5",
+			"__bgPos": null,
+			"externalRelPath": null,
+			"fieldInstances": [
+				{
+					"__identifier": "region",
+					"__type": "String",
+					"__value": "Босс-тест",
+					"__tile": null,
+					"defUid": 1011,
+					"realEditorValues": [
+						{
+							"id": "V_String",
+							"params": ["Босс-тест"]
+						}
+					]
+				},
+				{
+					"__identifier": "theme",
+					"__type": "String",
+					"__value": null,
+					"__tile": null,
+					"defUid": 1012,
+					"realEditorValues": []
+				},
+				{
+					"__identifier": "road",
+					"__type": "Int",
+					"__value": null,
+					"__tile": null,
+					"defUid": 1013,
+					"realEditorValues": []
+				},
+				{
+					"__identifier": "ceilY",
+					"__type": "Int",
+					"__value": 4,
+					"__tile": null,
+					"defUid": 1014,
+					"realEditorValues": [
+						{
+							"id": "V_Int",
+							"params": [4]
+						}
+					]
+				},
+				{
+					"__identifier": "floorY",
+					"__type": "Int",
+					"__value": null,
+					"__tile": null,
+					"defUid": 1015,
+					"realEditorValues": []
+				},
+				{
+					"__identifier": "noGates",
+					"__type": "Bool",
+					"__value": true,
+					"__tile": null,
+					"defUid": 1016,
+					"realEditorValues": [
+						{
+							"id": "V_Bool",
+							"params": [true]
+						}
+					]
+				}
+			],
+			"layerInstances": [
+				{
+					"__identifier": "Entities",
+					"__type": "Entities",
+					"__cWid": 44,
+					"__cHei": 22,
+					"__gridSize": 32,
+					"__opacity": 1,
+					"__pxTotalOffsetX": 0,
+					"__pxTotalOffsetY": 0,
+					"__tilesetDefUid": null,
+					"__tilesetRelPath": null,
+					"iid": "92c11f92-46b0-4a85-afc7-8cb7c11a9a50",
+					"levelId": 504,
+					"layerDefUid": 2,
+					"pxOffsetX": 0,
+					"pxOffsetY": 0,
+					"visible": true,
+					"optionalRules": [],
+					"intGridCsv": [],
+					"autoLayerTiles": [],
+					"seed": 1,
+					"overrideTilesetUid": null,
+					"gridTiles": [],
+					"entityInstances": [
+						{
+							"__identifier": "Spawn",
+							"__grid": [6, 17],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#2fbf71",
+							"__worldX": 192,
+							"__worldY": 4960,
+							"iid": "de107713-5e89-4e02-a3b8-b1facf9c3efc",
+							"width": 32,
+							"height": 32,
+							"defUid": 10,
+							"px": [192, 544],
+							"fieldInstances": []
+						},
+						{
+							"__identifier": "Sign",
+							"__grid": [9, 17],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#9fb2c8",
+							"__worldX": 288,
+							"__worldY": 4960,
+							"iid": "d94609e7-a1d4-4d82-ac59-41b452eb3cef",
+							"width": 32,
+							"height": 32,
+							"defUid": 13,
+							"px": [288, 544],
+							"fieldInstances": [
+								{
+									"__identifier": "text",
+									"__type": "Multilines",
+									"__value": "R — дымовая бомба (геймпад LB)\n↑ + R — навесом, ↓ + R — под ноги",
+									"__tile": null,
+									"defUid": 1000,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["R — дымовая бомба (геймпад LB)\n↑ + R — навесом, ↓ + R — под ноги"]
+										}
+									]
+								},
+								{
+									"__identifier": "touch",
+									"__type": "Multilines",
+									"__value": "Кнопка «Бомба» — дымовуха\nстик вверх — навесом, вниз — под ноги",
+									"__tile": null,
+									"defUid": 1001,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["Кнопка «Бомба» — дымовуха\nстик вверх — навесом, вниз — под ноги"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Sign",
+							"__grid": [14, 17],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#9fb2c8",
+							"__worldX": 448,
+							"__worldY": 4960,
+							"iid": "35e0f6ce-6e20-4629-a012-c1c03d6eea03",
+							"width": 32,
+							"height": 32,
+							"defUid": 13,
+							"px": [448, 544],
+							"fieldInstances": [
+								{
+									"__identifier": "text",
+									"__type": "Multilines",
+									"__value": "Бей Мишу иглой!\nДымовуха в рюкзак бьёт сильнее,\nа в конце боя нужны только дымовухи",
+									"__tile": null,
+									"defUid": 1000,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["Бей Мишу иглой!\nДымовуха в рюкзак бьёт сильнее,\nа в конце боя нужны только дымовухи"]
+										}
+									]
+								},
+								{
+									"__identifier": "touch",
+									"__type": "Multilines",
+									"__value": null,
+									"__tile": null,
+									"defUid": 1001,
+									"realEditorValues": []
+								}
+							]
+						},
+						{
+							"__identifier": "Area",
+							"__grid": [0, 0],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#4aa3df",
+							"__worldX": 0,
+							"__worldY": 4416,
+							"iid": "4ef8cbc5-a6dd-43a3-a21f-33880be48db4",
+							"width": 32,
+							"height": 32,
+							"defUid": 19,
+							"px": [0, 0],
+							"fieldInstances": [
+								{
+									"__identifier": "name",
+									"__type": "String",
+									"__value": "Старая типография",
+									"__tile": null,
+									"defUid": 1009,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["Старая типография"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Crate",
+							"__grid": [3, 17],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#8b5a2b",
+							"__worldX": 96,
+							"__worldY": 4960,
+							"iid": "25872b06-f5e0-4b36-a7b6-07f0b41c339e",
+							"width": 32,
+							"height": 32,
+							"defUid": 20,
+							"px": [96, 544],
+							"fieldInstances": []
+						},
+						{
+							"__identifier": "Crate",
+							"__grid": [40, 17],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#8b5a2b",
+							"__worldX": 1280,
+							"__worldY": 4960,
+							"iid": "30d572fc-303c-42fb-abaa-3684b4043954",
+							"width": 32,
+							"height": 32,
+							"defUid": 20,
+							"px": [1280, 544],
+							"fieldInstances": []
+						},
+						{
+							"__identifier": "Misha",
+							"__grid": [28, 17],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#ff9800",
+							"__worldX": 896,
+							"__worldY": 4960,
+							"iid": "d7a71588-922d-4be8-a12e-51766447dd20",
+							"width": 32,
+							"height": 32,
+							"defUid": 21,
+							"px": [896, 544],
+							"fieldInstances": []
+						}
+					]
+				},
+				{
+					"__identifier": "Tiles",
+					"__type": "IntGrid",
+					"__cWid": 44,
+					"__cHei": 22,
+					"__gridSize": 32,
+					"__opacity": 1,
+					"__pxTotalOffsetX": 0,
+					"__pxTotalOffsetY": 0,
+					"__tilesetDefUid": null,
+					"__tilesetRelPath": null,
+					"iid": "8d39c9c3-3ef5-42b1-a1bc-966ab1b349d7",
+					"levelId": 504,
+					"layerDefUid": 1,
+					"pxOffsetX": 0,
+					"pxOffsetY": 0,
+					"visible": true,
+					"optionalRules": [],
+					"intGridCsv": [
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,2,2,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,2,2,2,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,2,2,2,2,2,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+					],
+					"autoLayerTiles": [],
+					"seed": 1,
+					"overrideTilesetUid": null,
+					"gridTiles": [],
+					"entityInstances": []
+				}
+			],
+			"__neighbours": []
+		},
+		{
+			"identifier": "ArenaVladik",
+			"iid": "40704cbf-803b-40c3-a427-5fe833eeeba4",
+			"uid": 505,
+			"worldX": 0,
+			"worldY": 5376,
+			"worldDepth": 0,
+			"pxWid": 1408,
+			"pxHei": 704,
+			"__bgColor": "#696A79",
+			"bgColor": null,
+			"useAutoIdentifier": false,
+			"bgRelPath": null,
+			"bgPos": null,
+			"bgPivotX": 0.5,
+			"bgPivotY": 0.5,
+			"__smartColor": "#ADADB5",
+			"__bgPos": null,
+			"externalRelPath": null,
+			"fieldInstances": [
+				{
+					"__identifier": "region",
+					"__type": "String",
+					"__value": "Босс-тест",
+					"__tile": null,
+					"defUid": 1011,
+					"realEditorValues": [
+						{
+							"id": "V_String",
+							"params": ["Босс-тест"]
+						}
+					]
+				},
+				{
+					"__identifier": "theme",
+					"__type": "String",
+					"__value": "class",
+					"__tile": null,
+					"defUid": 1012,
+					"realEditorValues": [
+						{
+							"id": "V_String",
+							"params": ["class"]
+						}
+					]
+				},
+				{
+					"__identifier": "road",
+					"__type": "Int",
+					"__value": null,
+					"__tile": null,
+					"defUid": 1013,
+					"realEditorValues": []
+				},
+				{
+					"__identifier": "ceilY",
+					"__type": "Int",
+					"__value": null,
+					"__tile": null,
+					"defUid": 1014,
+					"realEditorValues": []
+				},
+				{
+					"__identifier": "floorY",
+					"__type": "Int",
+					"__value": 18,
+					"__tile": null,
+					"defUid": 1015,
+					"realEditorValues": [
+						{
+							"id": "V_Int",
+							"params": [18]
+						}
+					]
+				},
+				{
+					"__identifier": "noGates",
+					"__type": "Bool",
+					"__value": true,
+					"__tile": null,
+					"defUid": 1016,
+					"realEditorValues": [
+						{
+							"id": "V_Bool",
+							"params": [true]
+						}
+					]
+				}
+			],
+			"layerInstances": [
+				{
+					"__identifier": "Entities",
+					"__type": "Entities",
+					"__cWid": 44,
+					"__cHei": 22,
+					"__gridSize": 32,
+					"__opacity": 1,
+					"__pxTotalOffsetX": 0,
+					"__pxTotalOffsetY": 0,
+					"__tilesetDefUid": null,
+					"__tilesetRelPath": null,
+					"iid": "505970c8-1501-49ff-a990-7d94cd61cdfd",
+					"levelId": 505,
+					"layerDefUid": 2,
+					"pxOffsetX": 0,
+					"pxOffsetY": 0,
+					"visible": true,
+					"optionalRules": [],
+					"intGridCsv": [],
+					"autoLayerTiles": [],
+					"seed": 1,
+					"overrideTilesetUid": null,
+					"gridTiles": [],
+					"entityInstances": [
+						{
+							"__identifier": "Spawn",
+							"__grid": [6, 17],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#2fbf71",
+							"__worldX": 192,
+							"__worldY": 5920,
+							"iid": "54a1a636-c009-490b-a4d5-2264be90f719",
+							"width": 32,
+							"height": 32,
+							"defUid": 10,
+							"px": [192, 544],
+							"fieldInstances": []
+						},
+						{
+							"__identifier": "Sign",
+							"__grid": [13, 17],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#9fb2c8",
+							"__worldX": 416,
+							"__worldY": 5920,
+							"iid": "11280903-48a1-4f80-aa30-aac57c20ea7b",
+							"width": 32,
+							"height": 32,
+							"defUid": 13,
+							"px": [416, 544],
+							"fieldInstances": [
+								{
+									"__identifier": "text",
+									"__type": "Multilines",
+									"__value": "Шторы в слизи жгутся — не прыгай в них.\nПод шторой можно пройти низом",
+									"__tile": null,
+									"defUid": 1000,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["Шторы в слизи жгутся — не прыгай в них.\nПод шторой можно пройти низом"]
+										}
+									]
+								},
+								{
+									"__identifier": "touch",
+									"__type": "Multilines",
+									"__value": null,
+									"__tile": null,
+									"defUid": 1001,
+									"realEditorValues": []
+								}
+							]
+						},
+						{
+							"__identifier": "Sign",
+							"__grid": [29, 17],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#9fb2c8",
+							"__worldX": 928,
+							"__worldY": 5920,
+							"iid": "1ea02da8-36a0-4769-aa53-dfe21d7ac5cb",
+							"width": 32,
+							"height": 32,
+							"defUid": 13,
+							"px": [928, 544],
+							"fieldInstances": [
+								{
+									"__identifier": "text",
+									"__type": "Multilines",
+									"__value": "↓ + прыжок — спрыгнуть с парты",
+									"__tile": null,
+									"defUid": 1000,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["↓ + прыжок — спрыгнуть с парты"]
+										}
+									]
+								},
+								{
+									"__identifier": "touch",
+									"__type": "Multilines",
+									"__value": "Стик вниз + «Прыжок» — спрыгнуть с парты",
+									"__tile": null,
+									"defUid": 1001,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["Стик вниз + «Прыжок» — спрыгнуть с парты"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Area",
+							"__grid": [0, 0],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#4aa3df",
+							"__worldX": 0,
+							"__worldY": 5376,
+							"iid": "a58295c3-bf37-43a9-a7a6-b749d1d6c17a",
+							"width": 32,
+							"height": 32,
+							"defUid": 19,
+							"px": [0, 0],
+							"fieldInstances": [
+								{
+									"__identifier": "name",
+									"__type": "String",
+									"__value": "Кабинет музыки",
+									"__tile": null,
+									"defUid": 1009,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["Кабинет музыки"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Vladik",
+							"__grid": [30, 17],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#9c27b0",
+							"__worldX": 960,
+							"__worldY": 5920,
+							"iid": "710feac2-3d09-4019-a4ba-cccf0146f174",
+							"width": 32,
+							"height": 32,
+							"defUid": 22,
+							"px": [960, 544],
+							"fieldInstances": []
+						},
+						{
+							"__identifier": "Window",
+							"__grid": [4, 4],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#80deea",
+							"__worldX": 128,
+							"__worldY": 5504,
+							"iid": "e60bb68d-1d2e-45fe-aa84-22cedc2935af",
+							"width": 160,
+							"height": 32,
+							"defUid": 24,
+							"px": [128, 128],
+							"fieldInstances": []
+						},
+						{
+							"__identifier": "Window",
+							"__grid": [19, 4],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#80deea",
+							"__worldX": 608,
+							"__worldY": 5504,
+							"iid": "562608cc-b40b-4a40-ad93-7a32240bff04",
+							"width": 192,
+							"height": 32,
+							"defUid": 24,
+							"px": [608, 128],
+							"fieldInstances": []
+						},
+						{
+							"__identifier": "Window",
+							"__grid": [35, 4],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#80deea",
+							"__worldX": 1120,
+							"__worldY": 5504,
+							"iid": "68a74b84-abc2-4d11-a3e2-643edf7caa93",
+							"width": 160,
+							"height": 32,
+							"defUid": 24,
+							"px": [1120, 128],
+							"fieldInstances": []
+						},
+						{
+							"__identifier": "Curtain",
+							"__grid": [2, 4],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#a5d6a7",
+							"__worldX": 64,
+							"__worldY": 5504,
+							"iid": "a10cbcf3-febe-464a-aee5-d4401bbb3dd9",
+							"width": 64,
+							"height": 32,
+							"defUid": 25,
+							"px": [64, 128],
+							"fieldInstances": []
+						},
+						{
+							"__identifier": "Curtain",
+							"__grid": [9, 4],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#a5d6a7",
+							"__worldX": 288,
+							"__worldY": 5504,
+							"iid": "aac30165-5f1b-4f7c-a96c-04cd5af0985a",
+							"width": 64,
+							"height": 32,
+							"defUid": 25,
+							"px": [288, 128],
+							"fieldInstances": []
+						},
+						{
+							"__identifier": "Curtain",
+							"__grid": [17, 4],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#a5d6a7",
+							"__worldX": 544,
+							"__worldY": 5504,
+							"iid": "a713e6d1-2dd0-4453-ab3c-595286ca4c06",
+							"width": 64,
+							"height": 32,
+							"defUid": 25,
+							"px": [544, 128],
+							"fieldInstances": []
+						},
+						{
+							"__identifier": "Curtain",
+							"__grid": [25, 4],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#a5d6a7",
+							"__worldX": 800,
+							"__worldY": 5504,
+							"iid": "fe84f07c-ab0f-4dc6-a91b-9e1b73e49b75",
+							"width": 64,
+							"height": 32,
+							"defUid": 25,
+							"px": [800, 128],
+							"fieldInstances": []
+						},
+						{
+							"__identifier": "Curtain",
+							"__grid": [33, 4],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#a5d6a7",
+							"__worldX": 1056,
+							"__worldY": 5504,
+							"iid": "79aa3dbd-344f-4f54-a347-28ffd79f6032",
+							"width": 64,
+							"height": 32,
+							"defUid": 25,
+							"px": [1056, 128],
+							"fieldInstances": []
+						},
+						{
+							"__identifier": "Curtain",
+							"__grid": [40, 4],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#a5d6a7",
+							"__worldX": 1280,
+							"__worldY": 5504,
+							"iid": "90656ca0-8774-4ff6-ab42-536360bc9132",
+							"width": 64,
+							"height": 32,
+							"defUid": 25,
+							"px": [1280, 128],
+							"fieldInstances": []
+						}
+					]
+				},
+				{
+					"__identifier": "Tiles",
+					"__type": "IntGrid",
+					"__cWid": 44,
+					"__cHei": 22,
+					"__gridSize": 32,
+					"__opacity": 1,
+					"__pxTotalOffsetX": 0,
+					"__pxTotalOffsetY": 0,
+					"__tilesetDefUid": null,
+					"__tilesetRelPath": null,
+					"iid": "8a7844fb-ccf4-4eca-aad1-f068ff3165e2",
+					"levelId": 505,
+					"layerDefUid": 1,
+					"pxOffsetX": 0,
+					"pxOffsetY": 0,
+					"visible": true,
+					"optionalRules": [],
+					"intGridCsv": [
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,2,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,2,2,2,2,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+					],
+					"autoLayerTiles": [],
+					"seed": 1,
+					"overrideTilesetUid": null,
+					"gridTiles": [],
+					"entityInstances": []
+				}
+			],
+			"__neighbours": []
+		},
+		{
+			"identifier": "ArenaTima",
+			"iid": "6e2f4155-a5a1-440d-a22f-aaee4c695c8a",
+			"uid": 506,
+			"worldX": 0,
+			"worldY": 6336,
+			"worldDepth": 0,
+			"pxWid": 1408,
+			"pxHei": 704,
+			"__bgColor": "#696A79",
+			"bgColor": null,
+			"useAutoIdentifier": false,
+			"bgRelPath": null,
+			"bgPos": null,
+			"bgPivotX": 0.5,
+			"bgPivotY": 0.5,
+			"__smartColor": "#ADADB5",
+			"__bgPos": null,
+			"externalRelPath": null,
+			"fieldInstances": [
+				{
+					"__identifier": "region",
+					"__type": "String",
+					"__value": "Босс-тест",
+					"__tile": null,
+					"defUid": 1011,
+					"realEditorValues": [
+						{
+							"id": "V_String",
+							"params": ["Босс-тест"]
+						}
+					]
+				},
+				{
+					"__identifier": "theme",
+					"__type": "String",
+					"__value": "den",
+					"__tile": null,
+					"defUid": 1012,
+					"realEditorValues": [
+						{
+							"id": "V_String",
+							"params": ["den"]
+						}
+					]
+				},
+				{
+					"__identifier": "road",
+					"__type": "Int",
+					"__value": null,
+					"__tile": null,
+					"defUid": 1013,
+					"realEditorValues": []
+				},
+				{
+					"__identifier": "ceilY",
+					"__type": "Int",
+					"__value": null,
+					"__tile": null,
+					"defUid": 1014,
+					"realEditorValues": []
+				},
+				{
+					"__identifier": "floorY",
+					"__type": "Int",
+					"__value": 18,
+					"__tile": null,
+					"defUid": 1015,
+					"realEditorValues": [
+						{
+							"id": "V_Int",
+							"params": [18]
+						}
+					]
+				},
+				{
+					"__identifier": "noGates",
+					"__type": "Bool",
+					"__value": true,
+					"__tile": null,
+					"defUid": 1016,
+					"realEditorValues": [
+						{
+							"id": "V_Bool",
+							"params": [true]
+						}
+					]
+				}
+			],
+			"layerInstances": [
+				{
+					"__identifier": "Entities",
+					"__type": "Entities",
+					"__cWid": 44,
+					"__cHei": 22,
+					"__gridSize": 32,
+					"__opacity": 1,
+					"__pxTotalOffsetX": 0,
+					"__pxTotalOffsetY": 0,
+					"__tilesetDefUid": null,
+					"__tilesetRelPath": null,
+					"iid": "7ba74213-b600-44da-a605-a8e9b1b7188c",
+					"levelId": 506,
+					"layerDefUid": 2,
+					"pxOffsetX": 0,
+					"pxOffsetY": 0,
+					"visible": true,
+					"optionalRules": [],
+					"intGridCsv": [],
+					"autoLayerTiles": [],
+					"seed": 1,
+					"overrideTilesetUid": null,
+					"gridTiles": [],
+					"entityInstances": [
+						{
+							"__identifier": "Spawn",
+							"__grid": [4, 17],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#2fbf71",
+							"__worldX": 128,
+							"__worldY": 6880,
+							"iid": "7c3f7f75-cbdd-45e1-aa67-e4a3446c4fa7",
+							"width": 32,
+							"height": 32,
+							"defUid": 10,
+							"px": [128, 544],
+							"fieldInstances": []
+						},
+						{
+							"__identifier": "Sign",
+							"__grid": [5, 17],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#9fb2c8",
+							"__worldX": 160,
+							"__worldY": 6880,
+							"iid": "5d01d738-ebea-46f3-a449-90132e547ca3",
+							"width": 32,
+							"height": 32,
+							"defUid": 13,
+							"px": [160, 544],
+							"fieldInstances": [
+								{
+									"__identifier": "text",
+									"__type": "Multilines",
+									"__value": "Тима бьётся обычной иглой.\nКогда он чертит круг для пыли — беги и бей:\nтри удара, и он чихнёт",
+									"__tile": null,
+									"defUid": 1000,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["Тима бьётся обычной иглой.\nКогда он чертит круг для пыли — беги и бей:\nтри удара, и он чихнёт"]
+										}
+									]
+								},
+								{
+									"__identifier": "touch",
+									"__type": "Multilines",
+									"__value": null,
+									"__tile": null,
+									"defUid": 1001,
+									"realEditorValues": []
+								}
+							]
+						},
+						{
+							"__identifier": "Area",
+							"__grid": [0, 0],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#4aa3df",
+							"__worldX": 0,
+							"__worldY": 6336,
+							"iid": "11f3563d-a896-447c-a8e8-24c94597011a",
+							"width": 32,
+							"height": 32,
+							"defUid": 19,
+							"px": [0, 0],
+							"fieldInstances": [
+								{
+									"__identifier": "name",
+									"__type": "String",
+									"__value": "Берлога Тимы",
+									"__tile": null,
+									"defUid": 1009,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["Берлога Тимы"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Tima",
+							"__grid": [30, 17],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#795548",
+							"__worldX": 960,
+							"__worldY": 6880,
+							"iid": "32d8d34e-07c5-4a74-a671-c3931b929a34",
+							"width": 32,
+							"height": 32,
+							"defUid": 23,
+							"px": [960, 544],
+							"fieldInstances": []
+						},
+						{
+							"__identifier": "Furniture",
+							"__grid": [7, 15],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#bcaaa4",
+							"__worldX": 224,
+							"__worldY": 6816,
+							"iid": "adfa1e33-5c24-481f-a3b0-cfc7ffe81272",
+							"width": 224,
+							"height": 32,
+							"defUid": 26,
+							"px": [224, 480],
+							"fieldInstances": [
+								{
+									"__identifier": "kind",
+									"__type": "LocalEnum.FurnitureKind",
+									"__value": "couch",
+									"__tile": null,
+									"defUid": 1010,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["couch"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Furniture",
+							"__grid": [19, 10],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#bcaaa4",
+							"__worldX": 608,
+							"__worldY": 6656,
+							"iid": "570a3333-0544-49a4-a2bc-25bf5510e919",
+							"width": 192,
+							"height": 32,
+							"defUid": 26,
+							"px": [608, 320],
+							"fieldInstances": [
+								{
+									"__identifier": "kind",
+									"__type": "LocalEnum.FurnitureKind",
+									"__value": "shelf",
+									"__tile": null,
+									"defUid": 1010,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["shelf"]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Furniture",
+							"__grid": [31, 14],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#bcaaa4",
+							"__worldX": 992,
+							"__worldY": 6784,
+							"iid": "2cd6a271-1c99-4f47-ac74-a08be7070aed",
+							"width": 128,
+							"height": 32,
+							"defUid": 26,
+							"px": [992, 448],
+							"fieldInstances": [
+								{
+									"__identifier": "kind",
+									"__type": "LocalEnum.FurnitureKind",
+									"__value": "crates",
+									"__tile": null,
+									"defUid": 1010,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["crates"]
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"__identifier": "Tiles",
+					"__type": "IntGrid",
+					"__cWid": 44,
+					"__cHei": 22,
+					"__gridSize": 32,
+					"__opacity": 1,
+					"__pxTotalOffsetX": 0,
+					"__pxTotalOffsetY": 0,
+					"__tilesetDefUid": null,
+					"__tilesetRelPath": null,
+					"iid": "43aa837f-68c9-499b-ac5f-b9fb1b86870f",
+					"levelId": 506,
+					"layerDefUid": 1,
+					"pxOffsetX": 0,
+					"pxOffsetY": 0,
+					"visible": true,
+					"optionalRules": [],
+					"intGridCsv": [
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,2,2,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,2,2,2,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,2,2,2,2,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+					],
+					"autoLayerTiles": [],
+					"seed": 1,
+					"overrideTilesetUid": null,
+					"gridTiles": [],
+					"entityInstances": []
+				}
+			],
+			"__neighbours": []
+		}
+	],
+	"worlds": [],
+	"dummyWorldIid": "6ffac19d-8002-4654-a12a-e681173b27c2"
+}
