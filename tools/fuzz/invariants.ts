@@ -25,8 +25,8 @@ export interface Finding {
 }
 
 const CHECK_EVERY = 15;
-/** герой должен выйти из стены не позже чем через столько тиков */
-const SOLID_GRACE = 30;
+/** герой должен выйти из стены не позже чем через столько секунд логического времени (0,5 с = 30 тиков при обычной скорости; замедление и хитстоп время не двигают) */
+const SOLID_GRACE_S = 0.5;
 /** окно «застревания»: 30 с игрового времени */
 const STUCK_TICKS = 1800;
 
@@ -49,6 +49,7 @@ export function findNonFinite(o: unknown, path: string, depth = 2): string | nul
 export class Monitor {
   private n = 0;
   private solidRun: number[] = [];
+  private prevT = 0;
   private world: World | null = null;
   private frozenAt = { wiping: 0, hitstop: 0, leaving: 0, busy: 0, paused: 0 };
   // «застревание»
@@ -57,8 +58,9 @@ export class Monitor {
   /** вызывать после каждого тика мира; moved — нажимал ли ввод движение/прыжок в этом тике */
   check(w: World, moved: boolean): Finding | null {
     this.n++;
-    if (w !== this.world) { this.world = w; this.solidRun = w.players.map(() => 0); this.frozenAt = { wiping: 0, hitstop: 0, leaving: 0, busy: 0, paused: 0 }; this.win = { x: 0, y: 0, t: 0, sig: '', active: 0, move: 0 }; this.resetWindow(w); }
+    if (w !== this.world) { this.world = w; this.solidRun = w.players.map(() => 0); this.prevT = w.timeSec; this.frozenAt = { wiping: 0, hitstop: 0, leaving: 0, busy: 0, paused: 0 }; this.win = { x: 0, y: 0, t: 0, sig: '', active: 0, move: 0 }; this.resetWindow(w); }
     const f = (invariant: InvariantId, message: string): Finding => ({ invariant, message, tick: this.n });
+    const dtLogic = Math.max(0, w.timeSec - this.prevT); this.prevT = w.timeSec;
 
     // --- дешёвые, каждый тик ---
     for (let i = 0; i < w.players.length; i++) {
@@ -66,11 +68,14 @@ export class Monitor {
       if (bad(p.x) || bad(p.y) || bad(p.vx) || bad(p.vy) || bad(p.hp) || bad(p.silk)) return f('nan', `герой ${i}: x=${p.x} y=${p.y} vx=${p.vx} vy=${p.vy} hp=${p.hp} silk=${p.silk}`);
       if (p.downed || p.remote) { this.solidRun[i] = 0; continue; }
       if (p.hp < 0 || p.hp > p.maxHp + 1e-9 || p.silk < -1e-9 || p.silk > w.silkMax + 1e-9) return f('range', `герой ${i}: hp=${p.hp}/${p.maxHp} silk=${p.silk}/${w.silkMax}`);
+      // на паузе мир стоит: герой, замерший посреди подтягивания на уступ, остаётся в углу тайла, это не нарушение
+      if (w.paused) continue;
       if (w.solidRect({ x: p.x + 1, y: p.y + 1, w: p.w - 2, h: p.h - 2 })) {
-        if (++this.solidRun[i]! > SOLID_GRACE) {
+        this.solidRun[i]! += dtLogic;
+        if (this.solidRun[i]! > SOLID_GRACE_S) {
           // «поводок» v1.8 ставит отставшего напарника рядом с ведущим, не глядя на стены: отдельный класс
           const near = w.players.some((q, k) => k !== i && !q.downed && Math.abs(q.x - p.x) <= 24 && Math.abs(q.y - p.y) <= 2);
-          return { ...f('solid', `герой ${i} внутри тайла${near ? ' рядом с напарником (поводок)' : ''}: x=${p.x.toFixed(1)} y=${p.y.toFixed(1)} (${this.solidRun[i]} тиков подряд)`), ...(near ? { cls: 'leash' } : {}) };
+          return { ...f('solid', `герой ${i} внутри тайла${near ? ' рядом с напарником (поводок)' : ''}: x=${p.x.toFixed(1)} y=${p.y.toFixed(1)} (${this.solidRun[i]!.toFixed(2)} с подряд)`), ...(near ? { cls: 'leash' } : {}) };
         }
       } else this.solidRun[i] = 0;
       const L = w.L;

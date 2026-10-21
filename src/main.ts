@@ -2,6 +2,8 @@ import { h, render } from 'preact';
 import { createSession, type LaunchParams } from './app/launch';
 import { applySettings, initLayout } from './app/apply';
 import { loadKeys } from './app/keys';
+import { flushRecording } from './app/record';
+import { initWatch } from './app/watch';
 import { srFinish } from './core/speedrun';
 import { settings } from './app/store';
 import { Snd } from './view/audio/snd';
@@ -33,7 +35,9 @@ function start(p: LaunchParams): void {
   shared.session = createSession(p, version);
   game.events.emit('tt:session', shared.session);
 }
-function stop(): void { shared.session = null; game.events.emit('tt:session', null); }
+function stop(): void { flushRecording(shared.session); shared.session = null; game.events.emit('tt:session', null); }
 
 (window as unknown as { __tt?: unknown }).__tt = { game, shared, start, stop, debug: { srFinish } };
 render(h(App, { hub, version, build, start, stop, game, shared }), ui);
+// просмотр записей .ttrec: ?watch=адрес, перетаскивание файла, «Настройки → Игра → Открыть запись…»
+initWatch({ version, game, end: stop, begin: (s) => { Snd.init(); applySettings(); shared.session = s; game.events.emit('tt:session', s); } });

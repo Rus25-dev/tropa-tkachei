@@ -66,6 +66,14 @@ function cheat(ses: Session, id: number, x = 0, y = 0): void {
   f?.(w, x, y);
 }
 
+/** Герой к арене Корнематки с двойным прыжком. ex 10 из золотых записей ставит его в колонку ворот, которые закрываются на нём, поэтому здесь — чуть левее ворот (ex 11 + ex 20) */
+function arenaCheat(ses: Session): void {
+  const w = ses.world, b = w.L.boss;
+  if (!b) return;
+  cheat(ses, 11);
+  cheat(ses, 20, (b.trigger + 1) * 32 - 16, (b.y + 1) * 32 - 26);
+}
+
 /** Герой — на выход этапа, на землю у выхода (ex 20): ex 2 из гонок ставит в воздух, над колючками главы I героя возвращает к безопасной точке */
 function exitCheat(ses: Session): void {
   const e = ses.world.exitR;
@@ -98,7 +106,7 @@ export function runFuzz(spec: FuzzSpec, opt: { replayCheck?: boolean; trace?: nu
   const auto = spec.mode === 'chain' || spec.mode.startsWith('sr-') || spec.mode === 'korne' || R() < 0.4;
   let lastWorld: World | null = null, sceneTick = 0, stage: 'play' | 'fight' | 'dying' | 'leave' | 'done' = 'play', budget = 0, stageAt = 0, endAt = -1, winWait = -1;
 
-  if (spec.mode === 'korne') cheat(ses, 10);
+  if (spec.mode === 'korne') arenaCheat(ses);
   const finish = (finding: Finding | null): FuzzResult => {
     stats.ticks = rec.ticks() + rotated.reduce((s, r) => s + r.run.journal.segs.reduce((a, g) => a + g.n, 0), 0);
     if (finding) return fail(finding);
@@ -136,7 +144,7 @@ export function runFuzz(spec: FuzzSpec, opt: { replayCheck?: boolean; trace?: nu
       // ----- ходы продвижения -----
       if (auto && !w.won && !w.paused && stage !== 'done') {
         if (stage === 'play' && sceneTick >= budget) {
-          if (w.L.boss && w.camp?.st === 'level' && !w.bossDead && w.boss.state === 'sleep' && spec.mode !== 'ch1') { cheat(ses, 10); stage = 'fight'; budget = sceneTick + 200 + Math.floor(R() * 1200); }
+          if (w.L.boss && w.camp?.st === 'level' && !w.bossDead && w.boss.state === 'sleep' && spec.mode !== 'ch1') { arenaCheat(ses); stage = 'fight'; budget = sceneTick + 200 + Math.floor(R() * 1200); }
           else if (w.camp?.st === 'road') { if (!w.players[0]!.downed && !w.wiping && w.exitR) { exitCheat(ses); stage = 'leave'; stageAt = sceneTick; } }
           else if (!w.bossDead && (w.testBoss() || w.L.boss)) { cheat(ses, 1); stage = 'dying'; stageAt = sceneTick; }
           else if (!w.players[0]!.downed && !w.wiping && w.exitR) { exitCheat(ses); stage = 'leave'; stageAt = sceneTick; }
@@ -146,6 +154,8 @@ export function runFuzz(spec: FuzzSpec, opt: { replayCheck?: boolean; trace?: nu
           return finish({ invariant: 'transition', message: 'босс не умирает после последнего удара (3000 тиков)', tick: t });
         } else if (stage === 'leave' && !w.leaving && !w.won && sceneTick > stageAt && (sceneTick - stageAt) % 90 === 0 && sceneTick - stageAt <= 1350 && !w.players[0]!.downed && !w.wiping) {
           exitCheat(ses); // герой мог быть в хвате за уступ: хват возвращает его на место, поэтому перенос повторяется
+        } else if (stage === 'leave' && w.players[0]!.downed) {
+          stageAt = sceneTick; // герой 1 в коконе (перенос мог упасть на колючки): выход ждёт его возвращения
         } else if (stage === 'leave' && sceneTick - stageAt > 1500 && !w.leaving && !w.won) {
           return finish({ invariant: 'transition', message: `выход не сработал за 1500 тиков (сцена ${w.camp ? w.camp.ch + '/' + w.camp.st : w.mode})`, tick: t });
         }

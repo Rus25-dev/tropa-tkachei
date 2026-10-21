@@ -1,6 +1,7 @@
 // Запуск партии: собирает сессию ядра из настроек и хранилища и подключает сохранение, рекорды и награды.
 import { resumeCamp, freshCamp, type CampState } from '../core/campaign';
 import { Session, type SceneData } from '../core/session';
+import { attachRecording, recWanted } from './record';
 import { journalStore, loadout, progress, records, settings, sr as srStore } from './store';
 
 export type GameKind = 'story' | 'bosstest' | 'trail' | 'boss';
@@ -47,6 +48,7 @@ export function createSession(p: LaunchParams, version: string): Session {
     journalStore.clear();
     void ses;
   }];
+  if (recWanted()) attachRecording(s, version); // «Записывать мои бои» / ?rec=1: после всех обработчиков выше
   return s;
 }
 const fmtMin = (s: number): string => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');

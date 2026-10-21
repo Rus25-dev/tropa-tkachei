@@ -3,7 +3,7 @@
 //                          [--workers N] [--balance файл.json] [--json] [--verbose]
 //   npm run bot -- record --boss misha [--skill 0.9] [--seed 5] [--out бой.ttrec]    один бой с записью
 //   npm run bot -- watch бой.ttrec          смотреть запись в браузере (движок игры воспроизводит её по ?watch=)
-//   npm run bot -- watch --boss tima --skill 0.6 --seed 3    записать бой и сразу открыть
+//   npm run bot -- watch --boss tima --skill 0.6 --seed 3    записать бой и сразу открыть (--speed 2 — скорость, --no-open — не открывать браузер сам)
 // Баланс можно переопределить файлом (--balance) или переменной окружения TT_BALANCE (путь к файлу или JSON): только для этих инструментов.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -85,7 +85,7 @@ async function watch(): Promise<void> {
   const { createServer } = await import('vite');
   const port = +(opt('port', '5174')!);
   const server = await createServer({
-    server: { port, strictPort: false, open: `/?watch=${encodeURIComponent('/__watch.ttrec')}${opt('speed') ? '&wspeed=' + opt('speed') : ''}` },
+    server: { port, strictPort: false, open: flag('no-open') ? false : `/?watch=${encodeURIComponent('/__watch.ttrec')}${opt('speed') ? '&wspeed=' + opt('speed') : ''}` },
     plugins: [{ name: 'tt-watch', configureServer(s) { s.middlewares.use('/__watch.ttrec', (_req, res) => { res.setHeader('Content-Type', 'application/json'); res.end(data); }); } }],
   });
   await server.listen();

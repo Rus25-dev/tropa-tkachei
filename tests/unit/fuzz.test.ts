@@ -13,7 +13,8 @@ import { MODES, makeSpec, type FuzzSpec } from '../../tools/fuzz/spec';
 import { emptyButtons, edgesBetween } from '../../src/core/input';
 
 const world = (): World => new World({ seed: 5, mode: 'bosstest', boss: 'vladik' });
-const feed = (m: Monitor, w: World, n: number, moved = false): Finding | null => { for (let i = 0; i < n; i++) { const f = m.check(w, moved); if (f) return f; } return null; };
+/** n проверок подряд; каждая — один тик логического времени (timeSec двигается, как в живом мире) */
+const feed = (m: Monitor, w: World, n: number, moved = false): Finding | null => { for (let i = 0; i < n; i++) { w.timeSec += 1 / 60; const f = m.check(w, moved); if (f) return f; } return null; };
 
 describe('фаззер: инварианты ловят нарушения', () => {
   it('здоровый мир проходит тысячу тиков без замечаний', () => {
@@ -47,6 +48,16 @@ describe('фаззер: инварианты ловят нарушения', () 
     const f = feed(m, w, 1805, true);
     expect(f?.invariant).toBe('stuck');
     expect(feed(new Monitor(), world(), 3000, false)).toBeNull(); // стоит без нажатий — не застревание
+  });
+  it('solid: на паузе и в замедлении босса герой в углу тайла — не нарушение, пока логическое время не вышло', () => {
+    const w = world(), m = new Monitor();
+    const p = w.players[0]!; p.x = 2 * 32 - 8; p.y = 2 * 32 - 8;
+    w.paused = true;
+    expect(feed(m, w, 500)).toBeNull(); // мир стоит
+    w.paused = false;
+    for (let i = 0; i < 100; i++) { w.timeSec += 0.22 / 60; expect(m.check(w, false)).toBeNull(); } // замедление ×0,22: 100 тиков = 0,37 с логического времени
+    let f: Finding | null = null; for (let i = 0; i < 100 && !f; i++) { w.timeSec += 0.22 / 60; f = m.check(w, false); }
+    expect(f?.invariant).toBe('solid');
   });
   it('stuck не срабатывает, пока открыто меню', () => {
     const w = world(), m = new Monitor(); w.paused = true;
