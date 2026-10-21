@@ -4,7 +4,7 @@
 import { T } from './balance';
 import type { World } from './world';
 import { freshCamp, freshUp, go, snap, type CampState } from './campaign';
-import { statTick, type StatsData } from './racestats';
+import { statSub, statTick, type StatsData } from './racestats';
 
 export interface Split { rta: number; igt: number }
 export interface SrResult { cat: string; ver: string; rta: number; igt: number; deaths: number; splits: Split[]; taint: string | null; newPb: boolean; pbPrev: unknown }
@@ -61,8 +61,9 @@ export function srOnSplit(sc: World): void {
   const r = sc.sr; if (!r || r.done || r.t0 == null) return;
   const i = Math.max(0, (sc.camp ? sc.camp.ch : 1) - 1);
   if (r.splits.length > i) return;
-  if (r.replay && r.replay.splits[i]) { r.splits[i] = { ...r.replay.splits[i]! }; if (i >= 3 && r.replay.mem) srFinish(sc); return; } // при воспроизведении берём записанное
+  if (r.replay && r.replay.splits[i]) { r.splits[i] = { ...r.replay.splits[i]! }; statSub(sc, 'kill'); if (i >= 3 && r.replay.mem) srFinish(sc); return; } // при воспроизведении берём записанное
   r.splits[i] = { rta: rta(r), igt: Math.round(r.igt) };
+  statSub(sc, 'kill');
   sc.emit('srSplit', { i, split: { ...r.splits[i]! } });
   if (i >= 3) srFinish(sc);
 }

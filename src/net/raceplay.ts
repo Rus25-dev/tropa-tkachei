@@ -6,6 +6,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { fmt } from '../core/timefmt';
 import { Client } from './client';
+import { leadBySubs, leadText, stageText } from './raceprog';
 import type { PlayStore, RoomState } from './racecommon';
 import { cleanCode, defaultEnv, type Env, type Msg, type Transport } from './types';
 
@@ -45,7 +46,7 @@ export interface PlayerBanner { text: string; sub: string; col: string }
 
 export class RacePlay {
   code = ''; name = ''; me = false; state: RoomState | null = null; seat: number | null = null; status = 'connecting'; denied: string | undefined;
-  client: Client | null = null; started = false; rv: Msg | null = null; evT = -1e9; tele = 0; fin: { rta: number; igt: number; deaths: number } | null = null; res: any = null;
+  client: Client | null = null; started = false; rv: Msg | null = null; rvAt = 0; evT = -1e9; tele = 0; fin: { rta: number; igt: number; deaths: number } | null = null; res: any = null;
   runId: string | null = null; loadedSent = false; skew = 0; endNote = ''; msg = ''; msgKind: '' | 'good' | 'bad' = '';
   private env: Env; private subs = new Set<() => void>(); private o: PlayOpts;
   constructor(o: PlayOpts) { this.o = o; this.env = o.env ?? defaultEnv(); }
@@ -65,7 +66,7 @@ export class RacePlay {
     if (code.length < 4) return 'Введите код комнаты (5 символов).';
     if (!name) return 'Введите имя: по нему организатор и зрители узнают вас.';
     if (this.client) this.client.stop(true);
-    Object.assign(this, { code, name, me: false, state: null, seat: null, status: 'connecting', denied: undefined, started: false, rv: null, tele: 0, fin: null, res: null, loadedSent: false, runId: null, msg: '', msgKind: '' });
+    Object.assign(this, { code, name, me: false, state: null, seat: null, status: 'connecting', denied: undefined, started: false, rv: null, rvAt: 0, tele: 0, fin: null, res: null, loadedSent: false, runId: null, msg: '', msgKind: '' });
     const sess = this.o.store.loadSess(), resume = !!(sess && sess.code === code);
     this.client = new Client({
       code, ns: 'race', key: this.o.key, role: 'play', name, transport: this.o.transport, env: this.env, resume, gSeen: resume ? sess!.gSeen | 0 : 0,
@@ -116,7 +117,7 @@ export class RacePlay {
       }
     }
   }
-  private onTel(t: any): void { if (t && t.rv) this.rv = t.rv; }
+  private onTel(t: any): void { if (t && t.rv) { this.rv = t.rv; this.rvAt = this.env.now(); } }
 
   // ----- готовность -----
   toggleReady(): void { const c = this.client; if (!c) return; this.me = !this.me; c.send({ k: 'ready', v: this.me, viol: this.br.violation() }); this.changed(); }
@@ -199,7 +200,18 @@ export class RacePlay {
     if (this.status !== 'online') return { text: 'Связь с организатором потеряна: играем локально, итог уйдёт при возвращении', col: '#d28a6a' };
     if (this.br.techOn()) return { text: 'Техническая пауза организатора', col: '#ffd47a' };
     const pending = this.client ? this.client.pending() : 0;
-    return { text: pending > 4 ? `Связь есть, досылаем события (${pending})` : 'Связь с организатором: есть', col: '#86a89a' };
+    if (pending > 4) return { text: `Связь есть, досылаем события (${pending})`, col: '#86a89a' };
+    return this.strip() ?? { text: 'Связь с организатором: есть', col: '#86a89a' };
+  }
+  /** полоска соперника во время гонки: «Ярь · Гл. III · бой с Владиком · +4.2 с» (плюс — соперник впереди, по подсплитам) */
+  strip(): { text: string; col: string } | null {
+    const st = this.state, rv = this.rv; if (!st || !rv || st.phase !== 'run' || !this.br.hasRun() || this.br.runHeld()) return null;
+    const me = st.players.find((p) => p.seat === this.seat), o = st.players.find((p) => p.seat !== this.seat); if (!me || !o) return null;
+    if (o.dnf) return { text: `${o.name} сошёл с дистанции`, col: '#ffd47a' };
+    if (o.fin) return { text: `${o.name} финишировал: ${fmt(o.fin.rta)}`, col: '#ffd47a' };
+    const theirNow = (rv['el'] as number) + Math.max(0, this.env.now() - this.rvAt), lead = leadBySubs(st.disc, me, o, this.br.rta(), theirNow);
+    const stage = stageText(st.disc, rv, o.subs, false);
+    return { text: `${o.name} · ${stage}${lead != null ? ' · ' + leadText(lead) : ''}`, col: lead == null ? '#b9d4c8' : lead > 0 ? '#ff9a8a' : lead < 0 ? '#9ff0c8' : '#ffd47a' };
   }
   /** баннер итога; myRta — время своего финиша (null, пока не финишировали) */
   banner(myRta: number | null): PlayerBanner | null {

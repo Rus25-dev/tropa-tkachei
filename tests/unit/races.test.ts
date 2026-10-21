@@ -290,3 +290,61 @@ describe('архив', () => {
     expect(Object.keys(j.races[0])).toEqual(expect.arrayContaining(['id', 'date', 'version', 'discipline', 'settings', 'seed', 'players', 'winner', 'winnerSeat', 'awarded', 'gap', 'goAt', 'pauseMs', 'events']));
   });
 });
+
+describe('2.2 «Тропа целиком»: подсплиты, лавка, смерти, полоска соперника', () => {
+  /** показания героя для телеметрии: глава, этап, время забега */
+  const tel = (p: P, s: number, extra: Record<string, unknown> = {}) => p.play.tel({ s, el: Math.round(p.game.rta()), x: 100, y: 50, hp: 5, mh: 5, dt: 0, ch: 1, st: 'level', f: 1, sp: 0, dn: 0, ...extra });
+  const ev = (p: P, k: string, d: Record<string, unknown> = {}) => p.play.event(k, d);
+
+  it('подсплиты, покупки и смерти с потерянным временем: организатор, лента, обсервер', () => {
+    const l = lobby(); startRace(l); const { room, p1, p2, w1 } = l, { sim, org } = room;
+    sim.run(3000);
+    ev(p1, 'sub', { ch: 1, sk: 'exit' }); sim.run(2500); ev(p2, 'sub', { ch: 1, sk: 'exit' }); sim.run(300);
+    ev(p1, 'sub', { ch: 1, sk: 'exit' }); // повтор того же подсплита не засчитывается
+    ev(p1, 'sub', { ch: 1, sk: 'fight' }); ev(p1, 'buy', { id: 'dmg', name: 'Острая игла', ch: 1, price: 12 }); ev(p1, 'death', { ch: 1 }); sim.run(500); ev(p1, 'lost', { ms: 4200 }); sim.run(500);
+    const a = seat(room, 'Ива'), b = seat(room, 'Ярь');
+    expect(a.subs!.map((s) => s.k)).toEqual(['exit', 'fight']); expect(b.subs!.map((s) => s.k)).toEqual(['exit']);
+    expect(b.subs![0]!.rta - a.subs![0]!.rta).toBeGreaterThan(2000); expect(b.subs![0]!.rta - a.subs![0]!.rta).toBeLessThan(3500);
+    expect(a.lost).toBe(4200); expect(a.deathList).toEqual([expect.objectContaining({ ch: 1, lost: 4200 })]); expect(a.buys![0]).toMatchObject({ id: 'dmg', name: 'Острая игла', price: 12 });
+    const text = w1.feed.map((e) => e.x);
+    expect(text).toContain('Ива: Гл. I · выход из коридора'); expect(text).toContain('Ярь: Гл. I · выход из коридора'); expect(text).toContain('Ива: Гл. I · начало боя');
+    expect(text).toContain('Ива купил(а): Острая игла за 12'); expect(text).toContain('Ива: потеряно 4.2 с после обрыва нити');
+    const rp = w1.S!.players[0]!; expect(rp.subs!.length).toBe(2); expect(rp.lost).toBe(4200); expect(rp.deaths).toBe(1); expect(rp.buys).toBe(1);
+    // отрыв между игроками считается по общему подсплиту
+    const lead = w1.lead()!; expect(lead.ms).toBeLessThan(-2000); expect(lead.txt).toMatch(/Гл\. I · (выход из коридора|начало боя)/);
+    void org;
+  });
+
+  it('индикатор «в лавке» из телеметрии; полоска соперника с этапом и отрывом', () => {
+    const l = lobby(); startRace(l); const { room, p1, p2, w1 } = l, { sim } = room;
+    sim.run(2000); ev(p1, 'sub', { ch: 1, sk: 'exit' }); ev(p1, 'sub', { ch: 1, sk: 'fight' }); sim.run(6000); ev(p2, 'sub', { ch: 1, sk: 'exit' }); sim.run(500);
+    for (let i = 0; i < 20; i++) { tel(p1, 1, { st: 'level', sh: 1 }); tel(p2, 2, { ch: 1 }); sim.run(66); }
+    sim.run(600);
+    expect(w1.inShop(1)).toBe(true); expect(w1.inShop(2)).toBe(false);
+    const s = p2.play.strip()!; expect(s.text).toMatch(/^Ива · Гл\. I · в лавке · \+\d+\.\d с$/); expect(s.col).toBe('#ff9a8a'); // Ива впереди: у Ярь плюс
+    expect(p2.play.rival().text).toBe(s.text);
+    const s1 = p1.play.strip()!; expect(s1.text).toMatch(/^Ярь · Гл\. I · .* · −\d+\.\d с$/); expect(s1.col).toBe('#9ff0c8');
+    tel(p1, 1, { st: 'arena', sh: 0 }); sim.run(600); tel(p1, 1, { st: 'arena', sh: 0 }); sim.run(600);
+    expect(p2.play.strip()!.text).toContain('бой с Корнематкой');
+  });
+
+  it('личный рекорд и лучшие отрезки уходят в снимок комнаты со второй гонки; итог содержит подсплиты', () => {
+    const l = lobby(); startRace(l); const { room, p1, p2, w1 } = l, { sim, org } = room;
+    sim.run(1000); ev(p1, 'sub', { ch: 1, sk: 'exit' }); ev(p1, 'death', { ch: 1 }); ev(p1, 'lost', { ms: 3000 }); sim.run(500);
+    p1.game.finish(); sim.run(1500); p2.game.finish(); sim.run(800);
+    const r = org.S!.result!, row = r.players.find((p) => p.name === 'Ива')!;
+    expect(row.subs!.map((s) => s.k)).toEqual(['exit']); expect(row.lost).toBe(3000); expect(row.deathList!.length).toBe(1);
+    expect(r.players.find((p) => p.name === 'Ярь')!.subs).toBeUndefined(); // нет подсплитов — поле не пишется
+    // вторая гонка: рекорд подтягивается из архива
+    org.restart(); sim.run(600); p1.play.toggleReady(); p2.play.toggleReady(); sim.run(500); org.start(); sim.run(5000);
+    const pb = w1.S!.players[0]!.pb!;
+    expect(pb.t).toBe(row.time); expect(pb.sp).toEqual(row.splits); expect(pb.bs.every((x) => x != null && x > 0)).toBe(true); expect(pb.sb['1:exit']).toBe(row.subs![0]!.rta);
+    expect(w1.S!.players[0]!.subs).toEqual([]); expect(w1.S!.players[0]!.lost).toBe(0);
+  });
+
+  it('событие подсплита, пришедшее после обрыва, доходит один раз', () => {
+    const l = lobby(); startRace(l); const { room, p1 } = l, { sim, net } = room;
+    sim.run(500); net.cut('p1'); ev(p1, 'sub', { ch: 1, sk: 'exit' }); sim.run(9000); net.heal('p1'); sim.run(20000);
+    expect(seat(room, 'Ива').subs!.length).toBe(1); expect(room.org.S!.events.filter((e) => e.k === 'sub').length).toBe(1);
+  });
+});

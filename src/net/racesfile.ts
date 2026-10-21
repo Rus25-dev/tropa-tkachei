@@ -6,6 +6,8 @@ const num = z.number().finite();
 const row = z.object({
   seat: num, name: z.string().min(1), dnf: z.boolean(), time: num.nullable(), finalTime: num.nullable(), igt: num.nullable(), deaths: num.nullable(),
   stats: z.record(z.string(), z.any()).nullable(), splits: z.array(num), eloBefore: num.nullable(), eloAfter: num.nullable(), place: num,
+  // необязательные поля 2.2: старые записи без них читаются как раньше
+  subs: z.array(z.object({ ch: num, k: z.string(), rta: num }).passthrough()).optional(), lost: num.optional(), deathList: z.array(z.any()).optional(), buys: z.array(z.any()).optional(),
 }).passthrough();
 const race = z.object({
   id: z.string().min(1), date: z.string().min(1), version: z.string(), discipline: z.string().min(1),

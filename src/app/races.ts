@@ -5,7 +5,8 @@
 import type Phaser from 'phaser';
 import { P, SHOP } from '../core/balance';
 import { CHAPTERS } from '../core/balance';
-import { packStats } from '../core/racestats';
+import { bossPhase, packStats } from '../core/racestats';
+import { bossLive } from '../core/status';
 import type { NetPort, Session } from '../core/session';
 import { rta as runRta, type SrResult, type SrRun } from '../core/speedrun';
 import type { World } from '../core/world';
@@ -32,6 +33,8 @@ const r1 = (x: number): number => Math.round(x * 10) / 10;
 /** Порт сессии для забегов гонки: телеметрия соперникам и организатору (~15 Гц), события забега, сохранение журнала для восстановления */
 class RunPort implements NetPort {
   private telAt = 0; private deaths = 0; private parries = 0; private execs = 0; private buys = 0; private ph: { k: number; v: number } | null = null; private inited = false;
+  /** сколько подсплитов уже ушло организатору; последняя смерть, у которой считается потерянное время */
+  private subs = 0; private dead: { x: number; ch: number; at: number; fight: boolean } | null = null;
   constructor(private R: Races, private ses: Session, private kind: 'rc' | 'duel') {}
   sendEv(): void { /* событий мира по сети в гонке нет */ }
   sceneChanged(): void { this.ph = null; }
@@ -47,14 +50,22 @@ class RunPort implements NetPort {
   /** события для ленты организатора: по изменению счётчиков забега (смерть, отбив, казнь, покупка, смена фазы босса) */
   private events(r: SrRun, w: World): void {
     const S = r.stats, play = this.R.play; if (!play) return;
-    if (!this.inited) { this.inited = true; this.deaths = r.deaths; this.parries = S?.parries ?? 0; this.execs = S?.execs ?? 0; this.buys = S?.buys.length ?? 0; }
-    if (r.deaths > this.deaths) play.event('death'); this.deaths = r.deaths;
+    if (!this.inited) { this.inited = true; this.deaths = r.deaths; this.parries = S?.parries ?? 0; this.execs = S?.execs ?? 0; this.buys = S?.buys.length ?? 0; this.subs = S?.subs.length ?? 0; }
+    const ch0 = w.camp ? w.camp.ch : 1, p0 = w.players[0];
+    if (r.deaths > this.deaths) { play.event('death', { ch: ch0 }); if (p0) this.dead = { x: p0.x, ch: ch0, at: runRta(r), fight: bossLive(w.testBoss() ?? w.boss) }; }
+    this.deaths = r.deaths;
+    // потерянное время: от обрыва нити до возвращения «в дело» (к месту смерти или к бою с боссом), не больше 90 с
+    if (this.dead && p0 && !w.wiping) {
+      const d = this.dead, el = runRta(r) - d.at, back = (w.camp ? w.camp.ch : 1) !== d.ch || Math.abs(p0.x - d.x) < 48 || (d.fight && bossLive(w.testBoss() ?? w.boss));
+      if (el > 1200 && (back || el > 90000)) { play.event('lost', { ms: Math.round(Math.min(el, 90000)) }); this.dead = null; }
+    }
     if (S) {
+      while (this.subs < S.subs.length) { const s = S.subs[this.subs++]!; play.event('sub', { ch: s.ch, sk: s.k, igt: s.igt }); }
       if (S.parries > this.parries) play.event('parry'); this.parries = S.parries;
       if (S.execs > this.execs) play.event('exec'); this.execs = S.execs;
-      if (S.buys.length > this.buys) { const b = S.buys[S.buys.length - 1]!, it = SHOP.find((s) => s.id === b.id); play.event('buy', { id: b.id, name: it ? it.name : b.id }); } this.buys = S.buys.length;
+      if (S.buys.length > this.buys) { const b = S.buys[S.buys.length - 1]!, it = SHOP.find((s) => s.id === b.id); play.event('buy', { id: b.id, name: it ? it.name : b.id, ch: b.ch, price: b.price }); } this.buys = S.buys.length;
     }
-    const b = w.testBoss() ?? w.boss, ph = b && b.maxHp ? (b.phase || 1) : 0, ch = w.camp ? w.camp.ch : 1;
+    const b = w.testBoss() ?? w.boss, ph = b && b.maxHp ? bossPhase(b) : 0, ch = w.camp ? w.camp.ch : 1;
     if (ph && this.ph && this.ph.k === ch && ph > this.ph.v) play.event('phase', { ph, ch });
     if (ph) this.ph = { k: ch, v: ph };
   }
@@ -216,8 +227,13 @@ export class Races {
   }
   /** призрак соперника (гонка 1×1): положение в той же главе и на том же этапе */
   ghost(): Prog | null {
-    const d = this.duel; if (!d || d.lost || d.oppFin) return null;
-    return d.oppProg;
+    const d = this.duel;
+    if (d) return d.lost || d.oppFin ? null : d.oppProg;
+    // гонка организатора: положение соперника приходит от организатора ~4 раза в секунду
+    const p = this.play, rv = p?.rv, st = p?.state;
+    if (!p || !rv || !st || st.phase !== 'run' || !this.run() || this.run()!.hold) return null;
+    const o = st.players.find((q) => q.seat !== p.seat); if (!o || o.fin || o.dnf) return null;
+    return { c: rv['ch'] as number, s: rv['st'] as string, x: rv['x'] as number, y: rv['y'] as number, f: rv['f'] as number, g: (rv['g'] as number) ?? 0, vx: (rv['vx'] as number) ?? 0, vy: (rv['vy'] as number) ?? 0, d: 0, el: rv['el'] as number, sp: [], dn: 0, at: p.rvAt };
   }
 
   // ---- телеметрия (legacy/race-play.js frame) ----
@@ -226,9 +242,9 @@ export class Races {
     const o: Record<string, any> = {
       s: seat, el: Math.round(runRta(r)), ig: Math.round(r.igt), ch: camp ? camp.ch : 1, st: camp ? camp.st : 'level', x: Math.round(p.x), y: Math.round(p.y), f: p.face, g: p.onGround ? 1 : 0, vx: Math.round(p.vx), vy: Math.round(p.vy),
       d: p.dashT > 0 ? 1 : 0, a: p.atkT > 0 ? (p.atkDir === 'u' ? 2 : p.atkDir === 'd' ? 3 : 1) : 0, hp: p.hp, mh: p.maxHp, sk: Math.round(p.silk * 10) / 10, ps: P.SILK, bd: w.beads | 0, dn: p.downed ? 1 : 0, sit: p.sit ? 1 : 0,
-      pa: w.paused ? 1 : 0, sp: r.splits.length, dt: r.deaths, hold: r.hold ? 1 : 0, w: w.wiping ? 1 : 0, dm: Math.round((r.stats ? r.stats.bossDmg : 0) * 10) / 10,
+      pa: w.paused ? 1 : 0, sh: w.shopOpen ? 1 : 0, sp: r.splits.length, dt: r.deaths, hold: r.hold ? 1 : 0, w: w.wiping ? 1 : 0, dm: Math.round((r.stats ? r.stats.bossDmg : 0) * 10) / 10,
     };
-    if (b && b.maxHp) o['bs'] = { k: KIND_LETTER[kind] || 'k', x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.w), h: Math.round(b.h), s: b.state, hp: r1(b.hp), mh: b.maxHp, ph: b.phase || 1, f: b.face || 1, on: ['sleep', 'dead', 'gone'].includes(b.state) ? 0 : 1 };
+    if (b && b.maxHp) o['bs'] = { k: KIND_LETTER[kind] || 'k', x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.w), h: Math.round(b.h), s: b.state, hp: r1(b.hp), mh: b.maxHp, ph: bossPhase(b), f: b.face || 1, on: ['sleep', 'dead', 'gone'].includes(b.state) ? 0 : 1 };
     const pr: unknown[] = []; for (const q of w.projs) { if (q.dead || pr.length >= 14) continue; if (Math.abs(q.x - p.x) < 520 && Math.abs(q.y - p.y) < 340) pr.push([q.kind, Math.round(q.x), Math.round(q.y), Math.round(q.w || 8), Math.round(q.h || 8)]); }
     if (pr.length) o['pr'] = pr;
     const en: unknown[] = []; for (const e of w.enemies) { if (e.dead || en.length >= 10) continue; if (Math.abs(e.x - p.x) < 520 && Math.abs(e.y - p.y) < 340) en.push([e.type, Math.round(e.x), Math.round(e.y), Math.round(e.w), Math.round(e.h), e.face || 1]); }

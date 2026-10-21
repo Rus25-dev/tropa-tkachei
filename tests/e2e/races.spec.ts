@@ -71,6 +71,17 @@ test('гонка: организатор, два игрока и обсерве�
   await wp.keyboard.press('KeyR'); await wp.keyboard.press('Digit1');
   await expect(wp.getByTestId('watch-replay')).toBeVisible({ timeout: 10_000 });
   await wp.keyboard.press('Digit0'); await expect(wp.getByTestId('watch-replay')).toBeHidden();
+  // 2.2: подсплиты, покупка и смерть с потерянным временем из игры игрока доходят до ленты, ленты кампании, таблицы сплитов и полоски соперника
+  const emit = (p: Page, f: string) => p.evaluate((src) => { const pl = (window as any).__tt.races.play; (new Function('pl', src))(pl); }, f); // eslint-disable-line @typescript-eslint/no-explicit-any
+  await emit(p1, "pl.event('sub', { ch: 1, sk: 'exit' }); pl.event('buy', { id: 'dmg', name: 'Острая игла', ch: 1, price: 12 }); pl.event('death', { ch: 1 }); pl.event('lost', { ms: 4200 });");
+  await emit(p2, "pl.event('sub', { ch: 1, sk: 'exit' });");
+  await expect(wp.getByTestId('watch-feed')).toContainText('потеряно 4.2 с', { timeout: 30_000 });
+  await expect(wp.getByTestId('watch-ribbon')).toBeVisible();
+  await expect(org.getByTestId('org-splits-table')).toContainText('выход из коридора', { timeout: 30_000 });
+  await expect(org.getByTestId('org-log')).toContainText('Ива купил(а): Острая игла');
+  await wp.keyboard.press('KeyT'); await expect(wp.getByTestId('watch-splits-table').locator('tr[data-key="1:exit"]')).toContainText('выход из коридора');
+  await wp.keyboard.press('KeyT'); // таблица сама выключена, чтобы не мешать итогам
+  await expect(p2.getByTestId('sr-rival')).toContainText('Ива · Гл. I', { timeout: 30_000 });
   await p1.keyboard.up('KeyD'); await p2.keyboard.up('KeyD');
   // финиш: Ива быстрее
   await finish(p1, 120_000); await finish(p2, 125_000);

@@ -2,15 +2,14 @@
 // получает состояние комнаты, ленту событий и телеметрию игроков пачками. В игре обсервера нет — картинка рисуется по телеметрии
 // (view/scenes/WatchScene.ts), табло — HTML (ui/races.tsx). Обсервер не засыпает в скрытом окне: состояние обновляется сообщениями, а не кадрами.
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { SR_CATS } from '../core/balance';
 import { Client } from './client';
 import type { RaceEvent, RaceResult, RoomPlayer, RoomState } from './racecommon';
+import { leadInfo, subLabel } from './raceprog';
 import { cleanCode, defaultEnv, type Env, type Msg, type Transport } from './types';
 
 export const REPLAY_MS = 10000;
 export interface TelPoint { at: number; [k: string]: any }
 export interface WatchOpts { transport: Transport; env?: Env; version: string; key: string }
-const TAGS = SR_CATS.trail.tags;
 
 export class RaceWatch {
   code = ''; S: RoomState | null = null; client: Client | null = null; connStatus = 'idle'; denied: string | undefined;
@@ -22,6 +21,8 @@ export class RaceWatch {
   solo: { seat: number; until: number } | null = null;
   /** лента заморожена (Space) */
   frozen = false; hideBoard = false;
+  /** таблица сплитов (клавиша T) и время, до которого она показана автоматически после сплита */
+  splitsOn = false; splitsUntil = 0;
   private env: Env; private subs = new Set<() => void>();
   constructor(private o: WatchOpts) { this.env = o.env ?? defaultEnv(); }
   subscribe(f: () => void): () => void { this.subs.add(f); return () => { this.subs.delete(f); }; }
@@ -94,7 +95,7 @@ export class RaceWatch {
       const h = this.hist[o.s] || (this.hist[o.s] = []); h.push({ ...o, at: now }); while (h.length && now - h[0]!.at > REPLAY_MS) h.shift();
     }
   }
-  private addEv(e: RaceEvent): void { if (!e || (this.feed.length && this.feed[this.feed.length - 1]!.n >= e.n && e.n)) return; this.feed.push(e); if (this.feed.length > 200) this.feed.shift(); this.onFeed?.(e); }
+  private addEv(e: RaceEvent): void { if (!e || (this.feed.length && this.feed[this.feed.length - 1]!.n >= e.n && e.n)) return; this.feed.push(e); if (this.feed.length > 200) this.feed.shift(); if (e.k === 'split') this.splitsUntil = this.env.now() + 7000; this.onFeed?.(e); }
 
   // ----- вычисления для табло -----
   /** время на табло: по часам организатора (не зависит от кадров и скрытого окна) */
@@ -109,10 +110,12 @@ export class RaceWatch {
     const S = this.S, ps = (S && S.players) || [], p1: RoomPlayer | undefined = ps[0], p2: RoomPlayer | undefined = ps[1];
     if (!S || !p1 || !p2 || !p1.splits || !p2.splits || S.phase === 'lobby') return null;
     const t1 = this.tel[p1.seat], t2 = this.tel[p2.seat], now = this.env.now();
-    const a = p1.splits.filter((x) => x != null), b = p2.splits.filter((x) => x != null), n = Math.min(a.length, b.length);
-    if (a.length === b.length && n > 0) return { ms: a[n - 1]! - b[n - 1]!, txt: `${TAGS[n - 1]}: ${a[n - 1]! < b[n - 1]! ? p1.name : p2.name} впереди` };
-    if (a.length > b.length) { const el = t2 ? t2['el'] + (now - t2.at) : null; return el == null ? null : { ms: a[b.length] != null ? a[b.length]! - el : 0, txt: `${p1.name} прошёл ${TAGS[b.length]}` }; }
-    if (b.length > a.length) { const el = t1 ? t1['el'] + (now - t1.at) : null; return el == null ? null : { ms: el - b[a.length]!, txt: `${p2.name} прошёл ${TAGS[a.length]}` }; }
-    return null;
+    const n1 = t1 ? t1['el'] + (now - t1.at) : null, n2 = t2 ? t2['el'] + (now - t2.at) : null;
+    const li = leadInfo(S.disc, p1, p2, n1, n2); if (!li) return null;
+    const lab = subLabel(S.disc, li.ch, li.k);
+    if (li.kind === 'common') return { ms: li.ms, txt: `${lab}: ${li.ms < 0 ? p1.name : li.ms > 0 ? p2.name : 'оба'} ${li.ms === 0 ? 'вровень' : 'впереди'}` };
+    return { ms: li.ms, txt: `${li.kind === 'a' ? p1.name : p2.name} прошёл: ${lab}` };
   }
+  /** индикатор «в лавке» из телеметрии */
+  inShop(seat: number): boolean { return !!this.tel[seat]?.['sh']; }
 }

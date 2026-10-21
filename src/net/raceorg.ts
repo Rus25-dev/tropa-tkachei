@@ -4,10 +4,10 @@
 // обсерверы переподключаются сами. Итоги гонок копятся в архиве (tt_races) в формате races.json.
 // Класс не знает про DOM: транспорт, часы и хранилище подставляются (поэтому проверяется в Node на виртуальном времени).
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { SR_CATS } from '../core/balance';
 import { computeElo, nkey } from '../core/elo';
 import { fmt } from '../core/timefmt';
 import { Hub, type Seat } from './hub';
+import { personalBest, subLabel, tagsOf } from './raceprog';
 import { DISC, norm, type Fin, type OrgSeat, type OrgState, type Phase, type RaceEvent, type RaceResult, type RaceStore, type ResultRow, type RoomState } from './racecommon';
 import { defaultEnv, makeCode, type Env, type Msg, type Transport } from './types';
 
@@ -16,7 +16,6 @@ export interface OrgOpts {
   /** зерно мира для гонки */
   newSeed?: () => number;
 }
-const TAGS = SR_CATS.trail.tags;
 
 export class RaceOrg {
   S: OrgState | null = null; hub: Hub | null = null; status = 'idle'; srvInfo: { tries?: number } | undefined;
@@ -93,7 +92,8 @@ export class RaceOrg {
       players: this.seatList().map((p) => {
         const hs = this.hub && this.hub.seatById(p.id); if (hs && hs.rtt != null) p.rtt = hs.rtt;
         return { seat: p.id, name: p.name, ready: !!p.ready, loaded: !!p.loaded, online: !!p.online, rtt: p.rtt != null ? Math.round(p.rtt) : null, fin: p.fin ? { rta: p.fin.rta, igt: p.fin.igt, deaths: p.fin.deaths } : null, dnf: !!p.dnf,
-          sp: p.splits.length, splits: p.splits.slice(), restored: p.restored | 0 };
+          sp: p.splits.length, splits: p.splits.slice(), restored: p.restored | 0,
+          subs: (p.subs || []).slice(), lost: p.lost ?? 0, deaths: (p.deathList || []).length, buys: (p.buys || []).length, pb: p.pb ?? null };
       }),
     };
   }
@@ -158,7 +158,7 @@ export class RaceOrg {
       const ps = this.seatList();
       for (const p of ps) {
         const o = ps.find((q) => q.id !== p.id), hs = hub.seatById(p.id);
-        if (o && o.tel && hs) { const t = o.tel; hub.lightTo(hs, { rv: { s: o.id, el: t['el'], ch: t['ch'], st: t['st'], x: t['x'], y: t['y'], f: t['f'], sp: t['sp'], dn: t['dn'] } }); }
+        if (o && o.tel && hs) { const t = o.tel; hub.lightTo(hs, { rv: { s: o.id, el: t['el'], ch: t['ch'], st: t['st'], x: t['x'], y: t['y'], f: t['f'], sp: t['sp'], dn: t['dn'], vx: t['vx'], vy: t['vy'], g: t['g'], sit: t['sit'], sh: t['sh'] } }); }
       }
     }
   }
@@ -177,11 +177,29 @@ export class RaceOrg {
   }
   private playerEvent(p: OrgSeat, e: any): void {
     const S = this.S!; if (S.phase !== 'run' && S.phase !== 'done') return;
-    const tag = (i: number): string => TAGS[i] || ('#' + (i + 1));
+    const tag = (i: number): string => tagsOf(S.disc)[i] || ('#' + (i + 1));
     switch (e.k) {
       case 'split': if (!p.splits[e.i] && e.i >= 0 && e.i < 4) { p.splits[e.i] = e.rta; this.logEv('split', `${p.name}: ${tag(e.i)} · ${fmt(e.rta)}`, p.id, { i: e.i, rta: e.rta }); } break;
-      case 'death': this.logEv('death', `${p.name}: нить оборвалась`, p.id); break;
-      case 'buy': this.logEv('buy', `${p.name} купил: ${e.name || e.id}`, p.id); break;
+      case 'sub': {
+        const ch = e.ch | 0, k = String(e.sk || ''); if (ch < 1 || ch > 4 || !k) break;
+        const subs = (p.subs ??= []); if (subs.some((s) => s.ch === ch && s.k === k)) break;
+        const rta = e.el | 0; subs.push({ ch, k, rta });
+        if (k !== 'kill') this.logEv('sub', `${p.name}: ${subLabel(S.disc, ch, k)}`, p.id, { ch, sk: k, rta });
+        break;
+      }
+      case 'death': { (p.deathList ??= []).push({ ch: e.ch | 0 || 1, rta: e.el | 0, lost: null }); this.logEv('death', `${p.name}: нить оборвалась`, p.id, { ch: e.ch | 0 || 1 }); break; }
+      case 'lost': {
+        const ms = Math.max(0, e.ms | 0), d = (p.deathList || []).slice().reverse().find((x) => x.lost == null);
+        if (d) d.lost = ms;
+        p.lost = (p.lost ?? 0) + ms;
+        this.logEv('lost', `${p.name}: потеряно ${(ms / 1000).toFixed(1)} с после обрыва нити`, p.id, { ms });
+        break;
+      }
+      case 'buy': {
+        (p.buys ??= []).push({ id: String(e.id || ''), name: String(e.name || e.id || ''), ch: e.ch | 0 || 1, rta: e.el | 0, price: e.price | 0 });
+        this.logEv('buy', `${p.name} купил(а): ${e.name || e.id}${e.price ? ` за ${e.price | 0}` : ''}`, p.id, { id: e.id, price: e.price | 0 });
+        break;
+      }
       case 'parry': this.logEv('parry', `${p.name}: отбив`, p.id); break;
       case 'exec': this.logEv('exec', `${p.name}: казнь босса`, p.id); break;
       case 'phase': this.logEv('phase', `${p.name}: босс перешёл в фазу ${e.ph}`, p.id, { ph: e.ph }); break;
@@ -203,7 +221,7 @@ export class RaceOrg {
   start(): void {
     const S = this.S; if (!S || !this.canStart()) return;
     S.phase = 'prep'; S.prepAt = this.wall(); S.acts = []; S.winner = null; S.awarded = false; S.result = null; S.goAt = null; S.pause = { on: false, since: null, total: 0 };
-    for (const p of this.seatList()) { p.loaded = false; p.fin = null; p.dnf = false; p.splits = []; }
+    for (const p of this.seatList()) { p.loaded = false; p.fin = null; p.dnf = false; p.splits = []; p.subs = []; p.lost = 0; p.deathList = []; p.buys = []; p.pb = personalBest(this.archive(), p.name, S.disc); }
     this.logEv('prep', 'Гонка: загрузка у игроков…');
     this.hub!.broadcast({ k: 'prep', id: S.id, seed: S.seed, cat: S.disc, ver: this.o.version }, null, ['play']);
     this.pushState();
@@ -228,7 +246,8 @@ export class RaceOrg {
   private buildResult(awardedSeat: number | null): RaceResult {
     const S = this.S!, ps = this.seatList();
     const rows: ResultRow[] = ps.map((p) => ({ seat: p.id, name: p.name, dnf: !p.fin, time: p.fin ? p.fin.rta : null, finalTime: p.fin ? p.fin.rta : null, igt: p.fin ? p.fin.igt : null, deaths: p.fin ? p.fin.deaths : null, stats: p.fin ? p.fin.stats : null,
-      splits: p.fin && p.fin.splits.length ? p.fin.splits.map((s) => s.rta) : p.splits.filter((x) => x != null), eloBefore: null, eloAfter: null, place: 0 }));
+      splits: p.fin && p.fin.splits.length ? p.fin.splits.map((s) => s.rta) : p.splits.filter((x) => x != null), eloBefore: null, eloAfter: null, place: 0,
+      ...(p.subs && p.subs.length ? { subs: p.subs.slice() } : {}), ...(p.lost ? { lost: p.lost } : {}), ...(p.deathList && p.deathList.length ? { deathList: p.deathList.slice() } : {}), ...(p.buys && p.buys.length ? { buys: p.buys.slice() } : {}) }));
     rows.sort((a, b) => (Number(a.dnf) - Number(b.dnf)) || ((a.time || 0) - (b.time || 0)));
     let winner: number | 'draw' | null = null, gap: number | null = null;
     if (awardedSeat != null) winner = awardedSeat;
@@ -284,7 +303,7 @@ export class RaceOrg {
     const S = this.S; if (!S) return; if (this.cdT) this.env.clearTimeout(this.cdT);
     if (S.phase !== 'lobby') this.logEv('reset', 'Гонка перезапущена: новое зерно, игроки возвращаются в комнату');
     S.phase = 'lobby'; S.id = this.newId(); S.seed = this.seedNew(); S.goAt = null; S.pause = { on: false, since: null, total: 0 }; S.winner = null; S.awarded = false; S.result = null; S.acts = []; S.prepAt = null;
-    for (const p of this.seatList()) { p.ready = false; p.loaded = false; p.fin = null; p.dnf = false; p.splits = []; p.tel = null; }
+    for (const p of this.seatList()) { p.ready = false; p.loaded = false; p.fin = null; p.dnf = false; p.splits = []; p.tel = null; p.subs = []; p.lost = 0; p.deathList = []; p.buys = []; p.pb = null; }
     this.hub!.broadcast({ k: 'reset' }, null, ['play']); this.pushState();
   }
   /** отменить гонку: не попадает в архив */
