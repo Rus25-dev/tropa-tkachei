@@ -114,7 +114,8 @@ function rawKey(name: string): string {
   try { let k = localStorage.getItem(name); if (!k || k.length < 12) { k = makeKey(); localStorage.setItem(name, k); } return k; } catch { return makeKey(); }
 }
 export const rcIds = {
-  playerKey: (): string => rawKey('tt_rc_key'),
+  /** окно нейросети-игрока (?aname=) держит свой ключ: несколько агентов в одном браузере не путаются */
+  playerKey: (): string => rawKey('tt_rc_key' + (new URLSearchParams(location.search).get('agent') ? '_' + (new URLSearchParams(location.search).get('aname') ?? 'a').slice(0, 20) : '')),
   watchKey: (): string => rawKey('tt_rc_wkey'),
   names(): string[] { const a = read<unknown>('tt_rc_names', []); return Array.isArray(a) ? (a as string[]).slice(0, 40) : []; },
   addName(n: string): void {

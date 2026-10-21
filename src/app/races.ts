@@ -347,6 +347,7 @@ export class Races {
     const q = new URLSearchParams(search), m = q.get('race'), room = q.get('room') || q.get('code') || '';
     try {
       if (m === 'org') this.openOrg();
+      else if (m === 'duel' && !room && q.get('agent') && q.get('arole') !== 'guest') { this.openDuel('boss'); this.startDuel('host'); } // агент-хозяин комнаты 1×1: босс-раш
       else if (m === 'duel' && room) { this.prefill = room; this.openDuel('trail'); this.startDuel('guest', room); }
       else if (m === 'play') { const sess = playStore.loadSess(); this.openJoin(room || sess?.code || '', !!(srStore.name() && (room || sess))); }
       else if (m === 'watch') { if (room) { this.prefill = room; this.setView('watchjoin'); this.joinWatch(room, { stream: q.get('stream') === '1', overlay: q.get('overlay') === '1' }); } else this.setView('watchjoin'); }

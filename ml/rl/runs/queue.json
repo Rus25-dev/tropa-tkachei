@@ -1,0 +1,40 @@
+[
+ {
+  "name": "misha-avg-1",
+  "boss": "misha",
+  "persona": "average",
+  "note": "первый запуск (лимит был 90 мин, остановлен вручную через 5 мин: выиграно 98%)"
+ },
+ {
+  "name": "vladik-avg-1",
+  "boss": "vladik",
+  "persona": "average"
+ },
+ {
+  "name": "tima-avg-1",
+  "boss": "tima",
+  "persona": "average"
+ },
+ {
+  "name": "korne-avg-1",
+  "boss": "korne",
+  "persona": "average",
+  "note": "прервано: не учился (шейпинг), см. korne-avg-2"
+ },
+ {
+  "name": "misha-careful-1",
+  "boss": "misha",
+  "persona": "careful"
+ },
+ {
+  "name": "misha-aggr-1",
+  "boss": "misha",
+  "persona": "aggressive"
+ },
+ {
+  "name": "korne-avg-2",
+  "boss": "korne",
+  "persona": "average",
+  "note": "повтор с усиленным шейпингом"
+ }
+]
