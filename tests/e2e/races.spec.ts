@@ -264,7 +264,7 @@ test('«Босс-раш»: организатор выбирает дисцип�
   await expect(org.getByTestId('org-server')).toContainText('на связи', { timeout: 30_000 });
   await org.getByTestId('org-disc').selectOption('boss');
   await expect(org.getByTestId('org-rules')).toContainText('Четыре босса подряд');
-  await expect(org.getByTestId('org-disc').locator('option[value="duel"]')).toHaveAttribute('disabled', ''); // дуэль ткачей — версия 2.4
+  await expect(org.getByTestId('org-disc').locator('option[value="duel"]')).not.toHaveAttribute('disabled', ''); // дуэль ткачей готова в 2.4
   await boot(p1, `/?${q}&race=play&room=${code}`); await boot(p2, `/?${q}&race=play&room=${code}`); await boot(wp, `/?${q}&race=watch&room=${code}`);
   await expect(org.getByTestId('org-p2')).toContainText('Ярь', { timeout: 40_000 });
   await expect(p1.getByTestId('join-phase')).toContainText('Босс-раш', { timeout: 30_000 });

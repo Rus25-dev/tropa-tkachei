@@ -24,7 +24,7 @@ export interface RunBridge {
   runId(): string | null;
   rta(): number;
   /** запустить забег по команде «prep»: игра сама решает, как показать загрузку */
-  startRun(p: { id: string; seed: number; cat: string; seat: number; code: string; name: string }): void;
+  startRun(p: { id: string; seed: number; cat: string; seat: number; code: string; name: string; /** дуэль: босс раунда (глава 1–4) и модификаторы */ duel?: { ch: number; boss: string; mods: string[] } }): void;
   countdown(text: string): void;
   /** «пошёл»: elapsedMs — сколько гонка уже идёт (если «пошёл» опоздал из-за обрыва связи) */
   release(elapsedMs: number | null): void;
@@ -103,13 +103,16 @@ export class RacePlay {
   private onMsg(m: any): void {
     if (!m) return;
     switch (m.k) {
-      case 'state': this.state = m.s; this.saveSess(); this.changed(); this.syncRun(m.s); break;
+      case 'state':
+        // дуэль: бан/пик сбрасывает готовность на сервере, подтверждение раунда игрок даёт заново
+        if (m.s.phase === 'veto' || (this.state?.phase === 'veto' && m.s.phase === 'lobby')) this.me = false;
+        this.state = m.s; this.saveSess(); this.changed(); this.syncRun(m.s); break;
       case 'prep': this.startRun(m); break;
       case 'cd': if (this.br.hasRun() && this.br.runHeld()) this.br.countdown(String(m.n)); break;
       case 'go': this.go(m); break;
       case 'pause': this.tech(!!m.on); break;
       case 'reset': this.toLobby('Организатор перезапускает гонку: вернитесь к кнопке «Готов».'); break;
-      case 'end': if (this.br.hasRun() && !this.br.runDone()) { this.endNote = m.awarded ? 'Организатор завершил гонку' : 'Гонка отменена'; this.toLobby(this.endNote); } break;
+      case 'end': if (this.br.hasRun() && !this.br.runDone()) { this.endNote = m.why ? String(m.why) : m.awarded ? 'Организатор завершил гонку' : 'Гонка отменена'; this.toLobby(this.endNote); } break;
       case 'res': {
         this.res = m.r; this.br.resultUpdate();
         if (m.r && m.r.awarded && this.br.hasRun() && !this.br.runDone()) this.br.toast(`Организатор присудил победу: ${((m.r.players || []).find((p: any) => p.seat === m.r.winner) || {}).name || ''}`, 5);
@@ -118,6 +121,9 @@ export class RacePlay {
     }
   }
   private onTel(t: any): void { if (t && t.rv) { this.rv = t.rv; this.rvAt = this.env.now(); } }
+
+  /** дуэль: ход в бан/пик (босс выбран и подтверждён игроком) */
+  veto(boss: string): void { const c = this.client; if (c) c.send({ k: 'veto', boss }); }
 
   // ----- готовность -----
   toggleReady(): void { const c = this.client; if (!c) return; this.me = !this.me; c.send({ k: 'ready', v: this.me, viol: this.br.violation() }); this.changed(); }
@@ -129,7 +135,7 @@ export class RacePlay {
     const v = this.br.violation(); if (v.length) { this.client.send({ k: 'bad', why: v.join(', ') }); return; }
     this.br.clearJournal();
     this.runId = m.id; this.started = true; this.fin = null; this.res = null; this.loadedSent = false;
-    this.br.startRun({ id: m.id, seed: m.seed, cat: m.cat || 'trail', seat: this.seat ?? 0, code: this.code, name: this.name });
+    this.br.startRun({ id: m.id, seed: m.seed, cat: m.cat || 'trail', seat: this.seat ?? 0, code: this.code, name: this.name, ...(m.duel ? { duel: m.duel } : {}) });
     this.changed();
   }
   /** игра построила мир забега (вызывает приложение): сообщаем организатору «загружен» */
@@ -184,10 +190,10 @@ export class RacePlay {
     c.send({ k: 'pev', e: { k, el: Math.round(this.br.rta()), ...(d || {}) } });
   }
   onSplit(i: number, sp: { rta: number; igt: number }): void { this.event('split', { i, rta: sp.rta, igt: sp.igt }); }
-  onFinish(res: { rta: number; igt: number; deaths: number; splits: { rta: number; igt: number }[] }, stats: Record<string, unknown> | null, restored: number, bosses?: unknown[]): void {
+  onFinish(res: { rta: number; igt: number; deaths: number; splits: { rta: number; igt: number }[]; duel?: unknown }, stats: Record<string, unknown> | null, restored: number, bosses?: unknown[]): void {
     const c = this.client; if (!c) return;
     this.fin = { rta: res.rta, igt: res.igt, deaths: res.deaths };
-    c.send({ k: 'fin', rta: res.rta, igt: res.igt, deaths: res.deaths, splits: res.splits.map((s) => ({ rta: s.rta, igt: s.igt })), stats, ver: this.o.version, restored, ...(bosses && bosses.length ? { bosses } : {}) });
+    c.send({ k: 'fin', rta: res.rta, igt: res.igt, deaths: res.deaths, splits: res.splits.map((s) => ({ rta: s.rta, igt: s.igt })), stats, ver: this.o.version, restored, ...(bosses && bosses.length ? { bosses } : {}), ...(res.duel ? { duel: res.duel } : {}) });
     this.changed();
   }
   /** игрок вышел из забега в меню: сдача (DNF) */

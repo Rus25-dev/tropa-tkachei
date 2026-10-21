@@ -6,7 +6,7 @@ import { ELO_ALL, nkey, type EloTables } from '../core/elo';
 import { fmt, fmtD } from '../core/timefmt';
 import type { RaceResult } from '../net/racecommon';
 import {
-  disciplines, discName, eloSeries, parseRoute, playerHref, playerProfile, raceHref, readRatingResponse, routeHash, splitRows, timeOf,
+  disciplines, discName, duelLabel, duelMods, eloSeries, parseRoute, playerHref, playerProfile, raceHref, readRatingResponse, routeHash, seriesRounds, splitRows, timeOf,
   type RatingData, type Route,
 } from './model';
 
@@ -52,7 +52,7 @@ export function App() {
               : route.page === 'race' ? <RacePage data={data} id={route.id} />
                 : <Home data={data} scope={route.scope} />}
       </main>
-      <footer class="rt-foot">Эло пересчитывается из архива гонок с нуля: старт 1000, K = 40 для первых 10 гонок, затем 24.</footer>
+      <footer class="rt-foot">Эло пересчитывается из архива гонок с нуля: старт 1000, K = 40 для первых 10 гонок, затем 24. Серия «Дуэли ткачей» — одна партия: Эло меняется один раз, по итогу серии.</footer>
     </div>
   );
 }
@@ -115,8 +115,9 @@ function RaceList({ races, tables, me }: { races: RaceResult[]; tables: EloTable
         const ch = me ? tables.perRace[r.id]?.all[me] : undefined;
         return (
           <tr key={r.id}>
-            <td><a class="rt-cell" href={raceHref(r.id)} data-testid="race-link">{shortDate(r.date)}</a></td><td>{discName(r.discipline)}</td>
-            <td>{r.players.map((p) => `${p.name} ${p.dnf ? 'сошёл' : fmt(timeOf(p) ?? 0)}`).join(' · ')}</td><td>{winnerText(r)}</td>
+            <td><a class="rt-cell" href={raceHref(r.id)} data-testid="race-link">{shortDate(r.date)}</a></td><td>{discName(r.discipline)}{r.duel && <div class="rt-cs" data-testid="duel-label">{duelLabel(r)} · {duelMods(r)}</div>}</td>
+            <td>{r.players.map((p) => (r.duel ? `${p.name} ${p.dnf ? `босс жив (снято ${Math.round(100 * (p.duel?.frac ?? 0))} %)` : fmt(timeOf(p) ?? 0)}` : `${p.name} ${p.dnf ? 'сошёл' : fmt(timeOf(p) ?? 0)}`)).join(' · ')}</td>
+            <td>{winnerText(r)}{r.duel && <div class="rt-cs">счёт {r.duel.score[0]}:{r.duel.score[1]}{r.duel.final ? ` · серия: ${r.duel.seriesWinner}` : ''}</div>}</td>
             {me ? <td class="n">{ch ? <span class={ch.after >= ch.before ? 'up' : 'down'}>{sign(ch.after - ch.before)}</span> : '—'}</td> : null}
           </tr>
         );
@@ -214,6 +215,7 @@ function EloChart({ series }: { series: ReturnType<typeof eloSeries> }) {
 }
 const fmtDateSec = (s: number): string => fmtDate(new Date(s * 1000).toISOString());
 
+const fmtSeries = (r: RaceResult): string => (r.duel?.final ? `· победил ${r.duel.seriesWinner}` : '· не завершена в этой записи');
 // ----- гонка -----
 function RacePage({ data, id }: { data: Extract<RatingData, { kind: 'ok' }>; id: string }) {
   const r = data.races.find((x) => x.id === id);
@@ -238,6 +240,17 @@ function RacePage({ data, id }: { data: Extract<RatingData, { kind: 'ok' }>; id:
           );
         })}
       </div>
+      {r.duel && (
+        <>
+          <h2 class="rt-h2">Серия {fmtSeries(r)}</h2>
+          <div class="rt-tw"><table class="rt-table" data-testid="series-rounds">
+            <thead><tr><th class="n">Раунд</th><th>Босс · модификаторы</th><th>Победитель</th><th class="n">Счёт</th></tr></thead>
+            <tbody>{seriesRounds(data.races, r).map((x) => (
+              <tr key={x.id} class={x.id === r.id ? 'me' : ''}><td class="n"><a class="rt-cell" href={raceHref(x.id)}>{x.round ?? '—'}</a></td><td>{duelLabel(x).split(' · ').slice(2).join(' · ')} · {duelMods(x)}</td><td>{winnerText(x)}</td><td class="n">{x.duel!.score[0]}:{x.duel!.score[1]}</td></tr>
+            ))}</tbody>
+          </table></div>
+        </>
+      )}
       <h2 class="rt-h2">Сплиты</h2>
       {rows.length ? (
         <div class="rt-tw"><table class="rt-table rt-splits" data-testid="splits">

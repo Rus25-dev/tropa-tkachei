@@ -5,7 +5,7 @@ export interface TT {
   shared: { session: { world: Record<string, any>; togglePause(): void; buy(id: string): void } | null };
   start(p: unknown): void; stop(): void;
   /** помощники для тестов: вызвать ядро напрямую */
-  debug: { srFinish(w: Record<string, any>): void };
+  debug: { srFinish(w: Record<string, any>): void; /** дуэль: оборвать нить героя (конец раунда поражением) */ srDuelDefeat(w: Record<string, any>): void };
   /** «Гонки Ткачей» (src/app/races.ts) */
   races?: { watch: { tel: Record<string, unknown>; hist: Record<string, unknown[]>; solo: unknown } | null; org: { S: { phase: string } | null } | null; play: { state: { phase: string } | null } | null };
 }

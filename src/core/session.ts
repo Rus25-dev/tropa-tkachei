@@ -14,6 +14,7 @@ import { resetBoss } from './training';
 import type { LoadoutSave } from './loadout';
 import type { Progress } from './campaign';
 import { BUTTONS, emptyFrame, type InputFrame } from './input';
+import { duelInputs, duelSpeed } from './duelmods';
 
 /** Что сессия берёт из окружения (настройки и хранилище приходят снаружи) */
 export interface SessionCfg {
@@ -91,7 +92,7 @@ export class Session {
     if (!first) throw new Error('нужна первая сцена');
     if (run) {
       this.sr = newRun(run.cat, { ver: cfg.ver, clock: cfg.clock, ...run.opt });
-      const d = runStartData(run.cat, first.seed);
+      const d = runStartData(run.cat, first.seed, this.sr.duel);
       first = { ...first, camp: first.camp ?? d.camp };
       // журнал ведут одиночный забег и забег «Гонок Ткачей» (в нём запоминается комната); гонка 1×1 журнал не пишет (как в v1.8)
       if (!this.sr.race) this.rec = Recorder.start({ cat: run.cat, seed: first.seed, ver: cfg.ver, easy: cfg.easy, race: this.sr.rc, wall: cfg.wall?.() });
@@ -116,6 +117,7 @@ export class Session {
       if (!any || this.cfg.clock() > this.mlock) this.mlock = 0; else frozen = true;
     }
     if (frozen) inputs = inputs.map(() => emptyFrame());
+    else if (this.sr?.duel) inputs = duelInputs(this.sr.duel, inputs); // дуэль, «Зеркало»: ввод зеркален до записи в журнал
     // ввод с фронтами нажатий (накапливаются в p.pend до ближайшего тика)
     for (const p of w.players) {
       if (p.remote) continue; // напарник по сети управляется своим состоянием через сообщения
@@ -124,7 +126,8 @@ export class Session {
       pd.jumpP ||= e.jumpP; pd.atkP ||= e.atkP; pd.dashP ||= e.dashP; pd.healP ||= e.healP; pd.upP ||= e.upP; pd.bombP ||= e.bombP; pd.toolP ||= e.toolP;
       p.raw = { ...r }; p.prev = p.raw;
     }
-    const n = this.clock.advance(deltaMs * (this.speedFactor ?? 1));
+    // дуэль: после конца раунда мир стоит; «Блиц» ускоряет часы тиков на 20 %
+    const n = this.sr?.duel && this.sr.done ? 0 : this.clock.advance(deltaMs * (this.speedFactor ?? 1) * duelSpeed(this.sr?.duel));
     for (let i = 0; i < n; i++) {
       if (this.tickHook && !frozen) this.tickHook(this.world);
       if (this.rec) this.rec.tick(this.world);

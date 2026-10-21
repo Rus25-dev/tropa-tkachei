@@ -24,6 +24,7 @@ import { stepTools } from './tools';
 import { mapVisit, mapLoad, mapClose, type MapState } from './maptravel';
 import { benchClose } from './coop';
 import { srOnTick, srOnCreate, type SrRun } from './speedrun';
+import { duelSetup } from './duelmods';
 import { winGame } from './win';
 import { guestProjHits } from './netplay';
 import { applyPhase, newTrain, trainTick, type TrainState } from './training';
@@ -187,6 +188,7 @@ export class World {
     this.benchMenuOpen = null;
     mapLoad(this, opts.mapSaved ?? null);
     srOnCreate(this); // босс-раш: сразу к арене Корнематки
+    duelSetup(this); // дуэль: «Одна маска» (без дуэли ничего не делает)
     if (this.train) applyPhase(this);
     this.emit('ready');
   }

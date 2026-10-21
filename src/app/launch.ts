@@ -2,6 +2,7 @@
 import { resumeCamp, freshCamp, type CampState } from '../core/campaign';
 import { Session, type SceneData } from '../core/session';
 import { attachRecording, recWanted } from './record';
+import type { DuelRun } from '../core/duelmods';
 import type { Journal } from '../core/journal';
 import type { RunOpts, SrRun, Split } from '../core/speedrun';
 import type { World } from '../core/world';
@@ -30,7 +31,7 @@ export interface LaunchParams {
   /** забег продолжается после воспроизведения журнала (восстановление после падения вкладки) */
   resumed?: { J: Journal; world: World; sr: SrRun | null };
 }
-export interface RcInfo { code: string; seat: number; id: string; name: string }
+export interface RcInfo { code: string; seat: number; id: string; name: string; /** дуэль (2.4): босс раунда и модификаторы; лежит в журнале вместе с комнатой */ duel?: DuelRun }
 
 export const newSeed = (): number => (Math.random() * 4294967296) >>> 0;
 
@@ -55,13 +56,14 @@ export function createSession(p: LaunchParams, version: string): Session {
   }];
   // лучшие сегменты (личные рекорды по отрезкам), как в v1.8: onSplit
   s.on['srSplit'] = [(e, ses) => {
-    const r = ses.sr; if (!r || r.taint) return;
+    const r = ses.sr; if (!r || r.taint || r.duel) return; // раунд дуэли не трогает личные рекорды спидрана
     const i = e['i'] as number, sp = e['split'] as Split, rec = srStore.rec(r.cat), prev = i ? r.splits[i - 1]!.rta : 0, seg = sp.rta - prev;
     if (!rec.seg[i] || seg < rec.seg[i]!) { rec.seg[i] = seg; srStore.putRec(r.cat, rec); }
   }];
   // одиночный забег стартует с первого движения: от этого настенного времени считается RTA при восстановлении
   s.on['srStart'] = [(_e, ses) => { const J = ses.rec?.J; if (J && J.wallT0 == null) { J.wallT0 = Date.now(); ses.rec!.dirty = true; } }];
   s.on['srFinish'] = [(e, ses) => {
+    if (ses.sr?.duel) { journalStore.clear(); return; } // раунд дуэли не трогает личные рекорды спидрана
     const res = e['result'] as { cat: string; rta: number; igt: number; deaths: number; splits: { rta: number; igt: number }[]; taint: string | null; newPb: boolean; pbPrev: unknown };
     const rec = srStore.rec(res.cat); res.pbPrev = rec.pb ? JSON.parse(JSON.stringify(rec.pb)) : null;
     if (!res.taint && (!rec.pb || res.rta < rec.pb.rta)) { res.newPb = true; rec.pb = { rta: res.rta, igt: res.igt, deaths: res.deaths, splits: res.splits, ver: version, date: Date.now() }; srStore.putRec(res.cat, rec); }

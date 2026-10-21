@@ -1,7 +1,7 @@
 // Воспроизведение журнала без отрисовки и звука (legacy/src/journal.js: restoreMem + pump). Годится для золотых записей, фаззера и бота.
 import type { Act, Journal } from './journal';
 import { CHK, GOLDEN_EXT, applyTickValue, hashFor } from './journal';
-import { newRun, runStartData, srRelease, srTechPause, type SrRun } from './speedrun';
+import { duelOf, newRun, runStartData, srRelease, srTechPause, type SrRun } from './speedrun';
 import { World, type WorldOpts } from './world';
 import { benchRest, } from './combat';
 import { benchClose } from './coop';
@@ -53,8 +53,8 @@ export function* replaySteps(J: Journal, opt: ReplayOpts = {}, every = Infinity)
   if (J.cat) {
     sr = newRun(J.cat, { ver: opt.ver ?? J.ver, clock: opt.clock });
     sr.replay = { splits: J.splits, mem: !!J.mem };
-    if (J.race) { sr.rc = J.race; sr.hold = true; } // гонка: до «пошёл» герой стоит, дальше действие 'rel' из журнала
-    const d0 = runStartData(J.cat, first.seed);
+    if (J.race) { sr.rc = J.race; sr.hold = true; sr.duel = J.cat === 'boss' ? duelOf(J.race) : null; } // гонка: до «пошёл» герой стоит, дальше действие 'rel' из журнала; дуэль — из сведений о комнате
+    const d0 = runStartData(J.cat, first.seed, sr.duel);
     data = { ...d0, camp: (first.data.camp as WorldOpts['camp']) || d0.camp };
   } else {
     data = { players: first.data.players || 1, mode: first.data.mode, boss: first.data.boss ?? undefined, camp: first.data.camp as WorldOpts['camp'], seed: first.seed };

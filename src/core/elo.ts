@@ -10,6 +10,8 @@ export const ELO_ALL = 'all';
 export interface EloRace {
   id: string; date: string; discipline: string; winner: string | null;
   players: { name: string; dnf?: boolean; place?: number }[];
+  /** дуэль (2.4): раунды серии считаются одной партией — по победителю серии в последнем раунде; промежуточные раунды Эло не меняют */
+  seriesId?: string; duel?: { final?: boolean; seriesWinner?: string | null };
 }
 export interface EloChange { before: number; after: number }
 /** изменения Эло по гонке: id игрока (нормализованное имя) → до/после, отдельно по дисциплине и общий */
@@ -33,10 +35,11 @@ function slot(book: Book, name: string): Acc {
 export function scoreOf(r: EloRace): number | null {
   if (r.players.length !== 2) return null;
   const [p, q] = r.players as [EloRace['players'][number], EloRace['players'][number]];
-  if (r.winner === 'draw') return 0.5;
-  if (r.winner == null) return null;
-  if (nkey(r.winner) === nkey(p.name)) return 1;
-  if (nkey(r.winner) === nkey(q.name)) return 0;
+  const winner = r.duel ? (r.duel.final ? r.duel.seriesWinner ?? null : null) : r.winner;
+  if (winner === 'draw') return 0.5;
+  if (winner == null) return null;
+  if (nkey(winner) === nkey(p.name)) return 1;
+  if (nkey(winner) === nkey(q.name)) return 0;
   return null;
 }
 function apply(book: Book, r: EloRace, s: number): Record<string, EloChange> {

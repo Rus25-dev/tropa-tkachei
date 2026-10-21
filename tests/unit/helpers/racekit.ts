@@ -36,7 +36,9 @@ export class FakeGame implements RunBridge {
   techOn(): boolean { return this.run?.tp != null; }
   runId(): string | null { return this.run?.id ?? null; }
   rta(): number { const r = this.run; if (!r || r.t0 == null) return 0; return this.sim.t - r.t0 - r.paused - (r.tp != null ? this.sim.t - r.tp : 0); }
-  startRun(p: { id: string; seed: number; cat?: string }): void {
+  duel: { ch: number; boss: string; mods: string[] } | null = null;
+  startRun(p: { id: string; seed: number; cat?: string; duel?: { ch: number; boss: string; mods: string[] } }): void {
+    this.duel = p.duel ?? null;
     this.run = { id: p.id, seed: p.seed, cat: p.cat ?? 'trail', held: true, t0: null, tp: null, paused: 0, done: false, cd: 'Загрузка…', splits: [], restored: false }; this.log.push('start');
     this.journal = { ok: true, race: { code: this.play.code, id: p.id } };
     if (this.autoLoad) this.sim.env().setTimeout(() => this.play.sceneReady(), 300);
@@ -62,6 +64,16 @@ export class FakeGame implements RunBridge {
     const splits = [0, 1, 2, 3].map((i) => r.splits[i] ?? { rta: Math.round(rta * (i + 1) / 4), igt: Math.round(rta * (i + 1) / 4) }); splits[3] = { rta, igt: rta };
     this.play.onFinish({ rta, igt: rta, deaths: 1, splits }, { swings: 3, dps: 1.5, acc: 0.5 }, r.restored ? 1 : 0);
   }
+}
+
+/** дуэль: итог раунда игрока — убил босса или оборвал нить (left — сколько из 100 здоровья босса осталось) */
+export function duelFinish(g: FakeGame, kill: boolean, left = 0, t?: { rta?: number }): void {
+  const r = g.run!; r.done = true; const rta = t?.rta ?? Math.round(g.rta()), ch = g.duel?.ch ?? 2;
+  g.play.onFinish({ rta, igt: rta, deaths: kill ? 0 : 1, splits: kill ? [{ rta, igt: rta }] : [], duel: { kill, ch, hp: kill ? 0 : left, mh: 100, dmg: kill ? 100 : 100 - left } } as never, { swings: 3, dps: 1.5, acc: 0.5 }, 0);
+}
+/** дуэль: телеметрия игрока с боссом, у которого осталось left из 100 здоровья */
+export function duelTel(g: FakeGame, seat: number, left: number, ph = 1): void {
+  g.play.tel({ s: seat, el: Math.round(g.rta()), x: 100, y: 50, hp: 5, mh: 5, dt: 0, ch: g.duel?.ch ?? 2, st: 'arena', f: 1, sp: 0, dn: 0, dm: 100 - left, bs: { k: 'm', x: 300, y: 50, w: 56, h: 74, s: 'idle', hp: left, mh: 100, ph, f: -1, on: 1 } });
 }
 
 export interface Room {

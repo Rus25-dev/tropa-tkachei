@@ -12,6 +12,7 @@ import { silkBurst } from './combat';
 import { hurtPlayer } from './damage';
 import { throwBomb, refillBombs } from './misha';
 import { hookStep } from './tools';
+import { duelNoHeal } from './duelmods';
 
 const NOIN = { up: false, down: false, left: false, right: false, jump: false, atk: false, dash: false, heal: false, bomb: false, tool: false, jumpP: false, atkP: false, dashP: false, healP: false, upP: false, bombP: false, toolP: false };
 
@@ -239,7 +240,7 @@ function baseStepPlayer(sc: World, p: Player, dt: number): void {
     if (inp.toolP) useTool(sc, p);
     if (inp.healP) {
       if (inp.up && p.silk >= P.BURST) silkBurst(sc, p);
-      else if (p.silk >= sc.silkMax && p.hp < p.maxHp) {
+      else if (p.silk >= sc.silkMax && p.hp < p.maxHp && !duelNoHeal(sc)) {
         p.silk = 0; p['healCh'] = P.HEAL_T; p.healT = P.HEAL_T; p.atkT = 0; sc.snd('bench');
         sc.parts(10, p.x + 7, p.y + 12, p.pal.accent);
       } else if ((p['parryCd'] as number) <= 0) { p['parryT'] = P.PARRY_T; p['parryCd'] = P.PARRY_CD; sc.snd('slash'); }

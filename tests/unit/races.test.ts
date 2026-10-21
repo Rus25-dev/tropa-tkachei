@@ -353,9 +353,9 @@ describe('2.2 «Тропа целиком»: подсплиты, лавка, с�
 
 describe('2.3 «Босс-раш»: дисциплина организатора, подсплиты по фазам, таблица «босс × игрок»', () => {
   const ev = (p: P, k: string, d: Record<string, unknown> = {}) => p.play.event(k, d);
-  it('организатор выбирает дисциплину в комнате; «Дуэль» пока недоступна; игроки получают cat=boss и общее зерно', () => {
+  it('организатор выбирает дисциплину в комнате; неизвестная не принимается; игроки получают cat=boss и общее зерно', () => {
     const l = lobby(), { room, p1, p2, w1 } = l, { org, sim } = room;
-    expect(org.S!.disc).toBe('trail'); org.setDisc('duel'); expect(org.S!.disc).toBe('trail');
+    expect(org.S!.disc).toBe('trail'); org.setDisc('ghost'); expect(org.S!.disc).toBe('trail');
     org.setDisc('boss'); sim.run(300);
     expect(org.S!.disc).toBe('boss'); expect(w1.S!.disc).toBe('boss'); expect(w1.S!.discName).toBe('Босс-раш'); expect(p1.play.state!.discName).toBe('Босс-раш');
     p1.play.toggleReady(); p2.play.toggleReady(); sim.run(500); org.start(); sim.run(5000);

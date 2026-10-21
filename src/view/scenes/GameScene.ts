@@ -85,6 +85,9 @@ export class GameScene extends Phaser.Scene {
   private fitNow(f: Fit): void { this.fit = f; fitCamera(this, f, this.zoom, this.camX, this.camY); }
 
   // ----- привязка к сессии и построение сцены -----
+  /** дуэль, «Зеркало»: картинка игры отражена по горизонтали (ввод зеркалит ядро до записи в журнал) */
+  private mirrored = false;
+  private syncMirror(on: boolean): void { if (on !== this.mirrored) { this.mirrored = on; document.documentElement.classList.toggle('tt-mirror', on); } }
   private bind(): void {
     const s = this.sh.session;
     if (s !== this.sess) { this.sess = s; this.w = null; if (!s) this.teardown(); }
@@ -224,7 +227,8 @@ export class GameScene extends Phaser.Scene {
   override update(_time: number, delta: number): void {
     this.bind();
     const s = this.sess, w = this.w;
-    if (!s || !w) { Music.play('menu'); Music.intensity = 1; return; }
+    if (!s || !w) { this.syncMirror(false); Music.play('menu'); Music.intensity = 1; return; }
+    this.syncMirror(!!s.sr?.duel?.mods.includes('mirror') && !s.sr.done);
     const t0 = performance.now();
     // геймпад: пауза и карта
     const hub = this.sh.hub;
