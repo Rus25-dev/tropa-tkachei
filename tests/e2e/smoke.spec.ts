@@ -21,7 +21,7 @@ test('игра стартует на WebGL, версия на экране, ме
   page.on('pageerror', (e) => errors.push(e.message));
   await boot(page);
   expect(await page.evaluate(() => window.__tt!.game.renderer.type)).toBe(2); // Phaser.WEBGL
-  await expect(page.getByTestId('menu-version')).toContainText('2.0.0');
+  await expect(page.getByTestId('menu-version')).toContainText('2.4.0');
   await expect(page.getByTestId('panel-root')).toBeVisible();
   expect(errors).toEqual([]);
 });
