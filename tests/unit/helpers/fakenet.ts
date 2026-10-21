@@ -37,25 +37,24 @@ export class FakeNet {
   lis = new Map<string, Lis>(); links = new Set<Link>(); cutNodes = new Set<string>(); dupRate = 0; lossRate = 0;
   constructor(public sim: Sim, public lat = 30) {}
   transport(node: string): Transport {
-    const me = this;
     return {
-      listen(id: string, h: ListenHandlers): Closable {
-        if (me.lis.has(id)) { me.sim.env().setTimeout(() => h.onError({ type: 'unavailable-id' }), 50); return { close() { /* занято */ } }; }
-        const rec: Lis = { h, node }; me.lis.set(id, rec); me.sim.env().setTimeout(() => h.onOpen(), 20);
-        return { close() { if (me.lis.get(id) === rec) me.lis.delete(id); } };
+      listen: (id: string, h: ListenHandlers): Closable => {
+        if (this.lis.has(id)) { this.sim.env().setTimeout(() => h.onError({ type: 'unavailable-id' }), 50); return { close() { /* занято */ } }; }
+        const rec: Lis = { h, node }; this.lis.set(id, rec); this.sim.env().setTimeout(() => h.onOpen(), 20);
+        return { close: () => { if (this.lis.get(id) === rec) this.lis.delete(id); } };
       },
-      dial(id: string, h: DialHandlers): Closable {
+      dial: (id: string, h: DialHandlers): Closable => {
         let dead = false;
-        me.sim.env().setTimeout(() => {
+        this.sim.env().setTimeout(() => {
           if (dead) return;
-          const rec = me.lis.get(id);
-          if (!rec || me.cutNodes.has(node) || me.cutNodes.has(rec.node)) { h.onError({ type: 'peer-unavailable' }); return; }
+          const rec = this.lis.get(id);
+          if (!rec || this.cutNodes.has(node) || this.cutNodes.has(rec.node)) { h.onError({ type: 'peer-unavailable' }); return; }
           if (rec.zombie) return; // организатор умер, id ещё числится у сервера: соединение не устанавливается, клиент ждёт таймаут
           const link = { a: null, b: null, nodeA: node, nodeB: rec.node, closed: false } as unknown as Link;
-          const mk = (side: 'a' | 'b'): FakeConn => ({ onData: null, onClose: null, open: true, send: (o: unknown) => me.deliver(link, side, o), close: () => me.close(link, side) });
-          link.a = mk('a'); link.b = mk('b'); me.links.add(link);
+          const mk = (side: 'a' | 'b'): FakeConn => ({ onData: null, onClose: null, open: true, send: (o: unknown) => this.deliver(link, side, o), close: () => this.close(link, side) });
+          link.a = mk('a'); link.b = mk('b'); this.links.add(link);
           h.onOpen(link.a); rec.h.onConn(link.b);
-        }, me.lat);
+        }, this.lat);
         return { close() { dead = true; } };
       },
     };
