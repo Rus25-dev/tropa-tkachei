@@ -94,7 +94,7 @@ export class Races {
     if (this.play && this.play.code) items.push({ label: 'Вернуться в комнату игрока', sub: `комната ${this.play.code} · ${this.play.name}`, act: () => this.setView('join') });
     else items.push({ label: 'Войти игроком по коду', sub: 'код или ссылка от организатора', act: () => this.openJoin('') });
     items.push({ label: 'Обсервер', sub: 'смотреть гонку: 1920×1080, две половины и табло', act: () => this.setView('watchjoin') });
-    items.push({ label: 'Архив гонок', sub: 'история, races.json (рейтинг — в версии 2.1)', act: () => this.setView('archive') });
+    items.push({ label: 'Архив гонок', sub: 'рейтинг Эло, история, races.json', act: () => this.setView('archive') });
     return items;
   }
   racesInfo(): string[] {

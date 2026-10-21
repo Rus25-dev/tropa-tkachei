@@ -22,7 +22,7 @@ export interface OrgSeat {
 export interface RaceEvent { n: number; t: number | null; k: string; s: number | null; x: string; [extra: string]: any }
 export interface ResultRow {
   seat: number; name: string; dnf: boolean; time: number | null; finalTime: number | null; igt: number | null; deaths: number | null; stats: Record<string, any> | null;
-  splits: number[]; eloBefore: null; eloAfter: null; place: number;
+  splits: number[]; eloBefore: number | null; eloAfter: number | null; place: number;
 }
 /** запись архива гонок (формат races.json) */
 export interface RaceResult {
