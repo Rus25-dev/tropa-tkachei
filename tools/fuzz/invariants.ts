@@ -49,6 +49,8 @@ export function findNonFinite(o: unknown, path: string, depth = 2): string | nul
 export class Monitor {
   private n = 0;
   private solidRun: number[] = [];
+  /** в момент входа в тайл рядом стоял напарник: так выглядит «поводок» v1.8 (позже он мог уйти) */
+  private leash: boolean[] = [];
   private prevT = 0;
   private world: World | null = null;
   private frozenAt = { wiping: 0, hitstop: 0, leaving: 0, busy: 0, paused: 0 };
@@ -71,10 +73,11 @@ export class Monitor {
       // на паузе мир стоит: герой, замерший посреди подтягивания на уступ, остаётся в углу тайла, это не нарушение
       if (w.paused) continue;
       if (w.solidRect({ x: p.x + 1, y: p.y + 1, w: p.w - 2, h: p.h - 2 })) {
+        if (this.solidRun[i]! === 0) this.leash[i] = w.players.some((q, k) => k !== i && !q.downed && Math.abs(q.x - p.x) <= 24 && Math.abs(q.y - p.y) <= 2);
         this.solidRun[i]! += dtLogic;
         if (this.solidRun[i]! > SOLID_GRACE_S) {
           // «поводок» v1.8 ставит отставшего напарника рядом с ведущим, не глядя на стены: отдельный класс
-          const near = w.players.some((q, k) => k !== i && !q.downed && Math.abs(q.x - p.x) <= 24 && Math.abs(q.y - p.y) <= 2);
+          const near = !!this.leash[i];
           return { ...f('solid', `герой ${i} внутри тайла${near ? ' рядом с напарником (поводок)' : ''}: x=${p.x.toFixed(1)} y=${p.y.toFixed(1)} (${this.solidRun[i]!.toFixed(2)} с подряд)`), ...(near ? { cls: 'leash' } : {}) };
         }
       } else this.solidRun[i] = 0;

@@ -6,7 +6,8 @@
 //   npm run bot -- watch --boss tima --skill 0.6 --seed 3    записать бой и сразу открыть (--speed 2 — скорость, --no-open — не открывать браузер сам)
 // Баланс можно переопределить файлом (--balance) или переменной окружения TT_BALANCE (путь к файлу или JSON): только для этих инструментов.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 import pkg from '../../package.json' with { type: 'json' };
 import { applyBalanceOverride } from '../../src/core/balance';
 import type { BalanceData, DeepPartial } from '../../src/core/balance-schema';
@@ -63,7 +64,7 @@ async function table(): Promise<void> {
   if (verbose) for (const c of cells) console.log(`  причины урона ${BOSS_NAMES[c.boss]} ${c.skill}: ${hurtLine(c)}`);
 }
 
-function recordOne(): ReturnType<typeof runFight> & { path: string } {
+function recordOne(defaultDir = ''): ReturnType<typeof runFight> & { path: string } {
   const bal = loadBalanceOverride();
   if (bal) applyBalanceOverride(bal);
   const boss = (opt('boss', 'misha')) as BossId;
@@ -71,7 +72,7 @@ function recordOne(): ReturnType<typeof runFight> & { path: string } {
   const r = runFight({ boss, skill: +(opt('skill', '0.9')!), players: +(opt('players', '1')!), seed: +(opt('seed', '1')!), maxSec: +(opt('max', '240')!), record: true, ver: pkg.version });
   if (r.error) throw new Error(r.error);
   if (bal) r.ttrec!.setup.balance = bal;
-  const path = resolve(opt('out', `${boss}-${opt('seed', '1')}.ttrec`)!);
+  const path = resolve(opt('out') ?? join(defaultDir, `${boss}-${opt('seed', '1')}.ttrec`));
   writeFileSync(path, stringifyTtrec(r.ttrec!));
   return { ...r, path };
 }
@@ -79,7 +80,7 @@ const describe = (r: ReturnType<typeof runFight>): string => `${r.won ? 'поб�
 
 async function watch(): Promise<void> {
   let file = argv[1] && !argv[1].startsWith('--') ? resolve(argv[1]) : '';
-  if (!file) { const r = recordOne(); file = r.path; log(`Записан бой: ${describe(r)} → ${file}`); }
+  if (!file) { const r = recordOne(tmpdir()); file = r.path; log(`Записан бой: ${describe(r)} → ${file}`); }
   if (!existsSync(file)) throw new Error('Нет файла записи: ' + file);
   const data = readFileSync(file);
   const { createServer } = await import('vite');

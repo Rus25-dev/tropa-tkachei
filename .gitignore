@@ -8,3 +8,6 @@ dist/
 playwright-report/
 test-results/
 tests/trace/
+
+# записи партий игроков (скачиваются из игры); находки фаззера лежат в tests/repro/*.json и в git входят
+*.ttrec
