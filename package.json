@@ -19,9 +19,9 @@
     "legacy:install": "npm --prefix legacy install",
     "legacy:test": "npm --prefix legacy run test:full",
     "legacy:golden": "npm --prefix legacy run golden",
-    "bot": "node tools/todo.mjs bot",
+    "bot": "tsx --import ./tools/ldtk-register.mjs tools/bot/cli.ts",
     "fuzz": "node tools/todo.mjs fuzz",
-    "replay": "node tools/todo.mjs replay",
+    "replay": "tsx --import ./tools/ldtk-register.mjs tools/replay.ts",
     "sim": "tsx --import ./tools/ldtk-register.mjs tools/sim.ts",
     "levels:export": "tsx tools/ldtk-export.ts",
     "levels:check": "tsx tools/levels-check.ts"
