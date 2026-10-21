@@ -10,6 +10,9 @@ async function boot(page: Page, url = '/'): Promise<void> {
   await page.goto(url);
   await page.waitForFunction(() => !!window.__tt && window.__tt.game.scene.isActive('game'));
 }
+// Самая сильная отдача вверх за время наблюдения: на CI кадры редкие (5 в секунду), мгновенное vy можно «проскочить»
+const watchJump = (page: Page) => page.evaluate(() => { const w = window.__tt!.shared.session!.world, o = { min: 0 }; (window as unknown as { __jv: typeof o }).__jv = o; const id = setInterval(() => { o.min = Math.min(o.min, w['players'][0].vy); }, 5); setTimeout(() => clearInterval(id), 4000); });
+const jumpMin = (page: Page) => page.evaluate(() => (window as unknown as { __jv: { min: number } }).__jv.min);
 const start = (page: Page, p: object) => page.evaluate((x) => window.__tt!.start(x), p);
 const st = (page: Page) => page.evaluate(() => { const w = window.__tt!.shared.session!.world; return { tick: w.tickN, x: w.players[0]!.x, y: w.players[0]!.y, vy: w.players[0]!.vy, g: w.players[0]!.onGround, hp: w.players[0]!.hp }; });
 
@@ -51,9 +54,10 @@ test('клавиатура: бег и прыжок', async ({ page }) => {
   const x0 = (await st(page)).x;
   await page.keyboard.down('KeyD'); await page.waitForTimeout(600); await page.keyboard.up('KeyD');
   expect((await st(page)).x).toBeGreaterThan(x0 + 80);
-  await page.keyboard.press('Space');
-  await page.waitForTimeout(120);
-  expect((await st(page)).vy).toBeLessThan(0);
+  await watchJump(page);
+  await page.keyboard.down('Space'); await page.waitForTimeout(500); await page.keyboard.up('Space');
+  await page.waitForTimeout(1200);
+  expect(await jumpMin(page)).toBeLessThan(0);
 });
 
 test('родное разрешение: холст = размер окна × devicePixelRatio, поле целиком на экране', async ({ browser }) => {
@@ -76,10 +80,12 @@ test('касание: кнопка прыжка даёт прыжок, как к
   await boot(page, '/?touch=1'); await start(page, { kind: 'story', fresh: true });
   await expect(page.getByTestId('touchpad')).toBeVisible();
   await page.waitForTimeout(600);
+  await watchJump(page);
   await page.locator('[data-btn=jump]').dispatchEvent('pointerdown', { pointerId: 1, isPrimary: true });
-  await page.waitForTimeout(100);
+  await page.waitForTimeout(500);
   await page.locator('[data-btn=jump]').dispatchEvent('pointerup', { pointerId: 1, isPrimary: true });
-  expect((await st(page)).vy).toBeLessThan(0);
+  await page.waitForTimeout(1200);
+  expect(await jumpMin(page)).toBeLessThan(0);
   await ctx.close();
 });
 

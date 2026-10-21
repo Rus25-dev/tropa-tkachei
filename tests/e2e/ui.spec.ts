@@ -24,7 +24,9 @@ async function boot(page: Page, opts: { pad?: boolean; settings?: object; save?:
   await page.waitForSelector('[data-testid=panel-root]');
 }
 const menuId = (page: Page) => page.evaluate(() => document.documentElement.dataset['menu'] ?? '');
-const press = async (page: Page, b: number, ms = 120) => {
+// на CI кадры редкие: кнопка геймпада должна продержаться дольше кадра, иначе опрос её не увидит
+const HOLD = process.env.CI ? 350 : 120; // меньше 420 мс: до автоповтора направлений в меню
+const press = async (page: Page, b: number, ms = HOLD) => {
   await page.evaluate((i) => { const p = window.__pad!.buttons[i]!; p.pressed = true; p.value = 1; }, b);
   await page.waitForTimeout(ms);
   await page.evaluate((i) => { const p = window.__pad!.buttons[i]!; p.pressed = false; p.value = 0; }, b);
@@ -127,9 +129,10 @@ test('настройки сохраняются в tt_settings; клавиша �
   await expect(page.getByTestId('m-campaign')).toBeVisible();
   await page.evaluate(() => window.__tt!.start({ kind: 'story', fresh: true }));
   await page.waitForTimeout(700);
-  await page.keyboard.press('KeyJ');
-  await page.waitForTimeout(120);
-  expect(await page.evaluate(() => window.__tt!.shared.session!.world['players'][0].vy)).toBeLessThan(0);
+  await page.evaluate(() => { const w = window.__tt!.shared.session!.world, o = { min: 0 }; (window as unknown as { __jv: typeof o }).__jv = o; const id = setInterval(() => { o.min = Math.min(o.min, w['players'][0].vy); }, 5); setTimeout(() => clearInterval(id), 4000); });
+  await page.keyboard.down('KeyJ'); await page.waitForTimeout(500); await page.keyboard.up('KeyJ');
+  await page.waitForTimeout(1200);
+  expect(await page.evaluate(() => (window as unknown as { __jv: { min: number } }).__jv.min)).toBeLessThan(0);
 });
 
 test('в игре: пауза, снаряжение, скамья, лавка, карта', async ({ page }) => {
