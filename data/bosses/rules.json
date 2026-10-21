@@ -1,0 +1,5 @@
+{
+  "minTellFrames": { "parry": 20, "dodge": 24, "unblockable": 30 },
+  "minRecoveryFrames": 18,
+  "minPunishFrames": 16
+}

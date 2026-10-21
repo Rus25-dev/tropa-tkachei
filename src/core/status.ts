@@ -1,15 +1,20 @@
 // Статусы: яд, ожог, замедление (legacy/src/status.js). Считает только мир; отрисовка берёт маску статусов из target.status.
 // Урон боссу тиком идёт через исходную функцию урона (RAW) без нити, звука и стойкости — фазы и оглушение не ломаются.
-import { E2_UNDER, STATUS_KINDS, type StatusKind, type BossKey } from './balance';
+import { E2_UNDER, STATUS_KINDS, dataKey, type StatusKind, type BossKey, type BossRef } from './balance';
 import type { Boss, Enemy, Player } from './types';
 import type { World } from './world';
 import { killEnemy } from './combat';
 import { rawBossDamage } from './damage';
+import { bossOf } from './bosses2';
 
 export const BOSS_KEYS: BossKey[] = ['boss', 'vladik', 'tima'];
 type Target = (Enemy | Boss) & { status?: Record<string, { left: number; cd: number; src: Player | null; gen: number; t?: number }> | null };
 
-export function bossKey(sc: World, t: unknown): BossKey | null { for (const k of BOSS_KEYS) if (sc[k] === t) return k; return null; }
+export function bossKey(sc: World, t: unknown): BossRef | null {
+  for (const k of BOSS_KEYS) if (sc[k] === t) return k;
+  const i = sc.bosses.indexOf(t as never);
+  return i >= 0 ? dataKey(i) : null;
+}
 export function isBoss(sc: World, t: unknown): boolean { return !!t && (bossKey(sc, t) || sc.misha === t) ? true : false; }
 export function bossLive(b: Boss | null | undefined): boolean { return !!b && !['sleep', 'dead', 'gone', 'intro', 'rage'].includes(b.state); }
 function alive(sc: World, t: Target | null): boolean {
@@ -40,8 +45,8 @@ export function applyStatus(sc: World, t: Target | null, kind: StatusKind, dur?:
 }
 
 // урон боссу тиком: исходная функция без нити/звука/стойкости
-export function bossDamage(sc: World, key: BossKey, p: Player, n: number): void {
-  const b = key === 'boss' ? sc.boss : sc[key];
+export function bossDamage(sc: World, key: BossRef, p: Player, n: number): void {
+  const b = bossOf(sc, key);
   if (!bossLive(b)) return;
   const hs = sc.hitstop, hp0 = b!.hp, nsg = p['noSilkGain'], q = sc.quiet;
   sc.quiet = true; p['noSilkGain'] = true;
@@ -85,7 +90,7 @@ export function statusMask(sc: World, t: Target | null): number {
 }
 export function stepStatus(sc: World, dt: number): void {
   if (!sc.auth() || sc.td) return;
-  const list: (Target | null)[] = [...sc.enemies, sc.boss, sc.vladik, sc.tima];
+  const list: (Target | null)[] = [...sc.enemies, sc.boss, sc.vladik, sc.tima, ...sc.bosses];
   for (const t of list) {
     const s = t && t.status; if (!s) continue;
     if (!alive(sc, t)) { t!.status = null; continue; }
