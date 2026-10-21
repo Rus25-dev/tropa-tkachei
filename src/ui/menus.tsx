@@ -8,7 +8,9 @@ import { fixRules, fmt, violation, SR_ABOUT } from '../app/speedrun';
 import { menuPlayers, progress, records, setMenuPlayers, sr as srStore, training } from '../app/store';
 import type { LaunchParams } from '../app/launch';
 import { HowTo, Changelog, type HowSection } from './howto';
+import type { Online } from '../app/online';
 import { Item, Panel, Screen } from './kit';
+import { Lobby, type LobbyReq } from './lobby';
 import { Friends } from './speedrun';
 import { Settings } from './settings';
 import { padNames } from './nav';
@@ -29,7 +31,9 @@ export interface MenuCtl {
   version: string; build: string;
   launch(p: LaunchParams): void;
   /** сетевая комната: coop-кампания / coop-босс / гонка 1×1 */
-  net?(mode: 'story' | 'bosstest' | 'race', camp?: CampState | null, boss?: string): void;
+  net?(mode: 'race'): void;
+  /** сетевая игра вдвоём (кооператив): комната и вход по коду */
+  online?: Online;
   /** пункты «Гонки Ткачей»: организатор, игрок, обсервер, архив */
   racesItems?(): { label: string; sub?: string; act: () => void; disabled?: boolean }[];
   racesInfo?(): string[];
@@ -60,6 +64,7 @@ export function Menu({ ctl, initial }: { ctl: MenuCtl; initial?: Entry[] }) {
     case 'chapters': return <Chapters {...p} />;
     case 'mode': return <Mode {...p} />;
     case 'net': return <Net {...p} />;
+    case 'lobby': return <Lobby online={ctl.online!} req={ctx as unknown as LobbyReq} crumbs={crumbs.slice(0, -1)} onBack={back} />;
     case 'bosstest': return <BossTest {...p} />;
     case 'speedrun': return <Speedrun {...p} />;
     case 'srcat': return <SrCat {...p} />;
@@ -73,7 +78,7 @@ export function Menu({ ctl, initial }: { ctl: MenuCtl; initial?: Entry[] }) {
 }
 
 const CRUMB: Record<string, (c: Record<string, unknown>) => string> = {
-  campaign: () => 'Кампания', newgame: () => 'Новая игра', chapters: () => 'Глава', mode: (c) => (c['crumb'] as string) || 'Режим', net: () => 'По сети',
+  lobby: () => '', campaign: () => 'Кампания', newgame: () => 'Новая игра', chapters: () => 'Глава', mode: (c) => (c['crumb'] as string) || 'Режим', net: () => 'По сети',
   bosstest: () => 'Босс-тест', speedrun: () => 'Спидран', srcat: (c) => SR_CATS[c['cat'] as 'trail' | 'boss'].name, friends: () => 'Таблица друзей',
   races: () => 'Гонки Ткачей', howto: () => 'Как играть', changelog: () => 'Что нового', settings: () => 'Настройки',
 };
@@ -158,20 +163,21 @@ function Mode({ ctl, go, back, crumbs, ctx }: P) {
       <Screen title="Как играем?" info={<><p>Выберите, с кем идёте по Тропе.</p><Dim>Вдвоём по сети: один создаёт комнату и присылает код, второй входит по коду.</Dim></>}>
         <Item n={1} id="md-one" label="Один ткач" sub="клавиатура или геймпад" onClick={() => play(1)} />
         <Item n={2} id="md-two" label="Двое за одним компьютером" sub="игрок 2 — на стрелках" onClick={() => play(2)} />
-        <Item n={3} id="md-net" label="Вдвоём по сети" sub="создать комнату или войти по коду" onClick={() => go('net', { mode: 'story', camp })} />
+        <Item n={3} id="md-net" label="Вдвоём по сети" sub="создать комнату или войти по коду" onClick={() => go('net', { mode: 'story', camp, fresh })} />
       </Screen>
     </Panel>
   );
 }
 
-function Net({ ctl, back, crumbs, ctx }: P) {
-  const mode = ctx['mode'] as 'story' | 'bosstest', camp = ctx['camp'] as CampState | undefined, boss = ctx['boss'] as string | undefined;
-  const ready = !!ctl.net;
+function Net({ ctl, go, back, crumbs, ctx }: P) {
+  const mode = ctx['mode'] as 'story' | 'bosstest', camp = ctx['camp'] as CampState | undefined, boss = ctx['boss'] as string | undefined, fresh = !!ctx['fresh'];
+  const ready = !!ctl.online;
+  const open = (role: 'host' | 'join'): void => go('lobby', { role, mode, camp, boss, fresh });
   return (
     <Panel crumbs={crumbs} onBack={back} hint={{ nums: 2 }} label="Вдвоём по сети">
       <Screen title="Вдвоём по сети" info={<><p>Соединение идёт напрямую между браузерами (PeerJS). Порты и белый IP не нужны.</p>{!ready && <Dim>Сетевая игра подключается на этапе 5 переноса.</Dim>}</>}>
-        <Item n={1} id="net-host" label="Создать комнату" sub="пришлите другу код или ссылку" disabled={!ready} onClick={() => ctl.net?.(mode, camp, boss)} />
-        <Item n={2} id="net-join" label="Войти по коду" sub="код из пяти символов от друга" disabled={!ready} onClick={() => ctl.net?.(mode, camp, boss)} />
+        <Item n={1} id="net-host" label="Создать комнату" sub="пришлите другу код или ссылку" disabled={!ready} onClick={() => open('host')} />
+        <Item n={2} id="net-join" label="Войти по коду" sub="код из пяти символов от друга" disabled={!ready} onClick={() => open('join')} />
       </Screen>
     </Panel>
   );

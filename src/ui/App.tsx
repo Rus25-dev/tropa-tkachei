@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import type Phaser from 'phaser';
 import type { LaunchParams } from '../app/launch';
 import { mapCanOpen } from '../core/maptravel';
+import type { Online } from '../app/online';
 import type { Session } from '../core/session';
 import type { InputHub } from '../input/hub';
 import type { Shared } from '../view/game';
@@ -14,11 +15,11 @@ import { UpdateBanner } from './Update';
 import { anyPanel, initNav, setDevice, topPanel } from './nav';
 import { useDevice } from './kit';
 
-interface Props { hub: InputHub; version: string; build: string; start: (p: LaunchParams) => void; stop: () => void; game: Phaser.Game; shared: Shared; extra?: Partial<MenuCtl> }
+interface Props { hub: InputHub; version: string; build: string; start: (p: LaunchParams) => Session; stop: () => void; game: Phaser.Game; shared: Shared; online: Online; extra?: Partial<MenuCtl> }
 interface UiEvent { k: string; [key: string]: unknown }
 
 /** Корень интерфейса поверх холста: меню, внутриигровые окна, сенсорная панель, подсказки поворота и iPhone */
-export function App({ hub, version, build, start, stop, game, shared, extra }: Props) {
+export function App({ hub, version, build, start, stop, game, shared, online: net, extra }: Props) {
   const [touch, setTouch] = useState(shared.touch);
   const [ses, setSes] = useState<Session | null>(shared.session);
   const [win, setWin] = useState<WinSummary | null>(null);
@@ -46,7 +47,7 @@ export function App({ hub, version, build, start, stop, game, shared, extra }: P
   useEffect(() => { document.documentElement.classList.toggle('touch', touch); }, [touch]);
 
   const s = ses, w = s?.world ?? null;
-  const online = false;
+  const online = !!w?.online;
   const sess = () => shared.session;
   /** клавиши и геймпад игры замирают, пока на экране есть панель */
   useEffect(() => {
@@ -81,32 +82,39 @@ export function App({ hub, version, build, start, stop, game, shared, extra }: P
     };
     window.addEventListener('keydown', k);
     // автопауза: вкладку свернули или переключились в другое приложение; поворот телефона в «портрет» тоже пауза
-    const vis = (): void => { const cur = sess(); if (document.hidden && cur && !cur.world.paused && !cur.world.won && !cur.sr) cur.togglePause(); };
+    const vis = (): void => { const cur = sess(); if (document.hidden && cur && !cur.world.online && !cur.world.paused && !cur.world.won && !cur.sr) cur.togglePause(); };
+    const bye = (): void => net.bye();
+    window.addEventListener('pagehide', bye);
     document.addEventListener('visibilitychange', vis);
     const mq = matchMedia('(orientation: portrait)');
     const ori = (): void => { const cur = sess(); if (mq.matches && cur && document.documentElement.classList.contains('touch') && !cur.world.paused && !cur.world.won && !cur.sr) cur.togglePause(); };
     mq.addEventListener('change', ori);
-    return () => { window.removeEventListener('keydown', k); document.removeEventListener('visibilitychange', vis); mq.removeEventListener('change', ori); };
+    return () => { window.removeEventListener('keydown', k); document.removeEventListener('visibilitychange', vis); window.removeEventListener('pagehide', bye); mq.removeEventListener('change', ori); };
   }, []);
 
   const launch = (p: LaunchParams): void => { Snd.init(); last.current = p; start(p); };
-  const exit = (): void => { stop(); };
+  const exit = (): void => { net.leave(); stop(); };
+  net.onHostLost = () => { sess()?.world.toast('Хост отключился. Возвращаемся в меню…', 2.5); setTimeout(() => { if (shared.session) exit(); }, 2800); };
   const retry = (): void => {
     const cur = sess(); if (!cur) return;
     if (cur.sr) { launch({ kind: cur.sr.cat }); return; }
     cur.retry();
   };
-  const ctl: MenuCtl = { version, build, launch, ...extra };
+  const ctl: MenuCtl = { version, build, launch, online: net, ...extra };
+  const room = useRef(new URLSearchParams(location.search).get('room'));
+  const initial = room.current ? [{ id: 'main' }, { id: 'lobby', ctx: { role: 'join', mode: 'story', fresh: false, code: room.current } }] : undefined;
+  useEffect(() => { if (room.current) { const u = new URL(location.href); u.searchParams.delete('room'); history.replaceState(null, '', u.toString()); } }, []);
+  if (s && room.current) room.current = null; // ссылка с кодом использована один раз: после выхода из игры меню обычное
 
   // ----- что показывать в игре -----
-  const paused = !!w && w.paused && !w.benchMenuOpen && !w.shopOpen && !w.mt.open && !w.mt.busy && !w.won && !(w.sr && w.sr.tp != null);
+  const paused = !!w && (w.paused || w.uiPause) && !w.benchMenuOpen && !w.shopOpen && !w.mt.open && !w.mt.busy && !w.won && !(w.sr && w.sr.tp != null);
   const srRes = w?.sr?.result ?? null;
   const anyOverlay = !!w && (paused || !!w.benchMenuOpen || w.shopOpen || w.mt.open || gear || !!win || !!srRes || friends);
   const padMode = dev === 'pad';
   return (
     <>
       {s && <div class="ver" data-testid="version">v{version} · {build}</div>}
-      {!s && <Menu ctl={ctl} />}
+      {!s && <Menu ctl={ctl} initial={initial} />}
       {s && w && (<>
         {w.sr && <SrHud w={w} />}
         {w.train && <TrainHud w={w} />}
