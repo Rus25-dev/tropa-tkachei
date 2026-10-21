@@ -8,7 +8,9 @@ interface TT {
 }
 declare global { interface Window { __tt?: TT } }
 
+// Качество «низкое»: на CI графика идёт программно (SwiftShader), свечение и цветокоррекция роняют кадры ниже 10 в секунду, и тики логики (кадр ≤ 100 мс) отстают
 async function boot(page: Page, url = '/'): Promise<void> {
+  await page.addInitScript(() => { try { localStorage.setItem('tt_settings', JSON.stringify({ gfx: 'low' })); } catch { /* нет доступа */ } });
   await page.goto(url);
   await page.waitForFunction(() => !!window.__tt && window.__tt.game.scene.isActive('game'));
 }
