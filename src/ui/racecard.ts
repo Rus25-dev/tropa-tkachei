@@ -2,6 +2,7 @@
 import { nkey, type EloChange } from '../core/elo';
 import { fmt, fmtD } from '../core/timefmt';
 import { DISC, type RaceResult } from '../net/racecommon';
+import { tagsOf } from '../net/raceprog';
 
 export const CARD_W = 1200, CARD_H = 675;
 const FONT = 'system-ui, "Segoe UI", Roboto, sans-serif';
@@ -43,7 +44,7 @@ export function drawCard(g: CanvasRenderingContext2D, r: RaceResult, elo?: Recor
       g.fillText(sgn(d), x + colW - 20 - g.measureText(sgn(d)).width, y + 180);
       g.font = `500 26px ${FONT}`; g.fillStyle = '#b9c3d9';
     }
-    p.splits.slice(0, 4).forEach((s, k) => g.fillText(`${k + 1}. ${fmt(s)}`, x + 20, y + 240 + k * 34));
+    p.splits.slice(0, 4).forEach((s, k) => g.fillText(`${tagsOf(r.discipline)[k] ?? k + 1}: ${fmt(s)}`, x + 20, y + 240 + k * 34));
   });
 }
 /** собрать PNG; null — холст недоступен */

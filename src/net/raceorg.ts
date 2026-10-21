@@ -93,7 +93,7 @@ export class RaceOrg {
         const hs = this.hub && this.hub.seatById(p.id); if (hs && hs.rtt != null) p.rtt = hs.rtt;
         return { seat: p.id, name: p.name, ready: !!p.ready, loaded: !!p.loaded, online: !!p.online, rtt: p.rtt != null ? Math.round(p.rtt) : null, fin: p.fin ? { rta: p.fin.rta, igt: p.fin.igt, deaths: p.fin.deaths } : null, dnf: !!p.dnf,
           sp: p.splits.length, splits: p.splits.slice(), restored: p.restored | 0,
-          subs: (p.subs || []).slice(), lost: p.lost ?? 0, deaths: (p.deathList || []).length, buys: (p.buys || []).length, pb: p.pb ?? null };
+          subs: (p.subs || []).slice(), lost: p.lost ?? 0, deaths: (p.deathList || []).length, buys: (p.buys || []).length, pb: p.pb ?? null, bosses: (p.bosses || []).slice() };
       }),
     };
   }
@@ -187,6 +187,12 @@ export class RaceOrg {
         if (k !== 'kill') this.logEv('sub', `${p.name}: ${subLabel(S.disc, ch, k)}`, p.id, { ch, sk: k, rta });
         break;
       }
+      case 'boss': { // итог боя с боссом (на смерти босса)
+        const ch = e.ch | 0; if (ch < 1 || ch > 4) break;
+        const row = { ch, dmg: +e.dmg || 0, parries: e.par | 0, taken: e.tk | 0, stuns: e.stn | 0, execs: e.exe | 0, deaths: e.dth | 0, fight: e.fgt | 0 };
+        const list = (p.bosses ??= []), i = list.findIndex((x) => x.ch === ch); if (i >= 0) list[i] = row; else list.push(row);
+        break;
+      }
       case 'death': { (p.deathList ??= []).push({ ch: e.ch | 0 || 1, rta: e.el | 0, lost: null }); this.logEv('death', `${p.name}: нить оборвалась`, p.id, { ch: e.ch | 0 || 1 }); break; }
       case 'lost': {
         const ms = Math.max(0, e.ms | 0), d = (p.deathList || []).slice().reverse().find((x) => x.lost == null);
@@ -212,6 +218,13 @@ export class RaceOrg {
     const fin: Fin = { rta: m.rta | 0, igt: m.igt | 0, deaths: m.deaths | 0, splits: Array.isArray(m.splits) ? m.splits : [], stats: m.stats || null, restored: m.restored | 0 };
     p.fin = fin;
     if (fin.splits.length === 4) p.splits = fin.splits.map((s) => s.rta);
+    // итоги боёв с боссами из самого финиша: последний бой событием уже не уйдёт (забег завершён)
+    for (const b of Array.isArray(m.bosses) ? m.bosses : []) {
+      const ch = b && b.ch | 0; if (ch < 1 || ch > 4) continue;
+      const row = { ch, dmg: +b.dmg || 0, parries: b.parries | 0, taken: b.taken | 0, stuns: b.stuns | 0, execs: b.execs | 0, deaths: b.deaths | 0, fight: b.fight | 0 };
+      const list = (p.bosses ??= []), i = list.findIndex((x) => x.ch === ch); if (i >= 0) list[i] = row; else list.push(row);
+    }
+    if (fin.splits.length === 4) { const subs = (p.subs ??= []); if (!subs.some((s) => s.ch === 4 && s.k === 'kill')) subs.push({ ch: 4, k: 'kill', rta: fin.splits[3]!.rta }); }
     this.logEv('fin', `${p.name} финишировал: ${fmt(fin.rta)}`, p.id, { rta: fin.rta });
     this.pushState(); this.checkFinish();
   }
@@ -221,7 +234,7 @@ export class RaceOrg {
   start(): void {
     const S = this.S; if (!S || !this.canStart()) return;
     S.phase = 'prep'; S.prepAt = this.wall(); S.acts = []; S.winner = null; S.awarded = false; S.result = null; S.goAt = null; S.pause = { on: false, since: null, total: 0 };
-    for (const p of this.seatList()) { p.loaded = false; p.fin = null; p.dnf = false; p.splits = []; p.subs = []; p.lost = 0; p.deathList = []; p.buys = []; p.pb = personalBest(this.archive(), p.name, S.disc); }
+    for (const p of this.seatList()) { p.loaded = false; p.fin = null; p.dnf = false; p.splits = []; p.subs = []; p.lost = 0; p.deathList = []; p.buys = []; p.bosses = []; p.pb = personalBest(this.archive(), p.name, S.disc); }
     this.logEv('prep', 'Гонка: загрузка у игроков…');
     this.hub!.broadcast({ k: 'prep', id: S.id, seed: S.seed, cat: S.disc, ver: this.o.version }, null, ['play']);
     this.pushState();
@@ -247,7 +260,7 @@ export class RaceOrg {
     const S = this.S!, ps = this.seatList();
     const rows: ResultRow[] = ps.map((p) => ({ seat: p.id, name: p.name, dnf: !p.fin, time: p.fin ? p.fin.rta : null, finalTime: p.fin ? p.fin.rta : null, igt: p.fin ? p.fin.igt : null, deaths: p.fin ? p.fin.deaths : null, stats: p.fin ? p.fin.stats : null,
       splits: p.fin && p.fin.splits.length ? p.fin.splits.map((s) => s.rta) : p.splits.filter((x) => x != null), eloBefore: null, eloAfter: null, place: 0,
-      ...(p.subs && p.subs.length ? { subs: p.subs.slice() } : {}), ...(p.lost ? { lost: p.lost } : {}), ...(p.deathList && p.deathList.length ? { deathList: p.deathList.slice() } : {}), ...(p.buys && p.buys.length ? { buys: p.buys.slice() } : {}) }));
+      ...(p.subs && p.subs.length ? { subs: p.subs.slice() } : {}), ...(p.lost ? { lost: p.lost } : {}), ...(p.deathList && p.deathList.length ? { deathList: p.deathList.slice() } : {}), ...(p.buys && p.buys.length ? { buys: p.buys.slice() } : {}), ...(p.bosses && p.bosses.length ? { bosses: p.bosses.slice().sort((a, b) => a.ch - b.ch) } : {}) }));
     rows.sort((a, b) => (Number(a.dnf) - Number(b.dnf)) || ((a.time || 0) - (b.time || 0)));
     let winner: number | 'draw' | null = null, gap: number | null = null;
     if (awardedSeat != null) winner = awardedSeat;
@@ -303,7 +316,7 @@ export class RaceOrg {
     const S = this.S; if (!S) return; if (this.cdT) this.env.clearTimeout(this.cdT);
     if (S.phase !== 'lobby') this.logEv('reset', 'Гонка перезапущена: новое зерно, игроки возвращаются в комнату');
     S.phase = 'lobby'; S.id = this.newId(); S.seed = this.seedNew(); S.goAt = null; S.pause = { on: false, since: null, total: 0 }; S.winner = null; S.awarded = false; S.result = null; S.acts = []; S.prepAt = null;
-    for (const p of this.seatList()) { p.ready = false; p.loaded = false; p.fin = null; p.dnf = false; p.splits = []; p.tel = null; p.subs = []; p.lost = 0; p.deathList = []; p.buys = []; p.pb = null; }
+    for (const p of this.seatList()) { p.ready = false; p.loaded = false; p.fin = null; p.dnf = false; p.splits = []; p.tel = null; p.subs = []; p.lost = 0; p.deathList = []; p.buys = []; p.bosses = []; p.pb = null; }
     this.hub!.broadcast({ k: 'reset' }, null, ['play']); this.pushState();
   }
   /** отменить гонку: не попадает в архив */

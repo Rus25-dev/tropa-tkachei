@@ -9,13 +9,13 @@ import { openRating } from '../app/ratinglink';
 import { fixRules, violation } from '../app/speedrun';
 import { rcIds, sr as srStore } from '../app/store';
 import { DISC, mergeNames, racesJson, type RaceEvent, type RaceResult, type RoomPlayer } from '../net/racecommon';
-import { stageText, sumOfBest, tagsOf } from '../net/raceprog';
+import { isBoss, stageText, sumOfBest, tagsOf } from '../net/raceprog';
 import { mergeRaces, parseRaces } from '../net/racesfile';
 import { watchBox } from '../view/fit';
 import { useTick } from './ingame';
 import { Panel } from './kit';
 import { copyCard, downloadCard } from './racecard';
-import { COL_A, COL_B, Ribbon, SplitsTable } from './racetables';
+import { BossTable, COL_A, COL_B, Ribbon, SplitsTable } from './racetables';
 
 export function useRaces(r: Races): void {
   const [, n] = useState(0);
@@ -95,13 +95,15 @@ export function OrgPanel({ races }: { races: Races }) {
               <select id="rco-disc" data-testid="org-disc" disabled={S.phase !== 'lobby'} value={S.disc} onChange={(e) => org.setDisc((e.currentTarget as HTMLSelectElement).value)}>
                 {Object.entries(DISC).map(([id, d]) => <option key={id} value={id} disabled={!d.ready}>{d.name}{d.ready ? '' : ' — ' + d.note}</option>)}
               </select></label>
+            <div class="lead" data-testid="org-rules">{DISC[S.disc]?.rules}</div>
             <div class="lead">Одна гонка — одна дисциплина. Зерно общее: одинаковые враги и бусины у обоих. Зерно: <code>{S.seed}</code> {S.phase === 'lobby' && <button type="button" class="btn ghost" id="rco-seed" onClick={() => org.newSeedNow()}>другое</button>}</div>
             <div class="lead">Лёгкий режим и замедление игры игроку запрещены. Версия игры у всех должна быть {races.version}.</div>
           </div>
         </div>
         <div class="rc-grid">{card(0)}{card(1)}</div>
         {(S.phase === 'run' || S.phase === 'done') && ps.length === 2 && (
-          <div class="rc-box rc-splits" data-testid="org-splits"><h3>Сплиты и подсплиты</h3>
+          <div class="rc-box rc-splits" data-testid="org-splits"><h3>{isBoss(S.disc) ? 'Боссы и подсплиты' : 'Сплиты и подсплиты'}</h3>
+            {isBoss(S.disc) && <div class="tbl-wrap"><BossTable disc={S.disc} a={org.pub().players[0]} b={org.pub().players[1]} id="org-boss-table" /></div>}
             <div class="tbl-wrap"><SplitsTable disc={S.disc} a={org.pub().players[0]} b={org.pub().players[1]} mode="full" id="org-splits-table" /></div>
           </div>
         )}
@@ -353,7 +355,7 @@ export function WatchView({ races }: { races: Races }) {
           <div class="stage" data-testid="watch-stage"><div class="a" style={{ color: COL_A }}>{chap(t1, p1)}</div><div class="b" style={{ color: COL_B }}>{chap(t2, p2)}</div></div>
           {(phase === 'run' || phase === 'done') && <Ribbon disc={S.disc} a={p1} b={p2} ta={t1} tb={t2} />}
         </div>
-        {showTbl && !(phase === 'done' && res) && <div class="rt-live" data-testid="watch-splits"><SplitsTable disc={S.disc} a={p1} b={p2} mode="live" id="watch-splits-table" /></div>}
+        {showTbl && !(phase === 'done' && res) && <div class="rt-live" data-testid="watch-splits">{isBoss(S.disc) ? <><BossTable disc={S.disc} a={p1} b={p2} id="watch-boss-table" /><SplitsTable disc={S.disc} a={p1} b={p2} mode="cur" id="watch-splits-table" /></> : <SplitsTable disc={S.disc} a={p1} b={p2} mode="live" id="watch-splits-table" />}</div>}
         {w.replay && <div class="rw-replay" data-testid="watch-replay">ПОВТОР · {w.S?.players?.find((p) => p.seat === w.replay!.seat)?.name}</div>}
         {w.connStatus !== 'online' && <div class="conn">нет связи с организатором, пробуем снова…</div>}
         {(phase === 'run') && !t1 && p1 && <div class="wait" style={{ left: '0px' }}>Ждём данные игрока…</div>}
@@ -368,7 +370,7 @@ export function WatchView({ races }: { races: Races }) {
           {cdText && <div class="big">{cdText}</div>}
           <div class="mid sub">{S.discName || 'Тропа целиком'} · комната {w.code}</div>
         </>)}
-        {phase === 'done' && res && (w.splitsOn ? <div class="over full" data-testid="watch-over-splits"><h2>Сплиты и подсплиты</h2><SplitsTable disc={S.disc} a={p1} b={p2} mode="full" id="watch-splits-full" /></div> : <WatchOver w={w} />)}
+        {phase === 'done' && res && (w.splitsOn ? <div class="over full" data-testid="watch-over-splits"><h2>{isBoss(S.disc) ? 'Фазы боссов' : 'Сплиты и подсплиты'}</h2><SplitsTable disc={S.disc} a={p1} b={p2} mode="full" id="watch-splits-full" /></div> : <WatchOver w={w} />)}
       </div>
     </div>
   );
@@ -385,14 +387,16 @@ function WatchOver({ w }: { w: NonNullable<Races['watch']> }) {
   const sp = (p: { seat: number }, i: number): string => { const q = ps.find((x) => x.seat === p.seat); return q && q.splits && q.splits[i] != null ? f(q.splits[i]!) : '—'; };
   const disc = w.S!.disc, tags = tagsOf(disc), qa = A && ps.find((x) => x.seat === A.seat), qb = B && ps.find((x) => x.seat === B.seat);
   const sobA = sumOfBest(qa?.pb), sobB = sumOfBest(qb?.pb), lostTxt = (q: RoomPlayer | undefined): string => (q && q.deaths ? `${q.deaths} · −${((q.lost ?? 0) / 1000).toFixed(1)} с` : '0');
+  const boss = isBoss(disc);
   return (
-    <div class="over" data-testid="watch-over"><h2>{win}{r.awarded ? ' (присуждено)' : ''}{r.gap != null ? ' · +' + f(Math.abs(r.gap)) : ''}</h2>
+    <div class={`over ${boss ? 'boss' : ''}`} data-testid="watch-over"><h2>{win}{r.awarded ? ' (присуждено)' : ''}{r.gap != null ? ' · +' + f(Math.abs(r.gap)) : ''}</h2>
+      {boss && <BossTable disc={disc} a={qa} b={qb} id="watch-boss-over" />}
       <table><thead><tr><th /><th>{A?.name}</th><th>{B?.name}</th></tr></thead><tbody>
         <tr><td>Время</td><td>{A && !A.dnf ? f(A.time) : '—'}</td><td>{B && !B.dnf ? f(B.time) : '—'}</td></tr>
-        {[0, 1, 2, 3].map((i) => <tr key={i}><td>{tags[i]}</td><td>{A ? sp(A, i) : ''}</td><td>{B ? sp(B, i) : ''}</td></tr>)}
-        <tr><td>Сумма лучших отрезков</td><td>{sobA != null ? f(sobA) : '—'}</td><td>{sobB != null ? f(sobB) : '—'}</td></tr>
+        {!boss && [0, 1, 2, 3].map((i) => <tr key={i}><td>{tags[i]}</td><td>{A ? sp(A, i) : ''}</td><td>{B ? sp(B, i) : ''}</td></tr>)}
+        {!boss && <tr><td>Сумма лучших отрезков</td><td>{sobA != null ? f(sobA) : '—'}</td><td>{sobB != null ? f(sobB) : '—'}</td></tr>}
         <tr><td>Смерти · потеряно времени</td><td>{lostTxt(qa)}</td><td>{lostTxt(qb)}</td></tr>
-        {mk('Урон боссам', 'bossDmg')}{mk('DPS в боях', 'dps')}{mk('Получено урона', 'taken')}{mk('Лечений', 'heals')}{mk('Точность', 'acc', (v) => Math.round(v * 100) + ' %')}{mk('Отбивы', 'parries')}{mk('Идеальные увороты', 'dodges')}{mk('Оглушения', 'stuns')}{mk('Казни', 'execs')}{mk('Самое длинное комбо', 'combo')}{mk('Покупок в лавке', 'buys', (v) => String((v as unknown[]).length))}
+        {mk('Урон боссам', 'bossDmg')}{mk('DPS в боях', 'dps')}{mk('Получено урона', 'taken')}{!boss && mk('Лечений', 'heals')}{mk('Точность', 'acc', (v) => Math.round(v * 100) + ' %')}{mk('Отбивы', 'parries')}{mk('Идеальные увороты', 'dodges')}{mk('Оглушения', 'stuns')}{mk('Казни', 'execs')}{mk('Самое длинное комбо', 'combo')}{!boss && mk('Покупок в лавке', 'buys', (v) => String((v as unknown[]).length))}
       </tbody></table></div>
   );
 }

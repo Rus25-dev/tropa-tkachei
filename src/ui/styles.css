@@ -360,6 +360,7 @@ html.rw-nocursor, html.rw-nocursor body { cursor: none; }
 .rw-hud .rt td, .rw-hud .rt th { font-size: 21px; padding: 1px 8px; line-height: 1.25; }
 .rw-hud .over { top: 100px; padding: 16px 34px; } .rw-hud .over h2 { font-size: 46px; } .rw-hud .over td, .rw-hud .over th { font-size: 23px; padding: 3px 10px; }
 .rw-hud .over.full { padding: 12px 28px; } .rw-hud .over.full h2 { font-size: 38px; margin-bottom: 4px; } .rw-hud .over.full td, .rw-hud .over.full th { font-size: 21px; padding: 1px 8px; }
+.rw-hud .rt-live .rt + .rt { margin-top: 6px; } .rt tr.sub th { font-size: .8em; font-weight: 600; } .rw-hud .rt tr.sub th:first-child, .rcp .rt tr.sub th:first-child { text-align: right; } .rw-hud .rt th[colspan], .rcp .rt th[colspan] { text-align: center; } .rt .w { font-weight: 800; } .rw-hud .over.boss .rtm-boss { margin-bottom: 8px; }
 .rt .g { color: #9ff0c8; } .rt .r { color: #ff9a8a; } .rt tr.main td { font-weight: 800; border-bottom-color: #3a6b5a; } .rt tr.sum td { color: #ffd47a; font-weight: 700; } .rt tr.cur td:first-child { color: #f1ecd8; }
 .rw-hud .feed .sub { color: #cfe8dc; } .rw-hud .feed .lost { color: #ff9a8a; }
 .rcp .rt { width: 100%; border-collapse: collapse; } .rcp .rt td, .rcp .rt th { padding: 4px 8px; text-align: right; } .rcp .rt td:first-child, .rcp .rt th:first-child { text-align: left; } .rcp .rt tr.main td { font-weight: 700; }

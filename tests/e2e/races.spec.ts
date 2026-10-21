@@ -251,3 +251,57 @@ test('архив: загрузка races.json даёт рейтинг Эло, н
   const d = await dl; expect(d.suggestedFilename()).toMatch(/\.png$/); await d.saveAs('test-results/race-card.png');
   await ctx.close();
 });
+
+test('«Босс-раш»: организатор выбирает дисциплину, оба играют босс-раш на общем зерне, обсервер видит таблицу «босс × игрок», итог — в архиве', async ({ browser }) => {
+  test.setTimeout(240_000);
+  test.skip(!!process.env.CI, 'много окон на программном GL в CI не успевают; логика гонки покрыта tests/unit/races.test.ts, локально запускается');
+  const [cO, c1, c2, cW] = [await ctxWith(browser), await ctxWith(browser, 'Ива'), await ctxWith(browser, 'Ярь'), await ctxWith(browser)];
+  const [org, p1, p2, wp] = [await cO.newPage(), await c1.newPage(), await c2.newPage(), await cW.newPage()];
+  const errs: string[] = [];
+  for (const p of [org, p1, p2, wp]) p.on('pageerror', (e) => errs.push(e.message));
+  await boot(org, `/?${q}&race=org`);
+  const code = (await org.getByTestId('org-code').textContent())!.trim();
+  await expect(org.getByTestId('org-server')).toContainText('на связи', { timeout: 30_000 });
+  await org.getByTestId('org-disc').selectOption('boss');
+  await expect(org.getByTestId('org-rules')).toContainText('Четыре босса подряд');
+  await expect(org.getByTestId('org-disc').locator('option[value="duel"]')).toHaveAttribute('disabled', ''); // дуэль ткачей — версия 2.4
+  await boot(p1, `/?${q}&race=play&room=${code}`); await boot(p2, `/?${q}&race=play&room=${code}`); await boot(wp, `/?${q}&race=watch&room=${code}`);
+  await expect(org.getByTestId('org-p2')).toContainText('Ярь', { timeout: 40_000 });
+  await expect(p1.getByTestId('join-phase')).toContainText('Босс-раш', { timeout: 30_000 });
+  await expect(wp.getByTestId('watch-view')).toBeVisible({ timeout: 40_000 });
+  await p1.getByTestId('join-ready').click(); await p2.getByTestId('join-ready').click();
+  await expect(org.getByTestId('org-start')).toBeEnabled({ timeout: 30_000 });
+  await org.getByTestId('org-start').click();
+  const cat = (p: Page) => p.evaluate(() => { const w = window.__tt!.shared.session?.world; return w ? { cat: w['sr']?.cat as string, ch: w['camp']?.ch as number, seed: w['seed'] as number } : null; });
+  await expect.poll(() => cat(p1), { timeout: 60_000 }).toMatchObject({ cat: 'boss', ch: 1 });
+  await expect.poll(() => cat(p2), { timeout: 60_000 }).toMatchObject({ cat: 'boss', ch: 1 });
+  expect((await cat(p1))!.seed).toBe((await cat(p2))!.seed);
+  await expect(org.getByTestId('org-phase')).toHaveText('гонка идёт', { timeout: 60_000 });
+  await expect.poll(async () => (await run(p1))!.hold || (await run(p2))!.hold, { timeout: 30_000 }).toBe(false);
+  // лента кампании подписана боссами, этап — «Корнематка · …»
+  await expect(wp.getByTestId('watch-ribbon')).toContainText('Корнематка', { timeout: 30_000 });
+  await expect(org.getByTestId('org-p1-state')).toContainText('Корнематка', { timeout: 30_000 });
+  // бой: фаза, итог боя с первым боссом (урон, отбивы) — как их шлёт игра игрока
+  const emit = (p: Page, f: string) => p.evaluate((src) => { const pl = (window as any).__tt.races.play; (new Function('pl', src))(pl); }, f); // eslint-disable-line @typescript-eslint/no-explicit-any
+  await emit(p1, "pl.event('sub', { ch: 1, sk: 'ph2' }); pl.event('boss', { ch: 1, dmg: 41, par: 3, tk: 1, stn: 2, exe: 0, dth: 0, fgt: 21000 });");
+  await emit(p2, "pl.event('boss', { ch: 1, dmg: 38, par: 5, tk: 0, stn: 1, exe: 0, dth: 0, fgt: 22000 });");
+  await expect(org.getByTestId('org-boss-table')).toContainText('Корнематка', { timeout: 30_000 });
+  await wp.keyboard.press('KeyT');
+  await expect(wp.getByTestId('watch-boss-table')).toBeVisible({ timeout: 20_000 });
+  await expect(wp.getByTestId('watch-boss-table').locator('tr[data-key="boss1"]')).toContainText('41');
+  await wp.keyboard.press('KeyT');
+  // финиш: Ива быстрее
+  await finish(p1, 120_000); await finish(p2, 125_000);
+  await expect(org.getByTestId('org-result')).toContainText('Победитель: Ива', { timeout: 30_000 });
+  await expect(wp.getByTestId('watch-over')).toContainText('Победил Ива', { timeout: 30_000 });
+  await expect(wp.getByTestId('watch-boss-over')).toContainText('Корнематка');
+  await expect(p1.getByTestId('sr-banner')).toContainText('ПОБЕДА', { timeout: 30_000 });
+  const arch = await org.evaluate(() => JSON.parse(localStorage.getItem('tt_races') || '[]') as { discipline: string; settings: { cat: string }; players: { name: string; eloAfter: number | null; bosses?: { ch: number; dmg: number }[] }[] }[]);
+  expect(arch.length).toBe(1); expect(arch[0]!.discipline).toBe('boss'); expect(arch[0]!.settings.cat).toBe('boss');
+  expect(arch[0]!.players.every((p) => p.eloAfter != null)).toBe(true); expect(arch[0]!.players.find((p) => p.name === 'Ива')!.bosses![0]).toMatchObject({ ch: 1, dmg: 41 });
+  await org.getByTestId('org-archive').click();
+  await expect(org.getByTestId('arch-table')).toContainText('Босс-раш');
+  await expect(org.getByTestId('arch-rating')).toContainText('Ива');
+  expect(errs).toEqual([]);
+  for (const c of [cO, c1, c2, cW]) await c.close();
+});

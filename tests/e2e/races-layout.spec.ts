@@ -12,7 +12,7 @@ let server: { close?: () => void } | null = null;
 test.beforeAll(() => { const { PeerServer } = require('peer') as { PeerServer: (o: { port: number; path: string }) => { close?: () => void } }; server = PeerServer({ port: PORT, path: '/' }); mkdirSync('test-results/races-shots', { recursive: true }); });
 test.afterAll(() => { server?.close?.(); });
 const q = `peer=localhost:${PORT}`;
-const DISCS: ('trail' | 'boss')[] = ['trail'];
+const DISCS: ('trail' | 'boss')[] = ['trail', 'boss'];
 const SIZES: [number, number][] = [[667, 375], [844, 390], [932, 430], [1366, 768], [1920, 1080]];
 
 async function check(page: Page, name: string): Promise<void> {
@@ -124,7 +124,10 @@ for (const [W, H] of SIZES) {
       await wp.screenshot({ path: `test-results/races-shots/${W}x${H}-watch-${disc}.png` });
       await wp.keyboard.press('KeyT'); await expect(wp.getByTestId('watch-splits')).toBeVisible();
       await expect(wp.getByTestId('watch-splits-table')).toContainText(disc === 'trail' ? 'выход из коридора' : 'фаза 2');
-      await expect(wp.getByTestId('splits-sob')).toContainText(/\d:\d\d\.\d\d/); // сумма лучших отрезков у первого игрока
+      if (disc === 'trail') await expect(wp.getByTestId('splits-sob')).toContainText(/\d:\d\d\.\d\d/); // сумма лучших отрезков у первого игрока
+      else { // «босс × игрок»: время, урон, отбивы, лучший босс и сумма лучших
+        await expect(wp.getByTestId('watch-boss-table')).toBeVisible(); await expect(wp.getByTestId('boss-sob')).toContainText(/\d:\d\d\.\d\d/); await expect(wp.getByTestId('boss-best')).toContainText('Корнематка');
+      }
       await wp.waitForTimeout(300);
       await wp.screenshot({ path: `test-results/races-shots/${W}x${H}-watch-${disc}-table.png` });
       // ничего не налезает друг на друга и не выходит за окно 16:9
@@ -146,7 +149,7 @@ for (const [W, H] of SIZES) {
         const res = { players: [{ seat: 1, name: 'Ива', dnf: false, time: 96000 }, { seat: 2, name: 'Ярь', dnf: false, time: 98500 }], winner: 1, awarded: false, gap: -2500 };
         w.S.phase = 'done'; w.S.winner = 1; w.S.result = res; w.resultLite = res; w.stats = { 1: { bossDmg: 120, dps: 3.5, taken: 4, buys: [1, 2] }, 2: { bossDmg: 118, dps: 3.1, taken: 2, buys: [] } }; w.changed();
       });
-      await expect(wp.getByTestId('watch-over')).toContainText('Сумма лучших отрезков');
+      await expect(wp.getByTestId('watch-over')).toContainText(disc === 'trail' ? 'Сумма лучших отрезков' : 'Лучший босс');
       await expect(wp.getByTestId('watch-over')).toContainText('потеряно времени');
       await wp.waitForTimeout(300); await wp.screenshot({ path: `test-results/races-shots/${W}x${H}-watch-${disc}-over.png` });
       await wp.keyboard.press('KeyT'); await expect(wp.getByTestId('watch-over-splits')).toBeVisible();

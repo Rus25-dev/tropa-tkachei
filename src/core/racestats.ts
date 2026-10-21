@@ -9,14 +9,18 @@ import type { World } from './world';
 export type SubKind = 'exit' | 'bench' | 'fight' | 'ph2' | 'ph3' | 'kill';
 /** igt — игровое время в мс (в тиках логики, одинаково при воспроизведении журнала); настенное время подсплита знает только сетевой слой */
 export interface SubSplit { ch: number; k: SubKind; igt: number }
+/** итог боя с одним боссом (босс-раш и главы «Тропы»): считается на смерти босса как разница накопленных счётчиков забега; в packStats не входит */
+export interface BossStat { ch: number; dmg: number; parries: number; taken: number; stuns: number; execs: number; deaths: number; /** мс от начала боя до смерти босса (игровое время) */ fight: number }
 export interface StatsData {
   dmg: number; bossDmg: number; taken: number; heals: number; swings: number; hits: number; parries: number; dodges: number; stuns: number; execs: number;
   combo: number; kills: number; fight: number; ph: Record<string, number>; buys: { id: string; ch: number; igt: number; price: number }[];
   /** подсплиты забега в порядке прохождения (только наблюдение: игру не меняют) */
   subs: SubSplit[];
-  _: { atk?: boolean; hp?: number; st?: boolean };
+  /** бои с боссами по порядку: урон, отбивы, полученный урон, оглушения, казни, смерти, время боя */
+  bosses: BossStat[];
+  _: { atk?: boolean; hp?: number; st?: boolean; bs?: { dmg: number; par: number; taken: number; stuns: number; execs: number; deaths: number } };
 }
-export const freshStats = (): StatsData => ({ dmg: 0, bossDmg: 0, taken: 0, heals: 0, swings: 0, hits: 0, parries: 0, dodges: 0, stuns: 0, execs: 0, combo: 0, kills: 0, fight: 0, ph: {}, buys: [], subs: [], _: {} });
+export const freshStats = (): StatsData => ({ dmg: 0, bossDmg: 0, taken: 0, heals: 0, swings: 0, hits: 0, parries: 0, dodges: 0, stuns: 0, execs: 0, combo: 0, kills: 0, fight: 0, ph: {}, buys: [], subs: [], bosses: [], _: {} });
 /** номер фазы босса: у Корнематки, Владика и Тимы это поле phase, у Миши фаза растёт с каждой диктовкой (отметки здоровья 2/3 и 1/3) */
 export function bossPhase(b: Boss): number {
   if (b.phase != null) return b.phase || 1;
@@ -28,7 +32,13 @@ export function statSub(sc: World, k: SubKind): void {
   const S = statBegin(sc), r = sc.sr; if (!S || !r) return;
   const ch = sc.camp ? sc.camp.ch : 1;
   if (S.subs.some((x) => x.ch === ch && x.k === k)) return;
-  S.subs.push({ ch, k, igt: Math.round(r.igt) });
+  const igt = Math.round(r.igt);
+  S.subs.push({ ch, k, igt });
+  if (k === 'kill') { // итог боя: разница счётчиков с прошлой смерти босса
+    const q = S._.bs ?? { dmg: 0, par: 0, taken: 0, stuns: 0, execs: 0, deaths: 0 }, f = S.subs.find((x) => x.ch === ch && x.k === 'fight');
+    S.bosses.push({ ch, dmg: Math.round((S.bossDmg - q.dmg) * 10) / 10, parries: S.parries - q.par, taken: S.taken - q.taken, stuns: S.stuns - q.stuns, execs: S.execs - q.execs, deaths: r.deaths - q.deaths, fight: f ? Math.max(0, igt - f.igt) : 0 });
+    S._.bs = { dmg: S.bossDmg, par: S.parries, taken: S.taken, stuns: S.stuns, execs: S.execs, deaths: r.deaths };
+  }
 }
 
 /** RaceStats.of(gs): статистика текущего забега или null вне забега */

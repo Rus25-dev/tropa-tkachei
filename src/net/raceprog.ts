@@ -2,7 +2,7 @@
 // Подсплиты: выход из коридора, скамья, начало боя, фазы 2 и 3 босса, смерть босса (ядро: core/racestats.ts). Сплиты глав — на смерти босса.
 import { SR_CATS } from '../core/balance';
 import { nkey } from '../core/elo';
-import type { Pb, PSub, RaceResult, RoomPlayer } from './racecommon';
+import type { BossRow, Pb, PSub, RaceResult, RoomPlayer } from './racecommon';
 
 export type Kind = 'exit' | 'bench' | 'fight' | 'ph2' | 'ph3' | 'kill';
 export const SUB_NAME: Record<string, string> = { exit: 'выход из коридора', bench: 'скамья', fight: 'начало боя', ph2: 'фаза 2', ph3: 'фаза 3', kill: 'смерть босса' };
@@ -139,4 +139,32 @@ export function cmpRows(disc: string, a: RoomPlayer | undefined, b: RoomPlayer |
       pa: ta != null && ra != null ? ta - ra : null, pb: tb != null && rb != null ? tb - rb : null });
   }
   return rows;
+}
+
+// ----- босс-раш: таблица «босс × игрок» -----
+export interface BossCmp {
+  ch: number; name: string; /** время боя: от смерти прошлого босса до смерти этого (RTA, мс) */ ta: number | null; tb: number | null; d: number | null;
+  a: BossRow | null; b: BossRow | null; /** кто быстрее на этом боссе */ win: 'a' | 'b' | null; pa: number | null; pb: number | null;
+}
+/** время боя с боссом главы ch: разница двух соседних сплитов (первый босс — от старта) */
+export function bossTime(p: { splits?: number[] } | undefined, ch: number): number | null {
+  const s = p?.splits; if (!s || s[ch - 1] == null) return null;
+  const prev = ch > 1 ? s[ch - 2] : 0; return prev == null ? null : s[ch - 1]! - prev;
+}
+/** строки таблицы «босс × игрок»: время, урон, отбивы, разница, победитель боя и разница к лучшему отрезку игрока */
+export function bossRows(disc: string, a: RoomPlayer | undefined, b: RoomPlayer | undefined): BossCmp[] {
+  const rows: BossCmp[] = [];
+  for (let ch = 1; ch <= 4; ch++) {
+    const ta = bossTime(a, ch), tb = bossTime(b, ch);
+    const sega = a?.pb?.bs[ch - 1] ?? null, segb = b?.pb?.bs[ch - 1] ?? null;
+    rows.push({ ch, name: tagsOf(disc)[ch - 1] ?? 'Босс ' + ch, ta, tb, d: ta != null && tb != null ? ta - tb : null, a: a?.bosses?.find((x) => x.ch === ch) ?? null, b: b?.bosses?.find((x) => x.ch === ch) ?? null,
+      win: ta != null && tb != null && ta !== tb ? (ta < tb ? 'a' : 'b') : null, pa: ta != null && sega != null ? ta - sega : null, pb: tb != null && segb != null ? tb - segb : null });
+  }
+  return rows;
+}
+/** лучший босс игрока внутри раша: где его отрыв от соперника самый большой; null, если нигде не быстрее */
+export function bestBoss(rows: readonly BossCmp[], who: 'a' | 'b'): number | null {
+  let best: number | null = null, gap = 0;
+  for (const r of rows) { if (r.d == null) continue; const g = who === 'a' ? -r.d : r.d; if (g > gap) { gap = g; best = r.ch; } }
+  return best;
 }

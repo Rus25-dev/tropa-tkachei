@@ -34,7 +34,7 @@ const r1 = (x: number): number => Math.round(x * 10) / 10;
 class RunPort implements NetPort {
   private telAt = 0; private deaths = 0; private parries = 0; private execs = 0; private buys = 0; private ph: { k: number; v: number } | null = null; private inited = false;
   /** сколько подсплитов уже ушло организатору; последняя смерть, у которой считается потерянное время */
-  private subs = 0; private dead: { x: number; ch: number; at: number; fight: boolean } | null = null;
+  private subs = 0; private bosses = 0; private dead: { x: number; ch: number; at: number; fight: boolean } | null = null;
   constructor(private R: Races, private ses: Session, private kind: 'rc' | 'duel') {}
   sendEv(): void { /* событий мира по сети в гонке нет */ }
   sceneChanged(): void { this.ph = null; }
@@ -50,7 +50,7 @@ class RunPort implements NetPort {
   /** события для ленты организатора: по изменению счётчиков забега (смерть, отбив, казнь, покупка, смена фазы босса) */
   private events(r: SrRun, w: World): void {
     const S = r.stats, play = this.R.play; if (!play) return;
-    if (!this.inited) { this.inited = true; this.deaths = r.deaths; this.parries = S?.parries ?? 0; this.execs = S?.execs ?? 0; this.buys = S?.buys.length ?? 0; this.subs = S?.subs.length ?? 0; }
+    if (!this.inited) { this.inited = true; this.deaths = r.deaths; this.parries = S?.parries ?? 0; this.execs = S?.execs ?? 0; this.buys = S?.buys.length ?? 0; this.subs = S?.subs.length ?? 0; this.bosses = S?.bosses.length ?? 0; }
     const ch0 = w.camp ? w.camp.ch : 1, p0 = w.players[0];
     if (r.deaths > this.deaths) { play.event('death', { ch: ch0 }); if (p0) this.dead = { x: p0.x, ch: ch0, at: runRta(r), fight: bossLive(w.testBoss() ?? w.boss) }; }
     this.deaths = r.deaths;
@@ -60,6 +60,7 @@ class RunPort implements NetPort {
       if (el > 1200 && (back || el > 90000)) { play.event('lost', { ms: Math.round(Math.min(el, 90000)) }); this.dead = null; }
     }
     if (S) {
+      while (this.bosses < S.bosses.length) { const b = S.bosses[this.bosses++]!; play.event('boss', { ch: b.ch, dmg: b.dmg, par: b.parries, tk: b.taken, stn: b.stuns, exe: b.execs, dth: b.deaths, fgt: b.fight }); }
       while (this.subs < S.subs.length) { const s = S.subs[this.subs++]!; play.event('sub', { ch: s.ch, sk: s.k, igt: s.igt }); }
       if (S.parries > this.parries) play.event('parry'); this.parries = S.parries;
       if (S.execs > this.execs) play.event('exec'); this.execs = S.execs;
@@ -191,7 +192,7 @@ export class Races {
     ses.net = new RunPort(this, ses, kind);
     if (kind === 'rc') {
       add('srSplit', (e) => this.play?.onSplit(e.i, e.split));
-      add('srFinish', (e) => { const res = e.result as SrResult, r = ses.sr!; this.play?.onFinish(res, packStats(r.stats, res.igt / 1000 * 60), r.restored | 0); });
+      add('srFinish', (e) => { const res = e.result as SrResult, r = ses.sr!; this.play?.onFinish(res, packStats(r.stats, res.igt / 1000 * 60), r.restored | 0, r.stats?.bosses); });
     } else add('srFinish', (e) => { const res = e.result as SrResult; this.duel?.finish({ rta: res.rta, igt: res.igt, deaths: res.deaths }); });
   }
   private stopRun(): void { journalStore.clear(); this.setCd('', true); this.o.stop(); }
