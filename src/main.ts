@@ -3,6 +3,8 @@ import { createSession, type LaunchParams } from './app/launch';
 import type { Session } from './core/session';
 import { applySettings, initLayout } from './app/apply';
 import { Online } from './app/online';
+import { Races } from './app/races';
+import * as jr from './app/journal';
 import { loadKeys } from './app/keys';
 import { srFinish } from './core/speedrun';
 import { settings } from './app/store';
@@ -41,4 +43,8 @@ function stop(): void { shared.session = null; game.events.emit('tt:session', nu
 
 (window as unknown as { __tt?: unknown }).__tt = { game, shared, start, stop, debug: { srFinish } };
 const online = new Online({ version, start });
-render(h(App, { hub, version, build, start, stop, game, shared, online }), ui);
+const races = new Races({ version, start, stop, shared, game, snd: (n) => Snd.play(n) });
+shared.ghost = () => races.ghost();
+jr.install(() => shared.session);
+(window as unknown as { __tt?: Record<string, unknown> }).__tt!['races'] = races;
+render(h(App, { hub, version, build, start, stop, game, shared, online, races }), ui);

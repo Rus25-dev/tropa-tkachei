@@ -23,3 +23,9 @@ export function fitCamera(scene: Phaser.Scene, f: Fit, zoom = 1, cx = f.vw / 2, 
   cam.setZoom(f.scale * zoom);
   cam.centerOn(cx, cy);
 }
+
+/** Рабочая область обсервера 1920×1080 (16:9), вписанная в окно: размеры в CSS-пикселях. Поля по бокам — фон. */
+export function watchBox(cssW: number, cssH: number): { x: number; y: number; w: number; h: number; scale: number } {
+  const s = Math.min(cssW / 1920, cssH / 1080), w = 1920 * s, h = 1080 * s;
+  return { x: (cssW - w) / 2, y: (cssH - h) / 2, w, h, scale: s };
+}
