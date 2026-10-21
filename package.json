@@ -1,6 +1,6 @@
 {
   "name": "tropa-tkachei",
-  "version": "2.0.0-dev",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
   "description": "Тропа Ткачей v2: Phaser 4 + TypeScript + Vite. Старая игра v1.8 лежит в legacy/.",
