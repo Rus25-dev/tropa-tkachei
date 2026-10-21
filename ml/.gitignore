@@ -2,3 +2,16 @@
 __pycache__/
 # отчёты подбора — рабочие файлы: в репозиторий кладут только осознанно выбранные
 reports/*/
+
+# RL: окружение Python, прогоны обучения (веса и записи в git не попадают; отчёты и конфиги — да)
+.venv-rl/
+rl/runs/*/*.pt
+rl/runs/*/demos/
+rl/runs/*/ckpt/
+rl/runs/*/*.jsonl
+rl/runs/*.log
+rl/runs/*.err
+rl/runs/*/eval.jsonl
+rl/runs/*/stop
+rl/runs/*/demo_now
+rl/runs/*/eval-*.json

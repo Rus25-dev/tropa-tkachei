@@ -1,0 +1,75 @@
+{
+ "average": {
+  "title": "Обычный игрок",
+  "lag": 3,
+  "playLag": 4,
+  "temperature": 1.7,
+  "stick": 0.3,
+  "atkGap": 1,
+  "bossTemp": {
+   "vladik": 0.75,
+   "tima": 1.4,
+   "korne": 0.6
+  },
+  "reward": {}
+ },
+ "careful": {
+  "title": "Осторожный",
+  "lag": 2,
+  "playLag": 3,
+  "temperature": 1.5,
+  "stick": 0.3,
+  "atkGap": 1,
+  "bossTemp": {
+   "vladik": 0.7,
+   "tima": 1.2,
+   "korne": 0.55
+  },
+  "reward": {
+   "hurt": 1.3,
+   "lose": 3.0,
+   "approach": 0.08,
+   "parry": 0.3,
+   "time": 0.0004
+  }
+ },
+ "aggressive": {
+  "title": "Агрессивный",
+  "lag": 3,
+  "playLag": 4,
+  "temperature": 1.8,
+  "stick": 0.2,
+  "atkGap": 0,
+  "bossTemp": {
+   "vladik": 0.85,
+   "tima": 1.5,
+   "korne": 0.7
+  },
+  "reward": {
+   "dmg": 13,
+   "hurt": 0.35,
+   "approach": 0.5,
+   "lose": 1.0,
+   "time": 0.0015
+  }
+ },
+ "novice": {
+  "title": "Новичок",
+  "lag": 5,
+  "playLag": 5,
+  "temperature": 2.2,
+  "stick": 0.4,
+  "atkGap": 2,
+  "bossTemp": {
+   "vladik": 1.1,
+   "tima": 1.8,
+   "korne": 0.9
+  },
+  "reward": {
+   "hurt": 0.5,
+   "approach": 0.15,
+   "parry": 0.0,
+   "switch": 0.0
+  }
+ }
+}

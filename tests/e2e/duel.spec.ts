@@ -9,7 +9,7 @@ import { fakeDuel, type DuelStage } from './fakeroom';
 // Лёгкие проверки идут в одном окне на подложных снимках комнаты (в том числе в CI); многооконная серия — локально (PeerJS между вкладками).
 // Скриншоты панелей и обсервера на пяти размерах — в test-results/duel-shots.
 const require = createRequire(import.meta.url);
-const PORT = 9158;
+const PORT = 9170;
 let server: { close?: () => void } | null = null;
 test.beforeAll(() => { const { PeerServer } = require('peer') as { PeerServer: (o: { port: number; path: string }) => { close?: () => void } }; server = PeerServer({ port: PORT, path: '/' }); mkdirSync('test-results/duel-shots', { recursive: true }); });
 test.afterAll(() => { server?.close?.(); });

@@ -129,6 +129,7 @@ export class Session {
     // дуэль: после конца раунда мир стоит; «Блиц» ускоряет часы тиков на 20 %
     const n = this.sr?.duel && this.sr.done ? 0 : this.clock.advance(deltaMs * (this.speedFactor ?? 1) * duelSpeed(this.sr?.duel));
     for (let i = 0; i < n; i++) {
+      if (this.tickHook && !frozen) this.tickHook(this.world);
       if (this.rec) this.rec.tick(this.world);
       this.world.tick();
     }
@@ -136,6 +137,8 @@ export class Session {
     this.net?.tick(deltaMs / 1000 * w.slowK());
     return n;
   }
+  /** внешний источник ввода на каждый тик (нейросеть-игрок, src/agent): вызывается перед тиком мира; без него поведение не меняется */
+  tickHook: ((w: World) => void) | null = null;
   /** множитель скорости времени из настроек доступности (Access.speed); 1 в забеге */
   speedFactor: number | null = 1;
   /** до какого момента (мс по часам сессии) ввод считается «залипшим» после закрытия меню */

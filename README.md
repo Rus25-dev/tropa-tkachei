@@ -149,6 +149,7 @@
 | `npm run replay -- файл.ttrec` | проиграть запись на ядре и напечатать исход и хэши |
 | `npm run sim -- --boss misha --frames 36000` | быстрая симуляция ядра |
 | `python ml/tune.py --boss korne --target "skill0.6:winrate=0.55..0.65,time=80..120" --trials 50` | Optuna подбирает баланс через бота, отчёт с графиками в `ml/reports/`; игру не меняет (`ml/README.md`) |
+| `ml/.venv-rl/Scripts/python ml/rl/train.py --boss misha --persona average` · `ml/rl/panel.py` | нейросеть-игрок (PPO на видеокарте NVIDIA, симуляция на процессоре): обучение, живая панель http://localhost:8765 с боями агента в настоящей игре, оценка против бота; обученный агент играет в игре по `?agent=<пак>&persona=<характер>` (`ml/README.md`, раздел «Нейросеть-игрок (RL)») |
 
 Записи партий `.ttrec`: включите «Настройки → Игра → Записывать мои бои» (или `?rec=1`); формат — `docs/TTREC.md`. Баланс игры — `data/balance.json` (схема проверяется при загрузке).
 
