@@ -7,3 +7,4 @@ dev-shots/
 dist/
 playwright-report/
 test-results/
+tests/trace/
