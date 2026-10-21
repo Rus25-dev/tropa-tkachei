@@ -7,6 +7,7 @@ import { outcome } from './journal';
 import { normalizeSave, type LoadoutSave } from './loadout';
 import { replayJournal, type ReplayResult } from './replay';
 import type { BalanceData, DeepPartial } from './balance-schema';
+import type { Progress } from './campaign';
 
 export const TTREC_FORMAT = 'ttrec';
 export const TTREC_VERSION = 1;
@@ -30,6 +31,8 @@ export interface TtrecSetup {
   easy?: boolean;
   /** надетое снаряжение на время записи (tt_loadout) */
   loadout?: LoadoutSave;
+  /** сохранение главы (tt_save) на момент создания первой сцены: от него зависят точка возрождения, бусины и способности */
+  progress?: Progress | null;
   /** переопределение баланса, при котором снята запись (только Node-инструменты); игра такие записи не проигрывает */
   balance?: DeepPartial<BalanceData>;
 }
@@ -107,7 +110,7 @@ export function ttrecTicks(r: Ttrec): number { return r.journal.segs.reduce((s, 
 export interface TtrecPlay { result: ReplayResult; outcome: Record<string, unknown> | null; match: boolean | null }
 /** Проигрывает запись ядром (без отрисовки). match — совпал ли исход с r.expect (null, если ожидания нет или воспроизведение сорвалось). */
 export function playTtrec(r: Ttrec, opt: { ver?: string; clock?: () => number } = {}): TtrecPlay {
-  const result = replayJournal(r.journal, { loadoutSave: r.setup.loadout ? normalizeSave(r.setup.loadout) : undefined, easy: !!r.setup.easy, ver: opt.ver ?? r.ver, clock: opt.clock });
+  const result = replayJournal(r.journal, { loadoutSave: r.setup.loadout ? normalizeSave(r.setup.loadout) : undefined, easy: !!r.setup.easy, progress: r.setup.progress ?? null, ver: opt.ver ?? r.ver, clock: opt.clock });
   if (!result.ok) return { result, outcome: null, match: null };
   const out = JSON.parse(JSON.stringify(outcome(result.world))) as Record<string, unknown>;
   return { result, outcome: out, match: r.expect ? JSON.stringify(out) === JSON.stringify(r.expect) : null };
