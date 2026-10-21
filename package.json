@@ -28,6 +28,7 @@
   },
   "dependencies": {
     "idb-keyval": "6.3.0",
+    "lil-gui": "^0.21.0",
     "peerjs": "1.5.5",
     "phaser": "4.2.1",
     "preact": "11.0.1"

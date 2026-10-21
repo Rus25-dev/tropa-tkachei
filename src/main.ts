@@ -40,5 +40,6 @@ function start(p: LaunchParams): Session {
 function stop(): void { shared.session = null; game.events.emit('tt:session', null); }
 
 (window as unknown as { __tt?: unknown }).__tt = { game, shared, start, stop, debug: { srFinish } };
+if (new URLSearchParams(location.search).get('dev') === '1') void import('./ui/devtools').then((m) => m.initDev());
 const online = new Online({ version, start });
 render(h(App, { hub, version, build, start, stop, game, shared, online }), ui);
