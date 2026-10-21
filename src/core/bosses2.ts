@@ -149,7 +149,7 @@ export function stepExtraProj(sc: World, pr: Proj, dt: number): boolean {
       if (sc.isSolid(Math.floor((pr.x + 11) / T), Math.floor((pr.y + 26) / T))) { pr.dead = true; sc.emit('paper', { n: 5, x: pr.x + 11, y: pr.y + 20 }); }
       return true;
     case 'collector': {
-      pr['hitCd'] = (pr['hitCd'] || 0) - dt;
+      pr['hitCd'] = (pr['hitCd'] || 0) - dt; if (pr['flash'] > 0) pr['flash'] -= dt; // вспышка — только для отрисовки
       const [tp] = sc.nearestPlayer(pr.x + 11, pr.y + 11);
       if (pr['kbT'] > 0) pr['kbT'] -= dt;
       else if (tp) { const d = Math.sign(tp.x + 7 - (pr.x + 11)) || 1; pr['face'] = d; pr.vx += (d * pr['spd'] - pr.vx) * Math.min(1, dt * 6); }
