@@ -23,5 +23,6 @@ function winBase(sc: World): void {
     else { s['title'] = 'Миша Додик повержен'; s['bag'] = sc.bagHits; }
   }
   decorate(sc, s);
+  sc.sendEv({ k: 'win', s });
   sc.emit('victory', { s });
 }

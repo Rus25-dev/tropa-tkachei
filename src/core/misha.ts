@@ -29,7 +29,7 @@ export const makeMishaIfAlive = makeMisha;
 
 const mishaBag = (m: Boss): Rect => { const cx = m.x + m.w / 2; return { x: cx - 26 * m.face - 15, y: m.y + 12, w: 30, h: 40 }; };
 function mishaSpeak(m: Boss, text: string, dur?: number): void { m['say'] = text; m['sayT'] = Math.max(dur || 1.6, 1.4 + text.length * 0.07); }
-const smokeAt = (sc: World, n: number, x: number, y: number): void => { sc.emit('smoke', { n, x, y }); };
+const smokeAt = (sc: World, n: number, x: number, y: number): void => { sc.emit('smoke', { n, x, y }); if (sc.online === 'host') sc.sendEv({ k: 'smoke', n, x: Math.round(x), y: Math.round(y) }); };
 const vr = (sc: World): number => sc.rngFor('visual')(); // только для реплик: на исход боя не влияет
 
 // ----- бомбы игроков -----
@@ -42,7 +42,8 @@ export function throwBomb(sc: World, p: Player): void {
   vx += p.vx * 0.25;
   const b = { kind: 'bomb', x: p.x + 7 + f * 8 - 6, y: p.y + 2, w: 12, h: 12, vx, vy, life: 3, owner: p.i };
   sc.snd('throw');
-  sc.projs.push(b);
+  if (sc.auth()) sc.projs.push(b);
+  else sc.sendEv({ k: 'bomb', b: { x: Math.round(b.x), y: Math.round(b.y), vx: Math.round(vx), vy: Math.round(vy) }, i: p.i });
 }
 export function refillBombs(sc: World, p: Player): void {
   if (!sc.crates || p.remote || p.downed) return;
@@ -99,7 +100,7 @@ export function mishaNeedle(sc: World, p: Player, box: Rect): boolean {
   const m = sc.misha;
   if (!m || p.atkHits!.has(m) || ['dead', 'intro'].includes(m.state) || !overlap(box, m)) return false;
   p.atkHits!.add(m);
-  if (!mishaArmored(m)) { mishaNeedleHit(sc, p, m); return true; }
+  if (!mishaArmored(m)) { if (sc.auth()) mishaNeedleHit(sc, p, m); else { m.flash = 0.08; sc.snd('hit'); } return true; }
   // третья фаза: рюкзак застёгнут на все замки — иглой не пробить
   m.flash = 0.06;
   gainSilk(sc, p, true); sc.snd('clink'); sc.parts(5, clamp(p.x + 7 + p.face * 26, m.x, m.x + m.w), m.y + m.h / 2, 0xffffff);
@@ -238,7 +239,7 @@ export function stepLetter(sc: World, pr: { x: number; y: number; vx: number; vy
     const [tp] = sc.nearestPlayer(pr.x + 11, pr.y + 13);
     const tx = tp ? tp.x + 7 : pr.x, ty = tp ? tp.y + 13 : pr.y + 200;
     const dx = tx - (pr.x + 11), dy = ty - (pr.y + 13), l = Math.hypot(dx, dy) || 1;
-    pr.vx = (dx / l) * (pr['spd'] as number); pr.vy = (dy / l) * (pr['spd'] as number); sc.snd('letter');
+    pr.vx = (dx / l) * (pr['spd'] as number); pr.vy = (dy / l) * (pr['spd'] as number); sc.snd('letter'); if (sc.online === 'host') sc.sendEv({ k: 'snd', n: 'letter' });
   }
   pr.x += pr.vx * dt; pr.y += pr.vy * dt;
   const cx = pr.x + 11, cy = pr.y + 13;
@@ -247,13 +248,13 @@ export function stepLetter(sc: World, pr: { x: number; y: number; vx: number; vy
       (pr['bounce'] as number)--; pr.x -= pr.vx * dt * 2; pr.y -= pr.vy * dt * 2;
       const sx = sc.isSolid(Math.floor((cx + Math.sign(pr.vx) * 12) / T), Math.floor(cy / T));
       if (sx) pr.vx = -pr.vx; else pr.vy = -pr.vy;
-    } else { pr.dead = true; sc.emit('paper', { n: 6, x: cx, y: cy }); }
+    } else { pr.dead = true; sc.paperAt(6, cx, cy); }
   }
 }
 export function stepBigLetter(sc: World, pr: { x: number; y: number; vy: number; dead?: boolean }, dt: number): void {
   pr.vy = Math.min(pr.vy + 1100 * dt, 820); pr.y += pr.vy * dt;
   if (sc.isSolid(Math.floor((pr.x + 28) / T), Math.floor((pr.y + 60) / T))) {
-    pr.dead = true; sc.dustAt(14, pr.x + 28, pr.y + 60); sc.emit('paper', { n: 10, x: pr.x + 28, y: pr.y + 50 }); sc.shake(150, 0.008); sc.sfx('slam');
+    pr.dead = true; sc.dustAt(14, pr.x + 28, pr.y + 60); sc.paperAt(10, pr.x + 28, pr.y + 50); sc.shake(150, 0.008); sc.sfx('slam');
   }
 }
 
@@ -272,7 +273,7 @@ export function tdGeo(): { x0: number; x1: number; lanes: { y0: number; y1: numb
   }
   return { x0, x1, lanes, walls, doors, door, wt, start: x0 + 34, goal: x1 - 26 };
 }
-function tdBegin(sc: World): void {
+export function tdBegin(sc: World, fromNet?: boolean): void {
   if (sc.td) return;
   const G = tdGeo(), m = sc.misha;
   const td: Td = { state: 'intro', t: 1.0, lane: 1, mx: G.start, blocks: 0, need: sc.nPlayers === 2 ? 4 : 3, round: 0, say: '', sayT: 0, feint: !!m && m['tdUsed'].length >= 2, fe: false };
@@ -286,13 +287,14 @@ function tdBegin(sc: World): void {
   for (const pr of sc.projs) if (pr.kind !== 'bomb') pr.dead = true;
   sc.tdFlip = true;
   sc.emit('td', { on: true });
-  sc.sfx('roar'); sc.shake(400, 0.006);
+  if (!fromNet) { sc.sfx('roar'); sc.shake(400, 0.006); }
 }
-function tdEnd(sc: World, success: boolean): void {
+export function tdEnd(sc: World, success: boolean, fromNet?: boolean): void {
   if (!sc.td) return;
   sc.td = null;
   sc.emit('td', { on: false });
   for (const p of sc.players) if (!p.remote) { p.bombs = 3; p.inv = 1.2; }
+  if (fromNet) return;
   const m = sc.misha!;
   if (success) {
     m.state = 'stun'; m.t = 3.2; m['hitCd'] = 0; m.vx = 0;

@@ -3,7 +3,7 @@
 import { SHOP } from './balance';
 import { benchClose, benchPick, type BenchEntry } from './coop';
 import { benchRest } from './combat';
-import { buy, go as campaignGo, openShop, type CampState } from './campaign';
+import { buy, go as campaignGo, openShop, snap as campSnap, type CampState } from './campaign';
 import { TickClock } from './clock';
 import type { Inp, FxEvent } from './types';
 import { CHK, enc, EBITS, BITS, hash1, hash2, type Act, type Journal, type JournalSeg, tickValue } from './journal';
@@ -27,6 +27,17 @@ export interface SessionCfg {
   clock: () => number;
   /** нужны ли мирам события для отрисовки */
   fx: boolean;
+  /** настенные часы в мс (Date.now): только метаданные журнала (старт, паузы организатора) для восстановления гонки; ядро их не читает */
+  wall?: () => number;
+  /** сетевая игра вдвоём: роль этой сессии */
+  online?: 'host' | 'guest' | null;
+}
+/** Сетевой порт сессии (его даёт слой net/): события ядра напарнику и такт отправки поз и снимков */
+export interface NetPort {
+  sendEv(o: Record<string, unknown>): void;
+  tick(dtSec: number): void;
+  /** мир сменился (глава → арена): сбросить накопленное */
+  sceneChanged?(): void;
 }
 export type SceneData = Pick<WorldOpts, 'seed' | 'mode' | 'boss' | 'players' | 'camp' | 'train' | 'trainPhase'>;
 
@@ -35,8 +46,8 @@ export class Recorder {
   seg: JournalSeg | null = null;
   dirty = false;
   constructor(public J: Journal) {}
-  static start(info: { cat: 'trail' | 'boss' | null; seed: number; ver: string; race?: unknown; mem?: boolean; easy?: boolean; speed?: number }): Recorder {
-    return new Recorder({ v: 1, ...(info.mem ? { mem: true } : {}), ver: info.ver, cat: info.cat, race: info.race ?? null, seed: info.seed >>> 0, wall0: 0, wallT0: null, wallSave: 0, restored: 0, splits: [], pauses: [], segs: [], st: { easy: !!info.easy, speed: info.speed ?? 100 } });
+  static start(info: { cat: 'trail' | 'boss' | null; seed: number; ver: string; race?: unknown; mem?: boolean; easy?: boolean; speed?: number; wall?: number }): Recorder {
+    return new Recorder({ v: 1, ...(info.mem ? { mem: true } : {}), ver: info.ver, cat: info.cat, race: info.race ?? null, seed: info.seed >>> 0, wall0: info.wall ?? 0, wallT0: null, wallSave: info.wall ?? 0, restored: 0, splits: [], pauses: [], segs: [], st: { easy: !!info.easy, speed: info.speed ?? 100 } });
   }
   begin(w: World): void {
     const sd = w.startData;
@@ -65,19 +76,31 @@ export class Session {
   readonly on: Record<string, ((e: FxEvent, s: Session) => void)[]> = {};
   /** сколько сцен прошло в этой сессии (глава → арена → …) */
   scenes = 0;
+  /** сетевой порт; null — игра без сети */
+  net: NetPort | null = null;
 
-  constructor(public cfg: SessionCfg, first: SceneData, run?: { cat: 'trail' | 'boss'; opt?: RunOpts }) {
+  constructor(public cfg: SessionCfg, first: SceneData | null, run?: { cat: 'trail' | 'boss'; opt?: RunOpts }, resumed?: { J: Journal; world: World; sr: SrRun | null }) {
+    if (resumed) { // забег продолжен после воспроизведения журнала (восстановление после падения вкладки)
+      this.sr = resumed.sr; this.world = resumed.world; this.scenes = resumed.J.segs.length;
+      const rec = new Recorder(resumed.J); rec.seg = resumed.J.segs[resumed.J.segs.length - 1] ?? null; this.rec = rec;
+      this.world.fxOn = cfg.fx;
+      if (this.sr) { this.sr.replay = null; this.sr.clock = cfg.clock; }
+      for (const p of this.world.players) { p.prev = p.raw; p.pend = {}; p['carry'] = {}; }
+      return;
+    }
+    if (!first) throw new Error('нужна первая сцена');
     if (run) {
       this.sr = newRun(run.cat, { ver: cfg.ver, clock: cfg.clock, ...run.opt });
       const d = runStartData(run.cat, first.seed);
       first = { ...first, camp: first.camp ?? d.camp };
-      if (!this.sr.rc) this.rec = Recorder.start({ cat: run.cat, seed: first.seed, ver: cfg.ver, easy: cfg.easy });
+      // журнал ведут одиночный забег и забег «Гонок Ткачей» (в нём запоминается комната); гонка 1×1 журнал не пишет (как в v1.8)
+      if (!this.sr.race) this.rec = Recorder.start({ cat: run.cat, seed: first.seed, ver: cfg.ver, easy: cfg.easy, race: this.sr.rc, wall: cfg.wall?.() });
     }
     this.spawn(first);
   }
 
   private spawn(data: SceneData): void {
-    this.world = new World({ ...data, easy: this.cfg.easy, loadoutSave: this.cfg.loadoutSave, progress: this.cfg.progress, sr: this.sr, fx: this.cfg.fx });
+    this.world = new World({ ...data, easy: this.cfg.easy, loadoutSave: this.cfg.loadoutSave, progress: this.cfg.progress, sr: this.sr, fx: this.cfg.fx, online: this.cfg.online ?? null });
     this.scenes++;
     if (this.rec && this.world.nPlayers === 1) this.rec.begin(this.world);
   }
@@ -95,7 +118,8 @@ export class Session {
     if (frozen) inputs = inputs.map(() => emptyFrame());
     // ввод с фронтами нажатий (накапливаются в p.pend до ближайшего тика)
     for (const p of w.players) {
-      const f = inputs[p.i] ?? inputs[0]; if (!f) continue;
+      if (p.remote) continue; // напарник по сети управляется своим состоянием через сообщения
+      const f = (w.online ? inputs[0] : inputs[p.i] ?? inputs[0]); if (!f) continue;
       const r = f.buttons as Inp, pd = p.pend, e = f.edges;
       pd.jumpP ||= e.jumpP; pd.atkP ||= e.atkP; pd.dashP ||= e.dashP; pd.healP ||= e.healP; pd.upP ||= e.upP; pd.bombP ||= e.bombP; pd.toolP ||= e.toolP;
       p.raw = { ...r }; p.prev = p.raw;
@@ -106,6 +130,7 @@ export class Session {
       this.world.tick();
     }
     this.afterTicks();
+    this.net?.tick(deltaMs / 1000 * w.slowK());
     return n;
   }
   /** множитель скорости времени из настроек доступности (Access.speed); 1 в забеге */
@@ -118,19 +143,21 @@ export class Session {
   afterTicks(): void {
     const w = this.world;
     if (w.fxq.length) {
-      for (const e of w.fxq) { this.dispatch(e); if (this.cfg.fx) this.fxq.push(e); }
+      for (const e of w.fxq) { this.dispatch(e); if (this.cfg.fx && e.k !== 'nev') this.fxq.push(e); }
       w.fxq.length = 0;
     }
     if (w.next) {
       const data = w.next; w.next = null;
       this.spawn({ seed: data.seed, mode: data.mode, boss: data.boss, players: data.players, camp: data.camp });
       this.dispatch({ k: 'scene' });
+      this.net?.sceneChanged?.();
     }
   }
   private dispatch(e: FxEvent): void {
     // внутренние события журнала
     if (e.k === 'srSplit' && this.rec) { this.rec.J.splits[e['i'] as number] = e['split'] as { rta: number; igt: number }; this.rec.dirty = true; }
     if (e.k === 'save') this.cfg.progress = e['progress'] as Progress;
+    if (e.k === 'nev') this.net?.sendEv(e['o'] as Record<string, unknown>);
     if (e.k === 'srFinish') this.dispatch({ k: 'runDone' });
     const hs = this.on[e.k]; if (hs) for (const h of hs) h(e, this);
   }
@@ -169,10 +196,28 @@ export class Session {
   campGo(camp: CampState): void { campaignGo(this.world, camp); }
   /** «Заново»: та же сцена с тем же зерном (в забеге спидрана перезапуск делает приложение) */
   retry(): void { if (this.sr) return; this.spawn({ ...this.world.startData } as SceneData); this.dispatch({ k: 'scene' }); }
+  /** напарник вернулся, пока хост доигрывал один: та же сцена парой (прогресс главы — из снимка) */
+  rejoinPair(): void {
+    const w = this.world; this.cfg.online = 'host';
+    this.spawn({ seed: w.seed, mode: w.startData.mode, boss: w.startData.boss, players: 2, camp: w.camp ? campSnap(w) : null });
+    this.dispatch({ k: 'scene' }); this.net?.sceneChanged?.();
+  }
   /** тренировка: сбросить босса (клавиша Y) */
   trainReset(): void { if (this.world.train) resetBoss(this.world); }
-  techPause(on: boolean): void { this.rec?.act('tp', on ? 1 : 0); srTechPause(this.world, on); }
-  release(): void { const r = this.sr; if (r && r.hold) this.rec?.act('rel'); srRelease(this.world); }
+  techPause(on: boolean): void {
+    const J = this.rec?.J, wall = this.cfg.wall?.();
+    if (J && wall != null) { // паузы организатора по настенному времени: после восстановления они не идут в зачёт
+      if (on) { if (this.sr && this.sr.tp == null) J.pauses.push([wall, null]); }
+      else { const q = J.pauses[J.pauses.length - 1]; if (q && q[1] == null) q[1] = wall; }
+      this.rec!.dirty = true;
+    }
+    this.rec?.act('tp', on ? 1 : 0); srTechPause(this.world, on);
+  }
+  release(): void {
+    const r = this.sr, J = this.rec?.J, wall = this.cfg.wall?.();
+    if (r && r.hold) { if (J && wall != null) { J.wallT0 = wall; this.rec!.dirty = true; } this.rec?.act('rel'); }
+    srRelease(this.world);
+  }
   /** тик для тестов и симуляций: один тик с заданным вводом */
   step(inputs: InputFrame[]): void { this.frame(1000 / 60, inputs); }
   // экспорт для внешних (journal enc/dec) — чтобы не терять ссылку на бинарные имена кнопок

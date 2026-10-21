@@ -29,35 +29,37 @@ export function atkBoxBase(_sc: World, p: Player, W: WeaponDef): Rect {
 // ---------- разрешение удара (база) ----------
 export function resolveAttackBase(sc: World, p: Player): void {
   if (p.downed || p.atkT <= 0 || !p.atkHits) return;
-  const box = atkBox(sc, p), local = !p.remote;
+  const box = atkBox(sc, p), local = !p.remote, auth = sc.auth();
   const pogo = (): void => {
     if (!local || p.pogoed) return; p.pogoed = true; p.vy = -P.POGO; p.canDash = true; p.jumpCut = true; p.dashT = 0; sc.snd('pogo');
   };
   for (const e of sc.enemies) {
     if (e.dead || p.atkHits.has(e) || !overlap(box, e)) continue;
     p.atkHits.add(e);
-    damageEnemy(sc, e, p); if (p['heavy'] && !e.dead) damageEnemy(sc, e, p);
+    if (auth) { damageEnemy(sc, e, p); if (p['heavy'] && !e.dead) damageEnemy(sc, e, p); } else if (!e2Blocked(sc, e, p, true)) { e.flash = 0.1; if (!p.remote) { sc.hitstop = 0.045; sc.snd('hit'); } } // удар напарника уже озвучил хост (snd), зависание кадра — только своему
     if (local) { if (p.atkDir === 'd') pogo(); else if (p.atkDir === 'f') p.kbx = -p.face * 150; }
   }
   const b = sc.boss;
   if (!p.atkHits.has(b) && b.state !== 'sleep' && b.state !== 'dead' && b.state !== 'gone' && overlap(box, b)) {
     p.atkHits.add(b);
-    damageBoss(sc, 'boss', p); if (p['heavy'] && b.state !== 'dead' && b.state !== 'gone') damageBoss(sc, 'boss', p);
+    if (auth) { damageBoss(sc, 'boss', p); if (p['heavy'] && b.state !== 'dead' && b.state !== 'gone') damageBoss(sc, 'boss', p); } else { b.flash = 0.09; if (!p.remote) { sc.hitstop = 0.04; sc.snd('hit'); } }
     if (local) { if (p.atkDir === 'd') pogo(); else if (p.atkDir === 'f') p.kbx = -p.face * 170; }
   }
   if (sc.misha && mishaNeedle(sc, p, box) && local) { if (p.atkDir === 'd') pogo(); else if (p.atkDir === 'f') p.kbx = -p.face * 190; }
   for (const [vb, key] of [[sc.vladik, 'vladik'], [sc.tima, 'tima']] as const) {
     if (!vb || p.atkHits.has(vb) || ['dead', 'intro'].includes(vb.state) || !overlap(box, vb)) continue;
     p.atkHits.add(vb);
-    damageBoss(sc, key, p); if (p['heavy'] && vb.state !== 'dead') damageBoss(sc, key, p);
+    if (auth) { damageBoss(sc, key, p); if (p['heavy'] && vb.state !== 'dead') damageBoss(sc, key, p); } else { vb.flash = 0.09; if (!p.remote) { sc.hitstop = 0.04; sc.snd('hit'); } }
     if (local) { if (p.atkDir === 'd') pogo(); else if (p.atkDir === 'f') p.kbx = -p.face * 170; }
   }
   for (const pr of sc.projs) if (SLASH_KINDS.has(pr.kind) && !pr.dead && overlap(box, pr)) {
-    if (pr.kind === 'collector') { hitCollector(sc, pr, p.face); if (local && p.atkDir === 'd') pogo(); continue; }
-    pr.dead = true;
-    if (pr.kind === 'letter' || pr.kind === 'rain') { sc.emit('paper', { n: 6, x: pr.x + 11, y: pr.y + 13 }); sc.sfx('clink'); }
-    else if (pr.kind === 'spore') sc.burst(6, pr.x + 6, pr.y + 6, 0xc7f08a);
-    else { sc.burst(6, pr.x + pr.w / 2, pr.y + pr.h / 2, 0xffd47a); sc.sfx('clink'); }
+    if (pr.kind === 'collector') { if (auth) hitCollector(sc, pr, p.face); else if (local) sc.sendEv({ k: 'cut', kind: 'collector', x: Math.round(pr.x), y: Math.round(pr.y), d: p.face }); if (local && p.atkDir === 'd') pogo(); continue; }
+    if (auth) {
+      pr.dead = true;
+      if (pr.kind === 'letter' || pr.kind === 'rain') { sc.paperAt(6, pr.x + 11, pr.y + 13); sc.sfx('clink'); }
+      else if (pr.kind === 'spore') sc.burst(6, pr.x + 6, pr.y + 6, 0xc7f08a);
+      else { sc.burst(6, pr.x + pr.w / 2, pr.y + pr.h / 2, 0xffd47a); sc.sfx('clink'); }
+    } else if (pr.kind !== 'spore') { pr.dead = true; if (local) sc.sendEv({ k: 'cut', kind: pr.kind, x: Math.round(pr.x), y: Math.round(pr.y) }); } // чужой взмах срезает хост сам
     if (local && p.atkDir === 'd') pogo();
   }
   if (local && p.atkDir === 'd' && !p.pogoed && sc.rectHitsTile(box, SPIKE, 0.7)) { pogo(); sc.parts(5, box.x + 18, box.y + 30, 0xffffff); }
@@ -67,7 +69,7 @@ export function resolveAttackBase(sc: World, p: Player): void {
 export function gainSilkBase(sc: World, p: Player, boss?: boolean): void {
   if (p['noSilkGain']) return;
   if (boss && ((p['bossHits'] = ((p['bossHits'] as number) || 0) + 1) % BAL.silkEvery)) return;
-  p.silk = Math.min(sc.silkMax, p.silk + 1);
+  if (p.remote) sc.sendEv({ k: 'silk', i: p.i }); else p.silk = Math.min(sc.silkMax, p.silk + 1);
 }
 
 export function damageEnemyBase(sc: World, e: Enemy, p: Player): void {
@@ -102,7 +104,7 @@ export function hurtPlayerBase(sc: World, p: Player, dmg: number, srcX: number |
   }
   p.hp -= dmg; p.inv = P.INV; if (!p.remote) sc.emit('buzz', { ms: 45 }); p.hurtT = P.HURT; p.dashT = 0; p.sit = false; p.atkT = 0; p['healCh'] = 0; p.healT = 0;
   p.vy = spike ? 0 : -320; p.kbx = srcX == null ? 0 : ((p.x + 7 < srcX) ? -1 : 1) * 260;
-  sc.hitstop = 0.09; sc.shake(160, 0.008); sc.snd('hurt');
+  sc.hitstop = 0.09; sc.emit('shake', { d: 160, i: 0.008 }); sc.snd('hurt');
   sc.parts(10, p.x + 7, p.y + 13, 0xffffff);
   if (p.hp <= 0) downPlayer(sc, p);
 }
@@ -112,6 +114,7 @@ export function downPlayer(sc: World, p: Player): void {
   p.hp = 0; p.atkT = 0; p.dashT = 0;
   const partner = sc.players.find((q) => q !== p && !q.downed);
   if (partner) { p.downed = true; p.reviveT = 0; p.kbx = 0; sc.toast(`${p.pal.name} в коконе. ${partner.pal.name}: подойди и держи ↑`); }
+  else if (!sc.auth()) { p.downed = true; p.reviveT = 0; } // обрыв нити объявит хост
   else teamWipe(sc);
 }
 export function teamWipe(sc: World): void {
@@ -119,6 +122,7 @@ export function teamWipe(sc: World): void {
   sc.wiping = true; sc.deaths++;
   for (const p of sc.players) if (!p.remote) p.downed = true;
   if (sc.sr && !sc.sr.done) sc.sr.deaths++; // speedrun.js: счётчик обрывов
+  sc.sendEv({ k: 'wipe' });
   sc.emit('wipe');
   sc.toast('Нить оборвалась…');
   sc.after(0.7, () => sc.emit('fade', { out: true, ms: 600 }));
@@ -134,7 +138,8 @@ export function respawnAll(sc: World): void {
   if (sc.td) { sc.td = null; sc.tdFlip = false; sc.emit('td', { on: false }); }
   if (sc.misha && sc.misha.state !== 'dead') { makeMisha(sc); sc.bossBar(false); }
   if (sc.vladik && sc.vladik.state !== 'dead') { makeVladik(sc); sc.bossBar(false); }
-  if (sc.tima && sc.tima.state !== 'dead') { sc.repoT = 0; makeTima(sc); sc.bossBar(false); }
+  if (sc.tima && sc.tima.state !== 'dead') { sc.repoT = 0; makeTima(sc); sc.sendEv({ k: 'repo', on: 0 }); sc.bossBar(false); }
+  sc.sendEv({ k: 'respawn', x: sc.respawn.x, y: sc.respawn.y });
   respawnLocal(sc);
 }
 export function respawnLocal(sc: World): void {
@@ -151,6 +156,7 @@ export function respawnLocal(sc: World): void {
 export function benchRest(sc: World, p: Player, b: { x: number; y: number }, quiet?: boolean): void {
   p.sit = true; p.x = b.x - 7; p.hp = p.maxHp; sc.respawn = { x: b.x, y: b.y }; sc.snd('bench');
   for (const q of sc.players) if (q.downed && !q.remote) { q.downed = false; q.hp = 2; q.inv = 1.5; q.x = b.x - 7 + 22; q.y = b.y - 26; }
+  sc.sendEv({ k: 'bench', x: b.x, y: b.y });
   if (!quiet) sc.toast(sc.camp ? 'Скамья: здесь вы очнётесь. Прогресс сохранён. ↓ — лавка' : 'Скамья: здесь вы очнётесь. Прогресс сохранён');
   if (sc.mode === 'story') {
     const bi = sc.benches.indexOf(b), area = areaOf(sc, b.x / T);
@@ -169,8 +175,8 @@ export function parrySuccess(sc: World, p: Player, _srcX: number | null): void {
   sc.parts(18, cx + p.face * 10, cy, 0xffffff);
   for (const pr of sc.projs) if (!pr.dead && pr.kind !== 'bomb' && Math.hypot(pr.x - cx, pr.y - cy) < 110) { pr.dead = true; sc.burst(5, pr.x, pr.y, 0xffffff); }
   for (const e of sc.enemies) if (!e.dead && Math.hypot(e.x + e.w / 2 - cx, e.y + e.h / 2 - cy) < 100) { e.kbT = 0.2; e.kbx = Math.sign(e.x - cx) * 300; e.kby = -120; e.flash = 0.1; if (e['state'] === 'charge') { e['state'] = 'stun'; e['st'] = 0.8; } }
-  parryPoise(sc, cx, cy);
-  e2Parry(sc, cx, cy); // enemies2.js: отбив ломает броню панциря
+  if (sc.auth()) parryPoise(sc, cx, cy); else sc.sendEv({ k: 'parrypoise', x: Math.round(cx), y: Math.round(cy) });
+  if (sc.auth()) e2Parry(sc, cx, cy); else sc.sendEv({ k: 'e2parry', x: Math.round(cx), y: Math.round(cy) }); // enemies2.js: отбив ломает броню панциря
 }
 export function parryPoise(sc: World, cx: number, cy: number): void {
   for (const b of [sc.boss, sc.vladik, sc.tima]) if (b && Math.hypot(b.x + b.w / 2 - cx, b.y + b.h / 2 - cy) < 190) poiseAdd(sc, b, 3);
@@ -182,6 +188,7 @@ export function silkBurst(sc: World, p: Player): void {
   sc.snd('slam'); sc.shake(180, 0.008); sc.hitstop = 0.06;
   sc.parts(36, cx, cy, p.pal.accent);
   p['burstFx'] = 0.35;
+  if (!sc.auth()) { sc.sendEv({ k: 'burstSkill', x: Math.round(cx), y: Math.round(cy) }); return; }
   silkBurstHit(sc, p, cx, cy);
 }
 export function silkBurstHit(sc: World, p: Player, cx: number, cy: number): void {

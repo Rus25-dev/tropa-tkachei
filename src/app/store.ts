@@ -3,6 +3,8 @@
 import type { Progress } from '../core/campaign';
 import { normalizeSave, type LoadoutSave, CHARMS, TOOLS, CHARM_SLOTS, canFit } from '../core/loadout';
 import { WEAPONS } from '../core/weapons';
+import type { OrgStored, PlaySess, PlayStore, RaceResult, RaceStore } from '../net/racecommon';
+import { makeKey } from '../net/types';
 
 function read<T>(key: string, fallback: T): T {
   try { const raw = localStorage.getItem(key); if (!raw) return fallback; return JSON.parse(raw) as T; } catch { return fallback; }
@@ -93,3 +95,30 @@ export const training = {
 training.load();
 export const menuPlayers = (): 1 | 2 => { try { return localStorage.getItem('tt_players') === '2' ? 2 : 1; } catch { return 1; } };
 export const setMenuPlayers = (n: number): void => { try { localStorage.setItem('tt_players', String(n)); } catch { /* нет доступа */ } };
+
+// ----- «Гонки Ткачей»: комната организатора, архив гонок, сеанс игрока, личные ключи (форматы и ключи — как в v1.8) -----
+export const raceStore: RaceStore = {
+  loadOrg(): OrgStored | null { const o = read<OrgStored | null>('tt_rc_org', null); return o && o.S && o.S.code && o.S.v === 1 ? o : null; },
+  saveOrg(o: OrgStored): void { write('tt_rc_org', o); },
+  clearOrg(): void { remove('tt_rc_org'); },
+  archive(): RaceResult[] { const a = read<unknown>('tt_races', []); return Array.isArray(a) ? (a as RaceResult[]) : []; },
+  saveArchive(a: RaceResult[]): void { write('tt_races', a); },
+};
+export const playStore: PlayStore = {
+  loadSess(): PlaySess | null { const o = read<PlaySess | null>('tt_rc_play', null); return o && o.code ? o : null; },
+  saveSess(s: PlaySess): void { write('tt_rc_play', s); },
+  clearSess(): void { remove('tt_rc_play'); },
+};
+/** личный ключ места (игрок tt_rc_key, обсервер tt_rc_wkey) и список прежних имён игрока (tt_rc_names) */
+function rawKey(name: string): string {
+  try { let k = localStorage.getItem(name); if (!k || k.length < 12) { k = makeKey(); localStorage.setItem(name, k); } return k; } catch { return makeKey(); }
+}
+export const rcIds = {
+  playerKey: (): string => rawKey('tt_rc_key'),
+  watchKey: (): string => rawKey('tt_rc_wkey'),
+  names(): string[] { const a = read<unknown>('tt_rc_names', []); return Array.isArray(a) ? (a as string[]).slice(0, 40) : []; },
+  addName(n: string): void {
+    const norm = (x: string): string => x.toLowerCase().replace(/s+/g, '');
+    const a = rcIds.names().filter((x) => norm(x) !== norm(n)); a.unshift(n); write('tt_rc_names', a.slice(0, 40)); sr.setName(n);
+  },
+};

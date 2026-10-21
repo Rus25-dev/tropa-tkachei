@@ -102,7 +102,7 @@ export const WEAPONS: Record<string, WeaponDef> = {
 export const wdef = (p: Player): WeaponDef => WEAPONS[p['weaponId'] as string] ?? WEAPONS['needle']!;
 
 // ---------- начало удара ----------
-const mkSw = (W: WeaponDef, k: string, p: Player, dur: number): Swing => {
+export const mkSw = (W: WeaponDef, k: string, p: Player, dur: number): Swing => {
   const e = (W.sw && W.sw[k]) || null;
   const hits = e && e.hits != null ? e.hits : (p['heavy'] ? 2 : 1);
   let dm = e && e.dm != null ? e.dm : 1;

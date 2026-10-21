@@ -1,6 +1,10 @@
 import { h, render } from 'preact';
 import { createSession, type LaunchParams } from './app/launch';
+import type { Session } from './core/session';
 import { applySettings, initLayout } from './app/apply';
+import { Online } from './app/online';
+import { Races } from './app/races';
+import * as jr from './app/journal';
 import { loadKeys } from './app/keys';
 import { flushRecording } from './app/record';
 import { initWatch } from './app/watch';
@@ -30,14 +34,21 @@ const game = createGame(parent, shared);
 initLayout();
 
 /** Начать партию (меню, тесты, воспроизведение) */
-function start(p: LaunchParams): void {
+function start(p: LaunchParams): Session {
   Snd.init(); applySettings();
-  shared.session = createSession(p, version);
-  game.events.emit('tt:session', shared.session);
+  const s = createSession(p, version);
+  shared.session = s;
+  game.events.emit('tt:session', s);
+  return s;
 }
 function stop(): void { flushRecording(shared.session); shared.session = null; game.events.emit('tt:session', null); }
 
 (window as unknown as { __tt?: unknown }).__tt = { game, shared, start, stop, debug: { srFinish } };
-render(h(App, { hub, version, build, start, stop, game, shared }), ui);
+const online = new Online({ version, start });
+const races = new Races({ version, start, stop, shared, game, snd: (n) => Snd.play(n) });
+shared.ghost = () => races.ghost();
+jr.install(() => shared.session);
+(window as unknown as { __tt?: Record<string, unknown> }).__tt!['races'] = races;
+render(h(App, { hub, version, build, start, stop, game, shared, online, races }), ui);
 // просмотр записей .ttrec: ?watch=адрес, перетаскивание файла, «Настройки → Игра → Открыть запись…»
 initWatch({ version, game, end: stop, begin: (s) => { Snd.init(); applySettings(); shared.session = s; game.events.emit('tt:session', s); } });

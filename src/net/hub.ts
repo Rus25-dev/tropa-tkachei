@@ -137,7 +137,7 @@ export class Hub {
     for (const s of this.seats.values()) {
       if (!s.online) continue;
       if (now - s.lastRecv > DEAD) { const c = s.conn; this._off(s, 'off'); try { c?.close(); } catch { /* уже закрыто */ } continue; }
-      if (now - (s.lastPing || 0) >= HB) { s.lastPing = now; this._tx(s, { k: 'hb', ts: now }); }
+      if (now - (s.lastPing || 0) >= HB) { s.lastPing = now; this._tx(s, { k: 'hb', ts: now, lg: s.lastG ?? 0 }); } // lg — последний номер рассылки, отправленный этому месту: по нему клиент замечает молчаливую потерю
     }
   }
 }

@@ -45,7 +45,8 @@ export function runAct(w: World, a: Act, sr: SrRun | null): void {
   }
 }
 
-export function replayJournal(J: Journal, opt: ReplayOpts = {}): ReplayResult {
+/** Воспроизведение по шагам: отдаёт управление каждые `every` тиков (число тиков — в yield), чтобы страница не зависала при восстановлении длинного забега */
+export function* replaySteps(J: Journal, opt: ReplayOpts = {}, every = Infinity): Generator<number, ReplayResult, void> {
   const first = J.segs[0]; if (!first) return { ok: false, why: 'пустой журнал', tick: 0, seg: 0 };
   let sr: SrRun | null = null;
   let data: WorldOpts;
@@ -81,10 +82,16 @@ export function replayJournal(J: Journal, opt: ReplayOpts = {}): ReplayResult {
       if (--left <= 0) { ri += 2; left = ri < seg.rle.length ? seg.rle[ri + 1]! : 0; }
       w.tick(); total++;
       if (opt.onTick) opt.onTick(w, si);
+      if (total % every === 0) yield total;
     }
     while (ai < seg.acts.length) runAct(w, seg.acts[ai++]!, sr); // действия после последнего тика (например, пауза перед падением)
   }
   return { ok: true, world: w, sr, ticks: total };
+}
+
+export function replayJournal(J: Journal, opt: ReplayOpts = {}): ReplayResult {
+  const g = replaySteps(J, opt);
+  for (;;) { const n = g.next(); if (n.done) return n.value; }
 }
 
 // ----- «читы» гонки (журналируются как ex 1 и ex 2): довести босса до последнего удара и перенести героя на выход, чтобы гонка проходилась за секунды -----

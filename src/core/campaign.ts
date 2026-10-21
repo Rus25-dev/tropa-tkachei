@@ -28,7 +28,7 @@ export function resumeCamp(p: Progress | null): CampState {
 }
 export const campaignSaveName = (sc: World, area: string): string => { const c = CHAPTERS[sc.camp ? sc.camp.ch : 1]!; return `Гл. ${c.roman} · ${area}`; };
 /** арена главы идёт в режиме 'bosstest', но это часть кампании: победа должна сохраняться (кроме спидрана) */
-export const canSave = (sc: World): boolean => !sc.sr && (sc.mode === 'story' || (sc.mode === 'bosstest' && !!sc.camp && sc.camp.st === 'arena'));
+export const canSave = (sc: World): boolean => sc.online !== 'guest' && !sc.sr && (sc.mode === 'story' || (sc.mode === 'bosstest' && !!sc.camp && sc.camp.st === 'arena'));
 
 // ----- хуки мира -----
 export function campaignInit(sc: World, data: WorldOpts): void {
@@ -51,7 +51,7 @@ export function campaignSetup(sc: World): void {
     sc.abil = { ...c.abil }; if (c.st === 'arena') sc.abil['double'] = true;
     sc.beads = c.beads | 0;
     if (c.st === 'road') sc.bossDead = true; // в коридоре боссов нет: выход открыт
-  } else if (c) { sc.abil = { ...c.abil, ...sc.abil }; }
+  } else if (c) { sc.abil = { ...c.abil, ...sc.abil }; if (sc.online === 'guest') sc.beads = c.beads | 0; }
   sc.deaths = 0; sc.timeSec = 0;
   applyUp(sc);
   if (c) sc.startData = { ...sc.startData, camp: snap(sc) };
@@ -125,9 +125,10 @@ export function go(sc: World, camp: CampState): void {
   if (sc.leaving) return; sc.leaving = true;
   // зерно следующей сцены выводится из зерна этой: цепочка сцен забега воспроизводима по одному начальному зерну
   const data = { players: sc.nPlayers, mode: 'story' as const, camp, seed: rngSeedFor(sc.seed, 'next:' + camp.ch + camp.st) };
+  if (sc.online === 'host') sc.sendEv({ k: 'next', camp });
   sc.snd('bench');
   sc.emit('fade', { out: true, ms: 450 });
-  sc.after(0.48, () => { sc.next = data; sc.emit('nextScene', { data }); });
+  sc.after(sc.online === 'host' ? 0.9 : 0.48, () => { sc.next = data; sc.emit('nextScene', { data }); });
 }
 
 // ----- лавка -----
@@ -137,15 +138,18 @@ export function openShop(sc: World, p: Player): void {
   if (!sc.camp || sc.shopOpen || p.remote || sc.won) return;
   sc.shopOpen = true; sc.shopP = p; sc.snd('bead'); sc.emit('shopShow');
 }
-export function buy(sc: World, id: string): void {
+export function buy(sc: World, id: string, fromGuest?: boolean): void {
   const it = SHOP.find((s) => s.id === id); if (!it) return;
+  if (!sc.auth()) { sc.sendEv({ k: 'buy', id }); return; }
+  const say = (m: string): void => { if (fromGuest) sc.sendEv({ k: 'toast', m }); else sc.toast(m); };
   const S = statBegin(sc), b0 = sc.beads, up0 = sc.up[id as keyof UpState];
   const lvl = sc.up[id as keyof UpState] | 0;
-  if (lvl >= it.max) { sc.toast('Уже куплено на максимум'); return; }
+  if (lvl >= it.max) { say('Уже куплено на максимум'); return; }
   const pr = it.price[lvl]!;
-  if (sc.beads < pr) { sc.toast(`Не хватает бусин: нужно ${pr}`); sc.snd('hit'); return; }
+  if (sc.beads < pr) { say(`Не хватает бусин: нужно ${pr}`); sc.snd('hit'); return; }
   sc.beads -= pr; sc.up[id as keyof UpState] = lvl + 1; applyUp(sc); sc.snd('revive');
   for (const p of sc.players) if (!p.remote) sc.parts(16, p.x + 7, p.y + 10, 0xffd47a);
+  sc.sendEv({ k: 'up', up: sc.up, beads: sc.beads });
   campaignSave(sc, {});
   sc.toastAll(`Куплено: ${it.name}`);
   sc.emit('shopRefresh');
