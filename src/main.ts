@@ -24,7 +24,7 @@ const shared: Shared = {
   hub, version, build, session: null,
   touch: coarse || new URLSearchParams(location.search).get('touch') === '1',
   accessSpeed: () => (settings.s.speed || 100) / 100,
-  gfx: () => ({ shake: settings.s.shake, noflash: settings.s.noflash, outl: settings.s.outl, quality: settings.s.gfx, perf: new URLSearchParams(location.search).get('perf') === '1' }),
+  gfx: () => ({ shake: settings.s.shake, noflash: settings.s.noflash, outl: settings.s.outl, vibro: settings.s.vibro, quality: settings.s.gfx, perf: new URLSearchParams(location.search).get('perf') === '1' }),
 };
 const game = createGame(parent, shared);
 initLayout();

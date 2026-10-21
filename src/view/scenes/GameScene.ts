@@ -18,6 +18,7 @@ import { Music } from '../audio/music';
 import type { Shared } from '../game';
 import type { CamInfo } from './BgScene';
 import { PerfOverlay } from '../perf';
+import { rumble } from '../../input/gamepad';
 import { QualityGovernor, applyCameraFx, gradeMatrix } from '../quality';
 
 const FONT = '"Fira Sans", sans-serif', DISPLAY = '"Cormorant SC", Georgia, serif';
@@ -285,7 +286,12 @@ export class GameScene extends Phaser.Scene {
         case 'repo': { const on = e['on'] as boolean; this.furnG?.setAlpha(on ? 0.18 : 1); this.stampTexts.forEach((t) => t.setVisible(on)); break; }
         case 'chargeSnd': if (e['on']) Snd.chargeStart(e['i'] as number, e['dur'] as number, e['id'] as string); else Snd.chargeStop(e['i'] as number); break;
         case 'enemyKill': break;
-        case 'buzz': if (navigator.vibrate) { try { navigator.vibrate(e['ms'] as number); } catch { /* не поддерживается */ } } break;
+        case 'buzz': // отдача: вибрация телефона и геймпада (настройка «Вибрация»)
+          if (gfx.vibro) {
+            if (navigator.vibrate && e['ms']) { try { navigator.vibrate(e['ms'] as number); } catch { /* не поддерживается */ } }
+            if (e['parry']) rumble(110, 0.25, 0.9); else rumble(e['dead'] ? 420 : 180, 0.9, 0.5);
+          }
+          break;
         default: this.game.events.emit('tt:ui', e);
       }
     }

@@ -18,7 +18,7 @@ export interface Shared {
   /** множитель скорости времени из настроек доступности (1 в забеге) */
   accessSpeed?: () => number;
   /** настройки отрисовки */
-  gfx: () => { shake: boolean; noflash: boolean; outl: boolean; quality: QualitySetting; perf: boolean };
+  gfx: () => { shake: boolean; noflash: boolean; outl: boolean; vibro: boolean; quality: QualitySetting; perf: boolean };
 }
 
 /** Создаёт игру Phaser 4. Холст — в родном разрешении: размер окна × min(devicePixelRatio, 2); поле 960…1280 × 540 масштабируют камеры. */
