@@ -5,6 +5,7 @@ import { SR_CATS } from '../core/balance';
 import { computeElo, ratingOf, winChances } from '../core/elo';
 import { fmt, fmtD } from '../core/timefmt';
 import type { Races } from '../app/races';
+import { openRating } from '../app/ratinglink';
 import { fixRules, violation } from '../app/speedrun';
 import { rcIds, sr as srStore } from '../app/store';
 import { DISC, mergeNames, racesJson, type RaceEvent, type RaceResult, type RoomPlayer } from '../net/racecommon';
@@ -166,6 +167,7 @@ export function ArchivePanel({ races }: { races: Races }) {
         <p class="lead">История гонок и рейтинг Эло (старт 1000, пересчитывается по всей истории). Архив можно скачать как <b>races.json</b> и загрузить обратно.</p>
         <div class="row">
           <button type="button" class="btn primary" id="rca-dl" data-testid="arch-download" onClick={() => { if (!download('races.json', racesJson(arch, races.version, new Date().toISOString()))) setMsg('Не удалось скачать файл в этом браузере.'); }}>Скачать races.json</button>
+          <button type="button" class="btn" id="rca-rating" data-testid="arch-rating-link" onClick={openRating}>Страница рейтинга</button>
           <label class="btn" id="rca-load-l">Загрузить races.json<input type="file" id="rca-load" data-testid="arch-load" accept=".json,application/json" hidden onChange={(e) => { void load((e.currentTarget as HTMLInputElement).files?.[0]); (e.currentTarget as HTMLInputElement).value = ''; }} /></label>
           {ask ? (<span class="rc-ask">Стереть весь архив гонок? <button type="button" class="btn danger" id="rca-yes" onClick={clear}>Да</button> <button type="button" class="btn" onClick={() => setAsk(false)}>Нет</button></span>)
             : <button type="button" class="btn ghost" id="rca-clear" data-testid="arch-clear" onClick={() => setAsk(true)}>Очистить архив</button>}
