@@ -38,34 +38,45 @@ export function parryImplemented(): boolean {
 }
 
 // ---------- действия героя ----------
-interface Act { name: string; dir: -1 | 0 | 1; jump: 0 | 1 | 2 | 3; dash?: boolean; atk?: boolean; parry?: boolean }
+interface Act { name: string; dir: -1 | 0 | 1; jump: 0 | 1 | 2 | 3; dash?: boolean; atk?: boolean; parry?: boolean; /** кадр внутри действия, в который жмётся рывок/удар/отбив (0–3) */ at?: number }
 const ACTS: Act[] = [
   { name: 'ждать', dir: 0, jump: 0 }, { name: 'влево', dir: -1, jump: 0 }, { name: 'вправо', dir: 1, jump: 0 },
   { name: 'прыжок', dir: 0, jump: 1 }, { name: 'прыжок←', dir: -1, jump: 1 }, { name: 'прыжок→', dir: 1, jump: 1 },
   { name: 'хоп', dir: 0, jump: 3 }, { name: 'хоп←', dir: -1, jump: 3 }, { name: 'хоп→', dir: 1, jump: 3 },
   { name: 'рывок←', dir: -1, jump: 0, dash: true }, { name: 'рывок→', dir: 1, jump: 0, dash: true },
   { name: 'двойной', dir: 0, jump: 2 }, { name: 'двойной←', dir: -1, jump: 2 }, { name: 'двойной→', dir: 1, jump: 2 },
+  ...[1, 2, 3].flatMap((at): Act[] => [{ name: `рывок←@${at}`, dir: -1, jump: 0, dash: true, at }, { name: `рывок→@${at}`, dir: 1, jump: 0, dash: true, at }]),
   { name: 'удар', dir: 0, jump: 0, atk: true }, { name: 'удар←', dir: -1, jump: 0, atk: true }, { name: 'удар→', dir: 1, jump: 0, atk: true },
 ];
 /** точка расширения: действия отбива; включаются только в режиме parry при наличии Парирования 2.0 */
 const PARRY_ACTS: Act[] = [{ name: 'отбив', dir: 0, jump: 0, parry: true }];
+/** Уровни поиска: сначала дешёвый набор (ждать, шаги, удары), затем рывки, затем прыжки и всё остальное. */
+const LEVEL: ((a: Act) => boolean)[] = [
+  (a) => !a.dash && !a.parry && a.jump === 0,
+  (a) => !a.parry && a.jump === 0,
+];
 const byName = new Map([...ACTS, ...PARRY_ACTS].map((a) => [a.name, a]));
 const act = (n: string): Act => byName.get(n)!;
 
 function frameInp(a: Act, k: number): Inp {
-  return { left: a.dir < 0, right: a.dir > 0, up: false, down: false, jump: a.jump === 1 || (a.jump === 2 && k > 0) || (a.jump === 3 && k < 2), atk: !!a.atk && k === 0, dash: !!a.dash && k === 0, heal: !!a.parry && k === 0, bomb: false, tool: false };
+  return { left: a.dir < 0, right: a.dir > 0, up: false, down: false, jump: a.jump === 1 || (a.jump === 2 && k > 0) || (a.jump === 3 && k < 2), atk: !!a.atk && k === (a.at ?? 0), dash: !!a.dash && k === (a.at ?? 0), heal: !!a.parry && k === (a.at ?? 0), bomb: false, tool: false };
 }
 
 const bossOfWorld = (w: World): ReturnType<World['testBoss']> => w.testBoss();
 const heroCx = (p: Player): number => p.x + p.w / 2;
 
-/** Прокрутить действие на K кадров; false — герой получил урон (или упал). */
+/**
+ * Прокрутить действие на K кадров игры; false — герой получил урон (или упал). Кадры считаются по игровому времени:
+ * тики «зависания» после удара (hitstop) мир не шагает, их не засчитываем, иначе горизонт поиска съедался бы зависаниями.
+ */
 function advance(c: World, a: Act, K: number): boolean {
   const p = c.players[0]!, hp0 = p.hp;
-  for (let k = 0; k < K; k++) {
+  for (let k = 0, guard = 0; k < K && guard < K * 60; guard++) {
+    const frozen = c.hitstop > 0;
     feedInput(c, [frameInp(a, k)]);
     c.tick();
     if (p.hp < hp0 || p.downed) return false;
+    if (!frozen) k++;
   }
   return true;
 }
@@ -93,6 +104,7 @@ export class NoHitPilot {
   cfg: NoHitCfg;
   private tail: Act[] = [];
   private queue: Inp[] = [];
+  private last: Inp | null = null;
   forced: Forced[] = [];
   stats = { replans: 0, nodes: 0, failed: 0 };
   private acts: Act[];
@@ -103,66 +115,104 @@ export class NoHitPilot {
     if (!this.cfg.aggressive) this.acts = this.acts.filter((a) => !a.atk);
   }
 
-  /** Порядок перебора действий в узле: сначала то, что продолжает прежний план, затем «ударить, если достаю», затем отступление. */
-  private order(c: World, tail: Act | undefined): Act[] {
+  /** Обычное поведение в узле: продолжить прежний план; иначе бить босса, если достаю, или идти к нему; иначе ждать. */
+  private usual(c: World, tail: Act | undefined): Act {
+    if (tail) return tail;
+    const p = c.players[0]!, b = bossOfWorld(c);
+    if (this.cfg.aggressive && b && b.state !== 'dead' && b.state !== 'rage') {
+      const dx = b.x + b.w / 2 - heroCx(p), adx = Math.abs(dx), toward = (Math.sign(dx) || p.face) as 1 | -1;
+      const reach = adx <= 66 && Math.abs(p.y + 13 - (b.y + b.h / 2)) < b.h / 2 + 12;
+      if (reach && p.atkCd <= 0) return p.face === toward ? act('удар') : act(toward > 0 ? 'удар→' : 'удар←');
+      if (adx > 60) return act(toward > 0 ? 'вправо' : 'влево');
+      if (adx < 34) return act(toward > 0 ? 'влево' : 'вправо');
+    }
+    return act('ждать');
+  }
+
+  /** Отклонения от обычного поведения в узле, по убыванию «пользы»: рывки (неуязвимость), прыжки, затем шаги и удары. */
+  private deviations(c: World, level: number): Act[] {
     const p = c.players[0]!, b = bossOfWorld(c), out: Act[] = [];
     const push = (a: Act | undefined): void => { if (a && this.acts.includes(a) && !out.includes(a)) out.push(a); };
-    push(tail);
-    const bx = b ? b.x + b.w / 2 : heroCx(p), dx = bx - heroCx(p), adx = Math.abs(dx), toward = (Math.sign(dx) || p.face) as 1 | -1;
-    const away = (-toward) as 1 | -1;
-    const mv = (d: number): Act => act(d > 0 ? 'вправо' : 'влево');
-    const at = (d: number): Act => act(d > 0 ? 'удар→' : 'удар←');
-    if (this.cfg.aggressive && b && b.state !== 'dead' && b.state !== 'rage') {
-      const reach = adx <= 66 && Math.abs(p.y + 13 - (b.y + b.h / 2)) < b.h / 2 + 12;
-      if (reach && p.atkCd <= 0) push(p.face === toward ? act('удар') : at(toward));
-      else if (adx > 60) push(mv(toward));
-      else if (adx < 34) push(mv(away));
+    const dx = (b ? b.x + b.w / 2 : heroCx(p)) - heroCx(p), toward = (Math.sign(dx) || p.face) as 1 | -1, away = (-toward) as 1 | -1;
+    const dir = (d: number, l: string, r: string): string => (d > 0 ? r : l);
+    if (level >= 1) {
+      for (const at of ['', '@1', '@2', '@3']) push(act(dir(away, 'рывок←', 'рывок→') + at));
+      for (const at of ['', '@1', '@2', '@3']) push(act(dir(toward, 'рывок←', 'рывок→') + at));
     }
+    if (level >= 2) {
+      for (const n of ['прыжок', 'хоп', 'двойной']) { push(act(n)); push(act(dir(away, n + '←', n + '→'))); push(act(dir(toward, n + '←', n + '→'))); }
+      for (const a of PARRY_ACTS) push(a);
+    }
+    push(act(dir(away, 'влево', 'вправо'))); push(act(dir(toward, 'влево', 'вправо')));
     push(act('ждать'));
-    push(mv(away)); push(mv(toward));
-    push(act(away > 0 ? 'рывок→' : 'рывок←'));
-    push(act('прыжок')); push(act(away > 0 ? 'прыжок→' : 'прыжок←')); push(act(toward > 0 ? 'прыжок→' : 'прыжок←'));
-    push(act(toward > 0 ? 'рывок→' : 'рывок←'));
-    for (const a of PARRY_ACTS) push(a);
-    push(act('хоп')); push(act(away > 0 ? 'хоп→' : 'хоп←')); push(act(toward > 0 ? 'хоп→' : 'хоп←'));
-    push(act('двойной')); push(act(away > 0 ? 'двойной→' : 'двойной←')); push(act(toward > 0 ? 'двойной→' : 'двойной←'));
-    for (const a of this.acts) push(a);
+    for (const a of this.acts) if (level >= 2 || LEVEL[level]!(a)) push(a);
     return out;
   }
 
-  /** Поиск плана на horizon кадров от состояния w. */
+  /**
+   * Поиск плана на horizon кадров от состояния w. Идея: «обычное» поведение (продолжить прежний план или бить босса, иначе ждать) прокручивается на
+   * копии мира до первого удара; спасать надо только до этого места — перебор отклонений идёт от последнего макро-шага к первому, и в каждом
+   * отклонении поиск повторяется. Так перебор не тонет в бессмысленных перестановках «шагнул влево — шагнул вправо».
+   * Уровни: сначала шаги и удары, затем рывки (с любым кадром нажатия), затем прыжки и всё остальное.
+   */
   private search(w: World): { plan: Act[]; ok: boolean; best: Act[]; exhausted: boolean } {
     const K = this.cfg.step, D = Math.ceil(this.cfg.horizon / K);
-    const dead = new Set<string>();
-    let nodes = 0, over = false, bestDepth = -1, best: Act[] = [];
-    const path: Act[] = [];
-    const rec = (c: World, depth: number): boolean => {
-      if (depth >= D) return true;
-      const b = bossOfWorld(c);
-      if (b && b.state === 'dead') return true; // босс убит — дальше угроз нет
-      for (const a of this.order(c, this.tail[depth])) {
-        if (nodes >= this.cfg.budget) { over = true; return false; }
-        nodes++;
-        const n = cloneWorld(c);
-        const ok = advance(n, a, K);
-        path[depth] = a;
-        if (!ok) { if (depth > bestDepth) { bestDepth = depth; best = path.slice(0, depth + 1); } continue; }
-        if (depth + 1 > bestDepth) { bestDepth = depth + 1; best = path.slice(0, depth + 1); }
-        const key = stateKey(n, depth + 1);
-        if (dead.has(key)) continue;
-        if (rec(n, depth + 1)) return true;
-        dead.add(key);
-        if (over) return false;
+    const budgets = [Math.min(120, this.cfg.budget), Math.min(500, this.cfg.budget), this.cfg.budget];
+    let bestDepth = -1, best: Act[] = [];
+    for (let level = 0; level < 3; level++) {
+      let nodes = 0, over = false, dead = new Set<string>();
+      const rec = (c: World, depth: number, prefix: Act[], devLeft: number): Act[] | null => {
+        // 1. прокрутка «обычного» поведения до первого удара
+        const snaps: World[] = [], acts: Act[] = [];
+        const cur = cloneWorld(c);
+        let fail = -1;
+        for (let j = depth; j < D; j++) {
+          const b = bossOfWorld(cur);
+          if (b && b.state === 'dead') break;
+          snaps.push(cloneWorld(cur));
+          const a0 = this.usual(cur, this.tail[j]);
+          acts.push(a0);
+          if (!advance(cur, a0, K)) { fail = j - depth; break; }
+        }
+        const reach = prefix.length + (fail < 0 ? acts.length : fail + 1);
+        if (reach > bestDepth) { bestDepth = reach; best = [...prefix, ...acts].slice(0, reach); }
+        if (fail < 0) return acts;
+        if (devLeft <= 0) return null;
+        // 2. отклонения: от последнего макро-шага перед ударом к первому
+        for (let jj = fail; jj >= 0; jj--) {
+          const st = snaps[jj]!;
+          for (const a of this.deviations(st, level)) {
+            if (a === acts[jj]) continue;
+            if (nodes >= budgets[level]!) { over = true; return null; }
+            nodes++;
+            const n = cloneWorld(st);
+            if (!advance(n, a, K)) continue;
+            const key = stateKey(n, depth + jj + 1);
+            if (dead.has(key)) continue;
+            const pre = [...prefix, ...acts.slice(0, jj), a];
+            const sub = rec(n, depth + jj + 1, pre, devLeft - 1);
+            if (sub) return [...acts.slice(0, jj), a, ...sub];
+            dead.add(key);
+            if (over) return null;
+          }
+        }
+        return null;
+      };
+      // чем меньше отклонений от обычного поведения, тем лучше: 1, затем 2, затем 3
+      for (let dev = 1; dev <= 3 && !over; dev++) {
+        dead = new Set<string>();
+        const plan = rec(w, 0, [], dev);
+        if (plan) { this.stats.nodes += nodes; return { plan, ok: true, best, exhausted: true }; }
       }
-      return false;
-    };
-    const ok = rec(cloneWorld(w), 0);
-    this.stats.nodes += nodes;
-    return { plan: path.slice(0, D), ok, best, exhausted: !over };
+      this.stats.nodes += nodes;
+      if (level === 2) return { plan: [], ok: false, best, exhausted: !over };
+    }
+    return { plan: [], ok: false, best, exhausted: false };
   }
 
   /** Ввод героя на этот кадр. Вызывать каждый тик перед feedInput/tick. */
   frame(w: World): Inp {
+    if (w.hitstop > 0 && this.last) return this.last; // мир в зависании: кадр не пройдёт, ввод держим прежним
     if (!this.queue.length) {
       this.stats.replans++;
       const r = this.search(w);
@@ -175,7 +225,8 @@ export class NoHitPilot {
       }
       for (let k = 0; k < this.cfg.step; k++) this.queue.push(frameInp(first, k));
     }
-    return this.queue.shift()!;
+    this.last = this.queue.shift()!;
+    return this.last;
   }
 }
 

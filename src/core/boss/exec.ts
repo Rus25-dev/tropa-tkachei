@@ -14,6 +14,7 @@ import { winGame } from '../win';
 import { activeEnd, type Attack, type BossDef, type BoxDef, type Chain } from './schema';
 import { bossDef } from './registry';
 import { newMem, noteUse, pickChain, policyOf, priorities, priorityChain, tickMem, type ArenaSide, type PickCtx, type PolicyMem } from './policy';
+import { attackEvents } from './validate';
 import { framesOf, newAc, poiseMulOf, resolveAnti, staggerBegin, staggerRoom, type AcState } from './anti';
 
 export type DMode = 'intro' | 'idle' | 'rage' | 'scene' | 'attack' | 'dead';
@@ -299,6 +300,17 @@ export function liveBoxes(sc: World, b: Boss): DrawBox[] {
     for (const h of a.active) if (t >= h.from && t <= h.to) out.push({ r: boxRect(b, d.dir, h.hit, d.lock), kind: h.kind });
   }
   return out;
+}
+/** Кадровые данные текущей атаки для тренировки: какая атака, какой кадр (от начала замаха), часть, тип ближайшего удара, окно наказания. */
+export interface FrameInfo { attack: string; chain: string | null; step: number; frame: number; total: number; part: 'tell' | 'active' | 'recover'; kind: HitKind | null; hitIn: number | null; punish: boolean }
+export function frameInfo(b: Boss): FrameInfo | null {
+  const d = b['d'] as DState | undefined; if (!d || d.mode !== 'attack' || !d.atk) return null;
+  const a = attackOf(bossDef(d.id)!, d.atk), T0 = a.tell.frames, end = activeEnd(a), af = d.af;
+  const ev = attackEvents(a), next = ev.find((e) => e.t >= af) ?? ev[ev.length - 1];
+  return {
+    attack: a.name ?? a.id, chain: d.chain, step: d.step, frame: af, total: T0 + Math.max(0, end) + 1 + a.recovery.frames,
+    part: af < T0 ? 'tell' : af - T0 <= end ? 'active' : 'recover', kind: (next?.kind as HitKind | undefined) ?? null, hitIn: next && next.t >= af ? next.t - af : null, punish: d.punish,
+  };
 }
 /** Название текущей атаки (тренировка показывает его в телеграфе) или null. */
 export function currentAttackName(b: Boss): string | null {

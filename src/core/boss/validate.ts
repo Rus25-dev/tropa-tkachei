@@ -274,3 +274,16 @@ export function formatReport(bosses: { id: string; issues: Issue[] }[], color = 
   }
   return lines.join('\n');
 }
+
+/** Таблица кадровых данных босса (для отладки и тренировки): по атакам — замах, удары, снаряды, восстановление, окно наказания. Markdown. */
+export function frameTable(def: BossDef): string {
+  const kind: Record<string, string> = { parry: 'отбив', dodge: 'уворот', unblockable: 'неотбив.' };
+  const out = [`| Атака | Замах | Удары (кадры от конца замаха) | Снаряды | Восстановление | Окно наказания | Сигнал |`, '|---|---|---|---|---|---|---|'];
+  for (const a of def.attacks) {
+    const hits = a.active.map((h) => `${h.from}–${h.to}: ${kind[h.kind]} ×${h.dmg}`).join('; ') || '—';
+    const proj = a.spawn.map((x) => `${x.at}: ${x.proj.kind} ${kind[x.kind]}${x.count > 1 ? ' ×' + x.count : ''}`).join('; ') || '—';
+    const pw = a.recovery.punishWindow;
+    out.push(`| ${a.id} | ${a.tell.frames} | ${hits} | ${proj} | ${a.recovery.frames} | ${pw.from}–${pw.to} (${pw.to - pw.from + 1}) | ${a.tell.cue.color} / ${a.tell.cue.sfx} |`);
+  }
+  return out.join('\n');
+}
