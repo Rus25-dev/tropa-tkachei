@@ -1,0 +1,71 @@
+/* Страница рейтинга: тот же тёмный мир, что и в игре (мох, кость, биолюминесценция), шрифты Cormorant SC и Fira Sans. */
+:root {
+  --void: #070d0c; --moss: #67ad62; --bone: #e8e2cf; --glow: #9ff0c8; --ember: #ffd47a; --muted: #6f9586; --dim: #7fa596; --line: #1d3630; --panel: #0c1815;
+  --display: "Cormorant SC", Georgia, serif; --body: "Fira Sans", system-ui, sans-serif;
+  --sl: env(safe-area-inset-left, 0px); --sr: env(safe-area-inset-right, 0px); --st: env(safe-area-inset-top, 0px); --sb: env(safe-area-inset-bottom, 0px);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; min-height: 100vh; background: var(--void) radial-gradient(ellipse at 50% -10%, #11302a 0%, var(--void) 60%) no-repeat; color: var(--bone); font: 400 16px/1.45 var(--body); }
+a { color: var(--ember); text-decoration: none; }
+a:hover { text-decoration: underline; }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--glow); outline-offset: 2px; }
+.up { color: #7ff0a8; } .down { color: #ff8a7a; }
+
+.rt { max-width: 1100px; margin: 0 auto; padding: max(8px, var(--st)) max(16px, var(--sr)) max(16px, var(--sb)) max(16px, var(--sl)); }
+.rt-head { display: flex; align-items: center; gap: 10px 16px; flex-wrap: wrap; padding: 6px 0 10px; border-bottom: 1px solid var(--line); }
+.rt-back { display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; padding: 0 16px; border-radius: 8px; border: 1px solid #3a6b5a; background: #143029; color: var(--bone); font: 600 16px var(--body); }
+.rt-back:hover { text-decoration: none; background: #1a3d34; }
+.rt-logo { font: 700 clamp(26px, 5vw, 38px) var(--display); color: var(--bone); text-shadow: 0 0 14px rgba(159, 240, 200, .45); line-height: 1; }
+.rt-logo:hover { text-decoration: none; }
+.rt-sub { margin-left: auto; color: var(--dim); font-size: 14px; }
+.rt-main { padding-top: 14px; min-height: 60vh; }
+.rt-foot { margin-top: 26px; padding-top: 12px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12.5px; }
+
+.rt-h1 { font: 700 clamp(30px, 6vw, 44px) var(--display); margin: 4px 0 10px; color: var(--bone); text-shadow: 0 0 12px rgba(159, 240, 200, .3); line-height: 1.05; }
+.rt-h2 { font: 700 clamp(22px, 4vw, 28px) var(--display); margin: 24px 0 8px; color: var(--ember); line-height: 1.1; }
+.rt-lead { margin: 0 0 12px; color: #b9d4c8; font-size: 15px; }
+.rt-note { color: var(--muted); font-size: 13.5px; }
+.rt-crumb { margin: 0; } .rt-crumb a { display: inline-flex; align-items: center; min-height: 44px; font-weight: 600; }
+
+.rt-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
+.rt-tab, .rt-segb, .rt-btn { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; padding: 0 16px; border-radius: 8px; border: 1px solid #3a6b5a; background: #0c1815; color: #cfe8dc; font: 600 15px var(--body); cursor: pointer; }
+.rt-tab:hover, .rt-segb:hover, .rt-btn:hover { text-decoration: none; background: #143029; }
+.rt-tab.on, .rt-segb.on { background: #1f4a3c; border-color: var(--glow); color: var(--bone); }
+.rt-btn { background: #143029; width: fit-content; }
+.rt-seg { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+
+.rt-tw { overflow-x: auto; border: 1px solid #24433a; border-radius: 10px; background: var(--panel); -webkit-overflow-scrolling: touch; }
+.rt-table { width: 100%; border-collapse: collapse; font-size: 15px; }
+.rt-table th, .rt-table td { padding: 4px 12px; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap; height: 44px; }
+.rt-table th { font: 600 12px var(--body); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); height: 36px; }
+.rt-table th.g { text-align: center; border-left: 1px solid var(--line); }
+.rt-table .n { text-align: right; font-variant-numeric: tabular-nums; }
+.rt-table tbody tr:last-child td { border-bottom: 0; }
+.rt-table tbody tr:hover { background: rgba(159, 240, 200, .05); }
+.rt-cell { display: flex; align-items: center; min-height: 44px; font-weight: 600; }
+.rt-elo { color: var(--glow); font-size: 17px; }
+.rt-splits .dlt { color: var(--glow); }
+
+.rt-cards, .rt-recs { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin: 8px 0; }
+.rt-card, .rt-rec { display: flex; flex-direction: column; gap: 2px; padding: 10px 14px; min-height: 44px; border: 1px solid #24433a; border-radius: 10px; background: var(--panel); color: var(--bone); }
+a.rt-rec:hover { text-decoration: none; border-color: var(--glow); }
+.rt-card.win { border-color: #3a6b5a; box-shadow: inset 0 0 0 1px rgba(159, 240, 200, .25); }
+.rt-cl { font: 600 12px var(--body); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.rt-big, .rt-rec b { font: 700 30px/1.1 var(--display); color: var(--bone); font-variant-numeric: tabular-nums; }
+.rt-bigname { font: 600 19px var(--body); }
+.rt-cs { color: var(--dim); font-size: 13px; }
+
+.rt-chartbox { border: 1px solid #24433a; border-radius: 10px; background: var(--panel); padding: 8px 4px 6px; }
+.rt-chart { width: 100%; min-height: 190px; }
+.rt-chart .u-over { cursor: pointer; }
+.rt-tip { min-height: 22px; padding: 2px 12px; color: var(--dim); font-size: 13px; }
+
+.rt-stub { max-width: 640px; margin: 8vh auto 0; padding: 22px; border: 1px solid #24433a; border-radius: 12px; background: var(--panel); display: grid; gap: 8px; justify-items: start; }
+.rt-stub h1 { font: 700 clamp(28px, 6vw, 38px) var(--display); margin: 0; color: var(--bone); }
+.rt-stub p { margin: 0; }
+
+@media (max-width: 600px) { .rt-table th, .rt-table td { padding: 4px 10px; } .rt-sub { margin-left: 0; } }
+/* телефон лёжа (667×375, 844×390): ужимаем шапку и отступы, но кнопки остаются не ниже 44 px */
+@media (max-height: 460px) { .rt-main { padding-top: 6px; } .rt-h1 { margin: 0 0 6px; } .rt-h2 { margin-top: 14px; } .rt-stub { margin-top: 2vh; } }

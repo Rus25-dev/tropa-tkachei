@@ -11,6 +11,7 @@ import { rta as runRta, type SrResult, type SrRun } from '../core/speedrun';
 import type { World } from '../core/world';
 import { Duel, type DuelCat, type Prog } from '../net/duel';
 import { peerTransport } from '../net/peer';
+import { openRating } from './ratinglink';
 import { RaceOrg } from '../net/raceorg';
 import { RacePlay, type RunBridge } from '../net/raceplay';
 import { RaceWatch } from '../net/racewatch';
@@ -96,6 +97,7 @@ export class Races {
     else items.push({ label: 'Войти игроком по коду', sub: 'код или ссылка от организатора', act: () => this.openJoin('') });
     items.push({ label: 'Обсервер', sub: 'смотреть гонку: 1920×1080, две половины и табло', act: () => this.setView('watchjoin') });
     items.push({ label: 'Архив гонок', sub: 'рейтинг Эло, история, races.json', act: () => this.setView('archive') });
+    items.push({ label: 'Рейтинг', sub: 'таблицы Эло, профили и разбор гонок на странице', act: () => openRating() });
     return items;
   }
   racesInfo(): string[] {
