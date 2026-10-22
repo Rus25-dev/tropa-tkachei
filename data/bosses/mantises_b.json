@@ -1,0 +1,68 @@
+{
+  "id": "mantises_b",
+  "name": "Орс, прыгун",
+  "about": "Участник боя «Три Богомола»: быстрые рывки и прыжки со стены.",
+  "hidden": true,
+  "arena": "vladik",
+  "size": { "w": 36, "h": 72 },
+  "hp": [280, 390],
+  "color": 13148730,
+  "intro": { "frames": 120 },
+  "deathFrames": 160,
+  "idle": { "walkSpeed": 110, "keepDist": 150 },
+  "contact": { "dmg": 1, "kind": "dodge" },
+  "antiCheese": { "shoveChain": "b_shove", "relocateChain": "b_vault" },
+  "attacks": [
+    {
+      "id": "dash",
+      "name": "Прорез",
+      "tell": { "frames": 30, "cue": {"color": "red", "sfx": "dash", "pose": "lean"} },
+      "move": [{"from": 0, "to": 24, "vx": 800, "toward": "player"}],
+      "active": [{"from": 0, "to": 24, "hit": {"x": -20, "y": 18, "w": 60, "h": 54}, "dmg": 1, "kind": "dodge"}],
+      "recovery": { "frames": 46, "punishWindow": {"from": 12, "to": 42} }
+    },
+    {
+      "id": "stab",
+      "name": "Выпад",
+      "tell": { "frames": 30, "lockFace": true, "cue": {"color": "yellow", "sfx": "thrust", "pose": "crouch"} },
+      "move": [{"from": 0, "to": 8, "vx": 520, "toward": "player"}],
+      "active": [{"from": 0, "to": 8, "hit": {"x": -2, "y": 22, "w": 56, "h": 38}, "dmg": 1, "kind": "parry"}],
+      "recovery": { "frames": 34, "punishWindow": {"from": 8, "to": 29} }
+    },
+    {
+      "id": "stab2",
+      "name": "Второй выпад",
+      "tell": { "frames": 30, "lockFace": true, "cue": {"color": "yellow", "sfx": "thrust2", "pose": "crouch_low"} },
+      "move": [{"from": 0, "to": 8, "vx": 520, "toward": "player"}],
+      "active": [{"from": 0, "to": 8, "hit": {"x": -2, "y": 22, "w": 56, "h": 38}, "dmg": 1, "kind": "parry"}],
+      "recovery": { "frames": 36, "punishWindow": {"from": 8, "to": 31} }
+    },
+    {
+      "id": "vault",
+      "name": "Прыжок со стены",
+      "tell": { "frames": 30, "lockFace": true, "cue": {"color": "red", "sfx": "vault", "pose": "crouch"} },
+      "move": [{"from": 0, "to": 44, "vx": 300, "vy": -560, "toward": "player"}],
+      "active": [{"from": 44, "to": 48, "hit": {"x": -70, "y": 44, "w": 140, "h": 28}, "dmg": 1, "kind": "dodge"}],
+      "recovery": { "frames": 44, "punishWindow": {"from": 8, "to": 39} }
+    },
+    {
+      "id": "shove",
+      "name": "Отгон",
+      "tell": { "frames": 30, "cue": {"color": "white", "sfx": "shove", "pose": "brace"} },
+      "active": [{"from": 0, "to": 3, "hit": {"x": -70, "y": 24, "w": 140, "h": 48}, "dmg": 1, "kind": "dodge", "knock": {"vx": 420, "vy": -320}}],
+      "recovery": { "frames": 30, "punishWindow": {"from": 6, "to": 25} }
+    }
+  ],
+  "chains": [
+    { "id": "b_dash", "steps": [{"attack": "dash"}], "weight": 1 },
+    { "id": "b_twin", "steps": [{"attack": "stab", "gapFrames": 21}, {"attack": "stab2"}], "weight": 1, "requires": {"phase": [1, 2]} },
+    { "id": "b_twin3", "steps": [{"attack": "stab", "gapFrames": 21}, {"attack": "stab2"}], "weight": 1, "requires": {"phase": [3]} },
+    { "id": "b_vault", "steps": [{"attack": "vault"}], "weight": 1 },
+    { "id": "b_shove", "steps": [{"attack": "shove"}], "weight": 1, "cooldown": 180 }
+  ],
+  "phases": [
+    { "fromHp": 1, "policy": {"chains": ["b_dash", "b_twin", "b_vault"], "noRepeat": 1, "restFrames": [30, 54]} },
+    { "fromHp": 0.62, "rageFrames": 60, "policy": {"chains": ["b_dash", "b_twin", "b_vault"], "noRepeat": 1, "restFrames": [24, 42]} },
+    { "fromHp": 0.27, "rageFrames": 60, "policy": {"chains": ["b_dash", "b_twin3", "b_vault"], "noRepeat": 1, "restFrames": [24, 42]} }
+  ]
+}

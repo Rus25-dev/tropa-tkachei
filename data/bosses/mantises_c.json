@@ -1,0 +1,83 @@
+{
+  "id": "mantises_c",
+  "name": "Вьюн, метательница",
+  "about": "Участник боя «Три Богомола»: бросает серпы издали, в первой фазе только наблюдает.",
+  "hidden": true,
+  "arena": "vladik",
+  "size": { "w": 32, "h": 66 },
+  "hp": [280, 390],
+  "color": 5940896,
+  "intro": { "frames": 120 },
+  "deathFrames": 160,
+  "idle": { "walkSpeed": 80, "keepDist": 330 },
+  "contact": { "dmg": 1, "kind": "dodge" },
+  "antiCheese": { "shoveChain": "c_shove", "relocateChain": "c_leap" },
+  "attacks": [
+    {
+      "id": "throw",
+      "name": "Бросок серпа",
+      "tell": { "frames": 30, "cue": {"color": "yellow", "sfx": "whoosh", "pose": "wind_up"} },
+      "spawn": [{"at": 0, "proj": {"kind": "wave", "w": 24, "h": 18, "life": 150}, "kind": "parry", "ox": 24, "oy": 38, "vx": 330, "dmg": 1}],
+      "recovery": { "frames": 38, "punishWindow": {"from": 8, "to": 33} }
+    },
+    {
+      "id": "fan",
+      "name": "Веер дуг",
+      "tell": { "frames": 30, "cue": {"color": "yellow", "sfx": "spin", "pose": "spin_up"} },
+      "spawn": [
+        {
+          "at": 0,
+          "proj": { "kind": "spore", "w": 12, "h": 12, "life": 180 },
+          "kind": "parry",
+          "ox": 24,
+          "oy": 4,
+          "vx": 360,
+          "vy": -300,
+          "count": 3,
+          "spread": 16
+        }
+      ],
+      "recovery": { "frames": 38, "punishWindow": {"from": 8, "to": 33} }
+    },
+    {
+      "id": "rain",
+      "name": "Серпы с неба",
+      "tell": { "frames": 30, "cue": {"color": "red", "sfx": "rumble2", "pose": "look_up_c"} },
+      "spawn": [
+        { "at": 0, "proj": {"kind": "rock", "w": 16, "h": 16, "life": 120}, "kind": "dodge", "from": "target", "ox": 70, "oy": -300 },
+        { "at": 14, "proj": {"kind": "rock", "w": 16, "h": 16, "life": 120}, "kind": "dodge", "from": "target", "oy": -300 },
+        { "at": 28, "proj": {"kind": "rock", "w": 16, "h": 16, "life": 120}, "kind": "dodge", "from": "target", "ox": -70, "oy": -300 }
+      ],
+      "recovery": { "frames": 46, "punishWindow": {"from": 16, "to": 41} }
+    },
+    {
+      "id": "shove",
+      "name": "Отгон",
+      "tell": { "frames": 30, "cue": {"color": "white", "sfx": "shove", "pose": "brace"} },
+      "active": [{"from": 0, "to": 3, "hit": {"x": -70, "y": 18, "w": 140, "h": 48}, "dmg": 1, "kind": "dodge", "knock": {"vx": 420, "vy": -320}}],
+      "recovery": { "frames": 30, "punishWindow": {"from": 6, "to": 25} }
+    },
+    {
+      "id": "leap",
+      "name": "Прыжок через героя",
+      "tell": { "frames": 32, "lockFace": true, "cue": {"color": "white", "sfx": "leap", "pose": "crouch"} },
+      "move": [{"from": 0, "to": 44, "vx": 300, "vy": -560, "toward": "player"}],
+      "active": [{"from": 44, "to": 48, "hit": {"x": -70, "y": 38, "w": 140, "h": 28}, "dmg": 1, "kind": "dodge"}],
+      "recovery": { "frames": 40, "punishWindow": {"from": 8, "to": 35} }
+    }
+  ],
+  "chains": [
+    { "id": "c_fan", "steps": [{"attack": "fan"}], "weight": 1, "requires": {"phase": [2]} },
+    { "id": "c_fan3", "steps": [{"attack": "fan"}], "weight": 1, "requires": {"phase": [3]} },
+    { "id": "c_throw", "steps": [{"attack": "throw"}], "weight": 1, "requires": {"phase": [2]} },
+    { "id": "c_throw3", "steps": [{"attack": "throw"}], "weight": 1, "requires": {"phase": [3]} },
+    { "id": "c_rain", "steps": [{"attack": "rain"}], "weight": 1, "requires": {"phase": [2, 3]} },
+    { "id": "c_shove", "steps": [{"attack": "shove"}], "weight": 1, "cooldown": 180 },
+    { "id": "c_leap", "steps": [{"attack": "leap"}], "weight": 1, "cooldown": 600 }
+  ],
+  "phases": [
+    { "fromHp": 1, "policy": {"chains": ["c_shove"], "noRepeat": 1, "restFrames": [30, 54]} },
+    { "fromHp": 0.62, "rageFrames": 60, "policy": {"chains": ["c_fan", "c_throw", "c_rain"], "noRepeat": 1, "restFrames": [24, 42]} },
+    { "fromHp": 0.27, "rageFrames": 60, "policy": {"chains": ["c_fan3", "c_throw3", "c_rain"], "noRepeat": 1, "restFrames": [24, 42]} }
+  ]
+}
