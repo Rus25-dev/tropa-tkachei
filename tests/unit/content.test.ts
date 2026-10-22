@@ -104,3 +104,11 @@ describe('снаряды', () => {
     expect(projKindErrs({ attacks: [{ spawn: [{ proj: { kind: 'nope' } }] }] })[0]).toMatch(/nope/);
   });
 });
+
+describe('звуки', () => {
+  it('все прежние звуки синтезатора найдены в src/view/content/sounds, имена не повторяются', async () => {
+    const { soundReg } = await import('../../src/view/content/regs');
+    expect(soundReg.size).toBe(58);
+    for (const n of ['jump', 'hit', 'violin', 'parryPerfect', 'chargeFull', 'crystalGo', 'slide']) expect(typeof soundReg.get(n)?.play, n).toBe('function');
+  });
+});

@@ -91,3 +91,19 @@ export interface ProjView {
 }
 export const defineProjView = (v: ProjView): ProjView => v;
 export const projViewReg = new Registry<ProjView>('отрисовка снарядов');
+
+/** синтезатор, который получает функция звука (src/view/audio/snd.ts) */
+export interface Synth {
+  ctx: AudioContext; master: GainNode;
+  /** тон: форма волны, частота от f0 к f1 за dur секунд, громкость */
+  tone(type: OscillatorType, f0: number, f1: number, dur: number, vol: number): void;
+  /** шум через полосовой фильтр */
+  hiss(dur: number, vol: number, freq: number, q?: number): void;
+  /** вызвать fn(i) через ms[i] миллисекунд */
+  later(ms: number[], fn: (i: number) => void): void;
+}
+/** звук по имени (ядро называет его событием 'snd', данные боссов — полем sfx) */
+export interface SoundDef { id: string; order?: number; play: (s: Synth, R: () => number) => void }
+/** несколько звуков одним файлом src/view/content/sounds/<группа>.ts: { имя: (s, R) => … } */
+export const defineSounds = (m: Record<string, SoundDef['play']>): SoundDef[] => Object.entries(m).map(([id, play]) => ({ id, play }));
+export const soundReg = new Registry<SoundDef>('звуки');
