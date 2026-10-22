@@ -36,7 +36,7 @@ export function readRatingResponse(status: number, text: string): RatingData {
 // ----- имена -----
 export const discName = (d: string): string => DISC[d]?.name ?? d;
 /** подписи отрезков (сплитов) по дисциплинам: то же, что SR_CATS.tags в игре; для неизвестных — номера */
-const TAGS: Record<string, string[]> = { trail: ['Гл. I', 'Гл. II', 'Гл. III', 'Гл. IV'], boss: ['Корнематка', 'Миша', 'Владик', 'Тима'] };
+const TAGS: Record<string, string[]> = { trail: ['Гл. I', 'Гл. II', 'Гл. III', 'Гл. IV'], boss: ['Кающийся', 'Миша', 'Владик', 'Тима'] };
 /** подпись раунда дуэли: «Bo3 · раунд 2 · Миша Додик» (для остальных гонок пусто) */
 export const duelLabel = (r: RaceResult): string => (r.duel ? `${fmtName(r.duel.fmt)} · раунд ${r.round ?? r.duel.slot + 1} · ${BOSS_INFO[r.duel.boss as keyof typeof BOSS_INFO]?.name ?? r.duel.boss}` : '');
 export const duelMods = (r: RaceResult): string => (r.duel ? modsText(r.duel.mods as never) : '');

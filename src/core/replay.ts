@@ -8,7 +8,6 @@ import { benchClose } from './coop';
 import { buy, openShop } from './campaign';
 import { SHOP } from './balance';
 import { damageBoss } from './damage';
-import { mishaBagHit } from './misha';
 import { mapClose, mapGo, mapMove, mapShow } from './maptravel';
 
 export interface ReplayOpts {
@@ -97,11 +96,8 @@ export function replayJournal(J: Journal, opt: ReplayOpts = {}): ReplayResult {
 // ----- «читы» гонки (журналируются как ex 1 и ex 2): довести босса до последнего удара и перенести героя на выход, чтобы гонка проходилась за секунды -----
 export const RACE_EXT: Record<number, (sc: World) => void> = {
   1: (sc) => {
-    const p = sc.players[0]!;
-    if (sc.vladik) { sc.vladik.hp = 1; sc.vladik.state = 'idle'; damageBoss(sc, 'vladik', p); }
-    else if (sc.tima) { sc.tima.hp = 1; sc.tima.state = 'idle'; damageBoss(sc, 'tima', p); }
-    else if (sc.misha) { sc.misha.hp = 1; sc.misha['hitCd'] = 0; sc.misha.state = 'idle'; mishaBagHit(sc); }
-    else { sc.boss.hp = 1; sc.boss.state = 'idle'; damageBoss(sc, 'boss', p); }
+    const b = sc.bosses[0]; if (!b) return;
+    b.hp = 1; b.state = 'idle'; damageBoss(sc, 'd0', sc.players[0]!);
   },
   2: (sc) => { const p = sc.players[0]!, e = sc.exitR!; p.x = e.x + 4; p.y = e.y + 20; p.vx = p.vy = 0; },
 };

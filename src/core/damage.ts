@@ -1,26 +1,20 @@
 // Слои урона. В v1.8 функции урона обёрнуты друг в друга по порядку загрузки модулей (база → оружие → оберегов → статистика);
 // здесь порядок вызовов записан явно. Внешний слой — статистика забега, внутренний — исходная функция (RAW).
-import { BAL, PARRY2, dataIdx } from './balance';
+import { BAL, PARRY2 } from './balance';
 import type { BossRef } from './balance';
-import type { Boss, Enemy, HitKind, Player } from './types';
+import type { Enemy, HitKind, Player } from './types';
 import type { World } from './world';
 import { damageBossWeapons, damageEnemyWeapons, gainSilkWeapons } from './weapons';
 import { gainSilkBase, hurtPlayerBase } from './combat';
 import { hasCharm } from './loadout';
 import { applyStatus, bossDamage, bossKey, bossLive } from './status';
 import { killEnemy } from './combat';
-import { rawKorne } from './korne';
-import { rawVladik } from './vladik';
-import { rawTima } from './tima';
-import { bossRefs, nameOf, poiseWrapDamage } from './bosses2';
+import { bossOf, bossRefs, nameOf, poiseWrapDamage } from './bosses2';
 import { rawData } from './boss/exec';
 import { statBegin, statEndBoss, statEndEnemy, statHurt } from './racestats';
 
 // ---------- исходные функции урона по боссам (RAW) ----------
-export function rawBossDamage(sc: World, key: BossRef, p: Player): void {
-  if (key === 'boss') rawKorne(sc, p); else if (key === 'vladik') rawVladik(sc, p); else if (dataIdx(key) >= 0) rawData(sc, key, p); else rawTima(sc, p);
-}
-const bossOf = (sc: World, key: BossRef): Boss | null => (key === 'boss' ? sc.boss : key === 'vladik' || key === 'tima' ? sc[key] : sc.bosses[dataIdx(key)] ?? null);
+export function rawBossDamage(sc: World, key: BossRef, p: Player): void { rawData(sc, key, p); }
 
 // ---------- нить ----------
 /** gainSilk: оберег «Быстрая нить» (внешний) → оружие (по урону) → база */
@@ -73,7 +67,7 @@ function damageEnemyCharms(sc: World, e: Enemy, p: Player): void {
 // ---------- боссы: статистика → обереги → оружие → стойкость → RAW ----------
 export function damageBoss(sc: World, key: BossRef, p: Player): void {
   const S = statBegin(sc);
-  const cur = sc.testBoss() ?? sc.boss, h0 = cur ? cur.hp : 0;
+  const cur = sc.testBoss(), h0 = cur ? cur.hp : 0;
   damageBossCharms(sc, key, p);
   if (S) statEndBoss(S, cur, h0);
 }

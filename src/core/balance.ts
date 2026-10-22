@@ -16,19 +16,14 @@ export const PAL: readonly Pal[] = [
   { name: 'Ярь', tag: 'Ta', cloak: 0xd8862a, dark: 0x8a4f16, accent: 0xffd9a0, hex: '#ffc46e' },
 ];
 
-export const PERSIST_KINDS = new Set(['wave', 'rwave', 'pad', 'stamp', 'box', 'clef', 'rootspike', 'staff', 'collector', 'trophy', 'echo', 'roller']);
+// снаряды, которые не гаснут при попадании в героя (волны, бумеранги, призрак)
+export const PERSIST_KINDS = new Set(['wave', 'clef', 'echo']);
 // тяжёлые удары боссов отнимают 2 бутона: у них длинный телеграф, и их можно красиво избежать
-export const HEAVY_KINDS = new Set(['rwave', 'wave', 'rootspike', 'stamp', 'trophy', 'bigletter', 'roller', 'echo', 'box']);
-export const HEAVY_STATES = new Set(['charge', 'lunge', 'leap', 'lagFall']);
-export const SLASH_KINDS = new Set(['spore', 'letter', 'note', 'bottle', 'rain', 'collector', 'glob']);
+export const HEAVY_KINDS = new Set(['wave', 'echo']);
+// снаряды, которые срезает обычный взмах
+export const SLASH_KINDS = new Set(['spore', 'note', 'glob']);
 
 export const BAL = J.BAL;
-
-export const PHASE_LINES: Record<string, Record<number, string>> = {
-  'Корнематка': { 2: 'споры чаще, корни из-под земли', 3: 'двойные прыжки и волны корней' },
-  'Владик Скрипка': { 2: 'нотный стан и выпады смычком', 3: 'крещендо: ноты падают с потолка' },
-  'Тима Пиво': { 2: 'коллекторы выходят на охоту', 3: 'ачивки падают сверху, комбо приставкой' },
-};
 
 // ----- стойкость и казнь (bosses2.js) -----
 export const POISE_MAX: Record<number, number> = J.POISE_MAX;
@@ -36,11 +31,9 @@ export const POISE_MAX: Record<number, number> = J.POISE_MAX;
 export let STAGGER_T = J.STAGGER_T;
 /** казнь снимает столько от полного здоровья босса */
 export let EXEC_FRAC = J.EXEC_FRAC;
-export const KITS = [{ key: 'boss', name: 'Корнематка' }, { key: 'vladik', name: 'Владик Скрипка' }, { key: 'tima', name: 'Тима Пиво' }] as const;
-export type BossKey = 'boss' | 'vladik' | 'tima';
 /** боссы на данных (sc.bosses[i]) называются 'd0', 'd1', … */
 export type DataBossKey = `d${number}`;
-export type BossRef = BossKey | DataBossKey;
+export type BossRef = DataBossKey;
 export const dataKey = (i: number): DataBossKey => `d${i}`;
 /** индекс босса на данных по ключу или -1 */
 export const dataIdx = (k: string): number => (/^d\d+$/.test(k) ? +k.slice(1) : -1);
@@ -82,13 +75,16 @@ export const STATUS_KINDS = {
 export type StatusKind = keyof typeof STATUS_KINDS;
 
 // ----- кампания (campaign.js) -----
-export interface Chapter { roman: string; name: string; boss: string; bossLine?: string; road?: string; road2?: string }
+/** boss — id босса главы в data/bosses (в кампании, Босс-раше и дуэли главу занимает именно он) */
+export interface Chapter { roman: string; name: string; boss: string; road?: string; road2?: string }
 export const CHAPTERS: Record<number, Chapter> = {
-  1: { roman: 'I', name: 'Мшистая Глубь', boss: 'korne', bossLine: 'Корнематка повержена' },
-  2: { roman: 'II', name: 'Старая типография', boss: 'misha', road: 'Коридор типографии', road2: 'Склад шрифтов' },
-  3: { roman: 'III', name: 'Кабинет музыки', boss: 'vladik', road: 'Школьный коридор', road2: 'Лестница к кабинету' },
-  4: { roman: 'IV', name: 'Берлога Тимы', boss: 'tima', road: 'Подъезд', road2: 'Лестница к берлоге' },
+  1: { roman: 'I', name: 'Мшистая Глубь', boss: 'penitent' },
+  2: { roman: 'II', name: 'Старая типография', boss: 'misha2', road: 'Коридор типографии', road2: 'Склад шрифтов' },
+  3: { roman: 'III', name: 'Кабинет музыки', boss: 'vladik2', road: 'Школьный коридор', road2: 'Лестница к кабинету' },
+  4: { roman: 'IV', name: 'Берлога Тимы', boss: 'tima2', road: 'Подъезд', road2: 'Лестница к берлоге' },
 };
+/** боссы глав по порядку глав (ходят в Босс-раше, дуэли и таблицах) */
+export const CHAPTER_BOSSES: readonly string[] = [1, 2, 3, 4].map((ch) => CHAPTERS[ch]!.boss);
 export const LAST_CHAPTER = 4;
 export interface ShopItem { id: 'hp' | 'dmg' | 'silk'; name: string; max: number; price: number[] }
 export const SHOP: readonly ShopItem[] = [
@@ -98,15 +94,8 @@ export const SHOP: readonly ShopItem[] = [
 ];
 export const SR_CATS = {
   trail: { id: 'trail', name: 'Тропа целиком', tags: ['Гл. I', 'Гл. II', 'Гл. III', 'Гл. IV'] },
-  boss: { id: 'boss', name: 'Босс-раш', tags: ['Корнематка', 'Миша', 'Владик', 'Тима'] },
+  boss: { id: 'boss', name: 'Босс-раш', tags: ['Кающийся', 'Миша', 'Владик', 'Тима'] },
 } as const;
-
-// ----- слова боссов -----
-export const MISHA_WORDS = ['РЮКЗАК', 'ПРИВЕТ', 'АЗБУКА', 'КАПСЛОК', 'ШРИФТ', 'МИША', 'БУКВЫ', 'ДОДИК'];
-export const MISHA_BIG = 'ШЖЩЫФДЯ';
-export const MISHA_SAY_HIT = ['КХЕ-КХЕ!', 'МОЙ РЮКЗАК!', 'ФУ, ДЫМ!', 'ТАК НЕЧЕСТНО!', 'ЭЙ, ХВАТИТ!'];
-export const VLADIK_SAY_HIT = ['Я НЕ СКРИПКА!', 'Я ВЛАДИК!', 'НЕ НАЗЫВАЙТЕ МЕНЯ ТАК!', 'Я НЕ СКРИПКА!!!'];
-export const TIMA_SAY_HIT = ['ЭЙ, НЕ РАЗЛЕЙ!', 'АЙ!', 'Я НА ПАУЗЕ!', 'ЛАГАЕТ!'];
 
 export const clamp = (v: number, a: number, b: number): number => Math.max(a, Math.min(b, v));
 

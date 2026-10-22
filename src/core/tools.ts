@@ -118,8 +118,6 @@ function stepToolNeedle(sc: World, q: Q, dt: number, bosses: [Boss, BossRef][]):
         q['st'] = 2; q['boss'] = b; q['ox'] = q['x'] - b.x; q['oy'] = q['y'] - b.y; q['stuckT'] = TOOL.NEEDLE_STICK; q['vx'] = q['vy'] = 0;
         sc.sfx('clink'); break;
       }
-      const m = sc.misha;
-      if (q['st'] === 0 && m && !['dead', 'intro'].includes(m.state) && overlap(q as never, inset(m, 6))) { q['st'] = 3; q['vx'] = -q['vx'] * 0.15; q['vy'] = -120; sc.sfx('clink'); sc.burst(5, q['x'] + 6, q['y'] + 6, 0xffffff); }
     }
   } else if (q['st'] === 2) { // воткнута в босса
     const b = q['boss'] as Boss | null; q['stuckT'] -= dt;

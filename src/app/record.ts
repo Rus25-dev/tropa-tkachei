@@ -2,6 +2,7 @@
 // Включается настройкой «Записывать мои бои» (Настройки → Игра) или параметром ?rec=1. Файл только скачивается на устройство:
 // ничего не отправляется в сеть. Запись ведёт core/recording.ts поверх обычной сессии, игровое поведение она не меняет.
 import { CHAPTERS, SR_CATS } from '../core/balance';
+import { bossDef } from '../core/boss/registry';
 import type { Journal } from '../core/journal';
 import { outcome } from '../core/journal';
 import { SessionRecorder, type RecordedRun } from '../core/recording';
@@ -18,10 +19,9 @@ export const recWanted = (): boolean => settings.s.rec || new URLSearchParams(lo
 interface Handle { flush(): void }
 const handles = new WeakMap<Session, Handle>();
 
-const BOSS_NAMES: Record<string, string> = { misha: 'Миша', vladik: 'Владик', tima: 'Тима', korne: 'Корнематка' };
 function describe(w: World, ses: Session): { label: string; slug: string; boss: string | null } {
   if (ses.sr) { const c = SR_CATS[ses.sr.cat]; return { label: c.name, slug: 'zabeg-' + ses.sr.cat, boss: null }; }
-  if (w.mode === 'bosstest') return { label: `Босс-тест · ${BOSS_NAMES[w.bossKind] ?? w.bossKind}`, slug: w.bossKind, boss: w.bossKind };
+  if (w.mode === 'bosstest') return { label: `Босс-тест · ${bossDef(w.bossKind)?.name ?? w.bossKind}`, slug: w.bossKind, boss: w.bossKind };
   const ch = CHAPTERS[w.camp ? w.camp.ch : 1];
   return { label: `Глава ${ch?.roman ?? 'I'} · ${w.camp?.st === 'road' ? 'коридор' : w.camp?.st === 'arena' ? 'арена' : 'уровень'}`, slug: 'glava' + (w.camp ? w.camp.ch : 1), boss: ch?.boss ?? null };
 }

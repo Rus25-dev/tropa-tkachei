@@ -46,7 +46,7 @@ export const WEAPONS: Record<string, WeaponDef> = {
     id: 'twin', name: 'Парные иглы', col: 0xb8ecff,
     desc: 'Очень быстрые, но короткие и слабо отбрасывают. Четвёртый удар — вихрь вокруг героя. С зарядом — шквал.',
     reach: 0.8, thick: 0.9, atkT: 0.08, cd: 0.11, combo: 4, comboWin: 0.4, finisher: true, finT: 0.22, finCd: 0.45, dmg: 0.69,
-    pm: 0.65, kb: 0.4, recoil: 0.4, hs: 0.018, unlock: 'boss:misha',
+    pm: 0.65, kb: 0.4, recoil: 0.4, hs: 0.018, unlock: 'boss:misha2',
     geo: { f: [40, 28, -14], fh: [96, 58, -29, 'c'], u: [34, 44, 40], d: [34, 40] },
     sw: {
       f: { hits: 2, snd: 'whirl' },
@@ -60,7 +60,7 @@ export const WEAPONS: Record<string, WeaponDef> = {
     id: 'sickle', name: 'Серп', col: 0xd9f2a8,
     desc: 'Длинная широкая дуга вверх-вперёд, рубит и летящие снаряды. Медленный замах. Заряд — «жатва» вокруг героя.',
     reach: 1.6, thick: 1.8, atkT: 0.2, cd: 0.52, combo: 2, comboWin: 0.9, finisher: true, finT: 0.24, finCd: 0.66, dmg: 1.62,
-    pm: 1.6, kb: 1.15, recoil: 1, hs: 0.05, cutAll: true, unlock: 'boss:vladik',
+    pm: 1.6, kb: 1.15, recoil: 1, hs: 0.05, cutAll: true, unlock: 'boss:vladik2',
     geo: { f: [80, 62, -46], fh: [102, 68, -50], u: [66, 70, 62], d: [40, 46] },
     sw: {
       f: { hits: 2, snd: 'reap' },
@@ -148,7 +148,7 @@ function chargeTick(sc: World, p: Player, dt: number): void {
   if (p.remote) return;
   const inp = p.inp || {}, held = !!inp.atk, W = wdef(p);
   p['chgWait'] = Math.max(0, ((p['chgWait'] as number) || 0) - dt);
-  const ok = !p.downed && p.hurtT <= 0 && p.dashT <= 0 && !(p['healCh'] > 0) && !p.sit && !(p['execT'] > 0) && p.onGround && !sc.td;
+  const ok = !p.downed && p.hurtT <= 0 && p.dashT <= 0 && !(p['healCh'] > 0) && !p.sit && !(p['execT'] > 0) && p.onGround;
   if (!held) {
     if (((p['chg'] as number) || 0) >= CH_T && !p['chgLock'] && ok) fireCharge(sc, p, W);
     stopChargeSnd(sc, p); p['chg'] = 0; p['chgLock'] = false; return;
@@ -191,7 +191,7 @@ export function atkBox(sc: World, p: Player): Rect {
 }
 
 // ---------- разрешение удара и урон ----------
-const EXTRA_CUT = new Set(['clef', 'drip', 'rock', 'trophy']);
+const EXTRA_CUT = new Set(['clef', 'rock']);
 export function resolveAttack(sc: World, p: Player): void {
   if (p.downed || p.atkT <= 0 || !p.atkHits) return resolveAttackBase(sc, p);
   const W = wdef(p);

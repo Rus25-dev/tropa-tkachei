@@ -8,7 +8,7 @@ import { Client } from './client';
 import { Hub, type Seat } from './hub';
 import { cleanCode, defaultEnv, makeCode, makeKey, type Env, type Msg, type Transport } from './types';
 
-export const BOSS_NAMES = ['Корнематка', 'Миша', 'Владик', 'Тима'];
+export const BOSS_NAMES = ['Кающийся', 'Миша', 'Владик', 'Тима'];
 export type DuelCat = 'trail' | 'boss';
 export interface DuelHooks {
   /** оба готовы: запустить забег с этим зерном (в нём герой стоит до «пошёл») */

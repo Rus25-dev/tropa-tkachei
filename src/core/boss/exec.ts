@@ -11,7 +11,7 @@ import type { World } from '../world';
 import { inset, overlap, phaseOf } from '../world';
 import { bossDeathFx, bossHitSnd, checkPhase, stepBossLayered } from '../bosses2';
 import { gainSilk, hurtPlayer } from '../damage';
-import { bossDeath } from '../korne';
+import { bossDeath } from './death';
 import { atkBox } from '../weapons';
 import { winGame } from '../win';
 import { arenaAbort, arenaClear, arenaFire, arenaOnPhase, arenaOnStart, arenaOnStep, arenaStep, makeArena } from './arena';
@@ -556,7 +556,7 @@ export function dataStaggerRoom(b: Boss): boolean { const d = b['d'] as DState |
 
 export function dataDie(sc: World, i: number): void {
   if (!deathIsFinal(sc, i)) { memberDie(sc, i); barSet(sc, bossDef(dstate(sc.bosses[i]!).id)!); return; }
-  bossDeath(sc, 'dataDie', (s) => dieBase(s, i));
+  bossDeath(sc, dstate(sc.bosses[0]!).id, (s) => dieBase(s, i)); // награда и способность — за ведущего босса боя
 }
 /** Босс пал: состояние и хук kinds; final — бой на этом кончается (громкая смерть), иначе тише */
 function memberDie(sc: World, i: number, final = false): void {

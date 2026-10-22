@@ -5,6 +5,8 @@ import Phaser from 'phaser';
 import { PAL, T } from '../../core/balance';
 import { CHAPTERS } from '../../core/balance';
 import { ARENAS, buildLevel, buildRoad } from '../../core/levels';
+import { bossDef } from '../../core/boss/registry';
+import { arenaLevel } from '../../core/boss/schema';
 import type { Level } from '../../core/types';
 import type { RaceWatch } from '../../net/racewatch';
 import { drawClassroom, drawDen } from '../artRooms';
@@ -57,7 +59,7 @@ export class WatchScene extends Phaser.Scene {
     let L: Level;
     try {
       if (st === 'level') L = buildLevel(); else if (st === 'road') L = buildRoad(ch);
-      else { const boss = CHAPTERS[ch]?.boss ?? 'misha'; L = (ARENAS[boss] ?? ARENAS['misha']!)(); }
+      else { const def = bossDef(CHAPTERS[ch]?.boss ?? CHAPTERS[2]!.boss); L = (ARENAS[def ? arenaLevel(def) : 'misha'] ?? ARENAS['misha']!)(); }
     } catch { return null; }
     const pre = `wv${this.levels.size}_`;
     const chunks = L.theme === 'class' ? drawClassroom(this, L) : L.theme === 'den' ? drawDen(this, L) : drawLevelChunks(this, L, pre), keys: { x: number; key: string }[] = [];

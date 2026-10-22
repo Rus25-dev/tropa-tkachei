@@ -1,9 +1,6 @@
 // Тренировка босс-теста (legacy/src/training.js): старт с выбранной фазы, сброс босса, счётчик урона за 10 с и DPS, «телеграфы» атак.
 // Здоровье героя не убывает (см. damage.hurtPlayerTraining); рекорды не пишутся (qolFight выключен).
 import { respawnLocal } from './combat';
-import { makeMisha } from './misha';
-import { makeTima, setRepo } from './tima';
-import { makeVladik } from './vladik';
 import type { Boss } from './types';
 import { phaseOf, type World } from './world';
 import { currentAttackName, forceChain, frameInfo, resetFight } from './boss/exec';
@@ -18,39 +15,25 @@ export interface TrainState {
 }
 export const newTrain = (phase: number): TrainState => ({ t: 0, log: [], total: 0, first: null, tele: null, boss: null, lastHp: 0, prev: '', hits: 0, resets: 0, phase: [1, 2, 3].includes(phase) ? phase : 1 });
 
-/** как называется атака по состоянию босса (только «телеграфы» — замахи и сама атака) */
-export const TELE: Record<string, Record<string, string>> = {
-  misha: { word: 'Слово из букв', bigWind: 'Большая буква', chargeWind: 'Разбег', dictWind: 'Диктант', rollWind: 'Печатный валик' },
-  vladik: { clefWind: 'Скрипичный ключ', leapWind: 'Прыжок', lungeWind: 'Выпад смычком', staffWind: 'Нотный стан', echoWind: 'Эхо-дуэт', smearGo: 'Слизь на шторы' },
-  tima: { beerWind: 'Пиво', pad: 'Геймпад', ringWind: 'Красное кольцо', boxWind: 'Приставка', bankWind: 'Банкротство', collWind: 'Коллекторы', lagWind: 'Лаги', achWind: 'Ачивки', drink: 'Пьёт пиво', dustDraw: 'Волшебная пыль' },
-};
-
-/** hp босса под порог фазы (фаза 2 — до 60 %, фаза 3 — до 30 %; у Миши вторая половина боя — с 50 %) */
-export function hpFor(b: Boss, kind: string, ph: number): number {
+/** hp босса под порог фазы: пороги берутся из описания босса (b.thr = доли здоровья фаз 2 и 3) */
+export function hpFor(b: Boss, ph: number): number {
   if (ph <= 1) return b.maxHp;
-  if (b['thr']) return Math.max(1, Math.floor(b.maxHp * ((b['thr'] as number[])[Math.min(ph, 3) - 2] ?? 0.3))); // босс на данных: порог фазы из его описания
-  if (ph === 2) return Math.max(1, Math.floor(b.maxHp * (kind === 'misha' ? 0.5 : 0.58)));
-  return Math.max(1, Math.floor(b.maxHp * 0.28));
+  return Math.max(1, Math.floor(b.maxHp * ((b['thr'] as number[])[Math.min(ph, 3) - 2] ?? 0.3)));
 }
 /** выставить фазу без рёва и отталкивания: hp и b.phase напрямую, без phaseShift */
 export function applyPhase(sc: World): void {
   const b = sc.testBoss(), tr = sc.train; if (!b || !tr) return;
-  b.hp = hpFor(b, sc.bossKind, tr.phase); b.phase = phaseOf(b);
+  b.hp = hpFor(b, tr.phase); b.phase = phaseOf(b);
   for (const o of sc.bosses) { // несколько боссов (дирижёр): фаза старта у каждого; общий пул — одно здоровье
     if (o === b) continue;
-    o.hp = condOf(sc)?.pool ? Math.min(o.maxHp, b.hp) : hpFor(o, sc.bossKind, tr.phase);
+    o.hp = condOf(sc)?.pool ? Math.min(o.maxHp, b.hp) : hpFor(o, tr.phase);
     o.phase = phaseOf(o);
   }
-  if (b['tdMarks']) b['tdUsed'] = (b['tdMarks'] as number[]).filter((m) => b.hp <= m); // «вид сверху» у Миши считаем уже пройденным
   tr.boss = b; tr.lastHp = b.hp; tr.prev = b.state;
 }
 export function resetBoss(sc: World): void {
   const tr = sc.train; if (!tr || sc.won) return;
   for (const pr of sc.projs) pr.dead = true;
-  if (sc.td) { sc.td = null; sc.tdFlip = false; sc.emit('td', { on: false }); }
-  if (sc.misha) makeMisha(sc);
-  if (sc.vladik) makeVladik(sc);
-  if (sc.tima) { sc.repoT = 0; setRepo(sc, false); makeTima(sc); }
   if (sc.bosses.length) resetFight(sc);
   sc.bossBar(false); respawnLocal(sc);
   applyPhase(sc); tr.log = []; tr.total = 0; tr.first = null; tr.tele = null; tr.resets++;
@@ -65,7 +48,7 @@ export function trainTick(sc: World, dt: number): void {
   tr.lastHp = b.hp;
   while (tr.log.length && tr.log[0]![0] < tr.t - 10) tr.log.shift();
   if (b.state !== tr.prev) {
-    const nm = b['d'] ? (b.state === 'tell' ? currentAttackName(b) : null) : TELE[sc.bossKind]?.[b.state];
+    const nm = b.state === 'tell' ? currentAttackName(b) : null;
     if (nm) tr.tele = { name: nm, win: b.t, at: tr.t };
     tr.prev = b.state;
   }

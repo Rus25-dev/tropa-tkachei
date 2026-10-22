@@ -10,7 +10,7 @@ export const COL_A = '#8fe8d2', COL_B = '#ffc46e';
 const sideCol = (s: Side): string => (s === 0 ? COL_A : COL_B);
 
 /** палитра боссов — та же, что в картинке обсервера (view/scenes/WatchScene.ts) */
-const PAL: Record<string, [string, string, string]> = { korne: ['#34482f', '#5d8a46', '#ffd47a'], misha: ['#4f5b78', '#c8463c', '#ffd47a'], vladik: ['#5a3f78', '#e0b84a', '#ff5a3c'], tima: ['#7a5a2a', '#f0d070', '#ff5a3c'] };
+const PAL: Record<string, [string, string, string]> = { penitent: ['#4a3f5a', '#9a8fb0', '#ffd47a'], misha2: ['#4f5b78', '#c8463c', '#ffd47a'], vladik2: ['#5a3f78', '#e0b84a', '#ff5a3c'], tima2: ['#7a5a2a', '#f0d070', '#ff5a3c'] };
 /** портрет босса: простая фигурка в цветах босса */
 export function BossFace({ boss, size = 64 }: { boss: DuelBoss; size?: number }) {
   const [body, head, eye] = PAL[boss] ?? ['#4a5560', '#8a98a6', '#ffd47a']; // боссы на данных: нейтральные цвета
@@ -20,10 +20,10 @@ export function BossFace({ boss, size = 64 }: { boss: DuelBoss; size?: number })
       <rect x="14" y="26" width="72" height="62" rx="16" fill={body} />
       <rect x="23" y="34" width="54" height="26" rx="11" fill={head} />
       <circle cx="62" cy="47" r="5" fill={eye} /><circle cx="46" cy="47" r="4.4" fill={eye} />
-      {boss === 'korne' && <path d="M30 26 Q26 10 36 6 M70 26 Q74 10 64 6" stroke={head} stroke-width="5" fill="none" stroke-linecap="round" />}
-      {boss === 'misha' && <rect x="2" y="42" width="18" height="30" rx="5" fill="#c8463c" />}
-      {boss === 'vladik' && <path d="M88 20 L58 82" stroke="#e8e2cf" stroke-width="4" stroke-linecap="round" />}
-      {boss === 'tima' && <g fill="#fff" opacity=".85"><circle cx="30" cy="22" r="7" /><circle cx="44" cy="14" r="5" /><circle cx="70" cy="20" r="6" /></g>}
+      {boss === 'penitent' && <path d="M30 26 Q26 10 36 6 M70 26 Q74 10 64 6" stroke={head} stroke-width="5" fill="none" stroke-linecap="round" />}
+      {boss === 'misha2' && <rect x="2" y="42" width="18" height="30" rx="5" fill="#c8463c" />}
+      {boss === 'vladik2' && <path d="M88 20 L58 82" stroke="#e8e2cf" stroke-width="4" stroke-linecap="round" />}
+      {boss === 'tima2' && <g fill="#fff" opacity=".85"><circle cx="30" cy="22" r="7" /><circle cx="44" cy="14" r="5" /><circle cx="70" cy="20" r="6" /></g>}
     </svg>
   );
 }

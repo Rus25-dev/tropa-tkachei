@@ -17,12 +17,7 @@ function winBase(sc: World): void {
   if (preWin(sc)) return;
   sc.won = true; sc.snd('win');
   const s: Record<string, unknown> = { time: sc.timeSec, beads: sc.beads, deaths: sc.deaths, players: sc.nPlayers };
-  if (sc.mode === 'bosstest') {
-    if (sc.bosses[0]) s['title'] = `${sc.bosses[0]['name'] as string} повержен`;
-    else if (sc.vladik) { s['title'] = 'Владик Скрипка повержен'; s['hits'] = sc.needleHits; }
-    else if (sc.tima) { s['title'] = 'Тима Пиво повержен'; s['hits'] = sc.timaHits; }
-    else { s['title'] = 'Миша Додик повержен'; s['bag'] = sc.bagHits; }
-  }
+  if (sc.mode === 'bosstest' && sc.bosses[0]) s['title'] = `${sc.bosses[0]['name'] as string} повержен`;
   decorate(sc, s);
   sc.sendEv({ k: 'win', s });
   sc.emit('victory', { s });

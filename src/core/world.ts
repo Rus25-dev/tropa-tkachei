@@ -1,21 +1,18 @@
 // Мир игры: вся логика сцены v1.8 (GameScene) без Phaser, звука и интерфейса. Побитово совпадает со старой игрой (золотые записи).
 // Время идёт тиками по 1/60 с (tick); отрисовка, звук и интерфейс получают события через очередь w.fxq.
 // Порядок «обёрток» GameScene.prototype из v1.8 (qol → training → maptravel → tools → status и т. п.) сохранён явными вызовами.
-import { BAL, CHAPTERS, EMPTY, HEAVY_STATES, P, PAL, PLAT, SOLID, T, clamp } from './balance';
+import { CHAPTERS, EMPTY, P, PAL, PLAT, SOLID, T, clamp } from './balance';
 import type { Boss, Enemy, FxEvent, Gate, Inp, Level, Player, Proj, Rect } from './types';
 import { buildLevel, ARENAS } from './levels';
 import { mulberry32, rngSeedFor, type Rng } from './rng';
 import { STEP } from './constants';
-import { campaignInit, campaignLevel, campaignSetup, applyUp, type CampState, type Progress } from './campaign';
+import { campaignInit, campaignLevel, campaignSetup, applyUp, levelBossStep, type CampState, type Progress } from './campaign';
 import { applyLoadout, equipped, normalizeSave, openAll, type LoadoutSave } from './loadout';
 import { stepPlayer } from './player';
 import { resolveAttack } from './weapons';
 import { hurtPlayer, teamWipe as teamWipeFn } from './combat';
 import { stepEnemy, spawnEnemies } from './enemies';
-import { stepBossKorne, makeBoss } from './korne';
-import { stepMisha, setupMishaArena, tdStep } from './misha';
-import { setupVladikArena, stepVladik } from './vladik';
-import { setupTimaArena, stepTima } from './tima';
+import { setupCrates } from './bombs';
 import { stepProjs, stepBeads } from './projs';
 import { stepItems, initItems } from './items';
 import { stepCoop } from './coop';
@@ -23,7 +20,7 @@ import { stepStatus } from './status';
 import { stepTools } from './tools';
 import { mapVisit, mapLoad, mapClose, type MapState } from './maptravel';
 import { benchClose } from './coop';
-import { srOnTick, srOnCreate, type SrRun } from './speedrun';
+import { srOnTick, type SrRun } from './speedrun';
 import { duelSetup } from './duelmods';
 import { winGame } from './win';
 import { guestProjHits } from './netplay';
@@ -41,7 +38,7 @@ export type Mode = 'story' | 'bosstest';
 export interface WorldOpts {
   seed: number;
   mode: Mode;
-  /** босс-теста: 'misha' | 'vladik' | 'tima' */
+  /** id босса на данных (data/bosses): Босс-тест и арена главы кампании */
   boss?: string;
   players?: number;
   camp?: CampState | null;
@@ -71,8 +68,6 @@ export class World {
   // ----- параметры запуска -----
   seed: number; mode: Mode; bossKind: string; nPlayers: number; easy: boolean;
   online: 'host' | 'guest' | null; localIdx: number; ping: number | null = null;
-  /** у гостя: показана ли полоса босса (по снимкам) */
-  _vb = false; _tb = false; _mb = false; _bb = false;
   /** по сети пауза — только окно (мир идёт) */
   uiPause = false;
   startData: WorldOpts; camp: CampState | null = null; sr: SrRun | null; kit: boolean;
@@ -82,9 +77,8 @@ export class World {
   private _rngs: Record<string, Rng> = {};
   // ----- уровень и сущности -----
   L!: Level; grid!: number[][];
-  players: Player[] = []; enemies: Enemy[] = []; boss!: Boss;
-  misha: Boss | null = null; vladik: Boss | null = null; tima: Boss | null = null;
-  /** боссы на данных (data/bosses/*.json), 2.5; пока в босс-тесте, мульти-боссы — на будущее */
+  players: Player[] = []; enemies: Enemy[] = [];
+  /** боссы на данных (data/bosses/*.json): ведущий — bosses[0], остальные — участники дирижёра */
   bosses: Boss[] = [];
   /** сущности арены боссов на данных по расписанию (platforms, лучи, точки появления), волна 0 */
   arena: ArenaRt | null = null;
@@ -93,25 +87,24 @@ export class World {
   /** дирижёр нескольких боссов (волна 0) */
   cond: CondRt | null = null;
   projs: Proj[] = []; beadsArr: Rect[] & { vx?: number }[] = [] as never; benches: { x: number; y: number }[] = []; gates: Gate[] = [];
-  curtains: { x: number; w: number; y: number; h: number; slime: number; wet: number; drip: number }[] | null = null;
   puddles: { x: number; w: number; y: number; t: number }[] | null = null;
   crates: Rect[] | null = null;
   items: Record<string, unknown>[] = [];
   exitR: Rect | null = null;
   tl: Record<string, unknown>[] = []; tfx: Record<string, unknown>[] = [];
-  td: Record<string, unknown> | null = null; tdFlip = false;
   // ----- состояние партии -----
   abil: Record<string, boolean> = {}; beads = 0; deaths = 0; timeSec = 0; up = { hp: 0, dmg: 0, silk: 0 };
   silkMax = 9;
   bossDead = false; won = false; wiping = false; paused = false; leaving = false;
-  respawn = { x: 0, y: 0 }; repoT = 0; repo = false;
+  respawn = { x: 0, y: 0 };
+  /** когда (timeSec) в последний раз сказали, что бой с боссом не работает по сети (campaign.netBossBlock) */
+  netBossAt = -99;
   tickN = 0; acc = 0; tmr: Timer[] = []; slowT = 0; slowDur = 1; hitstop = 0; animT = 0;
   shopOpen = false; shopP: Player | null = null; benchMenuOpen: { p: Player; b: { x: number; y: number } } | null = null;
   quiet = false; train: TrainState | null = null;
   fightOn = false; fightT = 0; fightWon = false;
   mapV = new Set<number>(); mapB = new Set<number>(); mapDirty = false; mapSaveT = 0; mt!: MapState;
-  bagHits = 0; needleHits = 0; timaHits = 0;
-  areaIdx = -1; _execHint = false; _shellHint = false; _crackHint = false; _needleTip = false; _inAtk: Player | null = null; _hd: number | null = null; _cm = 1; _e2burst = false;
+  areaIdx = -1; _execHint = false; _shellHint = false; _crackHint = false; _inAtk: Player | null = null; _hd: number | null = null; _cm = 1; _e2burst = false;
   /** данные следующей сцены, когда мир решил сменить сцену (Campaign.go): подхватывает сессия */
   next: WorldOpts | null = null;
   // ----- события для отрисовки -----
@@ -121,7 +114,7 @@ export class World {
     this.startData = opts;
     this.seed = opts.seed >>> 0;
     this.mode = opts.mode ?? 'story';
-    this.bossKind = opts.boss ?? 'misha';
+    this.bossKind = opts.boss ?? CHAPTERS[2]!.boss;
     this.nPlayers = opts.players ?? 1;
     this.easy = !!opts.easy;
     this.online = opts.online ?? null; this.localIdx = this.online === 'guest' ? 1 : 0;
@@ -160,11 +153,12 @@ export class World {
   // ----- создание сцены -----
   private create(opts: WorldOpts): void {
     this.initRng();
-    this.enemies = []; this.boss = undefined as unknown as Boss;
+    this.enemies = [];
     const dd = this.mode === 'bosstest' ? bossDef(this.bossKind) : undefined; // босс на данных: арена берётся из его описания
-    this.L = campaignLevel(this) ?? (this.mode === 'bosstest' ? (ARENAS[dd ? arenaLevel(dd) : this.bossKind] ?? ARENAS['misha']!)() : buildLevel());
+    if (this.mode === 'bosstest' && !dd) throw new Error(`нет босса на данных «${this.bossKind}»`);
+    this.L = campaignLevel(this) ?? (dd ? ARENAS[arenaLevel(dd)]!() : buildLevel());
     this.bosses = [];
-    this.misha = null; this.crates = null; this.vladik = null; this.tima = null; this.curtains = null; this.puddles = null; this.repoT = 0;
+    this.crates = null; this.puddles = null;
     const L = this.L;
     this.grid = L.grid;
     // скамьи
@@ -185,14 +179,9 @@ export class World {
 
     // враги, босс
     this.enemies = []; spawnEnemies(this);
-    this.bossDead = this.mode === 'bosstest'; makeBoss(this);
+    this.bossDead = this.mode === 'bosstest';
     this.projs = []; this.beadsArr = [];
-    if (dd && !this.camp) makeFight(this, dd.id);
-    else if (this.mode === 'bosstest') {
-      if (this.bossKind === 'vladik') setupVladikArena(this);
-      else if (this.bossKind === 'tima') setupTimaArena(this);
-      else setupMishaArena(this);
-    }
+    if (dd) { if (this.L.crates) setupCrates(this); makeFight(this, dd.id); }
     this.abil = this.mode === 'bosstest' ? { double: true } : { ...((prog && prog.abil) || {}) };
     initItems(this);
     applyLoadout(this, equipped(opts.loadoutSave ?? normalizeSave(null), openAll(this.mode, !!this.camp, !!this.sr), !!this.sr));
@@ -206,13 +195,13 @@ export class World {
     this.train = opts.train && this.mode === 'bosstest' ? newTrain(opts.trainPhase ?? 1) : null;
     this.benchMenuOpen = null;
     mapLoad(this, opts.mapSaved ?? null);
-    srOnCreate(this); // босс-раш: сразу к арене Корнематки
     duelSetup(this); // дуэль: «Одна маска» (без дуэли ничего не делает)
     if (this.train) applyPhase(this);
     this.emit('ready');
   }
 
-  testBoss(): Boss | null { return this.misha ?? this.vladik ?? this.tima ?? this.bosses[0] ?? null; }
+  /** ведущий босс боя или null (в уровнях и коридорах боя нет) */
+  testBoss(): Boss | null { return this.bosses[0] ?? null; }
   alivePlayers(): Player[] { return this.players.filter((p) => !p.downed); }
   nearestPlayer(x: number, y: number): [Player | null, number] {
     let best: Player | null = null, bd = 1e9;
@@ -376,38 +365,30 @@ export class World {
     mapVisit(this, dt);
     // tools.js
     if (this.tfx.length) this.tfx = this.tfx.filter((f) => ((f['t'] as number) -= dt) > 0);
-    if (this.auth() && this.tl.length && !this.td) stepTools(this, dt);
+    if (this.auth() && this.tl.length) stepTools(this, dt);
     // status.js
     stepStatus(this, dt);
   }
 
   private qolFight(dt: number): void {
     if (this.online === 'guest') return;
-    const b = this.testBoss() ?? this.boss;
+    const b = this.testBoss();
     const live = !!b && !['sleep', 'gone', 'dead', 'intro'].includes(b.state);
     if (!live) return;
     if (!this.fightOn) {
       this.fightOn = true; this.fightT = 0;
-      this.emit('fightStart', { id: this.mode === 'bosstest' ? this.bossKind : 'korn' });
-      // возрождение у входа в арену Корнематки, чтобы не бежать через весь уровень
-      if (this.mode === 'story' && this.L.gateIn && !this.bossDead) {
-        const gi = this.L.gateIn; this.respawn = { x: (gi.x + 3) * T + 16, y: (gi.y1 + 1) * T };
-      }
+      this.emit('fightStart', { id: this.bossKind });
     }
     this.fightT += dt;
   }
 
   private stepBase(dt: number): void {
-    if (this.td) { tdStep(this, dt); return; }
     const auth = this.auth();
     for (const p of this.players) { if (p.remote) p.atkT -= dt; else stepPlayer(this, p, dt); }
     for (const p of this.players) resolveAttack(this, p);
     if (auth) {
       for (const e of this.enemies) if (!e.dead) stepEnemy(this, e, dt);
-      stepBossKorne(this, dt);
-      if (this.misha) stepMisha(this, dt);
-      if (this.vladik) stepVladik(this, dt);
-      if (this.tima) stepTima(this, dt);
+      levelBossStep(this);
       stepCond(this);
       for (let i = 0; i < this.bosses.length; i++) stepDataBoss(this, i, dt);
       if (this.arena) arenaStep(this, 'w', -1);
@@ -422,17 +403,10 @@ export class World {
       if (p.remote || p.downed || p.inv > 0) continue;
       const pr = inset(p, 2);
       for (const e of this.enemies) if (!e.dead && !e['m'] && overlap(pr, inset(e, 2))) { hurtPlayer(this, p, 1, e.x + e.w / 2); break; } // существа боссов бьют сами (minions.ts)
-      const b = this.boss;
-      if (p.inv <= 0 && !(b.stagger > 0) && (b.state !== 'sleep' && b.state !== 'dead' && b.state !== 'gone') && overlap(pr, inset(b, 8))) hurtPlayer(this, p, HEAVY_STATES.has(b.state) ? 2 : 1, b.x + b.w / 2);
-      const m = this.misha;
-      if (m && p.inv <= 0 && !['dead', 'intro', 'cough'].includes(m.state) && overlap(pr, inset(m, 8))) hurtPlayer(this, p, HEAVY_STATES.has(m.state) ? 2 : 1, m.x + m.w / 2);
-      const vb = this.vladik ?? this.tima;
-      if (vb && p.inv <= 0 && !(vb.stagger > 0) && !['dead', 'intro'].includes(vb.state) && overlap(pr, inset(vb, 8))) hurtPlayer(this, p, HEAVY_STATES.has(vb.state) ? 2 : 1, vb.x + vb.w / 2);
       for (const db of this.bosses) {
         const dd = bossDef((db['d'] as { id: string; formPh: number }).id), ct = dd ? effForm(dd, (db['d'] as { formPh: number }).formPh).contact : null;
         if (ct && p.inv <= 0 && !(db.stagger > 0) && !['dead', 'intro', 'rage'].includes(db.state) && overlap(pr, inset(db, 8))) hurtPlayer(this, p, ct.dmg, db.x + db.w / 2, false, ct.kind);
       }
-      if (this.curtains && p.inv <= 0) for (const c of this.curtains) if (c.slime > 0 && overlap(pr, curtainHazard(c))) { hurtPlayer(this, p, 1, c.x + c.w / 2); break; }
     }
     // выход
     if (auth && this.exitR && this.bossDead && !this.won && this.players.some((p) => !p.downed && overlap(p, this.exitR!))) winGame(this);
@@ -455,18 +429,14 @@ export class World {
 
   // ----- сноска: вычисляемые вспомогательные значения боссов -----
   bossPhaseForMusic(): number {
-    const b = this.testBoss() ?? (this.boss && !['sleep', 'gone', 'dead'].includes(this.boss.state) ? this.boss : null);
+    const b = this.testBoss();
     return b && b.maxHp ? phaseOf(b) : 1;
   }
-
-  /** hp игроков и босса при запуске из BAL */
-  static bossHp(kind: 'boss' | 'vladik' | 'tima' | 'misha', n: number): number { return BAL.hp[kind][n === 2 ? 1 : 0]!; }
 }
 
 // ----- геометрия -----
 export const overlap = (a: Rect, b: Rect): boolean => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 export const inset = (r: Rect, d: number): Rect => ({ x: r.x + d, y: r.y + d, w: r.w - 2 * d, h: r.h - 2 * d });
-export const curtainHazard = (c: { x: number; w: number; y: number; h: number }): Rect => ({ x: c.x + 4, y: c.y, w: c.w - 8, h: c.h });
 /** номер фазы по доле здоровья; пороги у боссов на данных лежат в b.thr (убывающие доли для фаз 2, 3), у остальных — 0.6 и 0.3 */
 export const phaseOf = (b: { hp: number; maxHp: number; thr?: number[] }): number => {
   const f = b.hp / b.maxHp, th = b.thr ?? [0.6, 0.3];

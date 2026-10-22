@@ -1,7 +1,9 @@
 // Кампания: главы I–IV, коридоры перед аренами, лавка, сохранение (legacy/src/campaign.js + обёртки maptravel.js и charms.js).
 // Сохранение хранит сессия (tt_save): мир получает прогресс при создании и сообщает о записи событием 'save'.
-import { CHAPTERS, LAST_CHAPTER, SHOP, P } from './balance';
+import { CHAPTERS, LAST_CHAPTER, SHOP, P, T } from './balance';
 import { ARENAS, buildRoad } from './levels';
+import { bossDef } from './boss/registry';
+import { arenaLevel } from './boss/schema';
 import { rngSeedFor } from './rng';
 import { hasCharm } from './loadout';
 import { mapExport } from './maptravel';
@@ -40,7 +42,10 @@ export function campaignInit(sc: World, data: WorldOpts): void {
 export function campaignLevel(sc: World): Level | null {
   const c = sc.camp; if (!c || c.st === 'level') return null;
   if (c.st === 'road') return buildRoad(c.ch);
-  const L = ARENAS[CHAPTERS[c.ch]!.boss]!();
+  // арена главы — арена её босса на данных (data/bosses/<id>.json, поле arena → уровень в levels/tropa.ldtk)
+  const def = bossDef(CHAPTERS[c.ch]!.boss);
+  if (!def) throw new Error(`нет босса главы ${c.ch}: «${CHAPTERS[c.ch]!.boss}»`);
+  const L = ARENAS[arenaLevel(def)]!();
   L.region = `Глава ${CHAPTERS[c.ch]!.roman}`;
   return L;
 }
@@ -97,19 +102,39 @@ export function campaignSave(sc: World, extra: Partial<Progress>): void {
 }
 
 // ----- переходы между этапами и главами -----
+/** Боссы на данных по сети пока не поддержаны (netplay.ts снимков боссов не знает): вход в арену закрыт, игрокам объясняют (не чаще раза в 4 с). true — вход закрыт. */
+export function netBossBlock(sc: World): boolean {
+  if (!sc.online) return false;
+  if (sc.timeSec - sc.netBossAt > 4) {
+    sc.netBossAt = sc.timeSec;
+    sc.toastAll('Бой с боссом пока не работает по сети. Выйдите в меню: босса можно пройти в одиночку или вдвоём за одним экраном');
+  }
+  return true;
+}
 /** выход из коридора → арена (без экрана победы) */
 export function preWin(sc: World): boolean {
   const c = sc.camp; if (!c || c.st !== 'road' || sc.leaving) return false;
+  if (netBossBlock(sc)) return true;
+  toArena(sc);
+  return true;
+}
+function toArena(sc: World): void {
   sc.won = true; sc.snd('revive');
   sc.toast('Дальше — арена…');
   go(sc, { ...snap(sc), st: 'arena' });
-  return true;
+}
+/** Глава I: порог арены в конце уровня (BossArena в LDtk) ведёт к бою с боссом главы в его арене — как коридор в главах II–IV. Каждый шаг мира. */
+export function levelBossStep(sc: World): void {
+  const c = sc.camp, bz = sc.L.boss;
+  if (!c || c.st !== 'level' || !bz || sc.leaving || sc.won || !sc.auth() || sc.bossDead) return;
+  if (!sc.players.some((p) => !p.downed && p.x / T > bz.trigger)) return;
+  if (netBossBlock(sc)) return;
+  toArena(sc);
 }
 /** подпись к экрану победы + сохранение перехода на следующую главу */
 export function decorate(sc: World, s: Record<string, unknown>): void {
   const c = sc.camp; if (!c) return;
   const ch = CHAPTERS[c.ch]!, last = c.ch >= LAST_CHAPTER, sn = snap(sc);
-  if (!s['title']) s['title'] = ch.bossLine;
   s['camp'] = { title: last ? 'Тропа пройдена' : `Глава ${ch.roman} пройдена`, final: last, ch: c.ch, time: sn.time, deaths: sn.deaths,
     next: last ? null : { ...sn, ch: c.ch + 1, st: 'road' } };
   s['deaths'] = sn.deaths;

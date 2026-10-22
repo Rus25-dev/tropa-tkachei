@@ -14,7 +14,7 @@ export function makeFuzzerOf(getW: () => World, seed: number, n: number): (i: nu
   const st = Array.from({ length: n }, () => ({ dir: 0, dirT: 0, on: {} as Record<string, boolean> }));
   return (i: number): Inp => {
     const w = getW();
-    const s = st[i]!, p = w.players[i]!, b = w.testBoss() ?? w.boss;
+    const s = st[i]!, p = w.players[i]!, b = w.testBoss();
     if (--s.dirT <= 0) {
       s.dirT = 6 + Math.floor(R() * 40);
       const toward = b && b.state !== 'gone' && R() < 0.65 ? Math.sign(b.x + b.w / 2 - (p.x + 7)) : (R() < 0.5 ? -1 : 1);

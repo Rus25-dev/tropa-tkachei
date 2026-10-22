@@ -316,7 +316,7 @@ export function Win({ ses, s, online, onNext, onRetry, onExit }: { ses: Session;
   if (k) {
     if (k.final) {
       const tm = Math.floor(k.time / 60), ts = Math.floor(k.time % 60).toString().padStart(2, '0');
-      lines = ['Корнематка, Миша, Владик и Тима побеждены.', `Нить сплетена: ${w.nPlayers === 2 ? 'вдвоём' : 'в одиночку'} вы дошли до конца.`, '', `Всё время кампании: ${tm}:${ts}`, `Обрывов нити за всю игру: ${k.deaths}`];
+      lines = ['Первый Кающийся, Миша, Владик и Тима побеждены.', `Нить сплетена: ${w.nPlayers === 2 ? 'вдвоём' : 'в одиночку'} вы дошли до конца.`, '', `Всё время кампании: ${tm}:${ts}`, `Обрывов нити за всю игру: ${k.deaths}`];
     } else {
       const nx = CHAPTERS[k.ch + 1]!;
       lines = [`Время главы: ${m}:${sec}`, `Бусин при себе: ${w.beads}`, `Обрывов нити: ${s.deaths ?? w.deaths}`, `Ткачей: ${s.players}`, '', `Дальше: Глава ${nx.roman} · ${nx.name}`];

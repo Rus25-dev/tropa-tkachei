@@ -10,7 +10,7 @@ import { openShop } from './campaign';
 import { tryExecute } from './bosses2';
 import { silkBurst } from './combat';
 import { hurtPlayer } from './damage';
-import { throwBomb, refillBombs } from './misha';
+import { throwBomb, refillBombs } from './bombs';
 import { hookStep } from './tools';
 import { duelNoHeal } from './duelmods';
 import { dashSpeed, kitBusy, kitDashStart, kitStep } from './kit/moves';

@@ -1,21 +1,19 @@
 // Статусы: яд, ожог, замедление (legacy/src/status.js). Считает только мир; отрисовка берёт маску статусов из target.status.
 // Урон боссу тиком идёт через исходную функцию урона (RAW) без нити, звука и стойкости — фазы и оглушение не ломаются.
-import { E2_UNDER, STATUS_KINDS, dataKey, type StatusKind, type BossKey, type BossRef } from './balance';
+import { E2_UNDER, STATUS_KINDS, dataKey, type StatusKind, type BossRef } from './balance';
 import type { Boss, Enemy, Player } from './types';
 import type { World } from './world';
 import { killEnemy } from './combat';
 import { rawBossDamage } from './damage';
 import { bossOf } from './bosses2';
 
-export const BOSS_KEYS: BossKey[] = ['boss', 'vladik', 'tima'];
 type Target = (Enemy | Boss) & { status?: Record<string, { left: number; cd: number; src: Player | null; gen: number; t?: number }> | null };
 
 export function bossKey(sc: World, t: unknown): BossRef | null {
-  for (const k of BOSS_KEYS) if (sc[k] === t) return k;
   const i = sc.bosses.indexOf(t as never);
   return i >= 0 ? dataKey(i) : null;
 }
-export function isBoss(sc: World, t: unknown): boolean { return !!t && (bossKey(sc, t) || sc.misha === t) ? true : false; }
+export function isBoss(sc: World, t: unknown): boolean { return !!t && bossKey(sc, t) ? true : false; }
 export function bossLive(b: Boss | null | undefined): boolean { return !!b && !['sleep', 'dead', 'gone', 'intro', 'rage'].includes(b.state); }
 function alive(sc: World, t: Target | null): boolean {
   if (!t) return false;
@@ -26,7 +24,6 @@ export function src(sc: World, p?: Player | null): Player { return p || sc.playe
 
 export function applyStatus(sc: World, t: Target | null, kind: StatusKind, dur?: number | null, srcP?: Player | null): boolean {
   const K = STATUS_KINDS[kind]; if (!K || !t || !sc.auth() || !alive(sc, t)) return false;
-  if (sc.misha === t) return false;
   const boss = isBoss(sc, t), s = t.status || (t.status = {});
   if (kind === 'slow') {
     const left = dur != null ? dur : (K as { t: number }).t;
@@ -89,8 +86,8 @@ export function statusMask(sc: World, t: Target | null): number {
   let m = 0; for (const k in s) if (s[k]) m |= (STATUS_KINDS as Record<string, { bit: number }>)[k]!.bit; return m;
 }
 export function stepStatus(sc: World, dt: number): void {
-  if (!sc.auth() || sc.td) return;
-  const list: (Target | null)[] = [...sc.enemies, sc.boss, sc.vladik, sc.tima, ...sc.bosses];
+  if (!sc.auth()) return;
+  const list: (Target | null)[] = [...sc.enemies, ...sc.bosses];
   for (const t of list) {
     const s = t && t.status; if (!s) continue;
     if (!alive(sc, t)) { t!.status = null; continue; }
@@ -112,7 +109,7 @@ export function stepStatus(sc: World, dt: number): void {
 
 /** замедление: время врага течёт медленнее (боссы — вдвое слабее). e — враг или босс; возвращает множитель dt. */
 export function slowDt(sc: World, e: Target | null, dt: number, boss: boolean): number {
-  if (typeof dt === 'number' && sc.auth() && !sc.td) {
+  if (typeof dt === 'number' && sc.auth()) {
     if (e && e.status && e.status['slow'] && (!boss || bossLive(e as Boss))) return dt * (boss ? 0.8 : 0.6);
   }
   return dt;

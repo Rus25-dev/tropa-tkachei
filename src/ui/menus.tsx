@@ -4,7 +4,7 @@ import type { ComponentChildren } from 'preact';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { CHAPTERS, SR_CATS } from '../core/balance';
 import { bossDef } from '../core/boss/registry';
-import { LEGACY_CARDS, testCards } from '../core/boss/catalog';
+import { testCards } from '../core/boss/catalog';
 import { freshCamp, freshUp, type CampState } from '../core/campaign';
 import { fixRules, fmt, violation, SR_ABOUT } from '../app/speedrun';
 import { menuPlayers, progress, records, setMenuPlayers, sr as srStore, training } from '../app/store';
@@ -17,8 +17,6 @@ import { Friends } from './speedrun';
 import { Settings } from './settings';
 import { padNames } from './nav';
 
-/** старые боссы (Миша, Владик, Тима): название и описание для кампании */
-export const BOSSES = LEGACY_CARDS.map(({ id, name, about }) => ({ id, name, about }));
 /** карточки Босс-теста строятся из реестра боссов (core/boss/catalog): новый босс = новый файл data/bosses/<id>.json; dev-карточки — при ?dev=1 */
 const devBosses = (): ReturnType<typeof testCards> => testCards(new URLSearchParams(location.search).get('dev') === '1');
 const fmtMin = (s: number): string => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
@@ -110,7 +108,7 @@ function Main({ ctl, go }: P) {
       <Screen hero={<div class="hero"><h1 class="logo">ТРОПА ТКАЧЕЙ</h1><div class="subtitle">{subtitle()}</div></div>}>
         {pr && <Item n={1} id="m-continue" label="Продолжить" sub={(pr.name || 'скамья') + (players === 2 ? ' · вдвоём' : '')} onClick={() => ctl.launch({ kind: 'story', players })} />}
         <Item n={2} id="m-campaign" label="Кампания" sub="новая игра, главы, вдвоём" onClick={() => go('campaign')} />
-        <Item n={3} id="m-bosstest" label="Босс-тест" sub="три босса, тренировка, рекорды" onClick={() => go('bosstest')} />
+        <Item n={3} id="m-bosstest" label="Босс-тест" sub="боссы глав, тренировка, рекорды" onClick={() => go('bosstest')} />
         <Item n={4} id="m-speedrun" label="Спидран" sub="Тропа целиком, Босс-раш, гонка 1×1" onClick={() => go('speedrun')} />
         <Item n={5} id="m-races" label="Гонки Ткачей" sub="организатор, игрок, обсервер" onClick={() => go('races')} />
         <Item n={6} id="m-howto" label="Как играть" sub="управление, приёмы, боссы" onClick={() => go('howto')} />
@@ -124,7 +122,7 @@ function Campaign({ go, back, crumbs }: P) {
   const p = progress.get(), best = p ? Math.max((p.best ?? 0) | 0, (p.chapter ?? 0) | 0) : 0;
   return (
     <Panel crumbs={crumbs} onBack={back} hint={{ nums: 2 }} label="Кампания">
-      <Screen title="Кампания" info={<><p>Четыре главы: Корнематка, Миша, Владик, Тима. Прогресс сохраняется на скамьях.</p><Dim>{p ? 'Сохранение: ' + (p.name || 'скамья') : 'Сохранения пока нет.'}</Dim></>}>
+      <Screen title="Кампания" info={<><p>Четыре главы: Первый Кающийся, Миша, Владик, Тима. Прогресс сохраняется на скамьях.</p><Dim>{p ? 'Сохранение: ' + (p.name || 'скамья') : 'Сохранения пока нет.'}</Dim></>}>
         <Item n={1} id="c-new" label="Новая игра" sub={p ? 'с главы I; старое сохранение заменится позже' : 'с главы I'} onClick={() => (progress.get() ? go('newgame') : go('mode', { camp: freshCamp(), crumb: 'Новая игра', fresh: true }))} />
         <Item n={2} id="c-chapters" label="Выбрать главу" sub={best >= 2 ? 'пройденные главы' : 'откроется после главы I'} disabled={best < 2} onClick={() => go('chapters')} />
       </Screen>
@@ -151,7 +149,7 @@ function Chapters({ go, back, crumbs }: P) {
       <Screen title="Выбор главы" info={<p>Можно переиграть любую пройденную главу. Сохранение продолжится с неё, но открытые главы не потеряются.</p>}>
         {Object.keys(CHAPTERS).map(Number).filter((ch) => ch <= best).map((ch) => {
           const c = CHAPTERS[ch]!;
-          return <Item key={ch} n={ch} id={`ch-${ch}`} label={`Глава ${c.roman} · ${c.name}`} sub={ch === 1 ? 'Корнематка' : `${c.road} → ${BOSSES.find((b) => b.id === c.boss)?.name ?? ''}`} onClick={() => go('mode', { camp: chapterCamp(ch), crumb: `Глава ${c.roman}` })} />;
+          return <Item key={ch} n={ch} id={`ch-${ch}`} label={`Глава ${c.roman} · ${c.name}`} sub={`${c.road ? c.road + ' → ' : ''}${bossDef(c.boss)?.name ?? ''}`} onClick={() => go('mode', { camp: chapterCamp(ch), crumb: `Глава ${c.roman}` })} />;
         })}
       </Screen>
     </Panel>
@@ -163,7 +161,7 @@ function Mode({ ctl, go, back, crumbs, ctx }: P) {
   const play = (n: 1 | 2): void => { setMenuPlayers(n); ctl.launch({ kind: 'story', players: n, camp, fresh }); };
   return (
     <Panel crumbs={crumbs} onBack={back} hint={{ nums: 3 }} label="Как играем?">
-      <Screen title="Как играем?" info={<><p>Выберите, с кем идёте по Тропе.</p><Dim>Вдвоём по сети: один создаёт комнату и присылает код, второй входит по коду.</Dim></>}>
+      <Screen title="Как играем?" info={<><p>Выберите, с кем идёте по Тропе.</p><Dim>Вдвоём по сети: один создаёт комнату и присылает код, второй входит по коду. Бой с боссом главы по сети пока не работает: у арены игра остановится и подскажет, как играть дальше.</Dim></>}>
         <Item n={1} id="md-one" label="Один ткач" sub="клавиатура или геймпад" onClick={() => play(1)} />
         <Item n={2} id="md-two" label="Двое за одним компьютером" sub="игрок 2 — на стрелках" onClick={() => play(2)} />
         <Item n={3} id="md-net" label="Вдвоём по сети" sub="создать комнату или войти по коду" onClick={() => go('net', { mode: 'story', camp, fresh })} />
@@ -222,7 +220,7 @@ function BossTest({ ctl, go, back, crumbs }: P) {
         </div>
         <Item n={1} id="bt-one" label="Один ткач" sub="в бой сразу" onClick={() => play(1)} />
         <Item n={2} id="bt-two" label="Двое за одним компьютером" onClick={() => play(2)} />
-        <Item n={3} id="bt-net" label="Вдвоём по сети" sub={training.on ? 'в тренировке — только вдвоём у одного компьютера' : 'создать комнату или войти по коду'} disabled={training.on || !!bossDef(b.id)} onClick={() => go('net', { mode: 'bosstest', boss: b.id })} />
+        <Item n={3} id="bt-net" label="Вдвоём по сети" sub={training.on ? 'в тренировке — только вдвоём у одного компьютера' : 'боссы пока не работают по сети'} disabled onClick={() => go('net', { mode: 'bosstest', boss: b.id })} />
         <Item n={4} id="bt-train" label="Тренировка" sub="здоровье бесконечное, счётчик урона" value={training.on ? 'вкл' : 'выкл'} onClick={toggleTrain} onLR={() => toggleTrain()} />
         <Item n={5} id="bt-phase" label="Старт с фазы" sub={training.on ? 'только в тренировке' : 'включит тренировку'} value={String(training.phase)} onClick={() => phase()} onLR={(d) => phase(d)} />
       </Screen>

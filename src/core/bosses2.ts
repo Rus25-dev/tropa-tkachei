@@ -1,6 +1,6 @@
 // Боссы 2.0 (legacy/src/bosses2.js): фазы, стойкость и оглушение, казнь, новые снаряды. Общие для всех боссов правила.
-import { KITS, P, PHASE_LINES, POISE_MAX, STAGGER_T, EXEC_FRAC, T, clamp, dataIdx, dataKey } from './balance';
-import type { BossKey, BossRef } from './balance';
+import { POISE_MAX, STAGGER_T, EXEC_FRAC, T, dataIdx, dataKey } from './balance';
+import type { BossRef } from './balance';
 import type { Boss, Player, Proj } from './types';
 import type { World } from './world';
 import { phaseOf } from './world';
@@ -11,17 +11,10 @@ import { slowDt } from './status';
 import { statBegin } from './racestats';
 import { dataBody, dataPoiseMul, dataStaggerBegin, dataStaggerRoom, onStagger, onStaggerWorld } from './boss/exec';
 
-export const bossOf = (sc: World, key: BossRef): Boss | null => (key === 'boss' ? sc.boss : key === 'vladik' || key === 'tima' ? sc[key] : sc.bosses[dataIdx(key)] ?? null);
-const NAMES: Record<BossKey, string> = { boss: 'Корнематка', vladik: 'Владик Скрипка', tima: 'Тима Пиво' };
-export const nameOf = (key: BossRef, b: Boss): string => NAMES[key as BossKey] ?? (b['name'] as string);
-/** все боссы мира с ключами: Корнематка, Владик, Тима и боссы на данных (Миша живёт отдельно) */
-export const bossRefs = (sc: World): [Boss, BossRef][] => {
-  const out: [Boss, BossRef][] = [[sc.boss, 'boss']];
-  if (sc.vladik) out.push([sc.vladik, 'vladik']);
-  if (sc.tima) out.push([sc.tima, 'tima']);
-  sc.bosses.forEach((b, i) => out.push([b, dataKey(i)]));
-  return out;
-};
+export const bossOf = (sc: World, key: BossRef): Boss | null => sc.bosses[dataIdx(key)] ?? null;
+export const nameOf = (_key: BossRef, b: Boss): string => b['name'] as string;
+/** все боссы мира с ключами (боссы на данных: 'd0', 'd1', …) */
+export const bossRefs = (sc: World): [Boss, BossRef][] => sc.bosses.map((b, i) => [b, dataKey(i)]);
 
 // ----- фазы -----
 /** вызывается после урона: если перешли порог — рёв, неуязвимость, отталкивание */
@@ -40,8 +33,7 @@ function phaseShift(sc: World, b: Boss, name: string, ph: number): void {
   const cx = Math.round(b.x + b.w / 2);
   knockFrom(sc, cx); sc.sendEv({ k: 'kb', x: cx });
   for (const pr of sc.projs) if (pr.kind !== 'bomb') pr.dead = true;
-  const line = PHASE_LINES[name] && PHASE_LINES[name][ph];
-  sc.toastAll(`${name} — фаза ${ph}${line ? ': ' + line : ''}`);
+  sc.toastAll(`${name} — фаза ${ph}`);
   sc.emit('phaseShift', { name, ph });
 }
 export function knockFrom(sc: World, cx: number): void {
@@ -59,8 +51,8 @@ export function poiseAdd(sc: World, b: Boss | null, n0: number): void {
     sc.sfx('stagger'); sc.shake(200, 0.01); sc.hitstop = 0.1;
     sc.burst(24, b.x + b.w / 2, b.y + 10, 0xffd47a);
     sc.toastAll(sc._execHint ? 'Оглушён! Бей!' : 'Оглушён! Подойди и ударь вверх или вниз — казнь'); sc._execHint = true;
-    for (const pr of sc.projs) if (pr.kind === 'spore' || pr.kind === 'letter') pr.dead = true;
-    if (b['d']) { onStagger(b); onStaggerWorld(sc, b); } // босс на данных: текущая атака обрывается, связанные с ней сущности арены гаснут
+    for (const pr of sc.projs) if (pr.kind === 'spore') pr.dead = true;
+    onStagger(b); onStaggerWorld(sc, b); // текущая атака обрывается, связанные с ней сущности арены гаснут
   }
 }
 
@@ -70,7 +62,7 @@ export function stepBossLayered(sc: World, key: BossRef, dt0: number, base: (sc:
   const dt = slowDt(sc, b, dt0, true);
   if (b && b.stagger > 0) {
     b.stagger -= dt; b.vx = 0; b.flash = Math.floor(b.stagger * 16) % 2 ? 0.05 : 0;
-    if (b['d']) dataBody(sc, b, dt); else { b.vy = Math.min(b.vy + P.G * dt, P.MAXFALL); sc.moveBody(b, dt); }
+    dataBody(sc, b, dt);
     if (b.stagger <= 0) { b.state = 'idle'; b.t = 0.45; b['poiseImmune'] = 5; }
     return;
   }
@@ -99,13 +91,13 @@ export function bossHitSnd(sc: World, key: BossRef, p: Player | null): string {
   const b = bossOf(sc, key);
   if (b && b.stagger > 0) return 'hitCrit';
   if (p && p['heavy']) return 'hitHeavy';
-  return ({ boss: 'hitWood', vladik: 'hitString', tima: 'hitDull' } as Record<string, string>)[key] || 'hit';
+  return 'hit';
 }
 
 // ----- казнь -----
 type Kit = { key: BossRef; name: string };
 function execTarget(sc: World, p: Player): Kit | null {
-  const kits: Kit[] = [...KITS, ...sc.bosses.map((b, i) => ({ key: dataKey(i), name: b['name'] as string }))];
+  const kits: Kit[] = sc.bosses.map((b, i) => ({ key: dataKey(i), name: b['name'] as string }));
   for (const kit of kits) {
     const b = bossOf(sc, kit.key);
     if (!b || !(b.stagger > 0.2) || b['executed'] || ['dead', 'gone', 'sleep', 'intro'].includes(b.state)) continue;
@@ -126,12 +118,12 @@ export function tryExecute(sc: World, p: Player, dir: string): boolean {
 /** execBoss: статистика (внешний слой) → оберег «Охотник» → база */
 export function execBoss(sc: World, p: Player, kit: { key: BossRef }, dir: string): void {
   const S = statBegin(sc);
-  const cur0 = sc.testBoss() ?? sc.boss;
+  const cur0 = sc.testBoss();
   const wasS = S && cur0 ? !!cur0['executed'] : false;
   const b = bossOf(sc, kit.key), was = b && b['executed'];
   execBossBase(sc, p, kit, dir);
   if (b && b['executed'] && !was && hasCharm(p, 'hunter')) { if (p.remote) { for (let i = 0; i < 3; i++) sc.sendEv({ k: 'silk', i: p.i }); } else p.silk = Math.min(sc.silkMax, p.silk + 3); }
-  if (S && !wasS) { const b2 = sc.testBoss() ?? sc.boss; if (b2 && b2['executed']) S.execs++; }
+  if (S && !wasS) { const b2 = sc.testBoss(); if (b2 && b2['executed']) S.execs++; }
 }
 function execBossBase(sc: World, p: Player, kit: { key: BossRef }, dir: string): void {
   const b = bossOf(sc, kit.key);
@@ -158,51 +150,17 @@ export function deathFxLocal(sc: World): void {
   sc.snd('bossdie');
 }
 
-// ----- новые снаряды -----
+// ----- снаряды боссов, которым нужен свой шаг -----
 export function stepExtraProj(sc: World, pr: Proj, dt: number): boolean {
   switch (pr.kind) {
-    case 'glob': // плевок (enemies2.js): дуга под гравитацией
+    case 'glob': // плевок: дуга под гравитацией
       pr.vy += 700 * dt; pr.x += pr.vx * dt; pr.y += pr.vy * dt;
       if (sc.isSolid(Math.floor((pr.x + 6) / T), Math.floor((pr.y + 6) / T))) { pr.dead = true; sc.burst(7, pr.x + 6, pr.y + 6, 0xc7f08a); }
-      return true;
-    case 'rain':
-      pr.y += pr.vy * dt;
-      if (sc.isSolid(Math.floor((pr.x + 11) / T), Math.floor((pr.y + 26) / T))) { pr.dead = true; sc.paperAt(5, pr.x + 11, pr.y + 20); }
-      return true;
-    case 'collector': {
-      pr['hitCd'] = (pr['hitCd'] || 0) - dt; if (pr['flash'] > 0) pr['flash'] -= dt; // вспышка — только для отрисовки
-      const [tp] = sc.nearestPlayer(pr.x + 11, pr.y + 11);
-      if (pr['kbT'] > 0) pr['kbT'] -= dt;
-      else if (tp) { const d = Math.sign(tp.x + 7 - (pr.x + 11)) || 1; pr['face'] = d; pr.vx += (d * pr['spd'] - pr.vx) * Math.min(1, dt * 6); }
-      pr.vy = Math.min(pr.vy + P.G * dt, P.MAXFALL);
-      sc.moveBody(pr as never, dt);
-      if ((pr['hitL'] || pr['hitR']) && pr['onGround']) pr.vy = -420;
-      return true;
-    }
-    case 'trophy':
-      pr.vy = Math.min(pr.vy + 1100 * dt, 820); pr.x += pr.vx * dt; pr.y += pr.vy * dt;
-      if (sc.isSolid(Math.floor((pr.x + 15) / T), Math.floor((pr.y + 30) / T)) && pr.vy > 0) {
-        pr.y = Math.floor((pr.y + 30) / T) * T - 30; sc.dustAt(8, pr.x + 15, pr.y + 30); sc.sfx('glass');
-        if (pr['bounces']-- > 0) { pr.vy = -320; pr.vx = (sc.rBoss() - 0.5) * 300; } else pr.dead = true;
-      }
       return true;
     case 'echo': // призрак Владика: бежит вдоль пола и исчезает за дальней стеной
       pr.x += pr.vx * dt;
       if ((pr.vx < 0 && pr.x < T - 60) || (pr.vx > 0 && pr.x + pr.w > (sc.L.W - 1) * T + 60)) pr.dead = true;
       return true;
-    case 'roller': // печатный валик Миши: до дальней стены и обратно, потом гаснет
-      pr.x += pr.vx * dt;
-      if ((pr.x < T && pr.vx < 0) || (pr.x + pr.w > (sc.L.W - 1) * T && pr.vx > 0)) {
-        pr.vx = -pr.vx; pr.x = clamp(pr.x, T, (sc.L.W - 1) * T - pr.w); pr['rev'] = (pr['rev'] || 0) + 1; sc.shake(160, 0.006); sc.sfx('slam');
-        if (pr['rev'] >= 2) pr.dead = true;
-      }
-      return true;
-    case 'rootspike': case 'staff': case 'staffghost': case 'mark': return true; // неподвижны: живут свой срок после предупреждения
   }
   return false;
-}
-export function hitCollector(sc: World, pr: Proj, dir: number): void {
-  if ((pr['hitCd'] || 0) > 0) return;
-  pr['hitCd'] = 0.22; pr['hp']--; pr['flash'] = 0.1; pr['kbT'] = 0.18; pr.vx = dir * 300; pr.vy = -240; sc.sfx('hit');
-  if (pr['hp'] <= 0) { pr.dead = true; sc.sfx('coin'); sc.burst(12, pr.x + 11, pr.y + 11, 0xffd47a); }
 }
