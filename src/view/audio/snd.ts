@@ -93,6 +93,10 @@ class SndImpl {
       case 'bossdie': this.tone('sawtooth', 220, 30, 1.6, 0.2); this.hiss(1.4, 0.2, 200, 0.5); this.tone('sine', 60, 25, 1.8, 0.4); this.later([500, 800, 1100], (i) => this.tone('triangle', 880 - i * 200, 440 - i * 100, 0.6, 0.06)); break;
       case 'bag': this.tone('sine', 120, 60, 0.16, 0.28); this.hiss(0.12, 0.2, 420, 0.7); break;
       case 'parry': this.tone('square', 1900, 1500, 0.07, 0.06); this.tone('triangle', 2800, 2300, 0.14, 0.06); this.tone('sine', 1400, 1400, 0.2, 0.05); break;
+      // отбив 2.0: «звонок» идеального отбива (чистый колокольный тон выше обычного), глухой «звон» сорванного отбива и удар-контратака
+      case 'parryPerfect': this.tone('square', 2200, 1800, 0.06, 0.06); this.tone('triangle', 3520, 3520, 0.32, 0.08); this.tone('sine', 2637, 2637, 0.45, 0.07); this.later([70], () => this.tone('sine', 3951, 3951, 0.4, 0.05)); break;
+      case 'parryFail': this.tone('square', 520, 380, 0.09, 0.06); this.hiss(0.06, 0.08, 1800, 1.5); break;
+      case 'counter': this.tone('sawtooth', 880, 1760, 0.12, 0.09); this.tone('triangle', 1320, 2640, 0.2, 0.07); break;
       case 'win': this.later([0, 140, 280, 420], (i) => this.tone('triangle', [523, 659, 784, 1047][i]!, [523, 659, 784, 1047][i]!, 0.5, 0.12)); break;
       // оружие (weapons.js)
       case 'chargeFull': this.tone('sine', 880, 1760, 0.18, 0.12); this.tone('triangle', 1320, 1320, 0.3, 0.07); this.hiss(0.1, 0.1, 3600, 2); break;

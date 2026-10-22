@@ -13,7 +13,7 @@ import { dataPoiseMul, dataStaggerBegin, dataStaggerRoom, onStagger } from './bo
 
 export const bossOf = (sc: World, key: BossRef): Boss | null => (key === 'boss' ? sc.boss : key === 'vladik' || key === 'tima' ? sc[key] : sc.bosses[dataIdx(key)] ?? null);
 const NAMES: Record<BossKey, string> = { boss: 'Корнематка', vladik: 'Владик Скрипка', tima: 'Тима Пиво' };
-const nameOf = (key: BossRef, b: Boss): string => NAMES[key as BossKey] ?? (b['name'] as string);
+export const nameOf = (key: BossRef, b: Boss): string => NAMES[key as BossKey] ?? (b['name'] as string);
 /** все боссы мира с ключами: Корнематка, Владик, Тима и боссы на данных (Миша живёт отдельно) */
 export const bossRefs = (sc: World): [Boss, BossRef][] => {
   const out: [Boss, BossRef][] = [[sc.boss, 'boss']];

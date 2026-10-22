@@ -99,7 +99,7 @@ export class World {
   fightOn = false; fightT = 0; fightWon = false;
   mapV = new Set<number>(); mapB = new Set<number>(); mapDirty = false; mapSaveT = 0; mt!: MapState;
   bagHits = 0; needleHits = 0; timaHits = 0;
-  areaIdx = -1; _execHint = false; _shellHint = false; _crackHint = false; _needleTip = false; _inAtk: Player | null = null; _hd: number | null = null; _e2burst = false;
+  areaIdx = -1; _execHint = false; _shellHint = false; _crackHint = false; _needleTip = false; _inAtk: Player | null = null; _hd: number | null = null; _cm = 1; _e2burst = false;
   /** данные следующей сцены, когда мир решил сменить сцену (Campaign.go): подхватывает сессия */
   next: WorldOpts | null = null;
   // ----- события для отрисовки -----

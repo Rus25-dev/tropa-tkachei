@@ -1,6 +1,6 @@
 // Слои урона. В v1.8 функции урона обёрнуты друг в друга по порядку загрузки модулей (база → оружие → оберегов → статистика);
 // здесь порядок вызовов записан явно. Внешний слой — статистика забега, внутренний — исходная функция (RAW).
-import { BAL, dataIdx } from './balance';
+import { BAL, PARRY2, dataIdx } from './balance';
 import type { BossRef } from './balance';
 import type { Boss, Enemy, HitKind, Player } from './types';
 import type { World } from './world';
@@ -12,7 +12,7 @@ import { killEnemy } from './combat';
 import { rawKorne } from './korne';
 import { rawVladik } from './vladik';
 import { rawTima } from './tima';
-import { bossRefs, poiseWrapDamage } from './bosses2';
+import { bossRefs, nameOf, poiseWrapDamage } from './bosses2';
 import { rawData } from './boss/exec';
 import { statBegin, statEndBoss, statEndEnemy, statHurt } from './racestats';
 
@@ -34,6 +34,15 @@ export function gainSilk(sc: World, p: Player, boss?: boolean): void {
 }
 export { gainSilkBase };
 
+// ---------- контратака (отбив 2.0) ----------
+/** Первый удар вперёд после идеального отбива (player.ts ставит counterHit на замахе): по каждой цели бьёт сильнее один раз. Нить-всполох и яд («noSilkGain») контратакой не бывают. */
+function counterOn(p: Player, t: object): boolean {
+  if (!p['counterHit'] || p['noSilkGain']) return false;
+  const seen = (p['counterSeen'] ??= new Set<object>()) as Set<object>;
+  if (seen.has(t)) return false;
+  seen.add(t); return true;
+}
+
 // ---------- обычные враги: статистика → обереги → оружие → база ----------
 export function damageEnemy(sc: World, e: Enemy, p: Player): void {
   const S = statBegin(sc);
@@ -43,7 +52,12 @@ export function damageEnemy(sc: World, e: Enemy, p: Player): void {
 }
 function damageEnemyCharms(sc: World, e: Enemy, p: Player): void {
   const hp0 = e.hp, stunned = e['state'] === 'stun';
+  const ctr = counterOn(p, e);
   damageEnemyWeapons(sc, e, p);
+  if (ctr && e.hp < hp0 && !e.dead) {
+    e.hp -= (hp0 - e.hp) * (PARRY2.COUNTER_DMG - 1); sc.burst(10, e.x + e.w / 2, e.y + e.h / 2, 0xffd96a);
+    if (e.hp <= 0) killEnemy(sc, e);
+  }
   if (e.hp < hp0 && !e.dead && sc.auth()) {
     if (!p['noSilkGain'] && p.atkT > 0 && !!p.atkHits) {
       if (hasCharm(p, 'sting')) applyStatus(sc, e, 'poison', null, p);
@@ -65,7 +79,14 @@ export function damageBoss(sc: World, key: BossRef, p: Player): void {
 }
 function damageBossCharms(sc: World, key: BossRef, p: Player): void {
   const b = bossOf(sc, key), hp0 = b && b.hp, stag = !!b && b.stagger > 0;
-  damageBossWeapons(sc, b, p, () => poiseWrapDamage(sc, key, p));
+  const ctr = !!b && counterOn(p, b);
+  if (ctr) sc._cm = PARRY2.COUNTER_POISE_MUL; // контратака: стойкость за удар ×2 (poiseMul)
+  try { damageBossWeapons(sc, b, p, () => poiseWrapDamage(sc, key, p)); } finally { sc._cm = 1; }
+  if (ctr && b && b.hp < hp0! && b.hp > 0) { // и урон ×1.5: полхода добавки; если она добивает — настоящий удар
+    const add = (stag ? 2 : 1) * (PARRY2.COUNTER_DMG - 1);
+    if (b.hp - add > 0) { b.hp -= add; sc.bossBar(true, nameOf(key, b), Math.max(0, b.hp) / b.maxHp); } else bossDamage(sc, key, p, 1);
+    sc.burst(12, b.x + b.w / 2, b.y + b.h / 2, 0xffd96a);
+  }
   if (b && b.hp < hp0! && b.hp > 0 && sc.auth()) {
     if (!p['noSilkGain'] && p.atkT > 0 && !!p.atkHits) {
       if (hasCharm(p, 'sting')) applyStatus(sc, b, 'poison', null, p);

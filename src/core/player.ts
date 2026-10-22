@@ -159,7 +159,10 @@ function baseStepPlayer(sc: World, p: Player, dt: number): void {
   const inp = p.inp;
   p.inv -= dt; p.hurtT -= dt; p.dashCd -= dt; p.bombCd -= dt; p.atkCd -= dt; p.atkT -= dt; p.wjLock -= dt; p.healT -= dt; p.coyote -= dt; p.jumpBuf -= dt; p.landT -= dt;
   p['atkBuf'] = ((p['atkBuf'] as number) || 0) - dt; p['comboT'] = ((p['comboT'] as number) || 0) - dt; p['parryT'] = ((p['parryT'] as number) || 0) - dt; p['parryCd'] = ((p['parryCd'] as number) || 0) - dt;
+  if (typeof p['parryF'] === 'number') p['parryF']++; // кадры окна отбива (идеальный отбив — первые PARRY2.PERFECT_F)
+  p['counterT'] = ((p['counterT'] as number) || 0) - dt; if ((p['perfFx'] as number) > 0) p['perfFx'] -= dt;
   p['dashBuf'] = ((p['dashBuf'] as number) || 0) - dt; p['execT'] = ((p['execT'] as number) || 0) - dt;
+  if ((p['counterFx'] as number) > 0) p['counterFx'] -= dt;
   if ((p['burstFx'] as number) > 0) p['burstFx'] -= dt; // только для отрисовки: кольцо всполоха
   if (p.downed) { p.vx *= 0.9; p.vy = Math.min(p.vy + P.G * dt, P.MAXFALL); sc.moveBody(p, dt); return; }
   if (inp.jumpP) p.jumpBuf = P.BUF;
@@ -233,6 +236,9 @@ function baseStepPlayer(sc: World, p: Player, dt: number): void {
       p['combo'] = (p['comboT'] as number) > 0 ? (p['combo'] as number) + 1 : 1; if ((p['combo'] as number) > W.combo) p['combo'] = 1;
       p['heavy'] = !!W.finisher && p['combo'] === W.combo && p.atkDir === 'f'; p['comboT'] = W.comboWin;
       p.atkT = p['heavy'] ? W.finT : W.atkT; p.atkCd = (p['heavy'] ? W.finCd : W.cd); p.atkHits = new Set(); p.pogoed = false; p['seq'] = ((p['seq'] as number) || 0) + 1;
+      // контратака: первый удар вперёд в окне после идеального отбива — сильнее (урон и стойкость, см. damage.ts), один раз
+      p['counterHit'] = false; p['counterSeen'] = null;
+      if ((p['counterT'] as number) > 0 && p.atkDir === 'f') { p['counterHit'] = true; p['counterT'] = 0; p['counterFx'] = 0.3; sc.snd('counter'); sc.parts(14, p.x + 7 + p.face * 22, p.y + 13, 0xffd96a); }
       sc.snd(p['heavy'] ? 'slam' : 'slash');
       if (W.onSwing) W.onSwing(sc, p);
     }
@@ -243,7 +249,7 @@ function baseStepPlayer(sc: World, p: Player, dt: number): void {
       else if (p.silk >= sc.silkMax && p.hp < p.maxHp && !duelNoHeal(sc)) {
         p.silk = 0; p['healCh'] = P.HEAL_T; p.healT = P.HEAL_T; p.atkT = 0; sc.snd('bench');
         sc.parts(10, p.x + 7, p.y + 12, p.pal.accent);
-      } else if ((p['parryCd'] as number) <= 0) { p['parryT'] = P.PARRY_T; p['parryCd'] = P.PARRY_CD; sc.snd('slash'); }
+      } else if ((p['parryCd'] as number) <= 0) { p['parryT'] = P.PARRY_T; p['parryCd'] = P.PARRY_CD; p['parryF'] = 0; sc.snd('slash'); }
     }
   }
   p['dropT'] = ((p['dropT'] as number) || 0) - dt; p.noPlat = (p['dropT'] as number) > 0;

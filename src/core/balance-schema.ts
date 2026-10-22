@@ -13,6 +13,7 @@ const SCHEMA: Tree = {
   STAGGER_T: 'n',
   EXEC_FRAC: 'n',
   TOOL: Object.fromEntries(['NEEDLE_SPD', 'NEEDLE_DMG', 'NEEDLE_STICK', 'TRAP_LIFE', 'TRAP_FREEZE', 'TRAP_MAX', 'TRAP_POISE', 'BOMB_R', 'BOMB_DMG', 'BOMB_FUSE', 'HOOK_R', 'HOOK_SPD', 'HOOK_STUN'].map((k) => [k, 'n' as const])),
+  PARRY2: Object.fromEntries(['PERFECT_F', 'PERFECT_LEGACY', 'PERFECT_SILK', 'PERFECT_POISE_MUL', 'POSTURE_NORMAL_POISE', 'PERFECT_HITSTOP', 'COUNTER_T', 'COUNTER_DMG', 'COUNTER_POISE_MUL'].map((k) => [k, 'n' as const])),
   CH_T: 'n', CH_SHOW: 'n', CH_SLOW: 'n',
   MV2: { GLIDE_V: 'n', GLIDE_DEC: 'n', GLIDE_HOLD: 'n', CLIMB_T: 'n' },
   STATUS: { poison: { iv: 'n', n: 'n' }, burn: { iv: 'n', n: 'n' }, slow: { t: 'n' } },
@@ -25,6 +26,7 @@ export interface BalanceData {
   POISE_MAX: Record<number, number>;
   STAGGER_T: number; EXEC_FRAC: number;
   TOOL: Record<'NEEDLE_SPD' | 'NEEDLE_DMG' | 'NEEDLE_STICK' | 'TRAP_LIFE' | 'TRAP_FREEZE' | 'TRAP_MAX' | 'TRAP_POISE' | 'BOMB_R' | 'BOMB_DMG' | 'BOMB_FUSE' | 'HOOK_R' | 'HOOK_SPD' | 'HOOK_STUN', number>;
+  PARRY2: Record<'PERFECT_F' | 'PERFECT_LEGACY' | 'PERFECT_SILK' | 'PERFECT_POISE_MUL' | 'POSTURE_NORMAL_POISE' | 'PERFECT_HITSTOP' | 'COUNTER_T' | 'COUNTER_DMG' | 'COUNTER_POISE_MUL', number>;
   CH_T: number; CH_SHOW: number; CH_SLOW: number;
   MV2: Record<'GLIDE_V' | 'GLIDE_DEC' | 'GLIDE_HOLD' | 'CLIMB_T', number>;
   STATUS: { poison: { iv: number; n: number }; burn: { iv: number; n: number }; slow: { t: number } };
