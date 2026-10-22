@@ -1,0 +1,179 @@
+{
+  "id": "brainmother",
+  "name": "Мозг-мать",
+  "about": "Неподвижный разум-механизм под стеклянным куполом. Броню не пробить: бей в светящееся ядро, когда оно открывается после её атак. Кольца-стражи и лазеры гонят тебя с места.",
+  "landmark": "Бей в светящееся ядро",
+  "tips": [
+    "Купол и корпус — броня. Ядро открывается только в окне после атаки: смотри на зелёное кольцо у основания.",
+    "Лазеры по полу катятся к ней волной: перепрыгни или проскочи рывком. Решётка лучей бьёт полосами поочерёдно: за один такт переходи в свободную полосу.",
+    "Кольца-стражи плюются жёлтыми шарами (отбивай) и выбивают из позиции: убей их или уведи."
+  ],
+  "order": 100,
+  "dev": true,
+  "arena": {
+    "level": "vladik",
+    "ents": [
+      { "id": "lz_far", "kind": "beam", "hit": "dodge", "area": { "x": 0, "y": 0, "w": 384, "h": 44 }, "timeline": [{ "at": 0, "tell": 40, "active": 24 }] },
+      { "id": "lz_mid", "kind": "beam", "hit": "dodge", "area": { "x": 384, "y": 0, "w": 384, "h": 44 }, "timeline": [{ "at": 0, "tell": 40, "active": 24 }] },
+      { "id": "lz_near", "kind": "beam", "hit": "dodge", "area": { "x": 768, "y": 0, "w": 256, "h": 44 }, "timeline": [{ "at": 0, "tell": 40, "active": 24 }] },
+      { "id": "col_a", "kind": "beam", "hit": "dodge", "area": { "x": 96, "y": 0, "w": 192, "h": 448 }, "timeline": [{ "at": 0, "tell": 54, "active": 14 }] },
+      { "id": "col_b", "kind": "beam", "hit": "dodge", "area": { "x": 384, "y": 0, "w": 192, "h": 448 }, "timeline": [{ "at": 0, "tell": 54, "active": 14 }] },
+      { "id": "col_c", "kind": "beam", "hit": "dodge", "area": { "x": 672, "y": 0, "w": 192, "h": 448 }, "timeline": [{ "at": 0, "tell": 54, "active": 14 }] },
+      { "id": "col_d", "kind": "beam", "hit": "dodge", "area": { "x": 960, "y": 0, "w": 192, "h": 448 }, "timeline": [{ "at": 0, "tell": 54, "active": 14 }] }
+    ]
+  },
+  "size": { "w": 120, "h": 180 },
+  "still": true,
+  "place": { "x": 0.8, "y": 0 },
+  "hp": [60, 90],
+  "color": 6044282,
+  "intro": {
+    "frames": 150, "skippable": true, "say": "Разум этого места просыпается.",
+    "events": [
+      { "at": 10, "shake": { "ms": 400, "i": 0.006 }, "sfx": "roar" },
+      { "at": 70, "flash": { "ms": 200, "r": 190, "g": 120, "b": 255 }, "say": "Ты — шум в моих проводах." }
+    ]
+  },
+  "deathFrames": 260,
+  "idle": { "walkSpeed": 0, "keepDist": 0 },
+  "weak": [
+    { "id": "core", "box": { "x": 30, "y": 112, "w": 60, "h": 56 }, "open": [{ "on": "punish" }, { "on": "stagger" }] }
+  ],
+  "antiCheese": { "shoveChain": "c_shove", "relocateChain": "c_purge", "relocate": { "sec": 10 } },
+  "attacks": [
+    {
+      "id": "ring_call", "name": "Зов колец",
+      "tell": { "frames": 34, "cue": { "color": "white", "sfx": "hum", "pose": "dome_glow" } },
+      "summon": [{ "at": 0, "creature": "ring", "ox": 90, "oy": -50, "count": 2 }],
+      "recovery": { "frames": 60, "punishWindow": { "from": 6, "to": 56 } }
+    },
+    {
+      "id": "ring_volley", "name": "Кольцевой залп",
+      "tell": { "frames": 30, "cue": { "color": "yellow", "sfx": "charge", "pose": "dome_flare" } },
+      "spawn": [{ "at": 0, "proj": { "kind": "spore", "w": 14, "h": 14, "life": 150 }, "kind": "parry", "ox": 40, "oy": -10, "vx": 340, "vy": -150, "aim": true, "count": 3, "spread": 14 }],
+      "recovery": { "frames": 54, "punishWindow": { "from": 8, "to": 50 } }
+    },
+    {
+      "id": "sweep", "name": "Катящийся лазер",
+      "tell": { "frames": 32, "cue": { "color": "red", "sfx": "laser_on", "pose": "eye_open" } },
+      "fire": [{ "at": 0, "ent": "lz_far" }, { "at": 34, "ent": "lz_mid" }, { "at": 68, "ent": "lz_near" }],
+      "recovery": { "frames": 140, "punishWindow": { "from": 70, "to": 130 } }
+    },
+    {
+      "id": "pulse", "name": "Пульс купола",
+      "tell": { "frames": 44, "cue": { "color": "purple", "sfx": "swell", "pose": "dome_swell" } },
+      "spawn": [
+        { "at": 0, "proj": { "kind": "wave", "w": 26, "h": 18, "life": 190 }, "kind": "unblockable", "ox": 20, "oy": 78, "vx": 300 },
+        { "at": 30, "proj": { "kind": "wave", "w": 26, "h": 18, "life": 190 }, "kind": "unblockable", "ox": 20, "oy": 78, "vx": 300 }
+      ],
+      "recovery": { "frames": 70, "punishWindow": { "from": 36, "to": 66 } }
+    },
+    {
+      "id": "columns", "name": "Решётка лучей",
+      "tell": { "frames": 34, "cue": { "color": "red", "sfx": "grid_on", "pose": "eyes_split" } },
+      "fire": [{ "at": 0, "ent": "col_a" }, { "at": 0, "ent": "col_c" }, { "at": 64, "ent": "col_b" }, { "at": 64, "ent": "col_d" }],
+      "recovery": { "frames": 136, "punishWindow": { "from": 74, "to": 126 } }
+    },
+    {
+      "id": "shove", "name": "Выброс",
+      "tell": { "frames": 30, "cue": { "color": "white", "sfx": "shove", "pose": "brace" } },
+      "active": [{ "from": 0, "to": 3, "hit": { "x": -170, "y": 110, "w": 340, "h": 70 }, "dmg": 1, "kind": "dodge", "knock": { "vx": 420, "vy": -320 } }],
+      "recovery": { "frames": 36, "punishWindow": { "from": 6, "to": 32 } }
+    },
+    {
+      "id": "hail", "name": "Град обломков",
+      "tell": { "frames": 38, "cue": { "color": "red", "sfx": "rumble", "pose": "look_up" } },
+      "spawn": [
+        { "at": 0, "proj": { "kind": "rock", "w": 16, "h": 16, "life": 120 }, "kind": "dodge", "from": "target", "oy": -300 },
+        { "at": 28, "proj": { "kind": "rock", "w": 16, "h": 16, "life": 120 }, "kind": "dodge", "from": "target", "ox": -80, "oy": -300 },
+        { "at": 56, "proj": { "kind": "rock", "w": 16, "h": 16, "life": 120 }, "kind": "dodge", "from": "target", "ox": 80, "oy": -300 },
+        { "at": 84, "proj": { "kind": "rock", "w": 16, "h": 16, "life": 120 }, "kind": "dodge", "from": "target", "ox": -160, "oy": -300 },
+        { "at": 112, "proj": { "kind": "rock", "w": 16, "h": 16, "life": 120 }, "kind": "dodge", "from": "target", "ox": 160, "oy": -300 }
+      ],
+      "recovery": { "frames": 60, "punishWindow": { "from": 30, "to": 56 } }
+    }
+  ],
+  "chains": [
+    { "id": "c_rings", "steps": [{ "attack": "ring_call" }], "weight": 2, "cooldown": 480 },
+    { "id": "c_volley", "steps": [{ "attack": "ring_volley" }], "weight": 3 },
+    { "id": "c_sweep", "steps": [{ "attack": "sweep" }], "weight": 3 },
+    { "id": "c_pulse", "steps": [{ "attack": "pulse" }], "weight": 2 },
+    { "id": "c_volley_sweep", "steps": [{ "attack": "ring_volley", "gapFrames": 22 }, { "attack": "sweep" }], "weight": 2 },
+        { "id": "c_pulse_volley", "steps": [{ "attack": "pulse", "gapFrames": 30 }, { "attack": "ring_volley" }], "weight": 2 },
+    { "id": "c_columns_pulse", "steps": [{ "attack": "columns", "gapFrames": 60 }, { "attack": "pulse" }], "weight": 2 },
+    { "id": "c_columns", "steps": [{ "attack": "columns" }], "weight": 3 },
+    { "id": "c_shove", "steps": [{ "attack": "shove" }], "weight": 1, "cooldown": 180 },
+    { "id": "c_hail", "steps": [{ "attack": "hail" }], "weight": 1, "cooldown": 480 },
+    { "id": "c_purge", "steps": [{ "attack": "hail", "gapFrames": 24 }, { "attack": "hail" }], "weight": 1 },
+    { "id": "c_enter2", "steps": [{ "attack": "pulse" }], "weight": 1 },
+    { "id": "c_enter3", "steps": [{ "attack": "hail" }], "weight": 1 }
+  ],
+  "creatures": [
+    {
+      "id": "ring", "name": "Кольцо-страж",
+      "size": { "w": 30, "h": 30 }, "hp": 2, "speed": 60, "fly": { "hover": 48, "speed": 90, "bob": 3 },
+      "life": 480, "fade": 40, "max": 2,
+      "contact": { "dmg": 1, "kind": "dodge" }, "vanishOn": ["bossDeath", "phase", "stagger"], "color": 11567103,
+      "attacks": [
+        {
+          "id": "spit", "tell": { "frames": 30, "cue": { "color": "yellow", "sfx": "spit", "pose": "ring_flare" } },
+          "spawn": [{ "at": 0, "proj": { "kind": "spore", "w": 10, "h": 10, "life": 120 }, "kind": "parry", "vx": 260, "vy": -100, "aim": true }],
+          "recovery": { "frames": 36, "punishWindow": { "from": 4, "to": 30 } }
+        }
+      ],
+      "chains": [{ "id": "m_spit", "steps": ["spit"], "weight": 1 }], "rest": [80, 130]
+    }
+  ],
+  "phases": [
+    {
+      "fromHp": 1,
+      "policy": {
+        "chains": ["c_rings", "c_volley", "c_sweep", "c_pulse", "c_volley_sweep"],
+        "noRepeat": 1, "fatigue": { "factor": 0.6, "decay": 600 }, "restFrames": [24, 44]
+      }
+    },
+    {
+      "fromHp": 0.5, "rageFrames": 40,
+      "scene": {
+        "frames": 200, "skippable": true, "say": "Купол трескается.",
+        "events": [
+          { "at": 5, "shake": { "ms": 700, "i": 0.01 }, "sfx": "roar" },
+          { "at": 50, "zoom": { "k": 1.25, "frames": 40 }, "flash": { "ms": 300, "r": 255, "g": 200, "b": 255 } },
+          { "at": 90, "morph": true, "shake": { "ms": 500, "i": 0.012 }, "say": "Хватит стекла." },
+          { "at": 150, "zoom": { "k": 1, "frames": 30 } }
+        ]
+      },
+      "form": {
+        "draw": "shattered", "color": 9852559,
+        "weak": [{ "id": "core", "box": { "x": 18, "y": 104, "w": 84, "h": 66 }, "open": [{ "on": "punish" }, { "on": "recover", "from": 0, "to": 30 }, { "on": "stagger" }] }]
+      },
+      "enterChain": "c_enter2",
+      "policy": {
+        "chains": ["c_rings", "c_volley", "c_sweep", "c_pulse", "c_columns", "c_pulse_volley", "c_volley_sweep"],
+        "noRepeat": 2, "fatigue": { "factor": 0.6, "decay": 600 }, "restFrames": [20, 36]
+      }
+    },
+    {
+      "fromHp": 0.12, "rageFrames": 30,
+      "scene": {
+        "frames": 360, "skippable": true, "say": "Не… гасни…",
+        "events": [
+          { "at": 0, "fade": { "out": true, "ms": 400 }, "sfx": "roar" },
+          { "at": 60, "fade": { "out": false, "ms": 500 }, "zoom": { "k": 1.4, "frames": 60 }, "shake": { "ms": 900, "i": 0.008 } },
+          { "at": 140, "say": "Я помню каждого, кто сюда дошёл.", "flash": { "ms": 250, "r": 255, "g": 255, "b": 255 } },
+          { "at": 230, "shake": { "ms": 800, "i": 0.014 }, "morph": true, "flash": { "ms": 400, "r": 255, "g": 120, "b": 160 }, "say": "Последний свет — тебе!" },
+          { "at": 320, "zoom": { "k": 1, "frames": 30 } }
+        ]
+      },
+      "form": {
+        "draw": "frenzy", "color": 14500975,
+        "weak": [{ "id": "core", "box": { "x": 18, "y": 104, "w": 84, "h": 66 }, "open": [{ "on": "punish" }, { "on": "recover", "from": 0, "to": 40 }, { "on": "stagger" }] }]
+      },
+      "enterChain": "c_enter3",
+      "policy": {
+        "chains": ["c_volley", "c_sweep", "c_columns", "c_pulse_volley", "c_columns_pulse", "c_volley_sweep", "c_rings", "c_hail"],
+        "noRepeat": 2, "fatigue": { "factor": 0.6, "decay": 600 }, "restFrames": [16, 28]
+      }
+    }
+  ]
+}
