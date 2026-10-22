@@ -3,7 +3,7 @@
 // Порядок «обёрток» GameScene.prototype из v1.8 (qol → training → maptravel → tools → status и т. п.) сохранён явными вызовами.
 import { CHAPTERS, EMPTY, P, PAL, PLAT, SOLID, T, clamp } from './balance';
 import type { Boss, Enemy, FxEvent, Gate, Inp, Level, Player, Proj, Rect } from './types';
-import { buildLevel, ARENAS } from './levels';
+import { buildArena, buildLevel } from './levels';
 import { mulberry32, rngSeedFor, type Rng } from './rng';
 import { STEP } from './constants';
 import { campaignInit, campaignLevel, campaignSetup, applyUp, levelBossStep, type CampState, type Progress } from './campaign';
@@ -31,6 +31,8 @@ import { effForm } from './boss/form';
 import { makeFight, stepDataBoss } from './boss/exec';
 import { arenaStep, type ArenaRt } from './boss/arena';
 import { stepCond, type CondRt } from './boss/conductor';
+import '../content'; // содержимое (оружие и др.) регистрируется до создания мира (в Node — ключом --import, см. src/content/node.ts)
+import { contentLoaded } from '../content/load';
 
 
 export type Mode = 'story' | 'bosstest';
@@ -111,6 +113,7 @@ export class World {
   fxOn: boolean; fxq: FxEvent[] = [];
 
   constructor(opts: WorldOpts) {
+    if (!contentLoaded()) throw new Error('Содержимое игры не загружено: в Node запускайте через tsx --import ./tools/ldtk-register.mjs (см. src/content/node.ts)');
     this.startData = opts;
     this.seed = opts.seed >>> 0;
     this.mode = opts.mode ?? 'story';
@@ -140,6 +143,8 @@ export class World {
   parts(n: number, x: number, y: number, c: number): void { this.emit('burst', { n, x, y, c }); }
   dustAt(n: number, x: number, y: number): void { this.emit('dust', { n, x, y }); if (this.online === 'host') this.sendEv({ k: 'dust', n, x: Math.round(x), y: Math.round(y) }); }
   paperAt(n: number, x: number, y: number): void { this.emit('paper', { n, x, y }); if (this.online === 'host') this.sendEv({ k: 'paper', n, x: Math.round(x), y: Math.round(y) }); }
+  /** частицы убранства арены по имени события (src/view/content/arenas, поле bursts); хост пересылает их гостю */
+  fxAt(name: string, n: number, x: number, y: number): void { this.emit(name, { n, x, y }); if (this.online === 'host') this.sendEv({ k: 'fx', e: name, n, x: Math.round(x), y: Math.round(y) }); }
   foamAt(n: number, x: number, y: number): void { this.emit('foam', { n, x, y }); if (this.online === 'host') this.sendEv({ k: 'foam', n, x: Math.round(x), y: Math.round(y) }); }
   shake(d: number, i: number): void { this.emit('shake', { d, i }); if (this.online === 'host') this.sendEv({ k: 'shake', d, i }); }
   toast(m: string, hold?: number): void { this.emit('toast', { m, hold }); }
@@ -156,7 +161,7 @@ export class World {
     this.enemies = [];
     const dd = this.mode === 'bosstest' ? bossDef(this.bossKind) : undefined; // босс на данных: арена берётся из его описания
     if (this.mode === 'bosstest' && !dd) throw new Error(`нет босса на данных «${this.bossKind}»`);
-    this.L = campaignLevel(this) ?? (dd ? ARENAS[arenaLevel(dd)]!() : buildLevel());
+    this.L = campaignLevel(this) ?? (dd ? buildArena(arenaLevel(dd)) : buildLevel());
     this.bosses = [];
     this.crates = null; this.puddles = null;
     const L = this.L;

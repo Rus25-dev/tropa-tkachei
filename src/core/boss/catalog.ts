@@ -2,10 +2,9 @@
 // поэтому новый босс = новый файл data/bosses/<id>.json, а этот файл не меняется.
 import { CHAPTER_BOSSES } from '../balance';
 import { bossDef, dataBossIds } from './registry';
+import { arenaReg } from '../plugin/regs';
 import { arenaLevel, type BossDef } from './schema';
 
-/** человеческие названия арен */
-export const ARENA_NAMES: Record<string, string> = { misha: 'Старая типография', vladik: 'Кабинет музыки', tima: 'Берлога Тимы' };
 
 /** Карточка босса: название, ориентир (короткая подсказка), арена */
 export interface BossCard { id: string; name: string; about: string; landmark: string; arena: string; arenaName: string; dev: boolean }
@@ -22,7 +21,7 @@ export function listedDefs(dev: boolean): BossDef[] {
 }
 export function cardOf(d: BossDef): BossCard {
   const level = arenaLevel(d);
-  return { id: d.id, name: d.dev ? `${d.name} (dev)` : d.name, about: d.about, landmark: d.landmark, arena: level, arenaName: ARENA_NAMES[level] ?? level, dev: d.dev };
+  return { id: d.id, name: d.dev ? `${d.name} (dev)` : d.name, about: d.about, landmark: d.landmark, arena: level, arenaName: arenaReg.get(level)?.name ?? level, dev: d.dev };
 }
 /** Карточки Босс-теста: боссы глав по порядку глав, затем остальные (dev-карточки — только при dev = true, то есть ?dev=1) */
 export function testCards(dev: boolean): BossCard[] { return listedDefs(dev).map(cardOf); }

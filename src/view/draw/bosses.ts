@@ -8,6 +8,8 @@ import { effForm } from '../../core/boss/form';
 import { bodyDrawer, type DrawCtx } from './bossdraw';
 import { bossDef } from '../../core/boss/registry';
 import type { G } from './common';
+import '../content';
+import { projViewReg } from '../content/regs';
 
 /** цвет подсказки замаха и удара по типу: жёлтое — можно отбить, красное — только уворот, фиолетовое — не отбивается, белое — нейтральный замах */
 export const CUE_RGB: Record<string, number> = { yellow: 0xffd447, red: 0xff4a3a, purple: 0xb877ff, white: 0xffffff };
@@ -87,6 +89,6 @@ export function drawDataProjs(w: World, g: G, now: number): void {
     if (pr.dead || pr['src'] !== 'd') continue;
     const c = HIT_RGB[pr.hk ?? 'parry'] ?? 0xffffff, blink = 0.55 + Math.sin(now * 18) * 0.3;
     g.lineStyle(2, c, blink); g.strokeRect(pr.x - 2, pr.y - 2, pr.w + 4, pr.h + 4);
-    if (pr.kind === 'note' || pr.kind === 'glob') { g.fillStyle(c, 0.35); g.fillCircle(pr.x + pr.w / 2, pr.y + pr.h / 2, Math.max(pr.w, pr.h) / 2); }
+    if (projViewReg.get(pr.kind)?.round) { g.fillStyle(c, 0.35); g.fillCircle(pr.x + pr.w / 2, pr.y + pr.h / 2, Math.max(pr.w, pr.h) / 2); }
   }
 }

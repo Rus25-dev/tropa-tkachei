@@ -5,26 +5,26 @@
 // Ядро ничего не знает о сети: исходящие события уходят через w.sendEv (событие 'nev' в очереди сессии), входящие применяются отсюда.
 // БОССЫ НА ДАННЫХ ПО СЕТИ НЕ ПОДДЕРЖАНЫ: в снимок они не входят. Поэтому вход в арену по сети закрыт (campaign.netBossBlock), а Босс-тест по сети отключён в меню;
 // остальное (уровни, коридоры, враги, снаряды, бусины, ворота, инструменты) синхронизируется как раньше.
-import { CH_SHOW, HEAVY_KINDS, P, PERSIST_KINDS, dataIdx } from './balance';
+import { CH_SHOW, P, dataIdx } from './balance';
 import type { Enemy, Player, Proj } from './types';
 import { applyUp, buy, freshUp, go as campaignGo } from './campaign';
 import { knockFrom, deathFxLocal, bossOf, execBoss } from './bosses2';
 import { parryPoise, silkBurstHit, respawnLocal } from './combat';
-import { e2Parry, E2_STATES } from './enemies';
+import { e2Parry, e2States } from './enemies';
 import { hurtPlayer } from './damage';
 import { statusMask } from './status';
 import { freezeEnemy, isToolKind, toolHurtBoss, toolSpawn, type ToolMsg } from './tools';
 import { mkSw, wdef } from './weapons';
 import { inset, overlap, type World } from './world';
-import { kitChargeFrac, kitCode, kitFromNet } from './kit/moves';
-import { SPIRIT_SIZE, WRAITH_SIZE } from './kit/spells';
+import { kitChargeFrac, kitCode, kitFromNet, kitTrail } from './kit/moves';
+import { netKindReg, projReg, toolEntReg } from './plugin/regs';
+import { isHeroProj } from './proj-kit';
 
 export type NetMsg = Record<string, any>;
 
-/** виды снарядов в снимке: индекс в этом списке уходит гостю (порядок общий для хоста и гостя — одна и та же сборка) */
-export const NET_KINDS = ['spore', 'wave', 'rock', 'bomb', 'clef', 'note', 'echo', 'glob', 'tneedle', 'ttrap', 'tbomb', 'tspirit', 'twraith'];
-export const NET_SIZES: [number, number][] = [[12, 12], [24, 18], [16, 16], [12, 12], [28, 40], [14, 18], [40, 84], [12, 12],
-  [12, 12], [26, 10], [12, 12], SPIRIT_SIZE, WRAITH_SIZE]; // tneedle, ttrap, tbomb (= tools.TOOL_KIND), tspirit, twraith (kit/spells.ts)
+/** виды на проводе в снимке гостя (netKindReg): снаряды (src/content/projectiles) и сущности инструментов (src/content/tools, поле entities).
+ *  Код netId общий для хоста и гостя (одна сборка) и только добавляется: 0–7 снаряды, 8–12 инструменты. */
+const netIdOf = (kind: string): number => netKindReg.get(kind)?.netId ?? -1;
 const r10 = (x: number): number => Math.round(x * 10) / 10;
 const r100 = (x: number): number => Math.round(x * 100) / 100;
 
@@ -38,7 +38,7 @@ export function packPlayer(_w: World, p: Player): NetMsg {
   if (p['charms'] && p['charms'].length) m['cm'] = p['charms'].join(',');
   m['wk'] = p['swk'] || 'g'; if ((p['chg'] || 0) > CH_SHOW) m['cg'] = r100(p['chg']);
   m['lg'] = p['ledge'] ? p['ledge'].side : 0; m['gl'] = p['gliding'] ? 1 : 0;
-  const ks = kitCode(p); if (ks || p['kgF'] > 0) { m['ks'] = ks; m['kg'] = p['kgF'] | 0; if (ks === 3 || ks === 4) m['kc'] = r100(kitChargeFrac(p)); } // приёмы набора игрока (v2.5): только если что-то идёт
+  const ks = kitCode(p); if (ks || p['kgF'] > 0) { m['ks'] = ks; m['kg'] = p['kgF'] | 0; const kc = kitChargeFrac(p); if (kc > 0) m['kc'] = r100(kc); } // приёмы набора игрока (v2.5): только если что-то идёт
   return m;
 }
 /** поза напарника (у хоста — гостя, у гостя — хоста) */
@@ -63,11 +63,11 @@ export function applyPlayer(w: World, m: NetMsg): void {
 // ---------- упаковка: враги ----------
 const packEnemy2 = (e: Enemy): unknown => {
   if (!e['e2']) return 0;
-  return [Math.max(0, E2_STATES[e.type]!.indexOf(e['state'])), r100(Math.max(0, e['st'])), e['armorT'] > 0 ? 1 : 0, e['blockT'] > 0 ? 1 : 0];
+  return [Math.max(0, e2States(e.type).indexOf(e['state'])), r100(Math.max(0, e['st'])), e['armorT'] > 0 ? 1 : 0, e['blockT'] > 0 ? 1 : 0];
 };
 const applyEnemy2 = (e: Enemy, a: number[]): void => {
   if (!e['e2'] || !a) return;
-  const L = E2_STATES[e.type]!; e['state'] = L[a[0]!] || L[0]!; e['st'] = a[1]; e['armorT'] = a[2] ? 1 : 0; if (a[3]) e['blockT'] = 0.15;
+  const L = e2States(e.type); e['state'] = L[a[0]!] || L[0]!; e['st'] = a[1]; e['armorT'] = a[2] ? 1 : 0; if (a[3]) e['blockT'] = 0.15;
 };
 /** снимок мира для гостя: 20 раз в секунду */
 export function packSnap(w: World): NetMsg {
@@ -75,7 +75,7 @@ export function packSnap(w: World): NetMsg {
   const st = (e: Enemy): number => (e['state'] === 'wind' || e['state'] === 'charge') ? 1 : e['state'] === 'stun' ? 2 : 0;
   const s: NetMsg = { t: 's',
     e: w.enemies.map((e) => [r(e.x), r(e.y), e.face, e.dead ? 1 : 0, e.flash > 0 ? 1 : 0, st(e), packEnemy2(e)]),
-    pr: w.projs.map((q) => [NET_KINDS.indexOf(q.kind), r(q.x), r(q.y), r(q.vx), r(q.vy), (q.delay ?? 0) > 0 ? 1 : 0, q['ch'] || '']),
+    pr: w.projs.map((q) => [netIdOf(q.kind), r(q.x), r(q.y), r(q.vx), r(q.vy), (q.delay ?? 0) > 0 ? 1 : 0, q['ch'] || '']),
     bd: w.beadsArr.map((d) => [r(d.x), r(d.y)]), bc: w.beads,
     g: w.gates.map((gt) => (gt.closed ? 1 : 0)), bD: w.bossDead ? 1 : 0, rs: [r(w.respawn.x), r(w.respawn.y)] };
   // статусы (status.js): маски только если что-то горит
@@ -84,8 +84,8 @@ export function packSnap(w: World): NetMsg {
   void any;
   // инструменты (tools.js): снаряды хоста уходят строками снарядов, замёрзшие враги — списком
   for (const q of w.tl as Record<string, any>[]) {
-    const ch = q['kind'] === 'tneedle' ? [q['st'], r100(q['ang']), q['st'] === 2 ? r10(q['stuckT']) : 0] : q['kind'] === 'ttrap' ? [r10(q['life']), q['arm'] > 0 ? 1 : 0] : q['kind'] === 'twraith' ? [r100(q['life']), q['n'] | 0] : q['kind'] === 'tspirit' ? [q['f'], r100(q['age'])] : [r100(q['fuse'])];
-    (s['pr'] as unknown[]).push([NET_KINDS.indexOf(q['kind']), r(q['x']), r(q['y']), r(q['vx']), r(q['vy']), 0, ch]);
+    const d = toolEntReg.get(q['kind']), ch = d?.netCh ? d.netCh(q) : [r100(q['fuse'])];
+    (s['pr'] as unknown[]).push([netIdOf(q['kind']), r(q['x']), r(q['y']), r(q['vx']), r(q['vy']), 0, ch]);
   }
   const fz: number[] = []; w.enemies.forEach((e, i) => { if (!e.dead && e['frozenT'] > 0) fz.push(i); });
   if (fz.length) s['tf'] = fz;
@@ -106,7 +106,7 @@ export function applySnap(w: World, m: NetMsg): void {
   });
   const old = w.projs;
   w.projs = (m['pr'] as unknown[][]).map((a, i) => {
-    const kind = NET_KINDS[a[0] as number]!, sz = NET_SIZES[a[0] as number]!;
+    const nk = netKindReg.byNetId(a[0] as number)!, kind = nk.id, sz = nk.size;
     const q: Proj = { kind, x: a[1] as number, y: a[2] as number, vx: a[3] as number, vy: a[4] as number, delay: a[5] ? 1 : 0, ch: a[6], w: sz[0], h: sz[1], life: 1 };
     q['rot'] = old[i] && old[i]!.kind === q.kind ? old[i]!['rot'] || 0 : 0;
     return q;
@@ -137,6 +137,7 @@ export function onEv(w: World, m: NetMsg): void {
     case 'smoke': w.emit('smoke', { n: m['n'], x: m['x'], y: m['y'] }); break;
     case 'paper': w.emit('paper', { n: m['n'], x: m['x'], y: m['y'] }); break;
     case 'foam': w.emit('foam', { n: m['n'], x: m['x'], y: m['y'] }); break;
+    case 'fx': if (typeof m['e'] === 'string') w.emit(m['e'], { n: m['n'], x: m['x'], y: m['y'] }); break; // частицы убранства арены (World.fxAt)
     case 'burst': w.emit('burst', { n: m['n'], x: m['x'], y: m['y'], c: m['c'] }); break;
     case 'dust': w.emit('dust', { n: m['n'], x: m['x'], y: m['y'] }); break;
     case 'shake': w.emit('shake', { d: m['d'], i: m['i'] }); break;
@@ -199,8 +200,8 @@ export function netSmooth(w: World, dt: number): void {
     p['netT'] = (p['netT'] || 0) + dt;
     const ex = Math.min(p['netT'], 0.12), tx = p['tx'] + p.vx * ex, ty = p['ty'] + (p.onGround ? 0 : p.vy * ex);
     if (Math.abs(tx - p.x) > 160 || Math.abs(ty - p.y) > 160) { p.x = tx; p.y = ty; } else { p.x += (tx - p.x) * k; p.y += (ty - p.y) * k; }
-    if (p.dashT > 0) { p.dashT -= dt; (p.trail as unknown[]).push({ x: p.x + 7, y: p.y + 26, a: 1, f: p.face, s: p['shade'] ? 1 : 0 }); }
-    else if (p['fl'] || p['cr'] || p['dv']) (p.trail as unknown[]).push({ x: p.x + 7, y: p.y + 26, a: 1, f: p.face, s: p['fl'] ? 2 : p['cr'] ? 3 : 4 });
+    if (p.dashT > 0) { p.dashT -= dt; (p.trail as unknown[]).push({ x: p.x + 7, y: p.y + 26, a: 1, f: p.face, s: kitTrail(p, true) }); }
+    else { const s = kitTrail(p, false); if (s) (p.trail as unknown[]).push({ x: p.x + 7, y: p.y + 26, a: 1, f: p.face, s }); }
     p.inv -= dt; p.healT -= dt; p.landT -= dt; p['execT'] = (p['execT'] || 0) - dt;
     for (const tr of p.trail as { a: number }[]) tr.a -= dt * 5;
     p.trail = (p.trail as { a: number }[]).filter((tr) => tr.a > 0);
@@ -210,9 +211,7 @@ export function netSmooth(w: World, dt: number): void {
     for (const e of w.enemies) if (!e.dead && e['tx'] != null) { e.x += (e['tx'] - e.x) * k2; e.y += (e['ty'] - e.y) * k2; e.flash -= dt; }
     for (const pr of w.projs) {
       if (pr.delay) continue;
-      if (pr.kind === 'clef') pr['rot'] = (pr['rot'] || 0) + dt * 10;
-      if (pr.kind === 'spore') pr.vy += 700 * dt;
-      else if (['rock', 'bomb', 'note'].includes(pr.kind)) pr.vy = Math.min(pr.vy + 1100 * dt, 800);
+      projReg.get(pr.kind)?.guest?.(pr, dt); // гравитация и вращение вида (src/content/projectiles)
       pr.x += pr.vx * dt; pr.y += pr.vy * dt;
     }
   }
@@ -225,8 +224,8 @@ export function guestProjHits(w: World): void {
   try {
     for (const p of w.players) {
       if (p.remote || p.downed || p.inv > 0) continue;
-      for (const pr of w.projs) if (!pr.dead && !pr.delay && pr.kind !== 'bomb' && overlap(inset(p, 2), pr)) {
-        hurtPlayer(w, p, HEAVY_KINDS.has(pr.kind) ? 2 : 1, pr.x + pr.w / 2, false, pr.hk); if (!PERSIST_KINDS.has(pr.kind)) pr.dead = true; break;
+      for (const pr of w.projs) if (!pr.dead && !pr.delay && !isHeroProj(pr.kind) && overlap(inset(p, 2), pr)) {
+        hurtPlayer(w, p, projReg.get(pr.kind)?.heavy ? 2 : 1, pr.x + pr.w / 2, false, pr.hk); if (!projReg.get(pr.kind)?.persist) pr.dead = true; break;
       }
     }
     w.projs = w.projs.filter((q) => !q.dead);

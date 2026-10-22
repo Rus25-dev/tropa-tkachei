@@ -73,7 +73,7 @@ export function TouchPad({ hub, tool, bombs, kit, hidden, padMode, showMap, onPa
       </div>
       <div class="t-btns">
         {btn('heal', 't-heal', '✚', 'Нить', 'Лечение')}
-        {btn('dash', 't-dash', '»', kit?.includes('crystal') ? 'держи' : 'Рывок', kit && kit.length > 0 ? 'Рывок: держите для заряда, в воздухе со стиком — вспышка' : 'Рывок')}
+        {btn('dash', 't-dash', '»', kit?.some((k) => k.startsWith('hold:')) ? 'держи' : 'Рывок', kit && kit.length > 0 ? 'Рывок: держите для заряда, в воздухе со стиком — вспышка' : 'Рывок')}
         {btn('tool', 't-tool', '✦', 'Инстр.', 'Инструмент', !tool)}
         {btn('bomb', 't-bomb', '●', 'Бомба', 'Дымовая бомба', !bombs)}
         {btn('atk', 't-atk', '⟋', 'Удар', 'Удар')}

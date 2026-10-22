@@ -1,5 +1,8 @@
 // Звук: маленький синтезатор на WebAudio (legacy/src/sound.js + звуки оружия из weapons.js и движения из movement2.js). Файлов нет.
-// Ядро только называет звук (событие 'snd'); играет его этот модуль.
+// Ядро только называет звук (событие 'snd'); играет его этот модуль по описанию из src/view/content/sounds.
+import '../content';
+import { type Synth, soundReg, weaponViewReg } from '../content/regs';
+
 type OscType = OscillatorType;
 
 class SndImpl {
@@ -41,89 +44,23 @@ class SndImpl {
     const g = c.createGain(); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     s.connect(f); f.connect(g); g.connect(this.master); s.start(t); s.stop(t + dur + 0.02);
   }
-  private later(ms: number[], fn: (i: number) => void): void { ms.forEach((d, i) => window.setTimeout(() => fn(i), d)); }
+  later(ms: number[], fn: (i: number) => void): void { ms.forEach((d, i) => window.setTimeout(() => fn(i), d)); }
 
+  /** сыграть звук по имени (src/view/content/sounds); неизвестное имя — одно предупреждение в консоль на имя */
   play(n: string): void {
-    if (!this.ctx) return;
-    const R = Math.random;
-    switch (n) {
-      case 'jump': this.tone('square', 260, 420, 0.09, 0.05); break;
-      case 'land': this.hiss(0.06, 0.08, 400, 0.8); break;
-      case 'slash': this.hiss(0.09, 0.18, 2600, 1.4); break;
-      case 'hit': this.tone('triangle', 220, 70, 0.12, 0.25); this.hiss(0.05, 0.12, 1200, 2); break;
-      case 'pogo': this.tone('square', 500, 900, 0.07, 0.06); break;
-      case 'dash': this.hiss(0.16, 0.14, 900, 0.6); break;
-      case 'hurt': this.tone('sawtooth', 240, 60, 0.3, 0.16); break;
-      case 'heal': this.tone('sine', 420, 880, 0.35, 0.16); this.tone('sine', 630, 1260, 0.35, 0.08); break;
-      case 'bead': this.tone('sine', 1300 + R() * 300, 1800, 0.07, 0.05); break;
-      case 'kill': this.tone('triangle', 400, 90, 0.25, 0.2); break;
-      case 'roar': this.tone('sawtooth', 110, 45, 1.1, 0.22); this.hiss(1.0, 0.12, 300, 0.5); break;
-      case 'slam': this.hiss(0.35, 0.3, 160, 0.6); this.tone('sine', 90, 35, 0.4, 0.3); break;
-      case 'spit': this.tone('square', 300, 120, 0.12, 0.06); break;
-      case 'bench': this.tone('sine', 523, 523, 0.25, 0.1); this.tone('sine', 784, 784, 0.4, 0.07); break;
-      case 'revive': this.tone('sine', 330, 990, 0.5, 0.14); break;
-      case 'gate': this.hiss(0.5, 0.2, 220, 0.7); break;
-      case 'clink': this.tone('square', 1500, 1100, 0.06, 0.05); this.tone('triangle', 2400, 2000, 0.08, 0.04); break;
-      case 'throw': this.hiss(0.1, 0.08, 1500, 1); this.tone('sine', 300, 500, 0.08, 0.05); break;
-      case 'puff': this.hiss(0.45, 0.22, 500, 0.4); break;
-      case 'cough': this.later([0, 160, 320], () => { this.hiss(0.12, 0.2, 900, 1.5); this.tone('sawtooth', 180, 120, 0.1, 0.06); }); break;
-      case 'pickup': this.tone('sine', 660, 990, 0.12, 0.1); break;
-      case 'violin': {
-        const c = this.ctx, t = c.currentTime, o = c.createOscillator(), l = c.createOscillator(), lg = c.createGain(), g = c.createGain();
-        o.type = 'sawtooth'; o.frequency.setValueAtTime(660, t); o.frequency.linearRampToValueAtTime(990, t + 0.35); l.frequency.value = 7; lg.gain.value = 14;
-        l.connect(lg); lg.connect(o.frequency); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.07, t + 0.05); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
-        o.connect(g); g.connect(this.master!); o.start(t); l.start(t); o.stop(t + 0.55); l.stop(t + 0.55); break;
-      }
-      case 'squish': this.hiss(0.35, 0.18, 260, 2.5); this.tone('sine', 140, 70, 0.3, 0.12); break;
-      case 'glass': this.tone('triangle', 2600, 1800, 0.12, 0.08); this.hiss(0.2, 0.12, 4000, 2); break;
-      case 'coin': this.later([0, 90], (i) => this.tone('square', i ? 1320 : 990, i ? 1320 : 990, 0.12, 0.05)); break;
-      case 'sparkle': this.later([0, 60, 120, 180, 240], () => this.tone('sine', 1500 + R() * 1500, 2500, 0.1, 0.04)); break;
-      case 'buzz': this.tone('square', 120, 120, 0.35, 0.05); this.tone('square', 123, 123, 0.35, 0.05); break;
-      // удары по боссам: у каждого свой тембр, у оглушённого и у финишера — свои
-      case 'hitCrit': this.tone('triangle', 320, 90, 0.15, 0.26); this.tone('square', 1250, 700, 0.1, 0.08); this.hiss(0.06, 0.2, 1900, 1.5); break;
-      case 'hitHeavy': this.tone('triangle', 140, 45, 0.24, 0.32); this.tone('sawtooth', 230, 100, 0.15, 0.1); this.hiss(0.12, 0.26, 520, 0.8); break;
-      case 'stagger': this.hiss(0.28, 0.3, 300, 0.7); this.tone('sine', 85, 32, 0.5, 0.34); this.tone('square', 960, 380, 0.14, 0.08); this.tone('triangle', 1400, 1400, 0.3, 0.05); break;
-      case 'exec': this.hiss(0.35, 0.34, 1400, 0.7); this.tone('sawtooth', 700, 120, 0.3, 0.16); this.tone('sine', 70, 28, 0.6, 0.4); window.setTimeout(() => { this.tone('triangle', 1760, 1760, 0.4, 0.09); this.tone('triangle', 2349, 2349, 0.5, 0.06); }, 110); break;
-      case 'bossdie': this.tone('sawtooth', 220, 30, 1.6, 0.2); this.hiss(1.4, 0.2, 200, 0.5); this.tone('sine', 60, 25, 1.8, 0.4); this.later([500, 800, 1100], (i) => this.tone('triangle', 880 - i * 200, 440 - i * 100, 0.6, 0.06)); break;
-      case 'bag': this.tone('sine', 120, 60, 0.16, 0.28); this.hiss(0.12, 0.2, 420, 0.7); break;
-      case 'parry': this.tone('square', 1900, 1500, 0.07, 0.06); this.tone('triangle', 2800, 2300, 0.14, 0.06); this.tone('sine', 1400, 1400, 0.2, 0.05); break;
-      // отбив 2.0: «звонок» идеального отбива (чистый колокольный тон выше обычного), глухой «звон» сорванного отбива и удар-контратака
-      case 'parryPerfect': this.tone('square', 2200, 1800, 0.06, 0.06); this.tone('triangle', 3520, 3520, 0.32, 0.08); this.tone('sine', 2637, 2637, 0.45, 0.07); this.later([70], () => this.tone('sine', 3951, 3951, 0.4, 0.05)); break;
-      case 'parryFail': this.tone('square', 520, 380, 0.09, 0.06); this.hiss(0.06, 0.08, 1800, 1.5); break;
-      case 'counter': this.tone('sawtooth', 880, 1760, 0.12, 0.09); this.tone('triangle', 1320, 2640, 0.2, 0.07); break;
-      case 'counterStrike': this.hiss(0.1, 0.22, 3000, 1.4); this.tone('square', 1500, 600, 0.09, 0.08); this.tone('triangle', 2093, 3136, 0.3, 0.09); this.later([60], () => this.tone('sine', 3136, 3136, 0.35, 0.06)); break;
-      case 'win': this.later([0, 140, 280, 420], (i) => this.tone('triangle', [523, 659, 784, 1047][i]!, [523, 659, 784, 1047][i]!, 0.5, 0.12)); break;
-      // оружие (weapons.js)
-      case 'chargeFull': this.tone('sine', 880, 1760, 0.18, 0.12); this.tone('triangle', 1320, 1320, 0.3, 0.07); this.hiss(0.1, 0.1, 3600, 2); break;
-      case 'wave': this.hiss(0.32, 0.22, 1300, 0.8); this.tone('sawtooth', 520, 170, 0.3, 0.1); break;
-      case 'whirl': this.hiss(0.34, 0.2, 1900, 1.1); this.tone('triangle', 760, 300, 0.28, 0.1); break;
-      case 'reap': this.hiss(0.26, 0.26, 950, 0.8); this.tone('sine', 210, 60, 0.3, 0.2); break;
-      case 'hammer': this.hiss(0.14, 0.2, 600, 0.7); this.tone('triangle', 170, 70, 0.18, 0.14); break;
-      case 'quake': this.hiss(0.45, 0.32, 130, 0.6); this.tone('sine', 75, 28, 0.6, 0.4); this.tone('square', 220, 60, 0.15, 0.06); break;
-      case 'lunge': this.hiss(0.18, 0.24, 2600, 1.5); this.tone('square', 950, 220, 0.16, 0.06); break;
-      // набор приёмов игрока (v2.5): теневой рывок, вспышка, кристальный рывок, нитяные заклинания
-      case 'shadow': this.hiss(0.2, 0.12, 500, 0.5); this.tone('sawtooth', 300, 90, 0.2, 0.07); this.tone('sine', 150, 60, 0.22, 0.1); break;
-      case 'flash': this.tone('square', 1100, 2400, 0.07, 0.06); this.hiss(0.1, 0.12, 3200, 1.2); this.tone('sine', 1800, 900, 0.12, 0.05); break;
-      case 'crystalCharge': this.tone('sine', 360, 1200, 0.5, 0.07); this.tone('triangle', 540, 1800, 0.5, 0.04); break;
-      case 'crystalReady': this.tone('sine', 1760, 1760, 0.3, 0.1); this.tone('triangle', 2637, 2637, 0.4, 0.07); this.later([80], () => this.tone('sine', 3520, 3520, 0.3, 0.05)); break;
-      case 'crystalGo': this.hiss(0.3, 0.26, 2200, 0.8); this.tone('sawtooth', 220, 1400, 0.22, 0.1); this.tone('sine', 90, 40, 0.3, 0.2); break;
-      case 'spirit': this.tone('sine', 520, 1040, 0.22, 0.12); this.hiss(0.2, 0.1, 1700, 1); this.tone('triangle', 780, 1560, 0.18, 0.05); break;
-      case 'wraith': this.tone('sawtooth', 200, 900, 0.4, 0.09); this.hiss(0.4, 0.18, 1100, 0.7); this.tone('sine', 400, 1200, 0.4, 0.08); break;
-      case 'diveGo': this.tone('sawtooth', 700, 120, 0.3, 0.1); this.hiss(0.3, 0.12, 1400, 0.8); break;
-      case 'diveLand': this.hiss(0.4, 0.34, 150, 0.6); this.tone('sine', 110, 32, 0.5, 0.4); this.tone('triangle', 1400, 500, 0.18, 0.08); break;
-      // движение (movement2.js)
-      case 'ledge': this.hiss(0.07, 0.07, 700, 1); break;
-      case 'glide': this.hiss(0.18, 0.06, 900, 0.7); break;
-      case 'slide': this.hiss(0.1, 0.035, 1500 + R() * 400, 1.2); break;
-    }
+    if (!this.ctx || !this.master) return;
+    const d = soundReg.get(n);
+    if (d) { d.play(this as unknown as Synth, Math.random); return; }
+    if (!this.warned.has(n)) { this.warned.add(n); console.warn(`[snd] звук «${n}» не заведён (src/view/content/sounds)`); }
   }
+  private warned = new Set<string>();
 
   /** нарастающий гул заряда: частота и громкость растут за dur секунд (weapons.js chargeStart) */
   chargeStart(owner: number, dur: number, id: string): void {
     this.chargeStop(owner);
     const c = this.ctx; if (!c || !this.master) return;
     try {
-      const t = c.currentTime, f0 = ({ needle: 200, twin: 320, sickle: 170, mace: 110, lance: 260 } as Record<string, number>)[id] || 200;
+      const t = c.currentTime, f0 = weaponViewReg.get(id)?.chargePitch || 200;
       const o = c.createOscillator(), o2 = c.createOscillator(), g = c.createGain();
       o.type = 'sawtooth'; o2.type = 'sine';
       o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f0 * 3.4, t + dur);

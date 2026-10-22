@@ -16,13 +16,6 @@ export const PAL: readonly Pal[] = [
   { name: 'Ярь', tag: 'Ta', cloak: 0xd8862a, dark: 0x8a4f16, accent: 0xffd9a0, hex: '#ffc46e' },
 ];
 
-// снаряды, которые не гаснут при попадании в героя (волны, бумеранги, призрак)
-export const PERSIST_KINDS = new Set(['wave', 'clef', 'echo']);
-// тяжёлые удары боссов отнимают 2 бутона: у них длинный телеграф, и их можно красиво избежать
-export const HEAVY_KINDS = new Set(['wave', 'echo']);
-// снаряды, которые срезает обычный взмах
-export const SLASH_KINDS = new Set(['spore', 'note', 'glob']);
-
 export const BAL = J.BAL;
 
 // ----- стойкость и казнь (bosses2.js) -----
@@ -44,8 +37,6 @@ export const E2_UNDER = ['hidden', 'track', 'warn', 'dig']; // в этих со�
 
 // ----- инструменты (tools.js) -----
 export const TOOL = J.TOOL;
-export const FLY_TYPES = new Set(['gnat', 'bat', 'lurker']);
-export const isToolKind = (k: string): boolean => k === 'tneedle' || k === 'ttrap' || k === 'tbomb';
 
 // ----- оружие (weapons.js) -----
 /** сколько держать удар до заряженного */

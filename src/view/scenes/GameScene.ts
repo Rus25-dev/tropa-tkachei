@@ -2,9 +2,11 @@
 import Phaser from 'phaser';
 import { PAL, SPIKE, T, clamp } from '../../core/balance';
 import { VH } from '../../core/constants';
-import { mulberry32 } from '../../core/rng';
 import type { Session } from '../../core/session';
 import type { World } from '../../core/world';
+import { isHeroProj } from '../../core/proj-kit';
+import '../content';
+import { arenaViewReg } from '../content/regs';
 import { drawClassroom, drawDen } from '../artRooms';
 import { drawLevelChunks } from '../art';
 import { drawDataBoss, drawDataProjs } from '../draw/bosses';
@@ -24,10 +26,12 @@ import { rumble } from '../../input/gamepad';
 import { QualityGovernor, applyCameraFx, gradeMatrix } from '../quality';
 
 const FONT = '"Fira Sans", sans-serif', DISPLAY = '"Cormorant SC", Georgia, serif';
+/** имена событий-частиц всех арен (их не пересылаем в интерфейс, даже если в этом мире у арены таких частиц нет) */
+let burstNames: Set<string> | null = null;
+const arenaBurstNames = (): Set<string> => (burstNames ??= new Set(arenaViewReg.list().flatMap((v) => Object.keys(v.bursts ?? {}))));
 
 interface SignObj { txt: Phaser.GameObjects.Text; px: number; py: number }
 
-const NOT_HARM = new Set(['bomb']);
 export class GameScene extends Phaser.Scene {
   private sh!: Shared;
   private sess: Session | null = null;
@@ -45,13 +49,12 @@ export class GameScene extends Phaser.Scene {
   private dataG: G[] = []; private arenaG: G | null = null;
   /** подсказка камере от сцены боссов (событие camZoom): множитель масштаба и сколько ещё секунд */
   private zoomK = 1; private zoomT = 0;
-  private furnG: G | null = null;
   // призрак соперника (гонка 1×1)
   private ghostG: G | null = null; private ghostTag: Phaser.GameObjects.Text | null = null; private ghostPos: { x: number; y: number } | null = null;
   // частицы
   private parts!: Phaser.GameObjects.Particles.ParticleEmitter; private dustE!: Phaser.GameObjects.Particles.ParticleEmitter;
-  private smoke: Phaser.GameObjects.Particles.ParticleEmitter | null = null; private paper: Phaser.GameObjects.Particles.ParticleEmitter | null = null;
-  private foam: Phaser.GameObjects.Particles.ParticleEmitter | null = null; private dustFx: Phaser.GameObjects.Particles.ParticleEmitter | null = null;
+  /** частицы убранства арены по имени события ядра (smoke, paper, foam, dustFx…) */
+  private bursts = new Map<string, Phaser.GameObjects.Particles.ParticleEmitter>();
   // камера
   private camX = 0; private camY = 0; private zoom = 1.18;
   private gov!: QualityGovernor; private perf!: PerfOverlay; private appliedQ = ''; private appliedKey = '';
@@ -92,8 +95,7 @@ export class GameScene extends Phaser.Scene {
     for (const p of this.playerG) { p.g.destroy(); p.tag.destroy(); } this.playerG = [];
     for (const g of this.dataG) g.destroy(); this.dataG = [];
     this.arenaG?.destroy(); this.arenaG = null; this.zoomK = 1; this.zoomT = 0;
-    for (const e of [this.smoke, this.paper, this.foam, this.dustFx]) e?.destroy(); this.smoke = this.paper = this.foam = this.dustFx = null;
-    this.furnG?.destroy(); this.furnG = null;
+    for (const e of this.bursts.values()) e.destroy(); this.bursts.clear();
     this.ghostG?.destroy(); this.ghostG = null; this.ghostTag?.destroy(); this.ghostTag = null; this.ghostPos = null;
     this.fx.clear(); this.fb.clear(); this.itemG.clear(); this.exitG.clear(); this.stG.clear();
     this.accG?.destroy(); this.accG = null; this.spkFor = null;
@@ -139,36 +141,11 @@ export class GameScene extends Phaser.Scene {
     this.gateG = w.gates.map(() => this.add.graphics().setDepth(3)); this.gateAnim = w.gates.map((gt) => (gt.closed ? 1 : 0));
     // герои
     this.playerG = w.players.map((p) => ({ g: this.add.graphics().setDepth(5), tag: this.add.text(0, 0, p.pal.tag, { fontFamily: FONT, fontSize: '9px', fontStyle: '700', color: '#f4efe0', stroke: '#10141a', strokeThickness: 2 }).setOrigin(0.5).setDepth(5.1) }));
-    // убранство арен (по уровню: боссы на данных рисуются отдельно, ниже)
-    const dust = (key: string, cfg: Phaser.Types.GameObjects.Particles.ParticleEmitterConfig, depth: number): Phaser.GameObjects.Particles.ParticleEmitter => this.add.particles(0, 0, key, { emitting: false, ...cfg }).setDepth(depth);
-    if (L.misha) {
-      // буквы на задней стене — следы старых наборных касс
-      const R = mulberry32(404), chars = 'АБВГДЕЖЗИКЛМНОПРСТУФХЦЧШЩЫЭЮЯ';
-      for (let i = 0; i < 22; i++) {
-        this.roomObjs.push(this.add.text(T * (2 + R() * 40), T * (4 + R() * 12), chars[Math.floor(R() * chars.length)]!, { fontFamily: FONT, fontSize: Math.round(50 + R() * 110) + 'px', fontStyle: '600', color: '#e8e2cf' }).setOrigin(0.5).setAlpha(0.05 + R() * 0.05).setAngle((R() - 0.5) * 30).setDepth(0.3));
-      }
-      this.roomObjs.push(this.add.text(22 * T, 5 * T + 6, 'ТИПОГРАФИЯ', { fontFamily: DISPLAY, fontSize: '30px', fontStyle: '700', color: '#8fb8a8' }).setOrigin(0.5, 0).setAlpha(0.35).setDepth(0.4));
-      // ящики с дымовухами
-      for (const c of w.crates ?? []) {
-        const cx = c.x + 22, by = c.y + 46, g = this.add.graphics().setDepth(2);
-        g.fillStyle(0x4a3726, 1); g.fillRoundedRect(cx - 20, by - 28, 40, 28, 3);
-        g.lineStyle(2, 0x2c2015, 1); g.strokeRoundedRect(cx - 20, by - 28, 40, 28, 3); g.lineBetween(cx - 20, by - 14, cx + 20, by - 14);
-        g.fillStyle(0x6b5236, 1); g.fillRect(cx - 17, by - 25, 34, 3);
-        for (let i = 0; i < 3; i++) { g.fillStyle(0x3a3f45, 1); g.fillCircle(cx - 10 + i * 10, by - 33, 6); g.fillStyle(0x9aa39f, 1); g.fillCircle(cx - 12 + i * 10, by - 35, 1.6); }
-        g.lineStyle(1.5, 0xffd47a, 1); for (let i = 0; i < 3; i++) g.lineBetween(cx - 10 + i * 10, by - 39, cx - 8 + i * 10, by - 44);
-        this.roomObjs.push(g, this.add.text(cx, by - 8, 'ДЫМ', { fontFamily: FONT, fontSize: '11px', fontStyle: '600', color: '#e8e2cf' }).setOrigin(0.5).setDepth(2.1));
-      }
-      this.smoke = dust('spark', { lifespan: { min: 900, max: 1600 }, speed: { min: 10, max: 60 }, scale: { start: 2.2, end: 6 }, alpha: { start: 0.55, end: 0 }, tint: [0x8e9894, 0xb3bab6, 0x6f7774], gravityY: -40 }, 6.5);
-      this.paper = dust('dot', { lifespan: 600, speed: { min: 40, max: 160 }, scale: { start: 1.4, end: 0 }, rotate: { min: 0, max: 360 }, tint: 0xf4efe0, gravityY: 300 }, 7);
-    }
-    if (L.vladik && w.bossKind === 'vladik2') {
-      this.roomObjs.push(this.add.text(14 * T, 5 * T + 22, 'Тема: скрипичный ключ', { fontFamily: FONT, fontSize: '13px', fontStyle: 'italic', color: '#e8eadf' }).setOrigin(0.5, 0).setAlpha(0.75).setDepth(0.25));
-    }
-    if (L.tima) {
-      this.furnG = this.add.graphics().setDepth(0.6);
-      this.drawFurniture(w);
-      this.dustFx = dust('spark', { lifespan: 700, speed: { min: 20, max: 90 }, scale: { start: 0.9, end: 0 }, tint: [0xffe38a, 0xffffff, 0xffb6f0, 0x9ff0ff], blendMode: 'ADD' }, 7);
-      this.foam = dust('dot', { lifespan: 500, speed: { min: 40, max: 180 }, scale: { start: 1.6, end: 0 }, tint: [0xfff6d8, 0xf2c14e], gravityY: 400 }, 7);
+    // убранство арены (src/view/content/arenas/<id>.ts); боссы на данных рисуются отдельно, ниже
+    const av = L.arena ? arenaViewReg.get(L.arena) : undefined;
+    if (av) {
+      av.decor?.({ scene: this, w, keep: (o) => { this.roomObjs.push(o); return o; }, font: FONT, display: DISPLAY });
+      for (const [name, b] of Object.entries(av.bursts ?? {})) this.bursts.set(name, this.add.particles(0, 0, b.key, { emitting: false, ...b.cfg }).setDepth(b.depth));
     }
     this.dataG = w.bosses.map(() => this.add.graphics().setDepth(4)); // боссы на данных (2.5)
     if (w.arena) this.arenaG = this.add.graphics().setDepth(3.5); // сущности арены (платформы, лучи, точки появления): универсальный рисовальщик
@@ -179,27 +156,6 @@ export class GameScene extends Phaser.Scene {
     this.cameras.main.fadeIn(600, 3, 8, 7);
     this.registry.set('cam', { x: this.camX, y: this.camY, room: !!L.theme, active: true } satisfies CamInfo);
     this.game.events.emit('tt:ui', { k: 'worldReady' });
-  }
-
-  private drawFurniture(w: World): void {
-    const g = this.furnG!; g.clear();
-    for (const f of w.L.furniture!) {
-      const x = f.x0 * T, wd = (f.x1 - f.x0 + 1) * T, y = f.y * T, fl = w.L.floorY! * T;
-      if (f.kind === 'couch') {
-        g.fillStyle(0x3a4a6a, 1); g.fillRoundedRect(x - 6, y - 34, wd + 12, 34, 10); // спинка
-        g.fillStyle(0x4a5c80, 1); g.fillRoundedRect(x, y, wd, 22, 6); g.fillRect(x + 6, y + 18, wd - 12, fl - y - 18);
-        g.fillStyle(0x3a4a6a, 1); g.fillRoundedRect(x - 14, y - 10, 20, fl - y + 10, 6); g.fillRoundedRect(x + wd - 6, y - 10, 20, fl - y + 10, 6);
-        g.lineStyle(2, 0x2c3850, 1); for (let i = 1; i < 3; i++) g.lineBetween(x + (wd * i) / 3, y + 2, x + (wd * i) / 3, y + 20);
-      } else if (f.kind === 'shelf') {
-        g.fillStyle(0x5a4634, 1); g.fillRect(x, y, wd, 10); g.fillStyle(0x3b2f27, 1); g.fillRect(x + 10, y + 10, 6, 14); g.fillRect(x + wd - 16, y + 10, 6, 14);
-        for (let i = 0; i < 5; i++) { g.fillStyle(0x6b3d14, 1); g.fillRoundedRect(x + 18 + i * 30, y - 26, 10, 26, 3); g.fillStyle(0xf4efe0, 1); g.fillRect(x + 18 + i * 30, y - 16, 10, 7); }
-      } else {
-        for (let yy = y; yy < fl; yy += 34) for (let xx = x; xx < x + wd; xx += 64) {
-          g.fillStyle(0xc9a227, 1); g.fillRect(xx + 1, yy, 62, 33); g.lineStyle(2, 0x8a6a10, 1); g.strokeRect(xx + 1, yy, 62, 33);
-          g.fillStyle(0x6b3d14, 1); for (let i = 0; i < 5; i++) g.fillCircle(xx + 10 + i * 11, yy + 6, 4);
-        }
-      }
-    }
   }
 
   // ----- кадр -----
@@ -251,7 +207,9 @@ export class GameScene extends Phaser.Scene {
   private consume(s: Session): void {
     const gfx = this.sh.gfx();
     const cam = this.cameras.main;
+    const ab = arenaBurstNames();
     for (const e of s.fxq) {
+      if (ab.has(e.k)) { this.bursts.get(e.k)?.explode(e['n'] as number, e['x'] as number, e['y'] as number); continue; } // частицы убранства арены
       switch (e.k) {
         case 'snd': Snd.play(e['n'] as string); break;
         case 'trainHit': { // тренировка: здоровье не убывает, но удар виден «-1»
@@ -261,10 +219,6 @@ export class GameScene extends Phaser.Scene {
         }
         case 'burst': case 'parts': this.parts.setParticleTint(e['c'] as number); this.parts.explode(Math.max(1, Math.round((e['n'] as number) * this.gov.particleMul)), e['x'] as number, e['y'] as number); break;
         case 'dust': this.dustE.explode(e['n'] as number, e['x'] as number, e['y'] as number); break;
-        case 'smoke': this.smoke?.explode(e['n'] as number, e['x'] as number, e['y'] as number); break;
-        case 'paper': this.paper?.explode(e['n'] as number, e['x'] as number, e['y'] as number); break;
-        case 'foam': this.foam?.explode(e['n'] as number, e['x'] as number, e['y'] as number); break;
-        case 'dustFx': this.dustFx?.explode(e['n'] as number, e['x'] as number, e['y'] as number); break;
         case 'shake': if (gfx.shake) cam.shake(e['d'] as number, e['i'] as number); break;
         case 'flash': if (!gfx.noflash) cam.flash(e['ms'] as number, e['r'] as number, e['g'] as number, e['b'] as number); else this.game.events.emit('tt:ui', { k: 'dim', d: e['ms'] }); break; // «без вспышек»: мягкое затемнение вместо белой вспышки
         case 'fade': if (e['out']) cam.fadeOut(e['ms'] as number, 3, 8, 7); else cam.fadeIn(e['ms'] as number, 3, 8, 7); break;
@@ -307,7 +261,7 @@ export class GameScene extends Phaser.Scene {
     }
     for (const [x, y] of this.spk) if (x > wv.x - T && x < wv.right && y > wv.y - T && y < wv.bottom) line(x + 1, y + T * 0.38, T - 2, T * 0.62);
     for (const pr of w.projs) {
-      if (pr.dead || (pr.delay ?? 0) > 0 || NOT_HARM.has(pr.kind) || !(pr.w > 0) || pr.hk) continue; // с явным видом удара контур рисует drawHitKinds
+      if (pr.dead || (pr.delay ?? 0) > 0 || isHeroProj(pr.kind) || !(pr.w > 0) || pr.hk) continue; // с явным видом удара контур рисует drawHitKinds
       line(pr.x - 1, pr.y - 1, pr.w + 2, pr.h + 2);
     }
   }

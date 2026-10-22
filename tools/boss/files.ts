@@ -1,7 +1,9 @@
 // Файлы боссов на данных: чтение data/bosses/*.json для инструментов и тестов (правила rules.json читаются отдельно).
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { ARENAS } from '../../src/core/levels';
+import { buildArena } from '../../src/core/levels';
+import '../../src/content';
+import { arenaReg } from '../../src/core/plugin/regs';
 import { T } from '../../src/core/balance';
 import type { ArenaInfo } from '../../src/core/boss/validate';
 
@@ -19,8 +21,8 @@ export const readRulesRaw = (): unknown => JSON.parse(readFileSync(BOSS_DIR + 'r
 /** Внутренний размер арены босса, px (без боковых стен, потолка и пола): раздел arena — строка или { level, ents }. */
 export function arenaInfo(arena: string | { level: string } | undefined): ArenaInfo | undefined {
   const level = typeof arena === 'string' ? arena : arena?.level;
-  const mk = level ? ARENAS[level] : undefined; if (!mk) return undefined;
-  const L = mk(), mid = Math.floor(L.W / 2);
+  if (!level || !arenaReg.has(level)) return undefined;
+  const L = buildArena(level), mid = Math.floor(L.W / 2);
   let rows = 0; for (let y = 0; y < L.H; y++) if (L.grid[y]![mid] !== 1) rows++; // свободные клетки средней колонки: от потолка до пола
   return { w: (L.W - 2) * T, h: rows * T };
 }

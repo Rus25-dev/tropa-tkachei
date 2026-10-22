@@ -12,3 +12,7 @@ registerHooks({
     return nextLoad(url, context);
   },
 });
+
+// Содержимое игры (src/content: оружие, инструменты, обереги, приёмы…): в Node его надо загрузить до модулей ядра,
+// иначе ожидание верхнего уровня при динамическом импорте попадёт в цикл импортов ядра. В Vite содержимое грузит src/content/index.ts.
+await import('../src/content/node.ts');

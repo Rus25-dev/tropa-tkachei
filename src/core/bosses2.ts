@@ -1,10 +1,12 @@
 // Боссы 2.0 (legacy/src/bosses2.js): фазы, стойкость и оглушение, казнь, новые снаряды. Общие для всех боссов правила.
-import { POISE_MAX, STAGGER_T, EXEC_FRAC, T, dataIdx, dataKey } from './balance';
+import { POISE_MAX, STAGGER_T, EXEC_FRAC, dataIdx, dataKey } from './balance';
 import type { BossRef } from './balance';
-import type { Boss, Player, Proj } from './types';
+import type { Boss, Player } from './types';
 import type { World } from './world';
 import { phaseOf } from './world';
-import { hasCharm } from './loadout';
+import { charmsOn } from './loadout';
+import { projReg } from './plugin/regs';
+import { isHeroProj } from './proj-kit';
 import { poiseMul } from './weapons';
 import { rawBossDamage } from './damage';
 import { slowDt } from './status';
@@ -32,7 +34,7 @@ function phaseShift(sc: World, b: Boss, name: string, ph: number): void {
   sc.sfx('roar'); sc.shake(700, 0.012); sc.emit('flash', { ms: 260, r: 255, g: 240, b: 220 }); if (sc.online === 'host') sc.sendEv({ k: 'flash' });
   const cx = Math.round(b.x + b.w / 2);
   knockFrom(sc, cx); sc.sendEv({ k: 'kb', x: cx });
-  for (const pr of sc.projs) if (pr.kind !== 'bomb') pr.dead = true;
+  for (const pr of sc.projs) if (!isHeroProj(pr.kind)) pr.dead = true;
   sc.toastAll(`${name} — фаза ${ph}`);
   sc.emit('phaseShift', { name, ph });
 }
@@ -51,7 +53,7 @@ export function poiseAdd(sc: World, b: Boss | null, n0: number): void {
     sc.sfx('stagger'); sc.shake(200, 0.01); sc.hitstop = 0.1;
     sc.burst(24, b.x + b.w / 2, b.y + 10, 0xffd47a);
     sc.toastAll(sc._execHint ? 'Оглушён! Бей!' : 'Оглушён! Подойди и ударь вверх или вниз — казнь'); sc._execHint = true;
-    for (const pr of sc.projs) if (pr.kind === 'spore') pr.dead = true;
+    for (const pr of sc.projs) if (projReg.get(pr.kind)?.dieOnStagger) pr.dead = true;
     onStagger(b); onStaggerWorld(sc, b); // текущая атака обрывается, связанные с ней сущности арены гаснут
   }
 }
@@ -122,7 +124,7 @@ export function execBoss(sc: World, p: Player, kit: { key: BossRef }, dir: strin
   const wasS = S && cur0 ? !!cur0['executed'] : false;
   const b = bossOf(sc, kit.key), was = b && b['executed'];
   execBossBase(sc, p, kit, dir);
-  if (b && b['executed'] && !was && hasCharm(p, 'hunter')) { if (p.remote) { for (let i = 0; i < 3; i++) sc.sendEv({ k: 'silk', i: p.i }); } else p.silk = Math.min(sc.silkMax, p.silk + 3); }
+  if (b && b['executed'] && !was) for (const c of charmsOn(p)) c.exec?.(sc, p, b);
   if (S && !wasS) { const b2 = sc.testBoss(); if (b2 && b2['executed']) S.execs++; }
 }
 function execBossBase(sc: World, p: Player, kit: { key: BossRef }, dir: string): void {
@@ -151,16 +153,3 @@ export function deathFxLocal(sc: World): void {
 }
 
 // ----- снаряды боссов, которым нужен свой шаг -----
-export function stepExtraProj(sc: World, pr: Proj, dt: number): boolean {
-  switch (pr.kind) {
-    case 'glob': // плевок: дуга под гравитацией
-      pr.vy += 700 * dt; pr.x += pr.vx * dt; pr.y += pr.vy * dt;
-      if (sc.isSolid(Math.floor((pr.x + 6) / T), Math.floor((pr.y + 6) / T))) { pr.dead = true; sc.burst(7, pr.x + 6, pr.y + 6, 0xc7f08a); }
-      return true;
-    case 'echo': // призрак Владика: бежит вдоль пола и исчезает за дальней стеной
-      pr.x += pr.vx * dt;
-      if ((pr.vx < 0 && pr.x < T - 60) || (pr.vx > 0 && pr.x + pr.w > (sc.L.W - 1) * T + 60)) pr.dead = true;
-      return true;
-  }
-  return false;
-}

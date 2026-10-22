@@ -6,7 +6,9 @@ import vm from 'node:vm';
 import { describe, expect, it } from 'vitest';
 import tropa from '../../levels/tropa.ldtk' with { type: 'json' };
 import { ldtkLevelIds, levelFromLdtk } from '../../src/core/ldtk';
-import { ARENAS, buildLevel, buildRoad, LEVEL_IDS } from '../../src/core/levels';
+import '../../src/content';
+import { buildArena, buildLevel, buildRoad } from '../../src/core/levels';
+import { arenaReg } from '../../src/core/plugin/regs';
 import { projectLevels, projectText } from '../../tools/ldtk-export';
 import * as oracle from '../oracle/levels-code';
 
@@ -58,13 +60,13 @@ describe('уровни LDtk', () => {
     });
   }
 
-  it('buildLevel/buildRoad/ARENAS отдают уровни из LDtk и каждый раз новый объект', () => {
+  it('buildLevel/buildRoad/buildArena отдают уровни из LDtk и каждый раз новый объект', () => {
     expect(buildLevel()).toStrictEqual(oracle.buildLevel());
     for (const ch of [2, 3, 4]) expect(buildRoad(ch)).toStrictEqual(oracle.buildRoad(ch));
-    for (const k of Object.keys(oracle.ARENAS)) expect(ARENAS[k]!()).toStrictEqual(oracle.ARENAS[k]!());
+    for (const k of Object.keys(oracle.ARENAS)) { const L = buildArena(k); expect(L.arena).toBe(k); delete L.arena; expect(L).toStrictEqual(oracle.ARENAS[k]!()); }
     expect(buildLevel()).not.toBe(buildLevel());
     expect(buildLevel().grid).not.toBe(buildLevel().grid);
-    expect(Object.keys(LEVEL_IDS.arena)).toEqual(['misha', 'vladik', 'tima']);
+    expect(arenaReg.ids()).toEqual(['misha', 'vladik', 'tima']);
   });
 
   it('levels/tropa.ldtk совпадает с перегенерацией генератором (защита от ручной порчи)', () => {

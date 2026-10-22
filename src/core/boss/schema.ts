@@ -1,11 +1,10 @@
 // Схема данных боссов (data/bosses/*.json): язык атак, связки, политика выбора, фазы. Проверяется при загрузке (zod) и семантически (checkBossDef).
 // Время везде в кадрах (60 в секунду), расстояния — в пикселях. Подробности и пример — docs/BOSS_DATA.md.
 import { z } from 'zod';
+import { arenaReg, projReg } from '../plugin/regs';
 
 export const HIT_KINDS = ['parry', 'dodge', 'unblockable'] as const;
 export const CUE_COLORS = ['yellow', 'red', 'purple', 'white'] as const;
-/** виды снарядов, которые умеет двигать ядро (stepProjs / stepExtraProj) */
-export const PROJ_KINDS = ['spore', 'wave', 'rock', 'note', 'glob'] as const;
 
 const frames = z.number().int().min(0);
 const pos = z.number().int().min(1);
@@ -33,7 +32,7 @@ const Move = z.strictObject({
   /** player — знак vx относительно направления на героя; wall — к ближайшей к боссу стене; fixed — vx как есть (в мировых осях) */
   toward: z.enum(['player', 'wall', 'fixed']).default('player'),
 });
-export const ProjSpec = z.strictObject({ kind: z.enum(PROJ_KINDS), w: z.number().positive(), h: z.number().positive(), life: pos });
+export const ProjSpec = z.strictObject({ kind: z.string().min(1) /* вид из src/content/projectiles с data: true (проверка — projKindErrs) */, w: z.number().positive(), h: z.number().positive(), life: pos });
 const Spawn = z.strictObject({
   at: frames,
   proj: ProjSpec,
@@ -234,7 +233,7 @@ const SpawnerEnt = z.strictObject({
   })).min(1),
 });
 export const ArenaEntSchema = z.discriminatedUnion('kind', [PlatformEnt, BarrierEnt, BeamEnt, SpawnerEnt]);
-const ArenaLevel = z.enum(['misha', 'vladik', 'tima']);
+const ArenaLevel = z.string().min(1); // id из src/content/arenas (проверка — arenaErrs)
 /** раздел arena: либо имя арены ("vladik"), либо { level, ents } с сущностями по расписанию */
 export const ArenaSchema = z.union([ArenaLevel, z.strictObject({ level: ArenaLevel, ents: z.array(ArenaEntSchema).default([]) })]);
 
@@ -325,7 +324,7 @@ export const BossDefSchema = z.strictObject({
   order: z.number().default(1000),
   /** вносить ли босса в список дуэли (запуск раунда дуэли для боссов на данных подключается в волне 1) */
   duel: z.boolean().default(false),
-  /** арена из levels/tropa.ldtk: 'misha' | 'vladik' | 'tima', либо { level, ents } с сущностями по расписанию (платформы, лучи, точки появления, барьеры) */
+  /** арена — id из src/content/arenas (сейчас 'misha' | 'vladik' | 'tima'), либо { level, ents } с сущностями по расписанию (платформы, лучи, точки появления, барьеры) */
   arena: ArenaSchema,
   size: z.strictObject({ w: pos, h: pos }),
   /** начальное положение (по умолчанию — точка появления арены) */
@@ -561,7 +560,34 @@ export function checkBossDef(def: BossDef, rules: Rules): string[] {
       if (r.from === r.to) errs.push(`дирижёр: эстафета ${r.from} → ${r.to} возвращается к тому же боссу`);
     }
   }
+  errs.push(...projKindErrs(def), ...arenaErrs(def));
   return errs;
+}
+
+/** Виды снарядов в данных (любое поле proj.kind) должны быть заведены в src/content/projectiles с data: true.
+ *  Пока содержимое не загружено (разбор данных при импорте модуля раньше загрузки), проверка пропускается: её повторяют boss:check и тест content. */
+export function projKindErrs(def: unknown): string[] {
+  if (!projReg.size) return [];
+  const errs: string[] = [], seen = new Set<string>();
+  const walk = (o: unknown): void => {
+    if (!o || typeof o !== 'object') return;
+    if (Array.isArray(o)) { o.forEach(walk); return; }
+    const r = o as Record<string, unknown>, pj = r['proj'] as { kind?: unknown } | undefined;
+    if (pj && typeof pj.kind === 'string' && !seen.has(pj.kind)) {
+      seen.add(pj.kind);
+      if (!projReg.get(pj.kind)?.data) errs.push(`снаряд «${pj.kind}» не заведён для данных (нужен src/content/projectiles/${pj.kind}.ts с data: true; есть: ${projReg.list().filter((d) => d.data).map((d) => d.id).join(', ')})`);
+    }
+    for (const v of Object.values(r)) walk(v);
+  };
+  walk(def);
+  return errs;
+}
+
+/** Арена из данных должна быть заведена в src/content/arenas (до загрузки содержимого проверка пропускается, как у снарядов). */
+export function arenaErrs(def: { arena?: unknown }): string[] {
+  if (!arenaReg.size || def.arena === undefined) return [];
+  const id = typeof def.arena === 'string' ? def.arena : (def.arena as { level?: string }).level ?? '';
+  return arenaReg.has(id) ? [] : [`арена «${id}» не заведена (нужен src/content/arenas/${id}.ts; есть: ${arenaReg.ids().join(', ')})`];
 }
 
 /** Разбор и проверка определения босса: бросает понятную ошибку по-русски. */

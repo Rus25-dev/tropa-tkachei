@@ -13,6 +13,7 @@ import { spawnCreature } from './minions';
 import { aimAt, fireShots } from './shared';
 import { bossDef } from './registry';
 import { arenaEnts, arenaLevel, type Area, type ArenaEnt } from './schema';
+import { arenaSpot } from '../arena-kit';
 
 export type Clk = 'b' | 'w';
 export interface StrikeRt { rect: Rect; aim: boolean; tell: number; active: number; f: number; hits: number[]; hit: 'parry' | 'dodge' | 'unblockable'; dmg: number }
@@ -52,7 +53,7 @@ export function entDef(sc: World, e: EntRt): ArenaEnt | undefined {
 export function makeArena(sc: World): void {
   sc.arena = null; sc.dyn = null;
   const lead = sc.bosses[0] && bossDef(dstate(sc.bosses[0]).id); if (!lead) return;
-  const sp = sc.L[arenaLevel(lead) as 'misha' | 'vladik' | 'tima']; if (!sp) return;
+  const sp = arenaSpot(sc.L, arenaLevel(lead)); if (!sp) return;
   const floor = (sp.y + 1) * T, ents: EntRt[] = [];
   sc.bosses.forEach((b, own) => {
     const def = bossDef(dstate(b).id); if (!def) return;

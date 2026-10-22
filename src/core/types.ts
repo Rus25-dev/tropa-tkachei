@@ -29,7 +29,7 @@ export interface Enemy extends Body { type: string; face: number; flash: number;
 export interface Boss extends Body { posture?: boolean; hp: number; maxHp: number; state: string; t: number; face: number; flash: number; phase?: number; [k: string]: any }
 /** Тип удара (язык атак боссов, 2.5): parry — можно отбить; dodge — только уворот; unblockable — не отбивается и не гасится рывком, только избежать. */
 export type HitKind = 'parry' | 'dodge' | 'unblockable';
-/** hk — тип удара снаряда; без поля считается 'parry' (прежнее поведение). dmg — урон, если не задан: по виду снаряда (HEAVY_KINDS). */
+/** hk — тип удара снаряда; без поля считается 'parry' (прежнее поведение). dmg — урон, если не задан: по виду снаряда (heavy в src/content/projectiles). */
 export interface Proj extends Rect { kind: string; vx: number; vy: number; life: number; dead?: boolean; delay?: number; hk?: HitKind; dmg?: number; [k: string]: any }
 export interface Bead extends Body { t: number; dead?: boolean }
 /* eslint-enable @typescript-eslint/no-explicit-any */
@@ -49,6 +49,8 @@ export interface Level {
   exit: { x: number; y: number } | null;
   areas: { x: number; name: string }[];
   region?: string; road?: number; theme?: string;
+  /** id арены босса (src/content/arenas), если уровень — арена */
+  arena?: string;
   crates?: { x: number; y: number }[];
   misha?: { x: number; y: number }; ceilY?: number;
   vladik?: { x: number; y: number }; tima?: { x: number; y: number }; floorY?: number;

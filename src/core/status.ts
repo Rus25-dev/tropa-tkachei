@@ -1,9 +1,10 @@
 // Статусы: яд, ожог, замедление (legacy/src/status.js). Считает только мир; отрисовка берёт маску статусов из target.status.
 // Урон боссу тиком идёт через исходную функцию урона (RAW) без нити, звука и стойкости — фазы и оглушение не ломаются.
-import { E2_UNDER, STATUS_KINDS, dataKey, type StatusKind, type BossRef } from './balance';
+import { STATUS_KINDS, dataKey, type StatusKind, type BossRef } from './balance';
 import type { Boss, Enemy, Player } from './types';
 import type { World } from './world';
 import { killEnemy } from './combat';
+import { enemyDef } from './enemies';
 import { rawBossDamage } from './damage';
 import { bossOf } from './bosses2';
 
@@ -62,7 +63,7 @@ function tickDmg(sc: World, t: Target, kind: 'poison' | 'burn', st: { gen: numbe
     if ((t['stAcc'] as number) >= 1) { (t['stAcc'] as number) -= 1; bossDamage(sc, key, p, 1); }
   } else {
     const e = t as Enemy;
-    if (e['e2'] && e.type === 'lurker' && E2_UNDER.includes(e['state'])) return;
+    if (e['e2'] && enemyDef(e)?.dotImmune?.(e)) return;
     e.hp -= 1; e.flash = 0.08;
     sc.burst(kind === 'poison' ? 5 : 6, cx, cy, K.col);
     if (e.hp <= 0) { killEnemy(sc, e); e['status'] = null; return; }

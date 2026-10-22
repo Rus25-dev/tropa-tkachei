@@ -22,6 +22,7 @@ import { spawnCreature } from './minions';
 import { newMem, noteUse, pickChain, policyOf, priorities, priorityChain, tickMem, type ArenaSide, type PickCtx, type PolicyMem } from './policy';
 import { BOSS_RULES, bossDef } from './registry';
 import { activeEnd, arenaLevel, type Attack, type BossDef, type Chain, type Weak } from './schema';
+import { arenaSpot } from '../arena-kit';
 import { aimAt, boxRect, centerX, dstate, fireShots, freeSpot } from './shared';
 import { attackEvents } from './validate';
 import { framesOf, newAc, poiseMulOf, resolveAnti, staggerBegin, staggerRoom, type AcState } from './anti';
@@ -75,7 +76,7 @@ const kindHook = (sc: World, b: Boss, d: DState, def: BossDef): { k: ReturnType<
 export function makeDataBoss(sc: World, id: string, i = 0, place?: { x?: number; y?: number }): Boss {
   const def = bossDef(id);
   if (!def) throw new Error(`нет босса на данных «${id}»`);
-  const sp = sc.L[arenaLevel(def) as 'misha' | 'vladik' | 'tima']!, hp = def.hp[sc.nPlayers === 2 ? 1 : 0]!;
+  const sp = arenaSpot(sc.L, arenaLevel(def))!, hp = def.hp[sc.nPlayers === 2 ? 1 : 0]!;
   const e = effForm(def, 1), pl = place ?? def.place, floor = (sp.y + 1) * T;
   const cx = pl?.x !== undefined ? T + pl.x * (sc.L.W - 2) * T : sp.x * T;
   const bottom = floor - (pl?.y ?? (e.fly ? e.fly.hover : 0));

@@ -5,11 +5,11 @@
 import tropa from '../../levels/tropa.ldtk' with { type: 'json' };
 import { levelFromLdtk } from './ldtk';
 import type { Level } from './types';
+import { arenaReg } from './plugin/regs';
 
-/** Идентификаторы уровней в levels/tropa.ldtk. */
+/** Идентификаторы уровней глав в levels/tropa.ldtk (уровни арен — в описаниях src/content/arenas). */
 export const LEVEL_IDS = {
   chapter1: 'Ch1', road: { 2: 'Road2', 3: 'Road3', 4: 'Road4' } as Record<number, string>,
-  arena: { misha: 'ArenaMisha', vladik: 'ArenaVladik', tima: 'ArenaTima' } as Record<string, string>,
 } as const;
 
 const load = (id: string): Level => levelFromLdtk(tropa, id);
@@ -24,8 +24,10 @@ export function buildRoad(ch: number): Level {
   return load(id);
 }
 
-export const buildMishaArena = (): Level => load(LEVEL_IDS.arena['misha']!);
-export const buildVladikArena = (): Level => load(LEVEL_IDS.arena['vladik']!);
-export const buildTimaArena = (): Level => load(LEVEL_IDS.arena['tima']!);
-
-export const ARENAS: Record<string, () => Level> = { misha: buildMishaArena, vladik: buildVladikArena, tima: buildTimaArena };
+/** Арена босса по id из src/content/arenas: новый уровень (L.arena = id) */
+export function buildArena(id: string): Level {
+  const d = arenaReg.get(id);
+  if (!d) throw new Error(`нет арены «${id}»: есть ${arenaReg.ids().join(', ')} (src/content/arenas)`);
+  const L = load(d.ldtk); L.arena = id;
+  return L;
+}
