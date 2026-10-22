@@ -41,7 +41,7 @@ const hit = (w: World): void => { stand(w, w.players[0]!); step(w, {}, { atkP: t
 describe('реестр Контрудара', () => {
   it('приём в реестре, закрыт по умолчанию (unlock — locked, выдаст автор волны)', () => {
     expect(KIT_IDS).toContain('counter');
-    expect(ABILS.counter.unlock).toBe('locked');
+    expect(ABILS.counter.unlock).toBe('boss:keeper');
     expect(ABILS.counter.name).toBe('Контрудар');
     const { w, p } = mk({ kit: false });
     expect(kitHas(w, p, 'counter')).toBe(false);
