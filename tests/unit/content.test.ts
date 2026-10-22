@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import '../../src/content';
 import { WEAPONS, weaponReg } from '../../src/core/weapons';
 import { Registry } from '../../src/core/plugin/registry';
+import type { ProjDef } from '../../src/core/proj-kit';
 import '../../src/view/content';
 import { weaponViewReg } from '../../src/view/content/regs';
 
@@ -78,5 +79,28 @@ describe('враги', () => {
     expect(enemyReg.ids()).toEqual(['crawler', 'gnat', 'beetle', 'spitter', 'shell', 'bat', 'lurker']);
     expect(enemyReg.list().map((d) => d.levelType ?? d.id)).toEqual(['crawler', 'gnat', 'beetle', 'spitter', 'shell', 'bats', 'lurker']);
     for (const d of enemyReg.list()) { if (d.e2) expect(d.states?.length, d.id).toBeGreaterThan(0); expect(enemyViewReg.get(d.id), d.id).toBeTruthy(); }
+  });
+});
+
+describe('снаряды', () => {
+  it('прежние коды на проводе и флаги видов; у каждого вида — отрисовка', async () => {
+    const { projReg, netKindReg } = await import('../../src/core/plugin/regs');
+    const { projViewReg } = await import('../../src/view/content/regs');
+    expect(projReg.list().map((d) => [d.id, d.netId])).toEqual([['spore', 0], ['wave', 1], ['rock', 2], ['bomb', 3], ['clef', 4], ['note', 5], ['echo', 6], ['glob', 7]]);
+    for (const d of projReg.list()) { expect(netKindReg.get(d.id)?.netId, d.id).toBe(d.netId); expect(projViewReg.get(d.id), d.id).toBeTruthy(); }
+    const ids = (f: (d: ProjDef) => unknown): string[] => projReg.list().filter(f).map((d) => d.id).sort();
+    expect(ids((d) => d.persist)).toEqual(['clef', 'echo', 'wave']);
+    expect(ids((d) => d.heavy)).toEqual(['echo', 'wave']);
+    expect(ids((d) => d.slash)).toEqual(['glob', 'note', 'spore']);
+    expect(ids((d) => d.cutAll)).toEqual(['clef', 'rock']);
+    expect(ids((d) => d.hero)).toEqual(['bomb']);
+    expect(ids((d) => d.data)).toEqual(['glob', 'note', 'rock', 'spore', 'wave']);
+  });
+  it('все виды снарядов в данных боссов заведены для данных', async () => {
+    const { projKindErrs } = await import('../../src/core/boss/schema');
+    const { dataBossIds, bossDef } = await import('../../src/core/boss/registry');
+    expect(dataBossIds().length).toBeGreaterThan(5);
+    for (const id of dataBossIds()) expect(projKindErrs(bossDef(id)), id).toEqual([]);
+    expect(projKindErrs({ attacks: [{ spawn: [{ proj: { kind: 'nope' } }] }] })[0]).toMatch(/nope/);
   });
 });

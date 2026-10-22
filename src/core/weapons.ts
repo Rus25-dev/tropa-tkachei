@@ -9,7 +9,7 @@ import { resolveAttackBase, atkBoxBase, gainSilkBase, damageEnemyBase } from './
 import { needleBonus } from './campaign';
 import { killEnemy } from './combat';
 import { kitSlow } from './kit/moves';
-import { weaponReg } from './plugin/regs';
+import { projReg, weaponReg } from './plugin/regs';
 import { ctr, type Swing, type WeaponDef } from './weapon-kit';
 
 // ---------- реестр (описания — src/content/weapons/<id>.ts) ----------
@@ -109,7 +109,6 @@ export function atkBox(sc: World, p: Player): Rect {
 }
 
 // ---------- разрешение удара и урон ----------
-const EXTRA_CUT = new Set(['clef', 'rock']);
 export function resolveAttack(sc: World, p: Player): void {
   if (p.downed || p.atkT <= 0 || !p.atkHits) return resolveAttackBase(sc, p);
   const W = wdef(p);
@@ -121,7 +120,7 @@ export function resolveAttack(sc: World, p: Player): void {
   if (p.kbx !== kb0) { const r = sw.noRecoil ? 0 : (W.recoil == null ? 1 : W.recoil); p.kbx = kb0 + (p.kbx - kb0) * r; }
   if (sw.cutAll || W.cutAll) {
     const box = atkBox(sc, p);
-    for (const pr of sc.projs) if (!pr.dead && EXTRA_CUT.has(pr.kind) && !((pr.delay ?? 0) > 0) && overlap(box, pr)) {
+    for (const pr of sc.projs) if (!pr.dead && projReg.get(pr.kind)?.cutAll && !((pr.delay ?? 0) > 0) && overlap(box, pr)) {
       pr.dead = true; sc.burst(6, pr.x + pr.w / 2, pr.y + pr.h / 2, 0xffd47a);
       sc.sfx('clink');
     }

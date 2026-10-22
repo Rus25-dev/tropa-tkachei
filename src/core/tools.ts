@@ -10,6 +10,7 @@ import { killEnemy } from './combat';
 import { damageBoss } from './damage';
 
 import { toolEntReg, toolMsgs, toolReg } from './plugin/regs';
+import { isHeroProj } from './proj-kit';
 import { toolAim, type Q, type ToolDef, type ToolMsg } from './tool-kit';
 
 export type { ToolMsg } from './tool-kit';
@@ -78,7 +79,7 @@ export function toolExplode(sc: World, cx: number, cy: number, p: Player): void 
   sc.sfx('slam'); sc.shake(220, 0.01); sc.hitstop = Math.max(sc.hitstop || 0, 0.05);
   sc.burst(30, cx, cy, p && p.pal ? p.pal.accent : 0xffe3a3); sc.burst(14, cx, cy, 0xffffff);
   tfxAdd(sc, { f: 'boom', x: cx, y: cy, t: 0.45, T: 0.45 }, true);
-  for (const pr of sc.projs) if (!pr.dead && pr.kind !== 'bomb' && !isToolKind(pr.kind) && Math.hypot(pr.x - cx, pr.y - cy) < R) pr.dead = true;
+  for (const pr of sc.projs) if (!pr.dead && !isHeroProj(pr.kind) && !isToolKind(pr.kind) && Math.hypot(pr.x - cx, pr.y - cy) < R) pr.dead = true;
   for (const e of sc.enemies) {
     if (e.dead || Math.hypot(e.x + e.w / 2 - cx, e.y + e.h / 2 - cy) > R) continue;
     toolHurtEnemy(sc, e, TOOL.BOMB_DMG, Math.sign(e.x + e.w / 2 - cx) || 1, true);

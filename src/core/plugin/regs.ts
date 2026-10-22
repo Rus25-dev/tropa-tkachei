@@ -5,6 +5,7 @@ import type { ToolDef, ToolEntDef, ToolMsg } from '../tool-kit';
 import type { CharmDef } from '../charm-kit';
 import type { AbilityDef } from '../ability-kit';
 import type { EnemyDef } from '../enemy-kit';
+import type { ProjDef } from '../proj-kit';
 import type { World } from '../world';
 import { Registry } from './registry';
 
@@ -48,3 +49,10 @@ moveReg.onDefine((d) => { if (d.listed !== false && !abilReg.has(d.id)) abilReg.
 export const enemyReg = new Registry<EnemyDef>('враги', (d) => {
   if (d.e2 && !d.states?.length) throw new Error(`враг «${d.id}»: у «врага 2» нужен список states (уходит в снимок гостю)`);
 });
+
+/** снаряды по виду (Proj.kind); каждый вид сразу заводится и в снимок гостю */
+export const projReg = new Registry<ProjDef>('снаряды', (d) => {
+  if (!(d.size?.[0] > 0) || !(d.size?.[1] > 0)) throw new Error(`снаряд «${d.id}»: нужен size [w, h]`);
+  if (typeof d.netId !== 'number') throw new Error(`снаряд «${d.id}»: нужен netId`);
+});
+projReg.onDefine((d) => { if (!netKindReg.has(d.id)) netKindReg.define({ id: d.id, netId: d.netId, size: d.size }); });

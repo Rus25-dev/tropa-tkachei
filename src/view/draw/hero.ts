@@ -1,6 +1,7 @@
 // Герои: фигура, эффекты поз, дуги ударов и клинки (legacy/src/game.js drawPlayer, combat2/qol/movement2 drawPlayerFx, weapons.js drawSwing/drawWeaponBody).
 import { CH_SHOW, CH_T, P, PARRY2 } from '../../core/balance';
 import { kitCode } from '../../core/kit/moves';
+import { isHeroProj } from '../../core/proj-kit';
 import type { Player } from '../../core/types';
 import type { Swing } from '../../core/weapons';
 import { atkBox, wdef } from '../../core/weapons';
@@ -73,7 +74,7 @@ function drawPlayerFx(w: World, p: Player, g: G, now: number): void {
   // подсказка: кольцо вокруг героя, когда рядом летит опасное и отбив готов
   if (!p.remote && !((p['parryT'] as number) > 0) && !((p['parryCd'] as number) > 0)) {
     const cx = p.x + 7, cy = p.y + 13;
-    for (const pr of w.projs) if (!pr.dead && pr.kind !== 'bomb' && pr.kind !== 'pad' && Math.hypot(pr.x - cx, pr.y - cy) < 95) {
+    for (const pr of w.projs) if (!pr.dead && !isHeroProj(pr.kind) && Math.hypot(pr.x - cx, pr.y - cy) < 95) {
       g.lineStyle(1.5, 0xffffff, 0.35 + 0.25 * Math.sin(w.animT * 18)); g.strokeCircle(0, -14, 27); break;
     }
   }

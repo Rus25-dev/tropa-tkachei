@@ -1,6 +1,8 @@
 // Бой: удары, урон, смерть и возрождение героев, отбив и нитяной всполох (legacy/src/game.js + combat2.js).
 // Это «база» без обёрток: слои оружия, оберегов, стойкости и статистики собраны в damage.ts.
-import { BAL, P, PARRY2, SLASH_KINDS, SPIKE, T, clamp } from './balance';
+import { BAL, P, PARRY2, SPIKE, T, clamp } from './balance';
+import { projReg } from './plugin/regs';
+import { isHeroProj } from './proj-kit';
 import type { Boss, Enemy, HitKind, Player, Rect } from './types';
 import type { World } from './world';
 import { inset, overlap } from './world';
@@ -44,12 +46,15 @@ export function resolveAttackBase(sc: World, p: Player): void {
     if (auth) { damageBoss(sc, key, p); if (p['heavy'] && vb.state !== 'dead') damageBoss(sc, key, p); } else { vb.flash = 0.09; if (!p.remote) { sc.hitstop = 0.04; sc.snd('hit'); } }
     if (local) { if (p.atkDir === 'd') pogo(); else if (p.atkDir === 'f') p.kbx = -p.face * 170; }
   }
-  for (const pr of sc.projs) if (SLASH_KINDS.has(pr.kind) && !pr.dead && overlap(box, pr)) {
+  for (const pr of sc.projs) {
+    const sl = !pr.dead && projReg.get(pr.kind)?.slash; // срезается ли вид обычным ударом (src/content/projectiles)
+    if (!sl || !overlap(box, pr)) continue;
+    const so = typeof sl === 'object' ? sl : null;
     if (auth) {
       pr.dead = true;
-      if (pr.kind === 'spore') sc.burst(6, pr.x + 6, pr.y + 6, 0xc7f08a);
+      if (so?.onCut) so.onCut(sc, pr);
       else { sc.burst(6, pr.x + pr.w / 2, pr.y + pr.h / 2, 0xffd47a); sc.sfx('clink'); }
-    } else if (pr.kind !== 'spore') { pr.dead = true; if (local) sc.sendEv({ k: 'cut', kind: pr.kind, x: Math.round(pr.x), y: Math.round(pr.y) }); } // чужой взмах срезает хост сам
+    } else if (so?.guestCut !== false) { pr.dead = true; if (local) sc.sendEv({ k: 'cut', kind: pr.kind, x: Math.round(pr.x), y: Math.round(pr.y) }); } // чужой взмах срезает хост сам
     if (local && p.atkDir === 'd') pogo();
   }
   if (local && p.atkDir === 'd' && !p.pogoed && sc.rectHitsTile(box, SPIKE, 0.7)) { pogo(); sc.parts(5, box.x + 18, box.y + 30, 0xffffff); }
@@ -172,7 +177,7 @@ export function parrySuccess(sc: World, p: Player, _srcX: number | null, hk?: Hi
     sc.parts(30, cx + p.face * 10, cy, 0xffd96a);
   } else { sc.snd('parry'); sc.emit('flash', { ms: 90, r: 255, g: 255, b: 255 }); }
   sc.parts(18, cx + p.face * 10, cy, 0xffffff);
-  for (const pr of sc.projs) if (!pr.dead && pr.kind !== 'bomb' && Math.hypot(pr.x - cx, pr.y - cy) < 110) { pr.dead = true; sc.burst(5, pr.x, pr.y, 0xffffff); }
+  for (const pr of sc.projs) if (!pr.dead && !isHeroProj(pr.kind) && Math.hypot(pr.x - cx, pr.y - cy) < 110) { pr.dead = true; sc.burst(5, pr.x, pr.y, 0xffffff); }
   for (const e of sc.enemies) if (!e.dead && Math.hypot(e.x + e.w / 2 - cx, e.y + e.h / 2 - cy) < 100) { e.kbT = 0.2; e.kbx = Math.sign(e.x - cx) * 300; e.kby = -120; e.flash = 0.1; if (e['state'] === 'charge') { e['state'] = 'stun'; e['st'] = 0.8; } }
   if (sc.auth()) parryPoise(sc, cx, cy, perfect); else sc.sendEv({ k: 'parrypoise', x: Math.round(cx), y: Math.round(cy), pf: perfect ? 1 : 0 });
   if (sc.auth()) e2Parry(sc, cx, cy); else sc.sendEv({ k: 'e2parry', x: Math.round(cx), y: Math.round(cy) }); // enemies2.js: отбив ломает броню панциря
@@ -195,7 +200,7 @@ export function silkBurstHit(sc: World, p: Player, cx: number, cy: number): void
   sc._e2burst = true; // enemies2.js: всполох пробивает броню
   try {
     const R = 120; p['noSilkGain'] = true; // всполох нить не копит: иначе он оплачивал бы сам себя
-    for (const pr of sc.projs) if (!pr.dead && pr.kind !== 'bomb' && Math.hypot(pr.x - cx, pr.y - cy) < R) pr.dead = true;
+    for (const pr of sc.projs) if (!pr.dead && !isHeroProj(pr.kind) && Math.hypot(pr.x - cx, pr.y - cy) < R) pr.dead = true;
     for (const e of sc.enemies) if (!e.dead && Math.hypot(e.x + e.w / 2 - cx, e.y + e.h / 2 - cy) < R) { damageEnemy(sc, e, p); if (!e.dead) damageEnemy(sc, e, p); }
     for (const [b, key] of bossRefs(sc)) {
       if (!b || ['dead', 'gone', 'sleep', 'intro'].includes(b.state)) continue;

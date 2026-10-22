@@ -1,7 +1,8 @@
 // Хранительница Печатей (keeper): дуэль на отбиве. Проверки: язык телеграфов (цвет = тип удара), «двойники» одинакового замаха разного цвета,
 // печатные талисманы (фиолетовые, сбиваются взмахом), равновесие по Парированию 2.0 (идеальный и обычный отбив), три фазы, детерминизм, отрисовка.
 import { describe, expect, it } from 'vitest';
-import { PARRY2, POISE_MAX, SLASH_KINDS } from '../../src/core/balance';
+import { PARRY2, POISE_MAX } from '../../src/core/balance';
+import { projReg } from '../../src/core/plugin/regs';
 import { dstate, forceChain, enterPhase } from '../../src/core/boss/exec';
 import { bossDef } from '../../src/core/boss/registry';
 import { feedInput, makeFuzzer } from '../../src/core/fuzzinput';
@@ -49,7 +50,7 @@ describe('Хранительница Печатей: данные и телег�
     for (const c of ['yellow', 'red', 'purple', 'white'] as const) expect(cols.has(c), c).toBe(true);
     const seals = def.attacks.flatMap((a) => a.spawn.filter((s) => s.kind === 'unblockable'));
     expect(seals.length).toBeGreaterThan(0);
-    for (const s of seals) expect(SLASH_KINDS.has(s.proj.kind), s.proj.kind).toBe(true);
+    for (const s of seals) expect(!!projReg.get(s.proj.kind)?.slash, s.proj.kind).toBe(true);
   });
   it('двойники: одинаковые поза, звук, замах и коробка, разный цвет (читать надо по цвету)', () => {
     const same = (ids: string[]): void => {

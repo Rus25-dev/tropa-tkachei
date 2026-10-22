@@ -1,5 +1,6 @@
 // Каркас боссов 2.5: схема данных (валидные/невалидные), правила честности, реестр.
 import { describe, expect, it } from 'vitest';
+import '../../src/content'; // виды снарядов (src/content/projectiles) нужны проверке proj.kind
 import rulesRaw from '../../data/bosses/rules.json' with { type: 'json' };
 import dummyRaw from '../../data/bosses/dummy.json' with { type: 'json' };
 import { BOSS_RULES, bossDef, dataBossIds, registerBoss } from '../../src/core/boss/registry';

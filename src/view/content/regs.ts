@@ -1,7 +1,7 @@
 // Реестры отрисовки и звука содержимого (вид): по файлу на вещь в src/view/content/<вид>/<id>.ts, файлы находит index.ts.
 // Лист без зависимостей, кроме типов: отрисовка импортирует реестры отсюда без циклов.
 import { Registry } from '../../core/plugin/registry';
-import type { Enemy, Player, Rect } from '../../core/types';
+import type { Enemy, Player, Proj, Rect } from '../../core/types';
 import type { Swing } from '../../core/weapon-kit';
 import type { World } from '../../core/world';
 import type { G } from '../draw/common';
@@ -81,3 +81,13 @@ abilityViewReg.onDefine((v) => { for (const [k, f] of Object.entries(v.fx ?? {})
 export interface EnemyView { id: string; draw: (g: G, e: Enemy, now: number) => void }
 export const defineEnemyView = (v: EnemyView): EnemyView => v;
 export const enemyViewReg = new Registry<EnemyView>('отрисовка врагов');
+
+/** снаряд: отрисовка по виду (src/view/content/projectiles/<kind>.ts). draw вызывается и во время задержки (pr.delay > 0) — предупреждение рисует сам вид. */
+export interface ProjView {
+  id: string; order?: number;
+  draw: (g: G, pr: Proj, now: number) => void;
+  /** у снарядов боссов на данных поверх контура цвета удара — заливка кругом (ноты, плевки) */
+  round?: boolean;
+}
+export const defineProjView = (v: ProjView): ProjView => v;
+export const projViewReg = new Registry<ProjView>('отрисовка снарядов');

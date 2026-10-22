@@ -5,6 +5,7 @@ import { VH } from '../../core/constants';
 import { mulberry32 } from '../../core/rng';
 import type { Session } from '../../core/session';
 import type { World } from '../../core/world';
+import { isHeroProj } from '../../core/proj-kit';
 import { drawClassroom, drawDen } from '../artRooms';
 import { drawLevelChunks } from '../art';
 import { drawDataBoss, drawDataProjs } from '../draw/bosses';
@@ -27,7 +28,6 @@ const FONT = '"Fira Sans", sans-serif', DISPLAY = '"Cormorant SC", Georgia, seri
 
 interface SignObj { txt: Phaser.GameObjects.Text; px: number; py: number }
 
-const NOT_HARM = new Set(['bomb']);
 export class GameScene extends Phaser.Scene {
   private sh!: Shared;
   private sess: Session | null = null;
@@ -307,7 +307,7 @@ export class GameScene extends Phaser.Scene {
     }
     for (const [x, y] of this.spk) if (x > wv.x - T && x < wv.right && y > wv.y - T && y < wv.bottom) line(x + 1, y + T * 0.38, T - 2, T * 0.62);
     for (const pr of w.projs) {
-      if (pr.dead || (pr.delay ?? 0) > 0 || NOT_HARM.has(pr.kind) || !(pr.w > 0) || pr.hk) continue; // с явным видом удара контур рисует drawHitKinds
+      if (pr.dead || (pr.delay ?? 0) > 0 || isHeroProj(pr.kind) || !(pr.w > 0) || pr.hk) continue; // с явным видом удара контур рисует drawHitKinds
       line(pr.x - 1, pr.y - 1, pr.w + 2, pr.h + 2);
     }
   }

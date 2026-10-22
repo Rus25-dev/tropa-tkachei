@@ -5,7 +5,7 @@
 // Ядро ничего не знает о сети: исходящие события уходят через w.sendEv (событие 'nev' в очереди сессии), входящие применяются отсюда.
 // БОССЫ НА ДАННЫХ ПО СЕТИ НЕ ПОДДЕРЖАНЫ: в снимок они не входят. Поэтому вход в арену по сети закрыт (campaign.netBossBlock), а Босс-тест по сети отключён в меню;
 // остальное (уровни, коридоры, враги, снаряды, бусины, ворота, инструменты) синхронизируется как раньше.
-import { CH_SHOW, HEAVY_KINDS, P, PERSIST_KINDS, dataIdx } from './balance';
+import { CH_SHOW, P, dataIdx } from './balance';
 import type { Enemy, Player, Proj } from './types';
 import { applyUp, buy, freshUp, go as campaignGo } from './campaign';
 import { knockFrom, deathFxLocal, bossOf, execBoss } from './bosses2';
@@ -17,14 +17,13 @@ import { freezeEnemy, isToolKind, toolHurtBoss, toolSpawn, type ToolMsg } from '
 import { mkSw, wdef } from './weapons';
 import { inset, overlap, type World } from './world';
 import { kitChargeFrac, kitCode, kitFromNet, kitTrail } from './kit/moves';
-import { netKindReg, toolEntReg } from './plugin/regs';
+import { netKindReg, projReg, toolEntReg } from './plugin/regs';
+import { isHeroProj } from './proj-kit';
 
 export type NetMsg = Record<string, any>;
 
-/** виды на проводе в снимке гостя: снаряды (здесь) и сущности инструментов (src/content/tools, поле entities).
+/** виды на проводе в снимке гостя (netKindReg): снаряды (src/content/projectiles) и сущности инструментов (src/content/tools, поле entities).
  *  Код netId общий для хоста и гостя (одна сборка) и только добавляется: 0–7 снаряды, 8–12 инструменты. */
-const PROJ_NET: [string, number, number][] = [['spore', 12, 12], ['wave', 24, 18], ['rock', 16, 16], ['bomb', 12, 12], ['clef', 28, 40], ['note', 14, 18], ['echo', 40, 84], ['glob', 12, 12]];
-PROJ_NET.forEach(([id, w, h], netId) => { if (!netKindReg.has(id)) netKindReg.define({ id, netId, size: [w, h] }); });
 const netIdOf = (kind: string): number => netKindReg.get(kind)?.netId ?? -1;
 const r10 = (x: number): number => Math.round(x * 10) / 10;
 const r100 = (x: number): number => Math.round(x * 100) / 100;
@@ -211,9 +210,7 @@ export function netSmooth(w: World, dt: number): void {
     for (const e of w.enemies) if (!e.dead && e['tx'] != null) { e.x += (e['tx'] - e.x) * k2; e.y += (e['ty'] - e.y) * k2; e.flash -= dt; }
     for (const pr of w.projs) {
       if (pr.delay) continue;
-      if (pr.kind === 'clef') pr['rot'] = (pr['rot'] || 0) + dt * 10;
-      if (pr.kind === 'spore') pr.vy += 700 * dt;
-      else if (['rock', 'bomb', 'note'].includes(pr.kind)) pr.vy = Math.min(pr.vy + 1100 * dt, 800);
+      projReg.get(pr.kind)?.guest?.(pr, dt); // гравитация и вращение вида (src/content/projectiles)
       pr.x += pr.vx * dt; pr.y += pr.vy * dt;
     }
   }
@@ -226,8 +223,8 @@ export function guestProjHits(w: World): void {
   try {
     for (const p of w.players) {
       if (p.remote || p.downed || p.inv > 0) continue;
-      for (const pr of w.projs) if (!pr.dead && !pr.delay && pr.kind !== 'bomb' && overlap(inset(p, 2), pr)) {
-        hurtPlayer(w, p, HEAVY_KINDS.has(pr.kind) ? 2 : 1, pr.x + pr.w / 2, false, pr.hk); if (!PERSIST_KINDS.has(pr.kind)) pr.dead = true; break;
+      for (const pr of w.projs) if (!pr.dead && !pr.delay && !isHeroProj(pr.kind) && overlap(inset(p, 2), pr)) {
+        hurtPlayer(w, p, projReg.get(pr.kind)?.heavy ? 2 : 1, pr.x + pr.w / 2, false, pr.hk); if (!projReg.get(pr.kind)?.persist) pr.dead = true; break;
       }
     }
     w.projs = w.projs.filter((q) => !q.dead);

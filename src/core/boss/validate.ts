@@ -1,7 +1,8 @@
 // Валидатор честности данных боссов (2.5, часть В): поверх zod-схемы и checkBossDef проверяет правила, которые в одной атаке не видны —
 // связки, паузы, ответы на каждый тип удара, габариты в арене, поток урона. Чистый TS, без Node: годится и для CLI (npm run boss:check), и для Vitest.
 // Каждая находка — Issue: уровень (error — нечестно, warn — подозрительно), место (босс / фаза / связка / шаг / атака / кадр) и текст по-русски.
-import { HEAVY_KINDS, P } from '../balance';
+import { P } from '../balance';
+import { projReg } from '../plugin/regs';
 import { BossDefSchema, activeEnd, arenaEnts, checkBossDef, type Attack, type BossDef, type Chain, type Fairness, type Rules } from './schema';
 import { resolveAnti } from './anti';
 import { policyOf } from './policy';
@@ -34,7 +35,7 @@ export function attackEvents(a: Attack): HitEvent[] {
     else if (dmg > e.dmg) { e.dmg = dmg; e.kind = kind; e.what = what; }
   };
   for (const h of a.active) add(a.tell.frames + h.from, h.dmg, h.kind, 'удар');
-  for (const s of a.spawn) add(a.tell.frames + s.at, s.dmg ?? (HEAVY_KINDS.has(s.proj.kind) ? 2 : 1), s.kind, 'снаряд «' + s.proj.kind + '»');
+  for (const s of a.spawn) add(a.tell.frames + s.at, s.dmg ?? (projReg.get(s.proj.kind)?.heavy ? 2 : 1), s.kind, 'снаряд «' + s.proj.kind + '»');
   return [...m.values()].sort((x, y) => x.t - y.t);
 }
 const firstDamageAt = (a: Attack): number => {
