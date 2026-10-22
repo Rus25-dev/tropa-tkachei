@@ -189,7 +189,7 @@ export class Brain {
     const st = (v: number): number => Math.max(0, Math.floor(v / DT + 1e-6));
     return { x: p.x, y: p.y, vx: p.vx, vy: p.vy, og: !!p.onGround, cd: p.canDash !== false, dcd: Math.max(0, Math.ceil(p.dashCd / DT - 1e-6)), dT: st(p.dashT),
       face: p.face, ud: !!p.usedDouble, jh: !!this.prev['jump'], cut: p.jumpCut !== false, coy: Math.max(0, p.coyote), inv: Math.max(0, Math.ceil((p.inv || 0) / DT - 1e-6)),
-      pt: st(p.parryT || 0), pe: typeof p.parryF === 'number' ? Math.floor(p.parryF / 2) : 9, pcd: Math.max(0, Math.ceil((p.parryCd || 0) / DT - 1e-6)), cost: 0, first: null, hits: 0 };
+      pt: st(p.parryT || 0), pcd: Math.max(0, Math.ceil((p.parryCd || 0) / DT - 1e-6)), cost: 0, first: null, hits: 0 };
   }
   // Все окна (рывок, отбив, неуязвимость) считаем в шагах планирования и округляем в невыгодную для бота сторону
   stepNode(n: any, a: Act, first: boolean, k: number, threats: any[]): void {
@@ -197,7 +197,7 @@ export class Brain {
     if (n.inv > 0) n.inv--;
     if (n.dcd > 0) n.dcd--;
     if (n.pcd > 0) n.pcd--;
-    if (first && a.parry && this.canParry && n.pcd <= 0 && n.pt <= 0 && n.dT <= 0) { n.pt = 5; n.pcd = 20; n.pe = 0; }
+    if (first && a.parry && this.canParry && n.pcd <= 0 && n.pt <= 0 && n.dT <= 0) { n.pt = 5; n.pcd = 20; }
     const dir = a.dir;
     let dashing = false;
     if (n.dT > 0) {
@@ -228,12 +228,12 @@ export class Brain {
       if (px1 <= tx0 || px0 >= tx1 || py1 <= ty0 || py0 >= ty1) continue;
       if (n.inv > 0) continue;
       // вид удара (отбив 2.0): dodge отбивом не гасится, unblockable не гасится ни отбивом, ни рывком; без hk — как раньше
-      const parryable = n.pt > 0 && (t.hk === undefined || t.hk === 'parry');
-      if (parryable) { n.inv = 16; n.pt = 0; n.pcd = 5; n.cost -= 1.4; if (t.hk === 'parry' && this.canPerfect && n.pe <= 2) n.cost -= 0.5; } // удар в первые кадры окна — идеальный отбив
+      const early = n.pt >= 3, parryable = n.pt > 0 && (t.hk === undefined || t.hk === 'parry');
+      if (parryable) { n.inv = 16; n.pt = 0; n.pcd = 5; n.cost -= 1.4; if (t.hk === 'parry' && this.canPerfect && early) n.cost -= 0.5; } // удар в первые шаги окна (pt начинается с 5) — идеальный отбив; отдельного поля нет: лишнее поле узла замедляет перебор в разы
       else if (dashing && t.hk !== 'unblockable') { n.inv = 11; n.cost -= this.canDash ? 0.6 : 0; }
       else { n.cost += 100; n.inv = 31; n.hits++; }
     }
-    if (n.pt > 0) { n.pt--; n.pe++; }
+    if (n.pt > 0) n.pt--;
   }
   // можно ли простоять `steps` шагов (1/30 с) на месте, не получив урона
   safeStay(p: any, threats: any[], steps: number): boolean {

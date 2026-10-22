@@ -209,7 +209,7 @@ describe('отбив 2.0: бот различает виды ударов', () =
   /** угроза стоит на герое; у героя открыто окно отбива; возвращает попадания и стоимость плана за шаг */
   const plan = (hk: HitKind | undefined, skill = 0.95): { hits: number; cost: number } => {
     const w = mk(), p = w.players[0]!, br = new Brain(w, 0, skill, 3);
-    const n = br.rootNode(p); n.pt = 5; n.pe = 0;
+    const n = br.rootNode(p); n.pt = 5;
     const L = 8, X = new Float32Array(L).fill(p.x), Y = new Float32Array(L).fill(p.y), ON = new Uint8Array(L).fill(1);
     br.stepNode(n, ACT_STAND, false, 1, [{ X, Y, ON, w: 14, h: 26, kind: 'spore', pad: 2, hk }]);
     return { hits: n.hits, cost: n.cost };
