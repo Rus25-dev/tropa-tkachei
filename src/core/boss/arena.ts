@@ -5,7 +5,7 @@
 // Время расписания — кадры: у привязанных к связке и к attack.fire — кадры исполнителя босса-хозяина (замедление босса замедляет и их), у остальных — кадры мира.
 import { PLAT, SOLID, T } from '../balance';
 import { hurtPlayer } from '../damage';
-import type { Rect } from '../types';
+import type { Boss, Player, Rect } from '../types';
 import type { World } from '../world';
 import { inset, overlap } from '../world';
 import { dstate } from './shared';
@@ -86,11 +86,17 @@ export function rebuildDyn(sc: World): void {
 
 const px = (e: EntRt): Rect => ({ x: e.tx * T, y: e.ty * T, w: e.tw * T, h: e.th * T });
 /** тела, которые нельзя замуровать: живые герои, боссы и существа */
-function bodiesIn(sc: World, r: Rect): boolean {
-  for (const p of sc.players) if (!p.downed && overlap(inset(p, 1), r)) return true;
-  for (const b of sc.bosses) if (b.state !== 'dead' && overlap(b, r)) return true;
-  for (const en of sc.enemies) if (!en.dead && en['m'] && overlap(en, r)) return true;
+function bodiesIn(sc: World, r: Rect, skip: object[] = []): boolean {
+  for (const p of sc.players) if (!p.downed && !skip.includes(p) && overlap(inset(p, 1), r)) return true;
+  for (const b of sc.bosses) if (b.state !== 'dead' && !skip.includes(b) && overlap(b, r)) return true;
+  for (const en of sc.enemies) if (!en.dead && en['m'] && !skip.includes(en) && overlap(en, r)) return true;
   return false;
+}
+/** тела на верхней грани платформы (стоят на ней): едут вместе с ней и ходу не мешают */
+function ridersOf(sc: World, e: EntRt): (Player | Boss)[] {
+  const top = e.ty * T, l = e.tx * T, r = (e.tx + e.tw) * T;
+  const on = (o: Rect): boolean => Math.abs(o.y + o.h - top) <= 3 && o.x + o.w > l && o.x < r;
+  return [...sc.players.filter((p) => !p.downed && on(p)), ...sc.bosses.filter((b) => b.state !== 'dead' && on(b))];
 }
 
 // ---------- запуск ----------
@@ -187,18 +193,21 @@ function movePlat(sc: World, e: EntRt, d: Extract<ArenaEnt, { kind: 'platform' |
   const m = e.mv!, solid = d.kind === 'barrier' || d.solid;
   const nx = e.tx + (e.tx === m.tx ? 0 : m.dx), ny = e.ty + (e.ty === m.ty ? 0 : m.dy);
   const to: Rect = { x: nx * T, y: ny * T, w: e.tw * T, h: e.th * T };
-  if (e.shown && solid && bodiesIn(sc, to)) { m.wait = 1; return; } // не давить: ждём, пока освободят место
-  if (e.shown) carry(sc, e, nx - e.tx, ny - e.ty);
+  const riders = e.shown ? ridersOf(sc, e) : [];
+  if (e.shown && solid && bodiesIn(sc, to, riders)) { m.wait = 1; return; } // не давить: ждём, пока освободят место (стоящие сверху едут с платформой)
+  const dx = nx - e.tx, dy = ny - e.ty;
   e.tx = nx; e.ty = ny; m.wait = m.every;
-  if (e.shown) rebuildDyn(sc);
+  if (e.shown) { rebuildDyn(sc); carry(sc, riders, dx, dy); } // сначала платформа на новом месте, потом пассажиры: их новое место проверяется уже по ней
   if (e.tx === m.tx && e.ty === m.ty) e.mv = null;
 }
-/** тела на верхней грани платформы едут вместе с ней */
-function carry(sc: World, e: EntRt, dx: number, dy: number): void {
-  const top = e.ty * T, l = e.tx * T, r = (e.tx + e.tw) * T;
-  const ride = (o: { x: number; y: number; w: number; h: number }): boolean => Math.abs(o.y + o.h - top) <= 3 && o.x + o.w > l && o.x < r;
-  for (const p of sc.players) if (!p.downed && ride(p)) { const q = { x: p.x + dx * T, y: p.y + dy * T, w: p.w, h: p.h }; if (!sc.solidRect(q)) { p.x = q.x; p.y = q.y; p.safeX = p.x; p.safeY = p.y; } }
-  for (const b of sc.bosses) if (b.state !== 'dead' && ride(b)) { const q = { x: b.x + dx * T, y: b.y + dy * T, w: b.w, h: b.h }; if (!sc.solidRect(q)) { b.x = q.x; b.y = q.y; } }
+/** стоящие на платформе едут вместе с ней (если новое место свободно) */
+function carry(sc: World, riders: (Player | Boss)[], dx: number, dy: number): void {
+  for (const o of riders) {
+    const q = { x: o.x + dx * T, y: o.y + dy * T, w: o.w, h: o.h };
+    if (sc.solidRect(q)) continue;
+    o.x = q.x; o.y = q.y;
+    if ('safeX' in o) { (o as Player).safeX = o.x; (o as Player).safeY = o.y; }
+  }
 }
 
 function stepBeam(sc: World, e: EntRt, d: Extract<ArenaEnt, { kind: 'beam' }>): void {

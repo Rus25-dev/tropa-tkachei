@@ -107,6 +107,20 @@ describe('платформы и барьеры: динамические тай�
     expect(p.onGround).toBe(true);
   });
 
+  it('подъём и спуск твёрдой платформы с героем на верхней грани: едет вместе, не застревает и не проваливается', () => {
+    const raw = arenaBoss('fx_a3b');
+    (raw['arena'] as Raw)['ents'] = [((raw['arena'] as Raw)['ents'] as Raw[]).find((x) => x['id'] === 'zone_fire')!, { id: 'lift', kind: 'platform', solid: true, area: { x: 640, y: 32, w: 96, h: 32 }, bind: { start: true }, timeline: [{ at: 0, op: 'show', warn: 30 }, { at: 40, op: 'move', to: { x: 640, y: 128 }, frames: 60 }, { at: 160, op: 'move', to: { x: 640, y: 32 }, frames: 60 }] }];
+    const w = make(raw); const p = w.players[0]!;
+    tickN(w, 36); expect(ent(w, 'lift').shown).toBe(true);
+    put(w, 690, FLOOR - 64 - 26); tickN(w, 3); expect(p.onGround).toBe(true);
+    const top = (): number => Math.round(p.y + p.h);
+    expect(top()).toBe(FLOOR - 64);
+    tickN(w, 100, () => { p.hp = 999; }); // к кадру 100 подъём (3 клетки) закончен
+    expect(top()).toBe(FLOOR - 160); expect(p.onGround).toBe(true);
+    tickN(w, 140, () => { p.hp = 999; });
+    expect(top()).toBe(FLOOR - 64); expect(p.onGround).toBe(true); expect(w.solidRect(p)).toBe(false);
+  });
+
   it('твёрдая платформа не появляется внутри героя: ждёт, пока место освободится', () => {
     const w = make(arenaBoss('fx_a4'), { train: true, trainPhase: 2 });
     tickN(w, 3);
