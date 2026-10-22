@@ -12,7 +12,7 @@ export type GKind = 'weapons' | 'tools' | 'charms' | 'abils';
 export const KINDS: GKind[] = ['weapons', 'tools', 'charms', 'abils'];
 export const KIND_NAMES: Record<GKind, string> = { weapons: 'Оружие', tools: 'Инструмент', charms: 'Обереги', abils: 'Приёмы' };
 const SINGLE = { weapons: 'weapon', tools: 'tool', charms: 'charm', abils: 'weapon' } as const;
-const BOSS_NAMES: Record<string, string> = { korn: 'Корнематка', misha: 'Миша Додик', vladik: 'Владик Скрипка', tima: 'Тима Пиво' };
+const BOSS_NAMES: Record<string, string> = { korn: 'Корнематка', misha: 'Миша Додик', vladik: 'Владик Скрипка', tima: 'Тима Пиво', misha2: 'Миша Додик', vladik2: 'Владик Скрипка', tima2: 'Тима Пиво', keeper: 'Хранительница Печатей', vessel: 'Пустой сосуд', nightking: 'Король кошмаров', raven: 'Ворон-тиран', radiant: 'Сияющая', penitent: 'Первый Кающийся', brainmother: 'Мозг-мать', mantises: 'Три Богомола' };
 
 export interface GEntry { id: string; name: string; desc: string; unlock: string; col?: number; [k: string]: unknown }
 export interface GItem { id: string; e: GEntry; none?: boolean; owned: boolean }
