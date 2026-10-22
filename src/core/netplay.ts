@@ -17,13 +17,15 @@ import { setRepo, bankruptSilk } from './tima';
 import { tdBegin, tdEnd } from './misha';
 import { mkSw, wdef } from './weapons';
 import { inset, overlap, type World } from './world';
+import { kitChargeFrac, kitCode, kitFromNet } from './kit/moves';
+import { SPIRIT_SIZE, WRAITH_SIZE } from './kit/spells';
 
 export type NetMsg = Record<string, any>;
 
 /** виды снарядов в снимке: индекс в этом списке уходит гостю (порядок общий для хоста и гостя — одна и та же сборка) */
-export const NET_KINDS = ['spore', 'wave', 'rock', 'letter', 'bigletter', 'bomb', 'clef', 'note', 'drip', 'bottle', 'pad', 'rwave', 'ringfx', 'box', 'stamp', 'rootspike', 'rain', 'staff', 'collector', 'trophy', 'staffghost', 'echo', 'roller', 'mark', 'glob', 'tneedle', 'ttrap', 'tbomb'];
+export const NET_KINDS = ['spore', 'wave', 'rock', 'letter', 'bigletter', 'bomb', 'clef', 'note', 'drip', 'bottle', 'pad', 'rwave', 'ringfx', 'box', 'stamp', 'rootspike', 'rain', 'staff', 'collector', 'trophy', 'staffghost', 'echo', 'roller', 'mark', 'glob', 'tneedle', 'ttrap', 'tbomb', 'tspirit', 'twraith'];
 export const NET_SIZES: [number, number][] = [[12, 12], [24, 18], [16, 16], [22, 26], [56, 60], [12, 12], [28, 40], [14, 18], [8, 10], [10, 22], [26, 18], [24, 18], [0, 0], [36, 22], [80, 44], [36, 70], [22, 26], [1344, 10], [22, 22], [30, 30], [1344, 0], [40, 84], [46, 52], [0, 0], [12, 12],
-  [12, 12], [26, 10], [12, 12]]; // tneedle, ttrap, tbomb (= tools.TOOL_KIND)
+  [12, 12], [26, 10], [12, 12], SPIRIT_SIZE, WRAITH_SIZE]; // tneedle, ttrap, tbomb (= tools.TOOL_KIND), tspirit, twraith (kit/spells.ts)
 const r10 = (x: number): number => Math.round(x * 10) / 10;
 const r100 = (x: number): number => Math.round(x * 100) / 100;
 
@@ -38,6 +40,7 @@ export function packPlayer(w: World, p: Player): NetMsg {
   if (p['charms'] && p['charms'].length) m['cm'] = p['charms'].join(',');
   m['wk'] = p['swk'] || 'g'; if ((p['chg'] || 0) > CH_SHOW) m['cg'] = r100(p['chg']);
   m['lg'] = p['ledge'] ? p['ledge'].side : 0; m['gl'] = p['gliding'] ? 1 : 0;
+  const ks = kitCode(p); if (ks || p['kgF'] > 0) { m['ks'] = ks; m['kg'] = p['kgF'] | 0; if (ks === 3 || ks === 4) m['kc'] = r100(kitChargeFrac(p)); } // приёмы набора игрока (v2.5): только если что-то идёт
   return m;
 }
 /** поза напарника (у хоста — гостя, у гостя — хоста) */
@@ -57,6 +60,7 @@ export function applyPlayer(w: World, m: NetMsg): void {
     p.atkT = dur; p['sw'] = mkSw(W, k, p, dur);
   }
   p['ledgeDir'] = m['lg'] | 0; p['gliding'] = !!m['gl'];
+  kitFromNet(p, m['ks'] | 0, m['kc'] || 0, m['kg'] | 0);
 }
 
 // ---------- упаковка: враги ----------
@@ -94,7 +98,7 @@ export function packSnap(w: World): NetMsg {
   void any;
   // инструменты (tools.js): снаряды хоста уходят строками снарядов, замёрзшие враги — списком
   for (const q of w.tl as Record<string, any>[]) {
-    const ch = q['kind'] === 'tneedle' ? [q['st'], r100(q['ang']), q['st'] === 2 ? r10(q['stuckT']) : 0] : q['kind'] === 'ttrap' ? [r10(q['life']), q['arm'] > 0 ? 1 : 0] : [r100(q['fuse'])];
+    const ch = q['kind'] === 'tneedle' ? [q['st'], r100(q['ang']), q['st'] === 2 ? r10(q['stuckT']) : 0] : q['kind'] === 'ttrap' ? [r10(q['life']), q['arm'] > 0 ? 1 : 0] : q['kind'] === 'twraith' ? [r100(q['life']), q['n'] | 0] : q['kind'] === 'tspirit' ? [q['f'], r100(q['age'])] : [r100(q['fuse'])];
     (s['pr'] as unknown[]).push([NET_KINDS.indexOf(q['kind']), r(q['x']), r(q['y']), r(q['vx']), r(q['vy']), 0, ch]);
   }
   const fz: number[] = []; w.enemies.forEach((e, i) => { if (!e.dead && e['frozenT'] > 0) fz.push(i); });
@@ -245,7 +249,8 @@ export function netSmooth(w: World, dt: number): void {
     p['netT'] = (p['netT'] || 0) + dt;
     const ex = Math.min(p['netT'], 0.12), tx = p['tx'] + p.vx * ex, ty = p['ty'] + (p.onGround ? 0 : p.vy * ex);
     if (Math.abs(tx - p.x) > 160 || Math.abs(ty - p.y) > 160) { p.x = tx; p.y = ty; } else { p.x += (tx - p.x) * k; p.y += (ty - p.y) * k; }
-    if (p.dashT > 0) { p.dashT -= dt; (p.trail as unknown[]).push({ x: p.x + 7, y: p.y + 26, a: 1, f: p.face }); }
+    if (p.dashT > 0) { p.dashT -= dt; (p.trail as unknown[]).push({ x: p.x + 7, y: p.y + 26, a: 1, f: p.face, s: p['shade'] ? 1 : 0 }); }
+    else if (p['fl'] || p['cr'] || p['dv']) (p.trail as unknown[]).push({ x: p.x + 7, y: p.y + 26, a: 1, f: p.face, s: p['fl'] ? 2 : p['cr'] ? 3 : 4 });
     p.inv -= dt; p.healT -= dt; p.landT -= dt; p['execT'] = (p['execT'] || 0) - dt;
     for (const tr of p.trail as { a: number }[]) tr.a -= dt * 5;
     p.trail = (p.trail as { a: number }[]).filter((tr) => tr.a > 0);

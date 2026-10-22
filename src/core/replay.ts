@@ -68,7 +68,7 @@ export function* replaySteps(J: Journal, opt: ReplayOpts = {}, every = Infinity)
       if (nx.seed !== seg.seed) return { ok: false, why: `зерно сцены не совпало (${seg.seed} ≠ ${nx.seed})`, tick: 0, seg: si };
       data = nx;
     }
-    w = new World({ ...data, sr, easy: opt.easy, loadoutSave: opt.loadoutSave, progress: opt.progress, fx: false });
+    w = new World({ ...data, kit: !!seg.data.kit, sr, easy: opt.easy, loadoutSave: opt.loadoutSave, progress: opt.progress, fx: false });
     const chk: Record<number, number> = {};
     for (let i = 0; i < seg.chk.length; i += 2) chk[seg.chk[i]!] = seg.chk[i + 1]!;
     let ai = 0, ri = 0, left = seg.rle.length ? seg.rle[1]! : 0;

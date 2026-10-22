@@ -10,6 +10,7 @@ import { e2Blocked } from './enemies';
 import { killEnemy } from './combat';
 import { poiseAdd } from './bosses2';
 import { damageBoss } from './damage';
+import { SPELL_IDS, SPELL_KINDS, spellSpawn, stepSpell } from './kit/spells';
 
 type Q = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any -- сущности инструментов: мешок полей, как в v1.8
 
@@ -29,9 +30,10 @@ export function toolCast(sc: World, id: string, p: Player): boolean {
 }
 /** снаряды-инструменты у гостя приходят в снимке строками снарядов этих видов */
 export const TOOL_KIND: Record<string, [number, number]> = { tneedle: [12, 12], ttrap: [26, 10], tbomb: [12, 12] };
-export const isToolKind = (k: string): boolean => k === 'tneedle' || k === 'ttrap' || k === 'tbomb';
+export const isToolKind = (k: string): boolean => k === 'tneedle' || k === 'ttrap' || k === 'tbomb' || SPELL_KINDS.has(k);
 export interface ToolMsg { id: string; i: number; x: number; y: number; dx: number; dy: number; f: number }
 export function toolSpawn(sc: World, m: ToolMsg): void {
+  if (SPELL_IDS.has(m.id)) return spellSpawn(sc, m);
   const tl = sc.tl as Q[];
   if (m.id === 'throwneedle') {
     tl.push({ kind: 'tneedle', x: m.x + m.dx * 14 - 6, y: m.y + m.dy * 14 - 6, w: 12, h: 12, vx: m.dx * TOOL.NEEDLE_SPD, vy: m.dy * TOOL.NEEDLE_SPD, st: 0, ft: 0.65, life: 25, owner: m.i, hit: new Set(), ang: Math.atan2(m.dy, m.dx) });
@@ -46,10 +48,10 @@ export function toolSpawn(sc: World, m: ToolMsg): void {
     tl.push({ kind: 'tbomb', x: m.x + m.f * 8 - 6, y: m.y - 8, w: 12, h: 12, vx, vy, fuse: TOOL.BOMB_FUSE, life: 5, owner: m.i });
   }
 }
-const toolOwner = (sc: World, i: number): Player => sc.players[i] || sc.players[0]!;
+export const toolOwner = (sc: World, i: number): Player => sc.players[i] || sc.players[0]!;
 
 // урон врагу от инструмента (мимо игольного пути: ни нити, ни бонуса острой иглы); false — не засчитан (броня, засадник под землёй)
-function toolHurtEnemy(sc: World, e: Enemy, n: number, kdir: number, pierceArmor: boolean): boolean {
+export function toolHurtEnemy(sc: World, e: Enemy, n: number, kdir: number, pierceArmor: boolean): boolean {
   const dummy = { x: e.x + e.w / 2 - kdir * 40, heavy: false, atkDir: 'f', remote: true, face: kdir } as unknown as Player;
   if (pierceArmor) sc._e2burst = true;
   const blocked = (() => { try { return !!(e['e2'] && e2Blocked(sc, e, dummy)); } finally { if (pierceArmor) sc._e2burst = false; } })();
@@ -61,7 +63,7 @@ function toolHurtEnemy(sc: World, e: Enemy, n: number, kdir: number, pierceArmor
   if (e.hp <= 0) killEnemy(sc, e);
   return true;
 }
-const liveBoss = (b: Boss | null | undefined): boolean => !!b && !['dead', 'gone', 'sleep', 'intro'].includes(b.state);
+export const liveBoss = (b: Boss | null | undefined): boolean => !!b && !['dead', 'gone', 'sleep', 'intro'].includes(b.state);
 // урон боссу от инструмента — через те же damageBoss/Vladik/Tima, что и у всполоха (фазы, стойка, оглушение работают)
 export function toolHurtBoss(sc: World, key: BossRef, p: Player, n: number): void {
   const b = bossOf(sc, key);
@@ -73,7 +75,7 @@ export function freezeEnemy(sc: World, e: Enemy | undefined, t: number): void {
   e['frozenT'] = Math.max((e['frozenT'] as number) || 0, t); e.kbT = 0; e.flash = 0.12;
   sc.burst(8, e.x + e.w / 2, e.y + e.h / 2, 0xffe3a3);
 }
-const tfxAdd = (sc: World, f: Q, send?: boolean): void => { sc.tfx.push(f); if (send) sc.sendEv({ k: 'tfx', ...f, t: f['t'] }); };
+export const tfxAdd = (sc: World, f: Q, send?: boolean): void => { sc.tfx.push(f); if (send) sc.sendEv({ k: 'tfx', ...f, t: f['t'] }); };
 
 // ----- шаг сущностей -----
 export function stepTools(sc: World, dt: number): void {
@@ -85,6 +87,7 @@ export function stepTools(sc: World, dt: number): void {
     if (q['kind'] === 'tneedle') stepToolNeedle(sc, q, dt, bosses);
     else if (q['kind'] === 'ttrap') stepToolTrap(sc, q, dt, bosses);
     else if (q['kind'] === 'tbomb') stepToolBomb(sc, q, dt, bosses);
+    else if (SPELL_KINDS.has(q['kind'])) stepSpell(sc, q, dt, bosses);
   }
   sc.tl = tl.filter((q) => !q['dead']);
 }

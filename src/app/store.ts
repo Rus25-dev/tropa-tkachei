@@ -2,6 +2,7 @@
 // чтобы сохранения старой игры читались без миграции. Любой доступ обёрнут: в приватном режиме и при запрете хранилища игра идёт без сохранений.
 import type { Progress } from '../core/campaign';
 import { normalizeSave, type LoadoutSave, CHARMS, TOOLS, CHARM_SLOTS, canFit } from '../core/loadout';
+import { ABILS } from '../core/kit/abilities';
 import { WEAPONS } from '../core/weapons';
 import type { OrgStored, PlaySess, PlayStore, RaceResult, RaceStore } from '../net/racecommon';
 import { makeKey } from '../net/types';
@@ -13,8 +14,8 @@ function write(key: string, v: unknown): void { try { localStorage.setItem(key, 
 function remove(key: string): void { try { localStorage.removeItem(key); } catch { /* нет доступа */ } }
 
 // ----- настройки -----
-export interface SettingsData { vol: number; mvol: number; shake: boolean; easy: boolean; vibro: boolean; bsize: 'S' | 'M' | 'L'; bop: number; lefty: boolean; boss: number; speed: number; noflash: boolean; outl: boolean; gfx: 'auto' | 'low' | 'mid' | 'high'; rec: boolean }
-export const SETTINGS_DEFAULT: SettingsData = { vol: 80, mvol: 60, shake: true, easy: false, vibro: true, bsize: 'M', bop: 100, lefty: false, boss: 0, speed: 100, noflash: false, outl: false, gfx: 'auto', rec: false };
+export interface SettingsData { vol: number; mvol: number; shake: boolean; easy: boolean; vibro: boolean; bsize: 'S' | 'M' | 'L'; bop: number; lefty: boolean; boss: number; speed: number; noflash: boolean; outl: boolean; gfx: 'auto' | 'low' | 'mid' | 'high'; rec: boolean; kit: boolean }
+export const SETTINGS_DEFAULT: SettingsData = { vol: 80, mvol: 60, shake: true, easy: false, vibro: true, bsize: 'M', bop: 100, lefty: false, boss: 0, speed: 100, noflash: false, outl: false, gfx: 'auto', rec: false, kit: true };
 
 type Listener = () => void;
 class SettingsStore {
@@ -40,9 +41,10 @@ export const loadout = {
   /** награда за босса: выдать всё, что открывается за него; возвращает названия новых предметов */
   onBoss(bossId: string): string[] {
     const d = loadout.get(), got: string[] = [];
-    for (const kind of ['weapons', 'tools', 'charms'] as const) {
-      const reg = { weapons: WEAPONS, tools: TOOLS, charms: CHARMS }[kind] as Record<string, { unlock: string; name: string }>;
-      for (const id in reg) if (reg[id]!.unlock === 'boss:' + bossId && !d.have[kind].includes(id)) { d.have[kind].push(id); got.push(reg[id]!.name); }
+    for (const kind of ['weapons', 'tools', 'charms', 'abils'] as const) {
+      const reg = { weapons: WEAPONS, tools: TOOLS, charms: CHARMS, abils: ABILS }[kind] as Record<string, { unlock: string; name: string }>;
+      const have = (d.have[kind] ??= []);
+      for (const id in reg) if (reg[id]!.unlock === 'boss:' + bossId && !have.includes(id)) { have.push(id); got.push(reg[id]!.name); }
     }
     if (got.length) loadout.set(d);
     return got;

@@ -70,6 +70,9 @@ export const PARRY2 = J.PARRY2;
 // ----- движение 2 (movement2.js) -----
 export const MV2 = J.MV2;
 
+// ----- набор приёмов игрока (v2.5, src/core/kit): теневой рывок, воздушная вспышка, кристальный рывок, нитяные заклинания -----
+export const KIT = J.KIT;
+
 // ----- статусы (status.js) -----
 export const STATUS_KINDS = {
   poison: { name: 'Яд', iv: J.STATUS.poison.iv, n: J.STATUS.poison.n, col: 0x86e05a, bit: 1 },

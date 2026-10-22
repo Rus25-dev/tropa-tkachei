@@ -20,6 +20,7 @@ import { poiseAdd } from './bosses2';
 import { areaOf } from './coop';
 import { statParry } from './racestats';
 import { srDuelDefeat } from './speedrun';
+import { kitClear, kitGhost } from './kit/moves';
 
 /** Владик, Тима и боссы на данных: удары игрока по ним разбираются одинаково */
 const dataRefs = (sc: World): [Boss | null, BossRef][] => [[sc.vladik, 'vladik'], [sc.tima, 'tima'], ...bossRefs(sc).filter(([, k]) => k.startsWith('d')) as [Boss, BossRef][]];
@@ -103,6 +104,7 @@ export function dropBeads(sc: World, x: number, y: number, n: number): void {
 // ---------- урон героям ----------
 export function hurtPlayerBase(sc: World, p: Player, dmg: number, srcX: number | null, spike?: boolean, hk?: HitKind): void {
   if (p.inv > 0 || p.downed) return;
+  if (!spike && kitGhost(p, hk)) return; // теневой рывок, вспышка, кристальный рывок, нырок: неуязвимость к тому, что не 'unblockable' (шипы бьют всегда)
   if (p.parryT > 0 && !spike) {
     if (hk === undefined || hk === 'parry') { parrySuccess(sc, p, srcX, hk); return; } // hk не задан — исходное поведение v2.0
     // «dodge» и «unblockable» отбивом не гасятся: окно сгорает со «звоном», урон проходит
@@ -159,7 +161,7 @@ export function respawnLocal(sc: World): void {
   sc.players.forEach((p) => {
     if (p.remote) return;
     Object.assign(p, { x: sc.respawn.x - 7 + p.i * 24, y: sc.respawn.y - 26, vx: 0, vy: 0, kbx: 0, hp: p.maxHp, downed: false, inv: 1, hurtT: 0, dashT: 0, atkT: 0, sit: false, reviveT: 0, healCh: 0, healT: 0, bombs: sc.L.crates ? 3 : 0 });
-    p.safeX = p.x; p.safeY = p.y;
+    p.safeX = p.x; p.safeY = p.y; kitClear(p);
   });
   sc.wiping = false; sc.emit('fade', { out: false, ms: 600 });
   sc.emit('camSnap');

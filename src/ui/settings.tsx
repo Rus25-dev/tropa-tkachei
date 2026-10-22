@@ -13,7 +13,7 @@ export const SECS: [string, string, string][] = [['sound', 'Звук', 'гром
 
 const set = <K extends keyof SettingsData>(k: K, v: SettingsData[K]): void => { settings.set(k, v); applySettings(); };
 
-function Check({ id, label, sub, k, disabled }: { id: string; label: string; sub?: string; k: 'shake' | 'noflash' | 'outl' | 'vibro' | 'lefty' | 'easy' | 'rec'; disabled?: boolean }) {
+function Check({ id, label, sub, k, disabled }: { id: string; label: string; sub?: string; k: 'shake' | 'noflash' | 'outl' | 'vibro' | 'lefty' | 'easy' | 'rec' | 'kit'; disabled?: boolean }) {
   const s = useSettings();
   return (
     <label class="opt" for={id}>
@@ -93,6 +93,7 @@ function Section({ id, onKeys, locked }: { id: string; onKeys: () => void; locke
       <Check id="st-easy" k="easy" label="Лёгкий режим" sub="8 бутонов здоровья вместо 5; включится со следующего боя" disabled={locked} />
       <Seg name="st-speed" label="Скорость игры" k="speed" opts={[[100, '100 %'], [80, '80 %'], [60, '60 %']]} disabled={locked} />
       <span class="note">По сети скорость всегда 100 %. Лёгкий режим и замедление отключают спидран.</span>
+      <Check id="st-kit" k="kit" label="Приёмы в Босс-тесте и Босс-раше" sub="теневой рывок, воздушная вспышка, кристальный рывок открыты сразу (в гонках и дуэлях не действуют); влияет на новые бои" disabled={locked} />
       <Check id="st-rec" k="rec" label="Записывать мои бои" sub="по окончании боя или забега скачивается файл .ttrec; ничего не отправляется в сеть" />
       <div class="row"><span class="note">Просмотр записи: файл .ttrec можно также перетащить в окно игры.</span>
         <label class="btn" id="st-watch">Открыть запись…<input type="file" accept=".ttrec,.json,application/json" hidden onChange={(e) => { const f = (e.currentTarget as HTMLInputElement).files?.[0]; if (f) window.dispatchEvent(new CustomEvent('tt:watch-file', { detail: f })); (e.currentTarget as HTMLInputElement).value = ''; }} /></label></div>
