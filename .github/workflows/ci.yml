@@ -1,11 +1,13 @@
 name: CI
 
-# На каждый pull request и на пуши в v2 и main: линт, типы, Vitest, сборка, быстрые e2e (headless Chromium, WebGL через SwiftShader)
-# и золотые записи v1.8 на старой игре (legacy/). Полный набор старой игры — по запросу.
+# На каждый pull request и на пуши в v2 и main — только быстрое и критичное (≈5 минут): линт, типы, быстрые тесты Vitest, сборка,
+# дымовой e2e (игра стартует в Chromium) и короткий фаззер. Тяжёлое (перебор связок боссов, бои ботов, полный e2e, золотые записи
+# старой игры) — на локальном стенде или вручную (Actions → CI → Run workflow).
 on:
   pull_request:
   push:
     branches: [v2, main]
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -13,9 +15,9 @@ concurrency:
 
 jobs:
   check:
-    # линт, типы, Vitest, сборка. e2e вынесены в отдельную задачу: вместе они перестали укладываться в 20 минут (боссов стало больше)
+    # линт, типы, быстрые тесты Vitest (test:fast), сборка
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -25,12 +27,13 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
-      - run: npm test
+      - run: npm run test:fast
       - run: npm run build
 
   e2e:
+    # дымовой тест: игра стартует в настоящем Chromium. Полный набор — npm run test:e2e на локальном стенде или вручную
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -40,7 +43,7 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npx playwright install --with-deps chromium
-      - run: npm run test:e2e
+      - run: npm run test:smoke
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
@@ -51,7 +54,7 @@ jobs:
   fuzz:
     # фаззер ядра: все режимы, инварианты, сверка «журнал → воспроизведение»; находки сохраняются минимальными записями в tests/repro
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 6
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -59,7 +62,7 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: npm run fuzz -- --seconds 60 --seed ${{ github.run_number }}
+      - run: npm run fuzz -- --seconds 30 --seed ${{ github.run_number }}
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
@@ -68,6 +71,8 @@ jobs:
           retention-days: 14
 
   legacy-golden:
+    # золотые записи v1.8 на старой игре: не зависят от текущих правок; по запросу вручную
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
