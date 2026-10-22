@@ -1,0 +1,137 @@
+{
+  "id": "mantises",
+  "name": "Три Богомола",
+  "about": "Жница Ила, прыгун Орс и метательница Вьюн косят покос в такт: замахи одного залпа заканчиваются на один счёт, после залпа у всех общая пауза. Здоровье общее: бей любого, кто открылся.",
+  "dev": true,
+  "landmark": "Три бойца, один счёт: ищи общую паузу",
+  "tips": [
+    "Бойцы бьют на счёт: замахи одного залпа заканчиваются в одно мгновение. Смотри на цвет замаха, а не на того, кто ближе.",
+    "После залпа у всех троих общая пауза: бей любого, здоровье у них одно на троих.",
+    "Фиолетовая жатва Илы не отбивается и не гасится рывком: отойди или перепрыгни."
+  ],
+  "arena": "vladik",
+  "size": { "w": 46, "h": 86 },
+  "hp": [280, 390],
+  "color": 8434506,
+  "intro": { "frames": 120, "say": "Покос не любит чужих." },
+  "deathFrames": 160,
+  "idle": { "walkSpeed": 70, "keepDist": 110 },
+  "contact": { "dmg": 1, "kind": "dodge" },
+  "antiCheese": { "shoveChain": "a_shove", "relocateChain": "a_leap" },
+  "attacks": [
+    {
+      "id": "cut",
+      "name": "Взмах серпа",
+      "tell": { "frames": 30, "cue": {"color": "yellow", "sfx": "swing", "pose": "raise"} },
+      "move": [{"from": 0, "to": 5, "vx": 260, "toward": "player"}],
+      "active": [{"from": 0, "to": 5, "hit": {"x": 10, "y": 14, "w": 84, "h": 58}, "dmg": 1, "kind": "parry"}],
+      "recovery": { "frames": 34, "punishWindow": {"from": 6, "to": 29} }
+    },
+    {
+      "id": "back",
+      "name": "Обратный взмах",
+      "tell": { "frames": 30, "lockFace": true, "cue": {"color": "yellow", "sfx": "backhand", "pose": "cross"} },
+      "active": [{"from": 0, "to": 5, "hit": {"x": 0, "y": 28, "w": 96, "h": 46}, "dmg": 1, "kind": "parry"}],
+      "recovery": { "frames": 36, "punishWindow": {"from": 6, "to": 31} }
+    },
+    {
+      "id": "rush",
+      "name": "Рывок жатвы",
+      "tell": { "frames": 30, "cue": {"color": "red", "sfx": "dash", "pose": "lean"} },
+      "move": [{"from": 0, "to": 18, "vx": 720, "toward": "player"}],
+      "active": [{"from": 0, "to": 18, "hit": {"x": -22, "y": 26, "w": 66, "h": 58}, "dmg": 1, "kind": "dodge"}],
+      "recovery": { "frames": 46, "punishWindow": {"from": 12, "to": 42} }
+    },
+    {
+      "id": "fan",
+      "name": "Веер серпов",
+      "tell": { "frames": 30, "cue": {"color": "yellow", "sfx": "whoosh", "pose": "wind_up"} },
+      "spawn": [
+        {
+          "at": 0,
+          "proj": { "kind": "spore", "w": 12, "h": 12, "life": 180 },
+          "kind": "parry",
+          "ox": 28,
+          "oy": 8,
+          "vx": 380,
+          "vy": -260,
+          "count": 3,
+          "spread": 16
+        }
+      ],
+      "recovery": { "frames": 38, "punishWindow": {"from": 8, "to": 33} }
+    },
+    {
+      "id": "drop",
+      "name": "Серпопад",
+      "tell": { "frames": 30, "cue": {"color": "red", "sfx": "rumble", "pose": "look_up"} },
+      "spawn": [
+        { "at": 0, "proj": {"kind": "rock", "w": 16, "h": 16, "life": 120}, "kind": "dodge", "from": "target", "oy": -300 },
+        { "at": 14, "proj": {"kind": "rock", "w": 16, "h": 16, "life": 120}, "kind": "dodge", "from": "target", "ox": -70, "oy": -300 },
+        { "at": 28, "proj": {"kind": "rock", "w": 16, "h": 16, "life": 120}, "kind": "dodge", "from": "target", "ox": 70, "oy": -300 }
+      ],
+      "recovery": { "frames": 46, "punishWindow": {"from": 16, "to": 41} }
+    },
+    {
+      "id": "reap",
+      "name": "Великая жатва",
+      "tell": { "frames": 60, "lockFace": true, "cue": {"color": "purple", "sfx": "crush", "pose": "overhead_big"} },
+      "active": [{"from": 0, "to": 7, "hit": {"x": -92, "y": 8, "w": 200, "h": 78}, "dmg": 2, "kind": "unblockable", "knock": {"vx": 380, "vy": -300}}],
+      "recovery": { "frames": 58, "punishWindow": {"from": 12, "to": 53} }
+    },
+    {
+      "id": "shove",
+      "name": "Отгон косой",
+      "tell": { "frames": 30, "cue": {"color": "white", "sfx": "shove", "pose": "brace"} },
+      "active": [{"from": 0, "to": 3, "hit": {"x": -70, "y": 30, "w": 140, "h": 48}, "dmg": 1, "kind": "dodge", "knock": {"vx": 420, "vy": -320}}],
+      "recovery": { "frames": 30, "punishWindow": {"from": 6, "to": 25} }
+    },
+    {
+      "id": "leap",
+      "name": "Прыжок через героя",
+      "tell": { "frames": 32, "lockFace": true, "cue": {"color": "white", "sfx": "leap", "pose": "crouch"} },
+      "move": [{"from": 0, "to": 44, "vx": 300, "vy": -560, "toward": "player"}],
+      "active": [{"from": 44, "to": 48, "hit": {"x": -70, "y": 50, "w": 140, "h": 28}, "dmg": 1, "kind": "dodge"}],
+      "recovery": { "frames": 40, "punishWindow": {"from": 8, "to": 35} }
+    }
+  ],
+  "chains": [
+    { "id": "a_cross", "steps": [{"attack": "cut", "gapFrames": 24}, {"attack": "back"}], "weight": 1 },
+    { "id": "a_fan", "steps": [{"attack": "fan"}], "weight": 1, "requires": {"phase": [1, 2]} },
+    { "id": "a_rush", "steps": [{"attack": "rush"}], "weight": 1 },
+    { "id": "a_drop", "steps": [{"attack": "drop"}], "weight": 1, "requires": {"phase": [3]} },
+    { "id": "a_reap", "steps": [{"attack": "reap"}], "weight": 1, "requires": {"phase": [3]} },
+    { "id": "a_shove", "steps": [{"attack": "shove"}], "weight": 1, "cooldown": 180 },
+    { "id": "a_leap", "steps": [{"attack": "leap"}], "weight": 1, "cooldown": 600 }
+  ],
+  "phases": [
+    { "fromHp": 1, "policy": {"chains": ["a_cross", "a_fan", "a_rush"], "noRepeat": 1, "restFrames": [30, 54]} },
+    { "fromHp": 0.62, "rageFrames": 60, "policy": {"chains": ["a_cross", "a_fan", "a_rush"], "noRepeat": 1, "restFrames": [24, 42]} },
+    { "fromHp": 0.27, "rageFrames": 60, "policy": {"chains": ["a_cross", "a_rush", "a_drop", "a_reap"], "noRepeat": 1, "restFrames": [24, 42]} }
+  ],
+  "conductor": {
+    "members": [{"boss": "mantises_b", "place": {"x": 0.4}}, {"boss": "mantises_c", "place": {"x": 0.832}}],
+    "lead": "conductor",
+    "pool": true,
+    "win": "all",
+    "beat": 30,
+    "cycle": 24,
+    "schedule": [
+      { "beat": 0, "boss": 0, "chain": "a_cross" },
+      { "beat": 0, "boss": 1, "chain": "b_twin3" },
+      { "beat": 0, "boss": 2, "chain": "c_fan3" },
+      { "beat": 6, "boss": 1, "chain": "b_dash" },
+      { "beat": 6, "boss": 0, "chain": "a_drop" },
+      { "beat": 6, "boss": 2, "chain": "c_throw3" },
+      { "beat": 6, "boss": 2, "chain": "c_fan" },
+      { "beat": 12, "boss": 0, "chain": "a_fan" },
+      { "beat": 12, "boss": 1, "chain": "b_twin" },
+      { "beat": 12, "boss": 2, "chain": "c_throw" },
+      { "beat": 12, "boss": 0, "chain": "a_reap" },
+      { "beat": 18, "boss": 0, "chain": "a_rush" },
+      { "beat": 18, "boss": 1, "chain": "b_vault" },
+      { "beat": 18, "boss": 2, "chain": "c_rain" }
+    ],
+    "relay": []
+  }
+}
