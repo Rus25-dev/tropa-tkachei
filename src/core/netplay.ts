@@ -137,6 +137,7 @@ export function onEv(w: World, m: NetMsg): void {
     case 'smoke': w.emit('smoke', { n: m['n'], x: m['x'], y: m['y'] }); break;
     case 'paper': w.emit('paper', { n: m['n'], x: m['x'], y: m['y'] }); break;
     case 'foam': w.emit('foam', { n: m['n'], x: m['x'], y: m['y'] }); break;
+    case 'fx': if (typeof m['e'] === 'string') w.emit(m['e'], { n: m['n'], x: m['x'], y: m['y'] }); break; // частицы убранства арены (World.fxAt)
     case 'burst': w.emit('burst', { n: m['n'], x: m['x'], y: m['y'], c: m['c'] }); break;
     case 'dust': w.emit('dust', { n: m['n'], x: m['x'], y: m['y'] }); break;
     case 'shake': w.emit('shake', { d: m['d'], i: m['i'] }); break;

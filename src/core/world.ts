@@ -143,6 +143,8 @@ export class World {
   parts(n: number, x: number, y: number, c: number): void { this.emit('burst', { n, x, y, c }); }
   dustAt(n: number, x: number, y: number): void { this.emit('dust', { n, x, y }); if (this.online === 'host') this.sendEv({ k: 'dust', n, x: Math.round(x), y: Math.round(y) }); }
   paperAt(n: number, x: number, y: number): void { this.emit('paper', { n, x, y }); if (this.online === 'host') this.sendEv({ k: 'paper', n, x: Math.round(x), y: Math.round(y) }); }
+  /** частицы убранства арены по имени события (src/view/content/arenas, поле bursts); хост пересылает их гостю */
+  fxAt(name: string, n: number, x: number, y: number): void { this.emit(name, { n, x, y }); if (this.online === 'host') this.sendEv({ k: 'fx', e: name, n, x: Math.round(x), y: Math.round(y) }); }
   foamAt(n: number, x: number, y: number): void { this.emit('foam', { n, x, y }); if (this.online === 'host') this.sendEv({ k: 'foam', n, x: Math.round(x), y: Math.round(y) }); }
   shake(d: number, i: number): void { this.emit('shake', { d, i }); if (this.online === 'host') this.sendEv({ k: 'shake', d, i }); }
   toast(m: string, hold?: number): void { this.emit('toast', { m, hold }); }

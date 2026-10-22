@@ -6,6 +6,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { LDTK } from '../src/core/ldtk';
+import { enemyReg } from '../src/core/plugin/regs';
 import { T } from '../src/core/balance';
 import type { Level } from '../src/core/types';
 import { ARENAS, buildLevel, buildRoad } from '../tests/oracle/levels-code';
@@ -29,10 +30,12 @@ function iid(name: string): string {
 type Json = null | boolean | number | string | Json[] | { [k: string]: Json };
 type Kind = 'Int' | 'String' | 'Text' | 'Bool' | 'Enum';
 
-const ENUMS = {
-  EnemyType: ['crawler', 'gnat', 'beetle', 'spitter', 'shell', 'lurker', 'bats'],
+/** виды врагов v1.8 в прежнем порядке (от него зависят uid в файле); новые виды из src/content/enemies дописываются в конец */
+const ENEMY_BASE = ['crawler', 'gnat', 'beetle', 'spitter', 'shell', 'lurker', 'bats'];
+const ENUMS: Record<'EnemyType' | 'FurnitureKind', readonly string[]> = {
+  EnemyType: [...ENEMY_BASE, ...enemyReg.list().map((d) => d.levelType ?? d.id).filter((t) => !ENEMY_BASE.includes(t))],
   FurnitureKind: ['couch', 'shelf', 'crates'],
-} as const;
+};
 const ENUM_UID: Record<string, number> = { EnemyType: 100, FurnitureKind: 101 };
 
 interface FieldSpec { name: string; kind: Kind; nullable?: boolean; enumName?: keyof typeof ENUMS; doc: string; show?: 'Hidden' | 'ValueOnly' | 'NameAndValue'; def?: boolean }
