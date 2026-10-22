@@ -6,7 +6,6 @@
 // (рывок, отбив, всполох, казнь) и ширину поиска. Бот не читает будущие решения босса — только его телеграфы.
 /* eslint-disable @typescript-eslint/no-explicit-any -- прямой перенос JS-мозга v1.8: сущности ядра — «мешки» полей */
 import { T } from '../../src/core/balance';
-import { tdGeo } from '../../src/core/misha';
 import { mulberry32 } from '../../src/core/rng';
 import type { Inp } from '../../src/core/types';
 import type { World } from '../../src/core/world';
@@ -16,10 +15,9 @@ import { KIT } from '../../src/core/balance';
 const DT = 1 / 30, BLOCK = 3, NS = 36, DEPTH = 12;
 // скорости и тайминги мозга зашиты как в v1.8: бот моделирует игру по своей модели, а не читает баланс (иначе правка баланса «чинила» бы бота сама)
 const RUN = 230, JUMP = 700, GR = 1500, DASHV = 540, CUT = 0.45;
-const SKIP = new Set(['bomb', 'ringfx', 'staffghost', 'mark']);
+const SKIP = new Set(['bomb']);
 const clamp = (v: number, a: number, b: number): number => Math.max(a, Math.min(b, v));
 const ovl = (a: any, b: any): boolean => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
-const mishaBag = (m: any): { x: number; y: number; w: number; h: number } => { const cx = m.x + m.w / 2; return { x: cx - 26 * m.face - 15, y: m.y + 12, w: 30, h: 40 }; };
 
 interface Act { dir: number; jump: number; dash: number; parry: number; cost: number }
 // действия блока: направление, прыжок (удержание), рывок, отбив
@@ -28,7 +26,7 @@ for (const j of [0, 1]) for (const d of [-1, 0, 1]) ACTS.push({ dir: d, jump: j,
 for (const d of [-1, 1]) ACTS.push({ dir: d, jump: 0, dash: 1, parry: 0, cost: 0.35 });
 for (const d of [-1, 0, 1]) ACTS.push({ dir: d, jump: 0, dash: 0, parry: 1, cost: 0.3 });
 
-export interface BrainStats { hurt: Record<string, number>; parry: number; pdodge: number; exec: number; stag: number; plans: number; burst: number; bombs: number; bombHits: number }
+export interface BrainStats { hurt: Record<string, number>; parry: number; pdodge: number; exec: number; stag: number; plans: number; burst: number }
 
 /** Мозг одного героя. sc — мир ядра, idx — номер героя, skill — мастерство 0..1, seed — зерно решений бота */
 export class Brain {
@@ -43,11 +41,9 @@ export class Brain {
   frame = 0; lapse = 0; prev: Record<string, boolean> = {}; planAt = -99;
   e: any = { x: 0, y: 0, w: 14, h: 26, vx: 0, vy: 0, onGround: false, noPlat: false };
   stateSince: { s: string | null; f: number } = { s: null, f: 0 };
-  stats: BrainStats = { hurt: {}, parry: 0, pdodge: 0, exec: 0, stag: 0, plans: 0, burst: 0, bombs: 0, bombHits: 0 };
-  poseCache: { key: string; f: number; v: any } | null = null;
+  stats: BrainStats = { hurt: {}, parry: 0, pdodge: 0, exec: 0, stag: 0, plans: 0, burst: 0 };
   errT = 0; errDir = 0; errJump = false;
   lastBT: any = null; lastBest: any = null; lastHits = 0; lastTh = 0; lastThreats: any[] = [];
-  private _tdRound?: number; private _tdSeen = 0; private _kn?: number; private _lcF = 0; private _tdWrong = 0;
   dbg = '';
 
   constructor(readonly sc: World, idx: number, skill: number, seed: number) {
@@ -72,13 +68,11 @@ export class Brain {
     return this.frame - r.f >= this.react * r.k;
   }
   // траектория снаряда на NS шагов: позиции и «активность» (после задержки/пока жив)
-  trajProj(pr: any, p: any): any {
+  trajProj(pr: any): any {
     const sc = this.sc, n = NS + 1, X = new Float32Array(n), Y = new Float32Array(n), ON = new Uint8Array(n), L = sc.L as any;
     let x = pr.x, y = pr.y, vx = pr.vx || 0, vy = pr.vy || 0, d = pr.delay > 0 ? pr.delay : 0, life = pr.life == null ? 9 : pr.life;
-    let t0 = pr.t0 > 0 ? pr.t0 : 0, launched = !!pr.launched, bounces = pr.bounces || 0;
-    const ax = pr.ax || 0, kind = pr.kind, w = pr.w, ppx = p.x + 7, ppy = p.y + 13;
-    let ang = pr.ang || 0, alive = true;
-    const tm: any = sc.tima, tcx = tm ? tm.x + tm.w / 2 : 0, tcy = tm ? tm.y + 34 : 0, hyper = tm && tm.hyper > 0;
+    let t0 = pr.t0 > 0 ? pr.t0 : 0;
+    const ax = pr.ax || 0, kind = pr.kind, w = pr.w, alive = true;
     for (let i = 0; i < n; i++) {
       X[i] = x; Y[i] = y; ON[i] = (alive && d <= 0 && life > 0) ? 1 : 0;
       if (i === NS) break;
@@ -88,84 +82,30 @@ export class Brain {
         life -= h; if (life <= 0 || !alive) continue;
         switch (kind) {
           case 'spore': vy += 700 * h; x += vx * h; y += vy * h; break;
-          case 'wave': case 'rwave': case 'echo': x += vx * h; break;
-          case 'roller': x += vx * h; if (x < T || x + w > (L.W - 1) * T) { vx = -vx; x = clamp(x, T, (L.W - 1) * T - w); } break;
+          case 'wave': case 'echo': x += vx * h; break;
           case 'rock': vy = Math.min(vy + 1100 * h, 800); y += vy * h; break;
-          case 'letter':
-            if (!launched) { launched = true; const dx = ppx - (x + 11), dy = ppy - (y + 13), l = Math.hypot(dx, dy) || 1; vx = dx / l * pr.spd; vy = dy / l * pr.spd; }
-            x += vx * h; y += vy * h; break;
-          case 'bigletter': vy = Math.min(vy + 1100 * h, 820); y += vy * h; if (y + 60 > L.floorY * T) alive = false; break;
           case 'clef':
             if (t0 > 0) { t0 -= h; break; }
             vx += ax * h; x += vx * h; y += Math.sin(life * 6) * 30 * h;
             if (x < T || x + w > (L.W - 1) * T) { vx = -vx * 0.6; x = clamp(x, T, (L.W - 1) * T - w); }
             break;
           case 'note': vy = Math.min(vy + 900 * h, 700); x += vx * h; y += vy * h; break;
-          case 'drip': vy = Math.min(vy + 900 * h, 600); y += vy * h; break;
-          case 'bottle': vy = Math.min(vy + 1100 * h, 800); x += vx * h; y += vy * h; break;
-          case 'box':
-            vy = Math.min(vy + 1100 * h, 800); x += vx * h; y += vy * h;
-            if (vy > 0 && sc.isSolid(Math.floor((x + 18) / T), Math.floor((y + 22) / T))) { y = Math.floor((y + 22) / T) * T - 22; if (bounces-- > 0) { vy = -380; vx *= 0.8; } else alive = false; }
-            break;
-          case 'trophy':
-            vy = Math.min(vy + 1100 * h, 820); x += vx * h; y += vy * h;
-            if (vy > 0 && sc.isSolid(Math.floor((x + 15) / T), Math.floor((y + 30) / T))) { y = Math.floor((y + 30) / T) * T - 30; if (bounces-- > 0) vy = -320; else alive = false; }
-            break;
-          case 'stamp': vy = Math.min(vy + 1300 * h, 900); y += vy * h; if (sc.isSolid(Math.floor((x + 40) / T), Math.floor((y + 44) / T))) alive = false; break;
-          case 'rain': y += vy * h; break;
-          case 'collector': { const dir = Math.sign(ppx - (x + 11)) || 1; x += dir * (pr.spd || 130) * h; break; }
-          case 'pad': {
-            const k = 1 - life / 2.2; ang += (pr.spin || 1) * h * (hyper ? 7.5 : 5.5);
-            const rad = 20 + Math.min(1, k * 2.2) * 125 * (k > 0.8 ? (1 - k) * 5 : 1);
-            x = tcx + Math.cos(ang) * rad - 13; y = tcy + Math.sin(ang) * rad * 0.75 - 9; break;
-          }
-          default: break; // rootspike, staff: неподвижны
+          default: break;
         }
       }
     }
     return { X, Y, ON, w: pr.w, h: pr.h, kind, pad: 2, hk: pr.hk };
   }
-  // тело босса: его скорость плюс начало рывка/прыжка, если телеграф уже замечен
-  bossThreat(p: any): any {
-    const sc = this.sc, b: any = sc.testBoss() || sc.boss;
-    if (!b || ['dead', 'gone', 'sleep', 'intro'].includes(b.state) || (sc.misha && b.state === 'cough')) return null;
+  // тело босса: движется со своей скоростью под гравитацией (рывки и прыжки боссов на данных заданы атаками: их тело ловят по скорости в кадре)
+  bossThreat(): any {
+    const sc = this.sc, b: any = sc.testBoss();
+    if (!b || ['dead', 'gone', 'sleep', 'intro'].includes(b.state)) return null;
     const n = NS + 1, X = new Float32Array(n), Y = new Float32Array(n), ON = new Uint8Array(n).fill(1);
-    let e: any = { x: b.x, y: b.y, w: b.w, h: b.h, vx: b.vx || 0, vy: b.vy || 0, onGround: !!b.onGround };
-    let appear = -1;
-    if (b.y < -100) { // «лаги» Тимы: пропал, упадёт на метку — метка видна, так что падение предсказуемо
-      if (b.state !== 'lagGone' || b.lagX == null) return null;
-      e = { x: b.lagX - b.w / 2, y: 4 * T + 6, w: b.w, h: b.h, vx: 0, vy: 260, onGround: false }; appear = Math.max(0, b.t || 0);
-      if (this.frame - this.stateSince.f < this.react) return null;
-    }
-    const known = this.frame - this.stateSince.f >= this.react;
-    const ppx = p.x + 7, bcx = b.x + b.w / 2, face = ppx > bcx ? 1 : -1, ev: any[] = [];
-    const st = b.state, tr = Math.max(0, b.t || 0), ph = b.phase || 1;
-    if (known) {
-      if (sc.vladik) {
-        if (st === 'lungeWind') ev.push([tr, (q: any) => { q.vx = face * 760; }], [tr + 0.34, (q: any) => { q.vx = 0; }]);
-        if (st === 'lunge') ev.push([tr, (q: any) => { q.vx = 0; }]);
-        if (st === 'leapWind') ev.push([tr, (q: any) => { q.vy = -720; q.vx = clamp((ppx - bcx) / 1.0, -380, 380); q.air = 0; }]);
-      } else if (sc.misha) {
-        const ph2 = b.hp <= b.maxHp / 2;
-        if (st === 'chargeWind') ev.push([tr, (q: any) => { q.vx = face * (ph2 ? 520 : 450); }]);
-      } else if (sc.tima) {
-        if (st === 'lagFall') ev.push([0, (q: any) => { q.vy = Math.max(q.vy, 0); }]);
-      } else if (b === sc.boss) {
-        if (st === 'chargeWind') ev.push([tr, (q: any) => { q.vx = face * (ph >= 2 ? 460 : 400); }]);
-        if (st === 'leapWind') ev.push([tr, (q: any) => { q.vy = -760; q.vx = clamp((ppx - bcx) / 1.0, -400, 400); q.air = 0; }]);
-      }
-    }
-    if (st === 'leap' && b.air != null) e.air = b.air;
-    let t = 0;
+    const e: any = { x: b.x, y: b.y, w: b.w, h: b.h, vx: b.vx || 0, vy: b.vy || 0, onGround: !!b.onGround };
     for (let i = 0; i < n; i++) {
-      X[i] = e.x + 8; Y[i] = e.y + 8; if (appear >= 0) ON[i] = i * DT >= appear ? 1 : 0;
+      X[i] = e.x + 8; Y[i] = e.y + 8;
       if (i === n - 1) break;
-      if (appear > t) { t += DT; continue; }
-      for (const v of ev) if (!v.done && t >= v[0]) { v[1](e); v.done = true; }
-      if (e.air != null) e.air += DT;
       e.vy = Math.min(e.vy + GR * DT, 720); sc.moveBody(e, DT);
-      if (e.air != null && e.onGround && e.air > 0.15) { e.vx = 0; e.air = null; }
-      t += DT;
     }
     return { X, Y, ON, w: b.w - 16, h: b.h - 16, kind: 'body', pad: 0 };
   }
@@ -173,20 +113,15 @@ export class Brain {
     const sc = this.sc, out: any[] = [], rx = 430, ry = 340;
     for (const pr of sc.projs as any[]) {
       if (pr.dead || SKIP.has(pr.kind) || pr.w === 0 || !this.vis(pr)) continue;
-      const t = this.trajProj(pr, p);
+      const t = this.trajProj(pr);
       // отсев: траектория целиком далеко от героя
       let near = false;
       for (let i = 0; i <= NS; i += 2) if (t.ON[i] && Math.abs(t.X[i] + t.w / 2 - p.x) < rx + t.w / 2 && Math.abs(t.Y[i] + t.h / 2 - p.y) < ry + t.h / 2) { near = true; break; }
       if (near) out.push(t);
     }
-    const bt = this.bossThreat(p);
+    const bt = this.bossThreat();
     this.lastBT = bt;
     if (bt) { for (let i = 0; i <= NS; i += 2) if (Math.abs(bt.X[i] + bt.w / 2 - p.x) < rx + bt.w / 2 && Math.abs(bt.Y[i] + bt.h / 2 - p.y) < ry + bt.h / 2) { out.push(bt); break; } }
-    if (sc.curtains) for (const c of sc.curtains) if (c.slime > 0 && this.vis(c)) {
-      const n = NS + 1, X = new Float32Array(n).fill(c.x + 4), Y = new Float32Array(n).fill(c.y), ON = new Uint8Array(n);
-      for (let i = 0; i < n; i++) ON[i] = c.slime - i * DT > 0 ? 1 : 0;
-      out.push({ X, Y, ON, w: c.w - 8, h: c.h, kind: 'curtain', pad: 0 });
-    }
     return out;
   }
 
@@ -284,9 +219,8 @@ export class Brain {
     const sc = this.sc, p: any = sc.players[this.i];
     const inp: Record<string, boolean> = { left: false, right: false, up: false, down: false, jump: false, atk: false, dash: false, heal: false, bomb: false, tool: false };
     if (!p || p.remote) return inp as Inp;
-    const b: any = sc.testBoss() || sc.boss;
+    const b: any = sc.testBoss();
     if (b && b.state !== this.stateSince.s) this.stateSince = { s: b.state, f: frame };
-    if (sc.td) { this.tdAct(p, inp); return this.finish(inp); }
     if (p.downed) return this.finish(inp);
     // зевок внимания: повторяем прошлый ввод
     if (this.lapse > 0) { this.lapse--; Object.assign(inp, this.prev, { atk: false, dash: false, heal: false, bomb: false }); return this.finish(inp); }
@@ -294,7 +228,7 @@ export class Brain {
     // напарник в коконе
     const partner = sc.players.find((q) => q !== p && q.downed);
     if (partner && Math.abs(partner.x - p.x) < 300) { this.reviveAct(p, partner, inp); return this.finish(inp); }
-    if (sc.misha) this.mishaAct(p, inp, b); else this.meleeAct(p, inp, b);
+    this.meleeAct(p, inp, b);
     // промах по кнопкам: несколько кадров движение и прыжок случайные
     if (this.errT > 0 && p.healCh <= 0) {
       this.errT--; inp['left'] = this.errDir < 0; inp['right'] = this.errDir > 0; inp['jump'] = this.errJump; inp['dash'] = false; inp['heal'] = false;
@@ -378,119 +312,5 @@ export class Brain {
     }
     // сближение рывком к оглушённому
     if (stag && this.canDash && p.dashCd <= 0 && adx > hi + 30 && adx < 260 && !inp['dash'] && p.onGround && threats.length === 0) { inp['dash'] = true; inp[cx > pcx ? 'right' : 'left'] = true; }
-  }
-
-  // ---------- Миша: бомбы в рюкзак и «Пропустите!» ----------
-  private simBomb(pxc: number, pyTop: number, face: number, mode: number, m: any): string {
-    let vx = face * 360, vy = -430;
-    if (mode === 1) { vx = face * 230; vy = -650; } else if (mode === 2) { vx = face * 170; vy = -180; }
-    let x = pxc + face * 8 - 6, y = pyTop + 2;
-    const sc = this.sc, bag = mishaBag(m), mcx = m.x + m.w / 2;
-    const ins = { x: m.x + 4, y: m.y + 4, w: m.w - 8, h: m.h - 8 };
-    for (let i = 0; i < 180; i++) {
-      vy = Math.min(vy + 1100 / 60, 800); x += vx / 60; y += vy / 60;
-      const pr = { x, y, w: 12, h: 12 }, cx = x + 6, cy = y + 6;
-      const behind = (cx - mcx) * m.face < 0, mouth = vy > 0 ? { x: bag.x - 8, y: bag.y - 26, w: bag.w + 16, h: bag.h + 26 } : bag;
-      if (behind && ovl(pr, mouth)) return 'bag' + (i / 60).toFixed(2);
-      if (ovl(pr, ins)) return 'body';
-      if (sc.isSolid(Math.floor(cx / T), Math.floor(cy / T))) return 'solid';
-    }
-    return 'none';
-  }
-  // подбор позиции броска: (x, лицом, режим), чтобы дымовуха влетела в рюкзак
-  private bombPose(p: any, m: any): any {
-    const sc = this.sc, key = Math.round(m.x / 6) + ':' + m.face;
-    if (this.poseCache && this.poseCache.key === key && this.frame - this.poseCache.f < 30) return this.poseCache.v;
-    const L: any = sc.L, gy = L.floorY ? L.floorY * T : 18 * T, top = gy - 26, mcx = m.x + m.w / 2, W = L.W * T;
-    let best: any = null;
-    for (let x = 2 * T; x < W - 2 * T; x += 6) {
-      const d = Math.abs(x - mcx); if (d < 80 || d > 214) continue;
-      for (const f of [-1, 1]) for (const mode of [0, 1, 2]) {
-        const sb = this.simBomb(x, top, f, mode, m); if (sb.slice(0, 3) !== 'bag') continue;
-        // шагов до позиции; пересечение Миши запрещено
-        const cross = (x - mcx) * (p.x + 7 - mcx) < 0;
-        const score = Math.abs(x - (p.x + 7)) + (cross ? 700 : 0) + (mode === 2 ? 30 : 0) + (d < 120 ? 120 : 0);
-        if (!best || score < best.score) best = { x, f, mode, score, fl: +sb.slice(3) };
-      }
-    }
-    this.poseCache = { key, f: this.frame, v: best };
-    return best;
-  }
-  private mishaAct(p: any, inp: Record<string, boolean>, m: any): void {
-    const sc = this.sc;
-    if (!m || ['dead', 'gone'].includes(m.state)) return;
-    const mcx = m.x + m.w / 2, pcx = p.x + 7;
-    let gx = pcx, wantThrow: any = null;
-    const crates: any[] = sc.crates || [];
-    if (p.bombs <= 0 && crates.length) {
-      let c = crates[0];
-      for (const q of crates) if (Math.abs(q.x + q.w / 2 - pcx) < Math.abs(c.x + c.w / 2 - pcx)) c = q;
-      // ближний к игроку ящик, но не через Мишу
-      const same = crates.filter((q) => (q.x + q.w / 2 - mcx) * (pcx - mcx) > 0); if (same.length) c = same.reduce((a, q) => (Math.abs(q.x + q.w / 2 - pcx) < Math.abs(a.x + a.w / 2 - pcx) ? q : a));
-      gx = c.x + c.w / 2;
-    } else {
-      const pose = this.bombPose(p, m);
-      if (pose) { gx = pose.x; wantThrow = pose; } else gx = clamp(mcx + (pcx > mcx ? 190 : -190), 3 * T, (sc.L as any).W * T - 3 * T);
-    }
-    const goal: any = (n: any): number => Math.abs(n.x + 7 - gx) / 45;
-    goal.target = (n: any): number => gx - (n.x + 7);
-    const threats = this.buildThreats(p); this.lastTh = threats.length; this.lastThreats = threats;
-    this.move(p, inp, goal, threats);
-    // бросок: бросаем, пока Миша гарантированно стоит на месте, пока летит бомба
-    const fl = wantThrow ? wantThrow.fl : 1;
-    const still = wantThrow && (m.state === 'cough' || m.state === 'stun' ? m.t > wantThrow.fl * 0.5 : ['recover', 'word', 'bigWind', 'dictWind'].includes(m.state) && m.t > wantThrow.fl - 0.1);
-    const canHit = m.zipT <= 0 && m.hitCd < fl - 0.2 && still && !sc.td;
-    if (wantThrow && p.bombs > 0 && canHit && p.onGround && Math.abs(pcx - wantThrow.x) < 5 && p.bombCd <= 0 && p.hurtT <= 0 && !(inp['dash'] || inp['heal'])) {
-      if (p.face !== wantThrow.f) { inp['left'] = inp['right'] = false; inp[wantThrow.f > 0 ? 'right' : 'left'] = true; }
-      else if (!this.prev['left'] && !this.prev['right']) {
-        inp['left'] = inp['right'] = false; inp['bomb'] = true; inp['up'] = wantThrow.mode === 1; inp['down'] = wantThrow.mode === 2; this.stats.bombs++;
-      }
-    }
-    if (p.healCh > 0) { inp['left'] = inp['right'] = inp['jump'] = false; return; }
-    if (p.silk >= 9 && p.hp <= p.maxHp - 2 && p.onGround && !this.prev['heal'] && this.safeStay(p, threats, 38)) { inp['left'] = inp['right'] = inp['jump'] = inp['dash'] = false; inp['heal'] = true; }
-  }
-  // «Пропустите!»: вид сверху. Нужно встать в ту дорожку, по которой идёт Миша, перед ним
-  private tdAct(p: any, inp: Record<string, boolean>): void {
-    const sc = this.sc, td: any = sc.td, G = tdGeo();
-    if (!td) return;
-    const r = 12, cyOf = (i: number): number => (G.lanes[i]!.y0 + G.lanes[i]!.y1) / 2;
-    const inLane = (y: number): number => { for (let i = 0; i < 3; i++) if (y >= G.lanes[i]!.y0 + r && y <= G.lanes[i]!.y1 - r) return i; return -1; };
-    let lane = td.lane, wait = false;
-    if (td.state === 'tele' && this._tdRound !== td.round) {
-      this._tdRound = td.round; this._tdSeen = this.frame + Math.round(this.react * 0.7); this._kn = td.lane; this._lcF = 0;
-      this._tdWrong = this.rng() < 0.4 * (1 - this.s) ? this._tdSeen + 25 + Math.floor(40 * (1 - this.s)) : 0;
-    }
-    if (td.state === 'tele' || td.state === 'walk' || td.state === 'feint') {
-      if (this.frame < (this._tdSeen || 0)) wait = true;
-      else {
-        // перескок Миши в другой коридор замечаем с задержкой реакции
-        if (this._kn == null) this._kn = td.lane;
-        if (td.lane !== this._kn) { if (!this._lcF) this._lcF = this.frame; if (this.frame - this._lcF >= Math.round(this.react * 1.1)) { this._kn = td.lane; this._lcF = 0; } } else this._lcF = 0;
-        lane = this._kn;
-        if (this._tdWrong && this.frame < this._tdWrong) lane = (lane + 1) % 3;
-      }
-    } else wait = true;
-    const cur = inLane(p.tdy);
-    let tx = p.tdx, ty = p.tdy;
-    if (!wait) {
-      const nearestDoor = (k: number): number => { const ds = G.doors[k]!; let d = ds[0]!; for (const q of ds) if (Math.abs(q - p.tdx) < Math.abs(d - p.tdx)) d = q; return d; };
-      if (cur === lane) {
-        // встаём над ближайшей к 0.65 длины дверью соседней стены: до другого коридора останется только шаг вниз/вверх
-        let best = G.x0 + (G.x1 - G.x0) * 0.65, bd = 1e9;
-        for (const k of [lane - 1, lane]) if (G.doors[k]) for (const d of G.doors[k]!) { const dd = Math.abs(d - (G.x0 + (G.x1 - G.x0) * 0.65)); if (dd < bd) { bd = dd; best = d; } }
-        if (lane === 1) { const ds = G.doors[0]!.concat(G.doors[1]!).sort((u, v) => u - v); let lo = ds[0]!, hi = ds[ds.length - 1]!; for (let i = 0; i + 1 < ds.length; i++) if (ds[i]! <= best && ds[i + 1]! >= best) { lo = ds[i]!; hi = ds[i + 1]!; } best = (lo + hi) / 2; } // в середине: обе двери рядом
-        tx = best; ty = cyOf(lane);
-      } else if (cur >= 0) {
-        const dirn = lane > cur ? 1 : -1, k = dirn > 0 ? cur : cur - 1, dx = nearestDoor(k);
-        if (Math.abs(p.tdx - dx) > 10) { tx = dx; ty = p.tdy; } else { tx = dx; ty = cyOf(cur + dirn); }
-      } else {
-        let k = 0; for (let i = 0; i < 2; i++) if (p.tdy > G.lanes[i]!.y1 - 2 && p.tdy < G.lanes[i + 1]!.y0 + 2) k = i;
-        tx = nearestDoor(k); ty = cyOf(lane);
-      }
-    }
-    const ddx = tx - p.tdx, ddy = ty - p.tdy;
-    if (wait) return;
-    if (Math.abs(ddx) > 4) inp[ddx > 0 ? 'right' : 'left'] = true;
-    if (Math.abs(ddy) > 4) inp[ddy > 0 ? 'down' : 'up'] = true;
   }
 }

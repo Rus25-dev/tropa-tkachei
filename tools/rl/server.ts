@@ -1,5 +1,5 @@
 // Сервер среды RL: держит N параллельных боёв в worker_threads и говорит с Python бинарным протоколом по stdio.
-//   запуск: npm run rl:env -- --boss misha --envs 64 --workers 12 [--max-sec 150] [--lag 3] [--reward '{"hurt":1}'] [--record 1] [--autoreset 1] [--seed 1]
+//   запуск: npm run rl:env -- --boss misha2 --envs 64 --workers 12 [--max-sec 150] [--lag 3] [--reward '{"hurt":1}'] [--record 1] [--autoreset 1] [--seed 1]
 // Кадр запроса:  u32 команда, u32 длина, данные.  Команды: 1 RESET(N×u32 зёрна), 2 STEP(N×N_HEADS u8), 3 REC(u32 номер среды) → u32 длина + JSON .ttrec, 4 QUIT, 5 CFG(JSON).
 // Ответ на RESET/STEP: obs f32[N×OBS], reward f32[N], done u8[N] (с добивкой до 4), info f32[N×INFO]. При старте сервер шлёт u32[4]: OBS, N_HEADS, INFO, N.
 // done: 0 идёт, 1 победа, 2 обрыв нити, 3 таймаут. При autoreset после конца боя в obs лежит уже первое наблюдение нового боя.
@@ -12,7 +12,7 @@ import { INFO_DIM, type EnvCfg } from './env';
 const argv = process.argv.slice(2);
 const opt = (n: string, d?: string): string | undefined => { const i = argv.indexOf('--' + n); return i >= 0 && i + 1 < argv.length ? argv[i + 1] : d; };
 const N = +(opt('envs', '16')!), K = Math.max(1, Math.min(+(opt('workers', '4')!), N));
-const cfg: Partial<EnvCfg> = { boss: opt('boss', 'misha') as EnvCfg['boss'], maxSec: +(opt('max-sec', '150')!), lag: +(opt('lag', '3')!), record: opt('record', '0') === '1', ver: pkg.version, label: opt('label', 'Нейросеть')!, reward: JSON.parse(opt('reward', '{}')!) };
+const cfg: Partial<EnvCfg> = { boss: opt('boss', 'misha2') as EnvCfg['boss'], maxSec: +(opt('max-sec', '150')!), lag: +(opt('lag', '3')!), record: opt('record', '0') === '1', ver: pkg.version, label: opt('label', 'Нейросеть')!, reward: JSON.parse(opt('reward', '{}')!) };
 const autoreset = opt('autoreset', '1') === '1', seedBase = +(opt('seed', '1')!) >>> 0;
 
 const sab = (bytes: number): SharedArrayBuffer => new SharedArrayBuffer(bytes);

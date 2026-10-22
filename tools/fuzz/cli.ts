@@ -1,7 +1,7 @@
 // Фаззер ядра: случайный и полуслучайный ввод во всех режимах, инварианты, сверка «журнал → воспроизведение», минимизация находок.
 //   npm run fuzz -- --hours 1                 час реального времени
 //   npm run fuzz -- --seconds 60              быстрый прогон (годится для CI)
-//   npm run fuzz -- --seconds 60 --seed 7 --mode ch1,chain,arena-tima --workers 4
+//   npm run fuzz -- --seconds 60 --seed 7 --mode ch1,chain,arena-tima2 --workers 4
 // Находки сохраняются минимальными записями в tests/repro/*.json (--no-save отключает) и получают регрессионный тест (tests/unit/repro.test.ts).
 import { availableParallelism } from 'node:os';
 import { Worker } from 'node:worker_threads';

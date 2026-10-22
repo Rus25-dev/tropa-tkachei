@@ -6,7 +6,7 @@ import { spawn } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 
-const [out = 'shots/snap.png', params = '{"kind":"bosstest","boss":"misha"}', frames = '120', W = '1280', H = '720', keyspec = ''] = process.argv.slice(2);
+const [out = 'shots/snap.png', params = '{"kind":"bosstest","boss":"misha2"}', frames = '120', W = '1280', H = '720', keyspec = ''] = process.argv.slice(2);
 mkdirSync(dirname(out), { recursive: true });
 const port = 4190;
 const server = spawn(process.platform === 'win32' ? 'npx.cmd' : 'npx', ['vite', 'preview', '--port', String(port), '--strictPort'], { stdio: 'ignore', shell: process.platform === 'win32' });
@@ -26,6 +26,6 @@ try {
   }
   await page.waitForTimeout(Math.round((+frames / 60) * 1000));
   await page.screenshot({ path: out });
-  const info = await page.evaluate(() => { const s = window.__tt.shared.session; const w = s && s.world; return w ? { tick: w.tickN, hp: w.players.map((p) => p.hp), boss: (w.testBoss() || w.boss).state, fps: window.__tt.game.loop.actualFps } : null; });
+  const info = await page.evaluate(() => { const s = window.__tt.shared.session; const w = s && s.world; return w ? { tick: w.tickN, hp: w.players.map((p) => p.hp), boss: (w.testBoss() || { state: '-' }).state, fps: window.__tt.game.loop.actualFps } : null; });
   console.log(JSON.stringify(info), errors.length ? 'ОШИБКИ: ' + errors.join(' | ') : 'ошибок нет');
 } finally { await browser.close(); server.kill(); }

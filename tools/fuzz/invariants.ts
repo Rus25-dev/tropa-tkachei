@@ -98,7 +98,7 @@ export class Monitor {
 
     // --- полный обход чисел ---
     if (this.n % CHECK_EVERY === 0) {
-      const b = w.testBoss() ?? w.boss;
+      const b = w.testBoss();
       const r = findNonFinite(b, 'boss') ?? findNonFinite(w.enemies, 'enemies') ?? findNonFinite(w.projs, 'projs', 1) ?? findNonFinite(w.beadsArr, 'beads', 1) ?? findNonFinite(w.players, 'players', 1);
       if (r) return f('nan', `нечисловое поле ${r}`);
       if (b && b.hp > b.maxHp + 1e-9) return f('range', `здоровье босса ${b.hp} > максимума ${b.maxHp}`);
@@ -112,14 +112,14 @@ export class Monitor {
     const p = w.players[0]!; this.win = { x: p.x, y: p.y, t: 0, sig: this.sig(w), active: 0, move: 0 };
   }
   private sig(w: World): string {
-    const b = w.testBoss() ?? w.boss;
+    const b = w.testBoss();
     return [w.beads, w.players.map((p) => p.hp).join(','), b ? Math.round(b.hp) + b.state : '', w.enemies.filter((e) => !e.dead).length, w.deaths, w.areaIdx].join('|');
   }
   private stuck(w: World, moved: boolean, f: (i: InvariantId, m: string) => Finding): Finding | null {
     const k = this.win, live = w.players.filter((p) => !p.downed && !p.remote);
     if (!live.length) { this.resetWindow(w); return null; }
     // окно считается, только пока мир идёт и герой не сидит на скамье и не ждёт чего-то в меню
-    const ok = !w.paused && !w.wiping && !w.won && !w.leaving && !w.shopOpen && !live.some((p) => p.sit) && !w.td;
+    const ok = !w.paused && !w.wiping && !w.won && !w.leaving && !w.shopOpen && !live.some((p) => p.sit);
     if (!ok) { this.resetWindow(w); return null; }
     const p = live[0]!;
     k.t++; if (moved) k.move++;
