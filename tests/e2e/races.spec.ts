@@ -278,14 +278,14 @@ test('«Босс-раш»: организатор выбирает дисцип�
   expect((await cat(p1))!.seed).toBe((await cat(p2))!.seed);
   await expect(org.getByTestId('org-phase')).toHaveText('гонка идёт', { timeout: 60_000 });
   await expect.poll(async () => (await run(p1))!.hold || (await run(p2))!.hold, { timeout: 30_000 }).toBe(false);
-  // лента кампании подписана боссами, этап — «Корнематка · …»
-  await expect(wp.getByTestId('watch-ribbon')).toContainText('Корнематка', { timeout: 30_000 });
-  await expect(org.getByTestId('org-p1-state')).toContainText('Корнематка', { timeout: 30_000 });
+  // лента кампании подписана боссами, этап — «Кающийся · …»
+  await expect(wp.getByTestId('watch-ribbon')).toContainText('Кающийся', { timeout: 30_000 });
+  await expect(org.getByTestId('org-p1-state')).toContainText('Кающийся', { timeout: 30_000 });
   // бой: фаза, итог боя с первым боссом (урон, отбивы) — как их шлёт игра игрока
   const emit = (p: Page, f: string) => p.evaluate((src) => { const pl = (window as any).__tt.races.play; (new Function('pl', src))(pl); }, f); // eslint-disable-line @typescript-eslint/no-explicit-any
   await emit(p1, "pl.event('sub', { ch: 1, sk: 'ph2' }); pl.event('boss', { ch: 1, dmg: 41, par: 3, tk: 1, stn: 2, exe: 0, dth: 0, fgt: 21000 });");
   await emit(p2, "pl.event('boss', { ch: 1, dmg: 38, par: 5, tk: 0, stn: 1, exe: 0, dth: 0, fgt: 22000 });");
-  await expect(org.getByTestId('org-boss-table')).toContainText('Корнематка', { timeout: 30_000 });
+  await expect(org.getByTestId('org-boss-table')).toContainText('Кающийся', { timeout: 30_000 });
   await wp.keyboard.press('KeyT');
   await expect(wp.getByTestId('watch-boss-table')).toBeVisible({ timeout: 20_000 });
   await expect(wp.getByTestId('watch-boss-table').locator('tr[data-key="boss1"]')).toContainText('41');
@@ -294,7 +294,7 @@ test('«Босс-раш»: организатор выбирает дисцип�
   await finish(p1, 120_000); await finish(p2, 125_000);
   await expect(org.getByTestId('org-result')).toContainText('Победитель: Ива', { timeout: 30_000 });
   await expect(wp.getByTestId('watch-over')).toContainText('Победил Ива', { timeout: 30_000 });
-  await expect(wp.getByTestId('watch-boss-over')).toContainText('Корнематка');
+  await expect(wp.getByTestId('watch-boss-over')).toContainText('Кающийся');
   await expect(p1.getByTestId('sr-banner')).toContainText('ПОБЕДА', { timeout: 30_000 });
   const arch = await org.evaluate(() => JSON.parse(localStorage.getItem('tt_races') || '[]') as { discipline: string; settings: { cat: string }; players: { name: string; eloAfter: number | null; bosses?: { ch: number; dmg: number }[] }[] }[]);
   expect(arch.length).toBe(1); expect(arch[0]!.discipline).toBe('boss'); expect(arch[0]!.settings.cat).toBe('boss');

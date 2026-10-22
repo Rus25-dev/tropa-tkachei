@@ -24,10 +24,10 @@ describe('тренировка: связка по запросу и кадров
     expect([...seen]).toEqual(expect.arrayContaining(['Взмах:tell', 'Взмах:active', 'Взмах:recover', 'Выпад:tell']));
     expect(line).toMatch(/Взмах · замах \d+\/\d+ · можно отбить, до удара \d+ кадр\./);
   });
-  it('без тренировки или не для босса на данных — ничего не делает', () => {
+  it('без тренировки — ничего не делает', () => {
     const w = new World({ seed: 3, mode: 'bosstest', boss: 'dummy', players: 1 });
     expect(trainChain(w, 0)).toBe(false);
-    const m = new World({ seed: 3, mode: 'bosstest', boss: 'misha', players: 1, train: true });
+    const m = new World({ seed: 3, mode: 'bosstest', boss: 'misha2', players: 1 }); // тренировка выключена
     expect(trainChain(m, 0)).toBe(false); expect(frameLine(m)).toBeNull();
   });
 });

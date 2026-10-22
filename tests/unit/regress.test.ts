@@ -9,10 +9,10 @@ import { freshUp } from '../../src/core/campaign';
 const camp = (ch: number, st: CampState['st']): CampState => ({ ch, st, beads: 0, abil: { double: true }, up: freshUp(), time: 0, deaths: 0 });
 
 describe('ошибки аудита v1.5', () => {
-  it('оглушённый босс не бьёт касанием (2 урона в разбеге)', () => {
-    const w = new World({ seed: 5, mode: 'bosstest', boss: 'vladik', fx: true, loadoutSave: normalizeSave(null) });
-    const b = w.vladik!, p = w.players[0]!;
-    b.state = 'lunge'; b.stagger = 1.2; b.x = p.x; b.y = p.y; p.inv = 0;
+  it('оглушённый босс не бьёт касанием', () => {
+    const w = new World({ seed: 5, mode: 'bosstest', boss: 'vladik2', fx: true, loadoutSave: normalizeSave(null) });
+    const b = w.bosses[0]!, p = w.players[0]!;
+    b.stagger = 1.2; b.x = p.x; b.y = p.y; p.inv = 0;
     const hp = p.hp;
     for (let i = 0; i < 5; i++) w.tick();
     expect(p.hp).toBe(hp);

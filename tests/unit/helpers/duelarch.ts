@@ -25,9 +25,9 @@ export function duelArchive(): RaceResult[] {
     winner: 'Ива', winnerSeat: 1, awarded: false, gap: 50000, goAt: 0, pauseMs: 0, events: [],
   };
   const races: RaceResult[] = [
-    round(1, { boss: 'misha', win: 0, a: row(1, 'Ива', true, 47200, 1), b: row(2, 'Ярь', false, null, 0.72), score: [1, 0], why: 'kill', at: '2026-03-01T10:00:00.000Z' }),
-    round(2, { boss: 'vladik', win: 1, a: row(1, 'Ива', true, 61000, 1), b: row(2, 'Ярь', true, 58500, 1), score: [1, 1], why: 'faster', at: '2026-03-01T10:05:00.000Z' }),
-    round(3, { boss: 'tima', win: 0, a: row(1, 'Ива', false, null, 0.9), b: row(2, 'Ярь', false, null, 0.55), score: [2, 1], why: 'damage', final: true, at: '2026-03-01T10:10:00.000Z' }),
+    round(1, { boss: 'misha2', win: 0, a: row(1, 'Ива', true, 47200, 1), b: row(2, 'Ярь', false, null, 0.72), score: [1, 0], why: 'kill', at: '2026-03-01T10:00:00.000Z' }),
+    round(2, { boss: 'vladik2', win: 1, a: row(1, 'Ива', true, 61000, 1), b: row(2, 'Ярь', true, 58500, 1), score: [1, 1], why: 'faster', at: '2026-03-01T10:05:00.000Z' }),
+    round(3, { boss: 'tima2', win: 0, a: row(1, 'Ива', false, null, 0.9), b: row(2, 'Ярь', false, null, 0.55), score: [2, 1], why: 'damage', final: true, at: '2026-03-01T10:10:00.000Z' }),
     trail,
   ];
   const t = computeElo(races);

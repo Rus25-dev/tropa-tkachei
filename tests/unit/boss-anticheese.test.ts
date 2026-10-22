@@ -114,11 +114,6 @@ describe('б) убывающая отдача оглушений', () => {
     d.ac.clk += 25 * 60 + 5;
     expect(run(POISE)).toBeCloseTo(STAGGER_T);
   });
-  it('старые боссы (без исполнителя на данных) оглушаются как прежде', () => {
-    const w = new World({ seed: 1, mode: 'bosstest', boss: 'misha', players: 1 });
-    const m = w.misha!; m.state = 'idle';
-    for (let k = 0; k < 3; k++) { m.stagger = 0; m['poiseImmune'] = 0; m['poise'] = 0; for (let i = 0; i < 7; i++) poiseAdd(w, m, 1); expect(m.stagger).toBeCloseTo(STAGGER_T); }
-  });
 });
 
 describe('в) потолок урона за окно оглушения', () => {

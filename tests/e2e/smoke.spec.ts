@@ -28,9 +28,10 @@ test('игра стартует на WebGL, версия на экране, ме
 
 for (const [name, p] of [
   ['глава I (новая)', { kind: 'story', fresh: true }],
-  ['босс-тест: Миша', { kind: 'bosstest', boss: 'misha' }],
-  ['босс-тест: Владик', { kind: 'bosstest', boss: 'vladik' }],
-  ['босс-тест: Тима', { kind: 'bosstest', boss: 'tima' }],
+  ['босс-тест: Первый Кающийся', { kind: 'bosstest', boss: 'penitent' }],
+  ['босс-тест: Миша', { kind: 'bosstest', boss: 'misha2' }],
+  ['босс-тест: Владик', { kind: 'bosstest', boss: 'vladik2' }],
+  ['босс-тест: Тима', { kind: 'bosstest', boss: 'tima2' }],
   ['вдвоём', { kind: 'story', fresh: true, players: 2 }],
   ['босс-раш', { kind: 'boss' }],
 ] as const) {
@@ -64,7 +65,7 @@ test('родное разрешение: холст = размер окна × d
   for (const [w, h, dpr] of [[667, 375, 2], [844, 390, 3], [1366, 768, 1], [1920, 1080, 1]] as const) {
     const ctx = await browser.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: dpr });
     const page = await ctx.newPage();
-    await boot(page); await start(page, { kind: 'bosstest', boss: 'misha' });
+    await boot(page); await start(page, { kind: 'bosstest', boss: 'misha2' });
     await page.waitForTimeout(800);
     const r = await page.evaluate(() => { const c = window.__tt!.game.canvas, b = c.getBoundingClientRect(); return { pw: c.width, ph: c.height, l: b.left, t: b.top, w: b.width, h: b.height, iw: innerWidth, ih: innerHeight }; });
     expect(r.w).toBeCloseTo(r.iw, 0); expect(r.h).toBeCloseTo(r.ih, 0);
@@ -90,7 +91,7 @@ test('касание: кнопка прыжка даёт прыжок, как к
 });
 
 test('пауза → «В главное меню» возвращает на заставку', async ({ page }) => {
-  await boot(page); await start(page, { kind: 'bosstest', boss: 'tima' });
+  await boot(page); await start(page, { kind: 'bosstest', boss: 'tima2' });
   await page.waitForTimeout(300);
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('pause-title')).toBeVisible();

@@ -23,7 +23,7 @@ export function fakeRoom(disc: 'trail' | 'boss', now = Date.now()): FakeRoom {
     1: { s: 1, el: 62000, ig: 61000, ch: 2, st: 'arena', x: 700, y: 560, f: 1, g: 1, vx: 0, vy: 0, hp: 4, mh: 6, dt: 2, sp: 1, bd: 3, bs },
     2: { s: 2, el: 62000, ig: 61000, ch: 2, st: boss ? 'arena' : 'road', x: 900, y: 560, f: 1, g: 1, vx: 0, vy: 0, hp: 5, mh: 5, dt: 0, sp: 1, bd: 9, sh: boss ? 0 : 1 },
   };
-  const t0 = boss ? 'Корнематка' : 'Гл. I';
+  const t0 = boss ? 'Первый Кающийся' : 'Гл. I';
   const log = [
     { n: 1, t: 12000, k: 'buy', s: 1, x: 'Ива купил(а): Острая игла за 12' }, { n: 2, t: 23500, k: 'split', s: 1, x: `Ива: ${t0} · 0:23.50` },
     { n: 3, t: 52000, k: 'sub', s: 1, x: boss ? 'Ива: Миша · начало боя' : 'Ива: Гл. II · выход из коридора' }, { n: 4, t: 56000, k: 'lost', s: 1, x: 'Ива: потеряно 7.2 с после обрыва нити' },
@@ -41,8 +41,8 @@ export function fakeDuel(stage: DuelStage, now = Date.now()): FakeDuel {
   let seed = 1; while (newSeries(3, seed).first !== 0) seed++;
   let s: Series = newSeries(3, seed, { fixed: ['mirror'], random: false });
   const step = (boss: string): void => { const n = vetoNow(s)!; const r = applyVeto(s, n.side, boss); if (!r.ok) throw new Error(r.why); s = r.s; };
-  step('korne'); // бан Ивы
-  if (stage !== 'veto') { step('misha'); step('vladik'); } // пик Яря, пик Ивы: раунды Миша, Владик, Тима
+  step('penitent'); // бан Ивы
+  if (stage !== 'veto') { step('misha2'); step('vladik2'); } // пик Яря, пик Ивы: раунды Миша, Владик, Тима
   if (stage === 'done' || stage === 'over') s = recordRound(s, planRound(s)!, { winner: 'a', why: 'faster', gap: 2400 }).s;
   if (stage === 'over') s = recordRound(s, planRound(s)!, { winner: 'a', why: 'kill', gap: null }).s;
   const plan = planRound(s);
@@ -65,7 +65,7 @@ export function fakeDuel(stage: DuelStage, now = Date.now()): FakeDuel {
   };
   if (stage === 'veto' || stage === 'lobby') { delete (tel as any)[1]; delete (tel as any)[2]; } // до раунда телеметрии нет
   const phase = stage === 'veto' ? 'veto' : stage === 'lobby' ? 'lobby' : stage === 'run' ? 'run' : 'done';
-  const log = [{ n: 1, t: null, k: 'veto', s: 1, x: 'Ива банит: Корнематка' }, { n: 2, t: 21000, k: 'phase', s: 1, x: 'Ива: босс перешёл в фазу 2' }];
+  const log = [{ n: 1, t: null, k: 'veto', s: 1, x: 'Ива банит: Первый Кающийся' }, { n: 2, t: 21000, k: 'phase', s: 1, x: 'Ива: босс перешёл в фазу 2' }];
   const S = { v: 1, id: 'x', code: 'ZZZZZ', phase, disc: 'duel', discName: 'Дуэль ткачей', goAt: now - endA, ver: 't', now, pause: { on: false, total: 0, since: null }, winner: null, awarded: false, watchers: 1, players, tel: {}, log: [], result: null, stats: {}, duel };
   return { S, tel, log, chase, duel, phase };
 }

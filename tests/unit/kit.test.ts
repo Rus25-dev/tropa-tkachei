@@ -9,7 +9,8 @@ import { dashSpeed, fr, kitGhost } from '../../src/core/kit/moves';
 import { spellCd, spellDamage } from '../../src/core/kit/spells';
 import { TOOLS, applyLoadout, defaultLoadout, equipped, normalizeSave, owned } from '../../src/core/loadout';
 import type { Boss, Inp, Player } from '../../src/core/types';
-import { World } from '../../src/core/world';
+import type { World } from '../../src/core/world';
+import { statue, statueWorld } from './helpers/statue';
 import { applyPlayer, packPlayer } from '../../src/core/netplay';
 import { Recorder } from '../../src/core/session';
 import { runFight } from '../../tools/bot/fight';
@@ -19,12 +20,12 @@ import { replayJournal } from '../../src/core/replay';
 import { SessionRecorder } from '../../src/core/recording';
 import { Session } from '../../src/core/session';
 
-interface MkOpts { kit?: boolean; abil?: Record<string, boolean>; boss?: string; seed?: number }
-/** Арена Владика 44×22 (пол — ряд 18, внутри — клетки 1…42), босс спит; герой стоит на земле, неуязвимость снята */
+interface MkOpts { kit?: boolean; abil?: Record<string, boolean>; seed?: number }
+/** Арена Владика 44×22 (пол — ряд 18, внутри — клетки 1…42), «статуя» (босс стоит и не нападает) убрана за стену; герой стоит на земле, неуязвимость снята */
 function mk(o: MkOpts = {}): { w: World; p: Player } {
-  const w = new World({ seed: o.seed ?? 5, mode: 'bosstest', boss: o.boss ?? 'vladik', kit: o.kit ?? true, loadoutSave: normalizeSave(null) });
+  const w = statueWorld({ seed: o.seed ?? 5, kit: o.kit ?? true, loadoutSave: normalizeSave(null) });
   const p = w.players[0]!;
-  w.vladik!.state = 'sleep'; w.vladik!.x = -400; w.curtains = []; // шторы со слизью жгутся — в проверках движения им не место
+  statue(w).x = -400;
   if (o.abil) w.abil = { ...w.abil, ...o.abil };
   for (let i = 0; i < 20; i++) w.tick();
   p.inv = 0; p.hp = p.maxHp = 9; p.silk = 0;
@@ -294,7 +295,7 @@ describe('кристальный рывок', () => {
 
 describe('нитяные заклинания', () => {
   function cast(w: World, p: Player, id: string): void { applyLoadout(w, { ...defaultLoadout(), tool: id }); p.silk = 9; p['toolCd'] = 0; step(w, {}, { toolP: true }); }
-  const boss = (w: World): Boss => { const v = w.vladik!; v.state = 'recover'; v.t = 99; return v; };
+  const boss = (w: World): Boss => { const v = statue(w); v.state = 'recover'; v.t = 99; return v; };
   it('записи реестра: нить, перезарядка, unlock как у остальных, DPS в пределах ±25 % от иглы', () => {
     for (const id of ['spirit', 'dive', 'wraith']) {
       const t = TOOLS[id]!;
@@ -364,7 +365,7 @@ describe('детерминизм и старые записи', () => {
     expect(hashFor(a.w, 2)).toBe(hashFor(b.w, 2));
   });
   it('закрытые приёмы не меняют мир: хэш без флага kit равен хэшу мира, где kit не задан вовсе', () => {
-    const a = mk({ seed: 11, kit: false }), b = (() => { const w = new World({ seed: 11, mode: 'bosstest', boss: 'vladik', loadoutSave: normalizeSave(null) }); w.vladik!.state = 'sleep'; w.vladik!.x = -400; w.curtains = []; for (let i = 0; i < 20; i++) w.tick(); const p = w.players[0]!; p.inv = 0; p.hp = p.maxHp = 9; p.silk = 0; return { w, p }; })();
+    const a = mk({ seed: 11, kit: false }), b = (() => { const w = statueWorld({ seed: 11, loadoutSave: normalizeSave(null) }); statue(w).x = -400; for (let i = 0; i < 20; i++) w.tick(); const p = w.players[0]!; p.inv = 0; p.hp = p.maxHp = 9; p.silk = 0; return { w, p }; })();
     script(a.w); script(b.w);
     expect(hashFor(a.w, 2)).toBe(hashFor(b.w, 2));
     expect(a.p['kgF'] ?? 0).toBe(0);
@@ -395,7 +396,7 @@ describe('сеть, журнал и бот', () => {
     expect(r1.seg!.data.kit).toBe(true); expect('kit' in r2.seg!.data).toBe(false);
   });
   it('партия с открытыми приёмами воспроизводится по журналу в тот же исход (флаг kit лежит в записи)', () => {
-    const ses = new Session({ easy: false, loadoutSave: normalizeSave(null), progress: null, ver: 't', clock: () => 0, fx: false, kit: true }, { seed: 9, mode: 'bosstest', boss: 'vladik', players: 1, camp: null });
+    const ses = new Session({ easy: false, loadoutSave: normalizeSave(null), progress: null, ver: 't', clock: () => 0, fx: false, kit: true }, { seed: 9, mode: 'bosstest', boss: 'vladik2', players: 1, camp: null });
     const rec = new SessionRecorder(ses, { ver: 't', easy: false });
     for (let i = 0; i < 600; i++) {
       const f = emptyFrame();
@@ -410,7 +411,7 @@ describe('сеть, журнал и бот', () => {
     expect(kitHas(r.world, r.world.players[0]!, 'shadow')).toBe(true);
   });
   it('бот играет без ошибок с приёмами и без; без kit результат прежний', () => {
-    const base = { boss: 'vladik' as const, skill: 0.95, players: 1, seed: 3, maxSec: 6 };
+    const base = { boss: 'vladik2', skill: 0.95, players: 1, seed: 3, maxSec: 6 };
     const a = runFight({ ...base }), c = runFight({ ...base, kit: true });
     expect(a.error).toBeUndefined(); expect(c.error).toBeUndefined();
     expect(a.ticks).toBeGreaterThan(0); expect(c.ticks).toBeGreaterThan(0);

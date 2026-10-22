@@ -4,14 +4,15 @@ import { PARRY2, P } from '../../src/core/balance';
 import { hurtPlayer } from '../../src/core/damage';
 import { normalizeSave } from '../../src/core/loadout';
 import type { HitKind } from '../../src/core/types';
-import { World } from '../../src/core/world';
+import type { World } from '../../src/core/world';
+import { statue, statueWorld } from './helpers/statue';
 import { Brain } from '../../tools/bot/brain';
 
-/** Мир с боссом Владиком, который спит и не мешает; герой стоит, неуязвимость снята */
+/** Мир со «статуей» (босс стоит и не нападает); герой стоит, неуязвимость снята */
 function mk(seed = 5): World {
-  const w = new World({ seed, mode: 'bosstest', boss: 'vladik', fx: true, loadoutSave: normalizeSave(null) });
+  const w = statueWorld({ seed, fx: true, loadoutSave: normalizeSave(null) });
   const p = w.players[0]!;
-  w.vladik!.state = 'sleep'; p.inv = 0; p.silk = 0; p.hp = p.maxHp;
+  p.inv = 0; p.silk = 0; p.hp = p.maxHp;
   for (let i = 0; i < 3; i++) w.tick();
   p.inv = 0;
   return w;
@@ -118,16 +119,16 @@ describe('отбив 2.0: виды ударов', () => {
 });
 
 describe('отбив 2.0: равновесие босса и контратака', () => {
-  const near = (w: World): void => { const b = w.vladik!, p = w.players[0]!; b.x = p.x + 30; b.y = p.y + p.h - b.h; b.state = 'idle'; b['poiseImmune'] = 0; b['poise'] = 0; b.stagger = 0; };
+  const near = (w: World): void => { const b = statue(w), p = w.players[0]!; b.x = p.x + 30; b.y = p.y + p.h - b.h; b.state = 'idle'; b['poiseImmune'] = 0; b['poise'] = 0; b.stagger = 0; };
 
   it('стойкость: обычный +3 (как в v2.0), идеальный ×2; у posture:true обычный меньше', () => {
     const res: Record<string, number> = {};
     for (const [name, posture, frame] of [['обычный', false, 10], ['идеальный', false, 2], ['posture-обычный', true, 10], ['posture-идеальный', true, 2]] as const) {
-      const w = mk(); w.vladik!.posture = posture;
+      const w = mk(); statue(w).posture = posture;
       const p = w.players[0]!;
       press(w, 'healP'); for (let i = 1; i < frame; i++) w.tick();
       near(w); p.inv = 0; hurtPlayer(w, p, 1, p.x + 40, false, 'parry');
-      res[name] = w.vladik!['poise'] as number;
+      res[name] = statue(w)['poise'] as number;
     }
     expect(res['обычный']).toBe(3);
     expect(res['идеальный']).toBe(3 * PARRY2.PERFECT_POISE_MUL);
@@ -137,15 +138,15 @@ describe('отбив 2.0: равновесие босса и контратак�
   });
 
   it('полная шкала равновесия оглушает босса через ту же систему стойкости (poise → stagger)', () => {
-    const w = mk(), p = w.players[0]!; w.vladik!.posture = true;
-    press(w, 'healP'); near(w); w.vladik!['poise'] = 4;
+    const w = mk(), p = w.players[0]!; statue(w).posture = true;
+    press(w, 'healP'); near(w); statue(w)['poise'] = 4;
     p.inv = 0; hurtPlayer(w, p, 1, p.x + 40, false, 'parry'); // идеальный: +6 → 10 ≥ 8
-    expect(w.vladik!.stagger).toBeGreaterThan(0);
+    expect(statue(w).stagger).toBeGreaterThan(0);
   });
 
   /** идеальный отбив (или нет) → удар вперёд по боссу; возвращает потерю хп и стойкость */
   function strike(perfect: boolean): { loss: number; poise: number; w: World } {
-    const w = mk(), p = w.players[0]!, b = w.vladik!;
+    const w = mk(), p = w.players[0]!, b = statue(w);
     p.face = 1;
     if (perfect) { press(w, 'healP'); p.inv = 0; hurtPlayer(w, p, 1, p.x + 40, false, 'parry'); } else { for (let i = 0; i < 10; i++) w.tick(); }
     near(w); b.hp = b.maxHp = 400; p.inv = 99;
@@ -164,7 +165,7 @@ describe('отбив 2.0: равновесие босса и контратак�
   });
 
   it('контратака бьёт сильнее один раз: второй удар обычный', () => {
-    const { w } = strike(true), p = w.players[0]!, b = w.vladik!;
+    const { w } = strike(true), p = w.players[0]!, b = statue(w);
     for (let i = 0; i < 20; i++) w.tick();
     b.hp = b.maxHp = 400; b['poise'] = 0; b['poiseImmune'] = 0; b.stagger = 0; p.inv = 0;
     press(w, 'atkP');
@@ -198,7 +199,7 @@ describe('отбив 2.0: детерминизм', () => {
       press(w, 'healP'); for (let i = 0; i < 3; i++) w.tick();
       p.inv = 0; hurtPlayer(w, p, 1, p.x + 40, false, 'parry');
       press(w, 'atkP'); for (let i = 0; i < 30; i++) w.tick();
-      return JSON.stringify([p.x, p.y, p.hp, p.silk, p['counterHit'], w.vladik!.hp, w.vladik!['poise'], w.hitstop, P.PARRY_T]);
+      return JSON.stringify([p.x, p.y, p.hp, p.silk, p['counterHit'], statue(w).hp, statue(w)['poise'], w.hitstop, P.PARRY_T]);
     };
     expect(run()).toBe(run());
   });

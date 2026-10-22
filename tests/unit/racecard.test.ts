@@ -21,7 +21,7 @@ const race = (disc: string): RaceResult => ({
 describe('картинка итогов', () => {
   it('босс-раш: название дисциплины, имена боссов у отрезков, Эло', () => {
     const { g, texts } = ctx(); drawCard(g, race('boss'));
-    expect(texts.some((t) => t.includes('Босс-раш'))).toBe(true); expect(texts).toContain('Корнематка: 0:20.00'); expect(texts).toContain('Тима: 2:10.00');
+    expect(texts.some((t) => t.includes('Босс-раш'))).toBe(true); expect(texts).toContain('Кающийся: 0:20.00'); expect(texts).toContain('Тима: 2:10.00');
     expect(texts).toContain('Эло 1000 → 1020'); expect(texts).toContain('Победил Ива');
   });
   it('«Тропа целиком»: отрезки подписаны главами', () => {

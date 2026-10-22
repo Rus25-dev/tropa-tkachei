@@ -60,13 +60,13 @@ describe('дуэль: комната, бан/пик', () => {
   it('ход не в свою очередь и неизвестный босс отклоняются; бан/пик Bo3 завершается порядком боссов и возвращает в ожидание', () => {
     const l = lobby({ fmt: 3 }), { org, sim } = l.room; ready(l); org.start(); sim.run(500);
     const d = org.S!.duel!, now = vetoNow(d.series)!, wrong = d.seats[now.side === 0 ? 1 : 0];
-    l.p[wrong]!.play.veto('misha'); sim.run(300); expect(org.S!.duel!.series.step).toBe(0);
+    l.p[wrong]!.play.veto('misha2'); sim.run(300); expect(org.S!.duel!.series.step).toBe(0);
     l.p[d.seats[now.side]]!.play.veto('ghost'); sim.run(300); expect(org.S!.duel!.series.step).toBe(0);
     expect(org.S!.events.filter((e) => e.k === 'vetobad').length).toBe(2); // отказы пишутся в журнал комнаты
-    doVeto(l, ['korne', 'misha', 'vladik']);
+    doVeto(l, ['penitent', 'misha2', 'vladik2']);
     expect(org.S!.phase).toBe('lobby'); const s = org.S!.duel!.series;
-    expect(s.stage).toBe('play'); expect(s.order).toEqual(['misha', 'vladik', 'tima']);
-    expect(l.w2.S!.duel!.series.order).toEqual(['misha', 'vladik', 'tima']); expect(l.w2.S!.duel!.plan!.boss).toBe('misha');
+    expect(s.stage).toBe('play'); expect(s.order).toEqual(['misha2', 'vladik2', 'tima2']);
+    expect(l.w2.S!.duel!.series.order).toEqual(['misha2', 'vladik2', 'tima2']); expect(l.w2.S!.duel!.plan!.boss).toBe('misha2');
     expect(org.S!.seed).toBe(planRound(s)!.seed);
     expect(org.S!.events.filter((e) => e.k === 'veto').length).toBeGreaterThanOrEqual(4);
   });
@@ -92,8 +92,8 @@ describe('дуэль: комната, бан/пик', () => {
 describe('дуэль: раунд и серия', () => {
   it('Bo3 до 2:0: общий босс и зерно, быстрее убил — победил, проигравший возвращается в комнату, записи раундов с общим seriesId, Эло один раз на серию', () => {
     const l = lobby({ fmt: 3, fixed: ['mirror'] }), { room, p, w1 } = l, { org, sim } = room;
-    toRound(l, ['korne', 'misha', 'vladik']); // раунды: Миша, Владик, Тима
-    expect(p[1]!.game.duel).toEqual({ ch: 2, boss: 'misha', mods: ['mirror'] }); expect(p[2]!.game.duel).toEqual(p[1]!.game.duel);
+    toRound(l, ['penitent', 'misha2', 'vladik2']); // раунды: Миша, Владик, Тима
+    expect(p[1]!.game.duel).toEqual({ ch: 2, boss: 'misha2', mods: ['mirror'] }); expect(p[2]!.game.duel).toEqual(p[1]!.game.duel);
     expect(p[1]!.game.run!.seed).toBe(p[2]!.game.run!.seed); expect(p[1]!.game.run!.cat).toBe('duel');
     expect(org.S!.phase).toBe('run');
     const r1id = org.S!.id;
@@ -103,7 +103,7 @@ describe('дуэль: раунд и серия', () => {
     expect(org.S!.phase).toBe('done'); expect(p[B]!.game.hasRun()).toBe(false); // B возвращён в комнату
     let r = org.S!.result!;
     expect(r.discipline).toBe('duel'); expect(r.seriesId).toBe(org.S!.duel!.id); expect(r.round).toBe(1); expect(r.id).toBe(r1id);
-    expect(r.duel).toMatchObject({ fmt: 3, boss: 'misha', mods: ['mirror'], slot: 0, why: 'kill' }); expect(r.duel!.final).toBeUndefined();
+    expect(r.duel).toMatchObject({ fmt: 3, boss: 'misha2', mods: ['mirror'], slot: 0, why: 'kill' }); expect(r.duel!.final).toBeUndefined();
     expect(r.winner).toBe(names(l)[0]); expect(r.players.map((x) => x.seat)).toEqual([A, B]); expect(r.players[1]!.dnf).toBe(true);
     expect(org.S!.duel!.series.score).toEqual([1, 0]); expect(w1.S!.duel!.series.score).toEqual([1, 0]); expect(w1.S!.duel!.last).toMatchObject({ n: 1, winner: 'a' });
     expect(org.archive().length).toBe(1);
@@ -112,13 +112,13 @@ describe('дуэль: раунд и серия', () => {
     org.nextRound(); sim.run(600);
     expect(org.S!.phase).toBe('lobby'); expect(org.S!.id).not.toBe(r1id);
     ready(l); expect(org.canStart()).toBe(true); org.start(); sim.run(5200);
-    expect(p[1]!.game.duel).toMatchObject({ ch: 3, boss: 'vladik' });
+    expect(p[1]!.game.duel).toMatchObject({ ch: 3, boss: 'vladik2' });
     sim.run(2000); kill(l, B, 30000); kill(l, A, 31000); sim.run(500);
     expect(org.S!.phase).toBe('done'); r = org.S!.result!;
     expect(r.winner).toBe(names(l)[1]); expect(r.duel).toMatchObject({ why: 'faster', score: expect.any(Array) }); expect(org.S!.duel!.series.score).toEqual([1, 1]);
     // решающий: Тима
     org.nextRound(); sim.run(600); ready(l); org.start(); sim.run(5200);
-    expect(p[1]!.game.duel).toMatchObject({ ch: 4, boss: 'tima' });
+    expect(p[1]!.game.duel).toMatchObject({ ch: 4, boss: 'tima2' });
     sim.run(1000); kill(l, A, 28000); kill(l, B, 29500); sim.run(500);
     expect(org.S!.phase).toBe('done'); r = org.S!.result!;
     expect(org.S!.duel!.series.stage).toBe('over'); expect(org.S!.duel!.series.score).toEqual([2, 1]); expect(r.duel).toMatchObject({ final: true, seriesWinner: names(l)[0], score: [2, 1] });
@@ -149,13 +149,13 @@ describe('дуэль: раунд и серия', () => {
   });
 
   it('оба погибли с одинаковым результатом: ничья, раунд переигрывается тем же боссом и другим зерном, счёт не меняется', () => {
-    const l = lobby({ fmt: 3 }), { room, p } = l, { org, sim } = room; toRound(l, ['korne', 'misha', 'vladik']);
+    const l = lobby({ fmt: 3 }), { room, p } = l, { org, sim } = room; toRound(l, ['penitent', 'misha2', 'vladik2']);
     const seed1 = p[1]!.game.run!.seed, id1 = org.S!.id;
     die(l, 1, 50); die(l, 2, 50); sim.run(800);
     expect(org.S!.phase).toBe('done'); expect(org.S!.duel!.series.score).toEqual([0, 0]); expect(org.S!.result!.winner).toBe('draw'); expect(org.S!.result!.winnerSeat).toBe('draw');
     expect(org.S!.result!.duel!.why).toBe('draw');
     org.nextRound(); sim.run(600); ready(l); org.start(); sim.run(5200);
-    expect(p[1]!.game.duel).toMatchObject({ boss: 'misha' }); expect(p[1]!.game.run!.seed).not.toBe(seed1); expect(org.S!.id).not.toBe(id1);
+    expect(p[1]!.game.duel).toMatchObject({ boss: 'misha2' }); expect(p[1]!.game.run!.seed).not.toBe(seed1); expect(org.S!.id).not.toBe(id1);
     expect(l.room.org.S!.duel!.series.rounds.length).toBe(1);
   });
 
@@ -215,17 +215,17 @@ describe('дуэль: раунд и серия', () => {
 describe('дуэль: перезагрузки и обсервер', () => {
   it('перезагрузка организатора посреди бан/пика: серия на месте, ходы продолжаются', () => {
     const l = lobby({ fmt: 3 }), { room, code } = l, { sim, net, org } = room; ready(l); org.start(); sim.run(500);
-    const d = org.S!.duel!, now = vetoNow(d.series)!; l.p[d.seats[now.side]]!.play.veto('korne'); sim.run(300);
+    const d = org.S!.duel!, now = vetoNow(d.series)!; l.p[d.seats[now.side]]!.play.veto('penitent'); sim.run(300);
     (org.hub as any).closed = true; net.killHub(peerId(code, 'race'), 6000); net.cut('org'); sim.run(1500); net.heal('org');
     const org2 = room.newOrg(); expect(org2.resume()).toBe(true); sim.run(30000);
-    expect(org2.S!.phase).toBe('veto'); expect(org2.S!.duel!.series.bans.map((b) => b.boss)).toEqual(['korne']); expect(org2.seatList().every((p) => p.online)).toBe(true);
+    expect(org2.S!.phase).toBe('veto'); expect(org2.S!.duel!.series.bans.map((b) => b.boss)).toEqual(['penitent']); expect(org2.seatList().every((p) => p.online)).toBe(true);
     expect(l.w1.S!.duel!.series.step).toBe(1);
-    const d2 = org2.S!.duel!, n2 = vetoNow(d2.series)!; l.p[d2.seats[n2.side]]!.play.veto('misha'); sim.run(500);
+    const d2 = org2.S!.duel!, n2 = vetoNow(d2.series)!; l.p[d2.seats[n2.side]]!.play.veto('misha2'); sim.run(500);
     expect(org2.S!.duel!.series.step).toBe(2);
   });
 
   it('перезагрузка организатора посреди раунда второго раунда: счёт и босс сохранены, итог доходит до нового организатора', () => {
-    const l = lobby({ fmt: 3 }), { room, code, p } = l, { sim, net, org } = room; toRound(l, ['korne', 'misha', 'vladik']);
+    const l = lobby({ fmt: 3 }), { room, code, p } = l, { sim, net, org } = room; toRound(l, ['penitent', 'misha2', 'vladik2']);
     sim.run(1000); kill(l, 1, 20000); kill(l, 2, 21000); sim.run(500);
     expect(org.S!.phase).toBe('done'); const sc = org.S!.duel!.series.score.slice();
     org.nextRound(); sim.run(600); ready(l); org.start(); sim.run(5200);
@@ -233,7 +233,7 @@ describe('дуэль: перезагрузки и обсервер', () => {
     (org.hub as any).closed = true; net.killHub(peerId(code, 'race'), 6000); net.cut('org'); sim.run(1500); net.heal('org');
     const org2 = room.newOrg(); org2.resume(); sim.run(30000);
     expect(org2.S!.phase).toBe('run'); expect(org2.S!.id).toBe(id); expect(org2.S!.goAt).toBe(goAt); expect(org2.S!.duel!.series.score).toEqual(sc); expect(org2.S!.duel!.series.rounds.length).toBe(1);
-    expect(org2.duelPlan()!.boss).toBe('vladik'); expect(org2.archive().length).toBe(1);
+    expect(org2.duelPlan()!.boss).toBe('vladik2'); expect(org2.archive().length).toBe(1);
     kill(l, 1, 25000); kill(l, 2, 24000); sim.run(500);
     expect(org2.S!.phase).toBe('done'); expect(org2.S!.duel!.series.score[0] + org2.S!.duel!.series.score[1]).toBe(2); expect(org2.archive().length).toBe(2);
     void p;
@@ -257,7 +257,7 @@ describe('дуэль: перезагрузки и обсервер', () => {
   });
 
   it('новый раунд очищает график, итог раунда остаётся на табло до следующего', () => {
-    const l = lobby({ fmt: 3 }), { room, p, w1 } = l, { sim, org } = room; toRound(l, ['korne', 'misha', 'vladik']); const A = sideSeat(l, 0);
+    const l = lobby({ fmt: 3 }), { room, p, w1 } = l, { sim, org } = room; toRound(l, ['penitent', 'misha2', 'vladik2']); const A = sideSeat(l, 0);
     sim.run(1000); duelTel(p[A]!.game, A, 70); sim.run(600); expect(w1.chase[A]!.length).toBeGreaterThan(0);
     kill(l, A, 20000); kill(l, sideSeat(l, 1), 21000); sim.run(500);
     expect(org.S!.phase).toBe('done'); expect(w1.chase[A]!.length).toBeGreaterThan(0); expect(w1.S!.duel!.last!.n).toBe(1);

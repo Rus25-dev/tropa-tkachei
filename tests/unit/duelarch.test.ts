@@ -40,7 +40,7 @@ describe('races.json с сериями', () => {
   it('записывается и читается обратно; необязательные поля сохраняются', () => {
     const r = parseRaces(racesJson(arch, '2.4.0', '2026-04-02T00:00:00.000Z'));
     expect(r.ok).toBe(true); if (!r.ok) return;
-    expect(r.races.length).toBe(4); expect(r.races[2]!.seriesId).toBe('ser1'); expect(r.races[2]!.duel).toMatchObject({ fmt: 3, boss: 'tima', final: true, seriesWinner: 'Ива', score: [2, 1] });
+    expect(r.races.length).toBe(4); expect(r.races[2]!.seriesId).toBe('ser1'); expect(r.races[2]!.duel).toMatchObject({ fmt: 3, boss: 'tima2', final: true, seriesWinner: 'Ива', score: [2, 1] });
     expect(r.races[0]!.players[1]!.duel).toMatchObject({ kill: false, frac: 0.72 });
     expect(r.races[3]!.seriesId).toBeUndefined(); // обычная запись без полей серии
   });

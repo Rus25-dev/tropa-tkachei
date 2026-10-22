@@ -70,7 +70,7 @@ export function srOnSplit(sc: World): void {
   const r = sc.sr; if (!r || r.done || r.t0 == null) return;
   const i = r.duel ? 0 : Math.max(0, (sc.camp ? sc.camp.ch : 1) - 1); // в дуэли один сплит: смерть босса раунда
   if (r.splits.length > i) return;
-  if (r.replay && r.replay.splits[i]) { r.splits[i] = { ...r.replay.splits[i]! }; statSub(sc, 'kill'); if ((i >= 3 || r.duel) && r.replay.mem) srFinish(sc); return; } // при воспроизведении берём записанное
+  if (r.replay && r.replay.splits[i]) { r.splits[i] = { ...r.replay.splits[i]! }; statSub(sc, 'kill'); if ((i >= 3 || r.duel)) srFinish(sc); return; } // при воспроизведении берём записанное
   r.splits[i] = { rta: rta(r), igt: Math.round(r.igt) };
   statSub(sc, 'kill');
   sc.emit('srSplit', { i, split: { ...r.splits[i]! } });

@@ -6,6 +6,7 @@ import { normalizeSave } from '../../src/core/loadout';
 import { Session, type SessionCfg } from '../../src/core/session';
 import { CoopGuest, CoopHost, type CoopStart } from '../../src/net/coop';
 import { FakeNet, Sim } from './helpers/fakenet';
+import { ensureStatue, STATUE } from './helpers/statue';
 
 const VER = 'test';
 const cfgOf = (sim: Sim, online: 'host' | 'guest'): SessionCfg => ({ easy: false, loadoutSave: normalizeSave(null), progress: null, ver: VER, clock: () => sim.t, fx: true, online });
@@ -172,9 +173,10 @@ describe('кооператив: хост и гость', () => {
   });
 
   it('аудит v1.5: отбив гостя копит стойкость босса у хоста', () => {
-    const p = mkPair({ start: { mode: 'bosstest', boss: 'vladik', camp: null } });
+    ensureStatue();
+    const p = mkPair({ start: { mode: 'bosstest', boss: STATUE, camp: null } });
     p.step(600);
-    const hw = p.hs().world, gw = p.gs().world, b = hw.vladik!;
+    const hw = p.hs().world, gw = p.gs().world, b = hw.bosses[0]!;
     // гость рядом с боссом отбивает: событие parrypoise доходит до хоста
     gw.players[1]!.x = b.x - 10; gw.players[1]!.y = b.y; gw.players[1]!.parryT = 0.2; gw.players[1]!.inv = 0;
     b.state = 'idle'; b['poiseImmune'] = 0; const before = b['poise'] || 0;

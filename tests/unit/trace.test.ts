@@ -11,7 +11,7 @@ import type { World } from '../../src/core/world';
 
 const name = process.env['TRACE'];
 const row = (w: World): unknown[] => {
-  const b = w.testBoss() ?? w.boss;
+  const b = w.testBoss();
   const r = (v: unknown): number => (typeof v === 'number' ? v : v ? 1 : 0);
   return [w.tickN,
     w.players.map((p) => [p.x, p.y, p.vx, p.vy, p.hp, p.silk, p.inv, r(p.downed), p.dashT, p.atkT, p.face]),

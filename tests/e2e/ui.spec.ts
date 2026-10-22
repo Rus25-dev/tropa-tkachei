@@ -52,9 +52,9 @@ test('меню с клавиатуры: цифры, стрелки, Enter и Esc
   await page.keyboard.press('p');
   await expect(page.getByTestId('bt-phase')).toContainText('2');
   // ← → на карточках босса меняют выбор
-  await page.getByTestId('boss-misha').focus();
+  await page.getByTestId('boss-misha2').focus();
   await page.keyboard.press('ArrowRight');
-  await expect(page.getByTestId('boss-vladik')).toHaveAttribute('aria-checked', 'true');
+  await expect(page.getByTestId('boss-vladik2')).toHaveAttribute('aria-checked', 'true');
   await page.keyboard.press('Escape');
   await page.keyboard.press('4');
   await expect(page.getByTestId('sr-trail')).toBeVisible();
@@ -171,9 +171,9 @@ test('в игре: пауза, снаряжение, скамья, лавка, �
 
 test('победа в босс-тесте: экран итогов, «Заново» перезапускает бой, «В главное меню» выходит', async ({ page }) => {
   await boot(page);
-  await page.evaluate(() => window.__tt!.start({ kind: 'bosstest', boss: 'misha' }));
+  await page.evaluate(() => window.__tt!.start({ kind: 'bosstest', boss: 'misha2' }));
   await page.waitForTimeout(600);
-  await page.evaluate(() => window.__tt!.game.events.emit('tt:ui', { k: 'victory', s: { time: 75, beads: 0, deaths: 1, players: 1, title: 'Миша Додик повержен', bag: 3 } }));
+  await page.evaluate(() => window.__tt!.game.events.emit('tt:ui', { k: 'victory', s: { time: 75, beads: 0, deaths: 1, players: 1, title: 'Миша Додик повержен' } }));
   await expect(page.getByTestId('win-screen')).toContainText('Миша Додик повержен');
   await expect(page.getByTestId('win-screen')).toContainText('1:15');
   await page.waitForTimeout(900);
@@ -183,10 +183,10 @@ test('победа в босс-тесте: экран итогов, «Занов
 
 test('тренировка: счётчик урона и сброс босса клавишей Y', async ({ page }) => {
   await boot(page);
-  await page.evaluate(() => window.__tt!.start({ kind: 'bosstest', boss: 'vladik', train: true, trainPhase: 2 }));
+  await page.evaluate(() => window.__tt!.start({ kind: 'bosstest', boss: 'vladik2', train: true, trainPhase: 2 }));
   await page.waitForTimeout(700);
   await expect(page.getByTestId('train-hud')).toContainText('ТРЕНИРОВКА');
-  const hp = await page.evaluate(() => { const w = window.__tt!.shared.session!.world; return [w['vladik'].hp, w['vladik'].maxHp]; });
+  const hp = await page.evaluate(() => { const w = window.__tt!.shared.session!.world; const b = w.testBoss()!; return [b.hp, b.maxHp]; });
   expect(hp[0]).toBeLessThan(hp[1]!); // старт со второй фазы: здоровье босса уже убавлено
   await page.keyboard.press('KeyY');
   expect(await page.evaluate(() => window.__tt!.shared.session!.world['train'].resets)).toBe(1);
@@ -267,9 +267,9 @@ test('поворот телефона: меню не пропадает, в иг
 
 test('аудит v1.5: R на экране победы ничего не перезапускает, Esc закрывает окно «по сети»', async ({ page }) => {
   await boot(page);
-  await page.evaluate(() => window.__tt!.start({ kind: 'bosstest', boss: 'tima' }));
+  await page.evaluate(() => window.__tt!.start({ kind: 'bosstest', boss: 'tima2' }));
   await page.waitForTimeout(500);
-  await page.evaluate(() => window.__tt!.game.events.emit('tt:ui', { k: 'victory', s: { time: 30, beads: 0, deaths: 0, players: 1, title: 'Тима Пиво повержен', hits: 5 } }));
+  await page.evaluate(() => window.__tt!.game.events.emit('tt:ui', { k: 'victory', s: { time: 30, beads: 0, deaths: 0, players: 1, title: 'Тима Пиво повержен' } }));
   await expect(page.getByTestId('win-screen')).toBeVisible();
   const t0 = await page.evaluate(() => window.__tt!.shared.session!.world['tickN']);
   await page.waitForTimeout(900);
@@ -297,7 +297,7 @@ test('сохранения v1.8 открываются: прогресс, рек
       localStorage.setItem('tt_settings', JSON.stringify({ vol: 40, mvol: 20, shake: false, easy: false, vibro: true, bsize: 'M', bop: 100, lefty: false, boss: 0, speed: 100, noflash: true, outl: false, gfx: 'low' }));
       localStorage.setItem('tt_save', JSON.stringify({ bench: 0, beads: 33, abil: { double: true }, chapter: 2, stage: 'road', up: { hp: 1, dmg: 0, silk: 0 }, time: 500, deaths: 3, name: 'Гл. II · Коридор типографии', best: 2 }));
       localStorage.setItem('tt_loadout', JSON.stringify({ weapon: 'needle', tool: '', charms: [], have: { weapons: ['needle'], tools: [], charms: [] } }));
-      localStorage.setItem('tt_records', JSON.stringify({ misha: { tries: 4, wins: 2, best: 95 } }));
+      localStorage.setItem('tt_records', JSON.stringify({ misha2: { tries: 4, wins: 2, best: 95 } }));
       localStorage.setItem('tt_sr', JSON.stringify({ trail: { pb: { rta: 1500000, igt: 1400000, deaths: 5, splits: [{ rta: 300000, igt: 280000 }, { rta: 700000, igt: 650000 }, { rta: 1100000, igt: 1000000 }, { rta: 1500000, igt: 1400000 }], ver: '1.8.2', date: 1700000000000 }, seg: [300000, 400000, 400000, 400000] } }));
       localStorage.setItem('tt_sr_name', 'Ива');
     } catch { /* нет доступа */ }
@@ -307,7 +307,7 @@ test('сохранения v1.8 открываются: прогресс, рек
   await page.waitForSelector('[data-testid=panel-root]');
   await expect(page.getByTestId('m-continue')).toContainText('Гл. II');
   await page.getByTestId('m-bosstest').click();
-  await expect(page.getByTestId('boss-misha')).toContainText('1:35');
+  await expect(page.getByTestId('boss-misha2')).toContainText('1:35');
   await page.keyboard.press('Escape');
   await page.getByTestId('m-speedrun').click();
   await expect(page.getByTestId('sr-trail')).toContainText('25:00');
