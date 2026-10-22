@@ -140,3 +140,11 @@ export function stillBoss(id = 'fx_still'): Raw {
     antiCheese: { enabled: true, shoveChain: 'c_shove', relocateChain: 'c_sweep' },
   });
 }
+
+// ---------- «статуя»: мишень для проверок игрока ----------
+/** Босс, который стоит и не нападает (атака требует героя на недосягаемой дистанции), здоровья много. Арена Владика 44×22.
+ *  Нужен тестам механик героя (отбив, приёмы, оружие): раньше им служил спящий Владик-автомат. */
+export function statueBoss(id = 'fx_statue'): Raw {
+  const a = swing(); a['requires'] = { dist: [9000, 9500] };
+  return base(id, { hp: [400, 560], idle: { walkSpeed: 0, keepDist: 90 }, attacks: [a], chains: [oneChain('c_swing', 'swing')] });
+}

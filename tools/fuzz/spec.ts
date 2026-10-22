@@ -5,9 +5,9 @@ import { mulberry32, rngSeedFor } from '../../src/core/rng';
 import { WEAPONS } from '../../src/core/weapons';
 
 export const MODES = [
-  'ch1', 'road2', 'road3', 'road4', 'korne',
-  'arena-misha', 'arena-vladik', 'arena-tima', 'camp-arena2', 'camp-arena3', 'camp-arena4',
-  'train-misha', 'train-vladik', 'train-tima',
+  'ch1', 'road2', 'road3', 'road4',
+  'arena-penitent', 'arena-misha2', 'arena-vladik2', 'arena-tima2', 'camp-arena1', 'camp-arena2', 'camp-arena3', 'camp-arena4',
+  'train-penitent', 'train-misha2', 'train-vladik2', 'train-tima2',
   'chain', 'sr-trail', 'sr-boss',
 ] as const;
 export type ModeId = (typeof MODES)[number];
@@ -32,9 +32,9 @@ export interface FuzzSpec {
 
 /** веса режимов: цепочки и забеги дороже, поэтому реже; боссов и главу I фаззим чаще */
 const WEIGHTS: Record<ModeId, number> = {
-  ch1: 14, road2: 5, road3: 5, road4: 5, korne: 8,
-  'arena-misha': 8, 'arena-vladik': 8, 'arena-tima': 8, 'camp-arena2': 3, 'camp-arena3': 3, 'camp-arena4': 3,
-  'train-misha': 2, 'train-vladik': 2, 'train-tima': 2,
+  ch1: 14, road2: 5, road3: 5, road4: 5,
+  'arena-penitent': 8, 'arena-misha2': 8, 'arena-vladik2': 8, 'arena-tima2': 8, 'camp-arena1': 3, 'camp-arena2': 3, 'camp-arena3': 3, 'camp-arena4': 3,
+  'train-penitent': 2, 'train-misha2': 2, 'train-vladik2': 2, 'train-tima2': 2,
   chain: 8, 'sr-trail': 5, 'sr-boss': 5,
 };
 

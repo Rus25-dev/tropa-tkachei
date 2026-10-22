@@ -56,7 +56,7 @@ if (agentCtl) { // агент в гонке: имя из ?aname=, сам наж�
   try { localStorage.removeItem('tt_rc_play'); } catch { /* нет хранилища */ } // свежий вход в комнату, без остатков прошлой гонки
   const stName = new URLSearchParams(location.search).get('aname'), stRid = encodeURIComponent(new URLSearchParams(location.search).get('rid') ?? '');
   if (stName) setInterval(() => { // сводка окна агента для панели обучения (POST на сервер панели): имя, тик, кадры в секунду, босс
-    const w = shared.session?.world, b = w ? (w.testBoss() ?? w.boss) : null;
+    const w = shared.session?.world, b = w ? w.testBoss() : null;
     void fetch('/api/agent-stat?rid=' + stRid, { method: 'POST', body: JSON.stringify({ name: stName, tick: w?.tickN ?? 0, fps: Math.round(game.loop.actualFps), boss: b ? b.state : null, bossFrac: b ? Math.max(0, b.hp) / b.maxHp : null, hp: w?.players[0]?.hp ?? null, ch: w?.camp?.ch ?? 0,
       decisions: agentCtl.stats.decisions, model: agentCtl.stats.boss, at: Date.now() }) }).catch(() => undefined);
   }, 1000);

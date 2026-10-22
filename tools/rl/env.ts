@@ -3,14 +3,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- сущности ядра — «мешки» полей */
 import { actionToInp, N_HEADS, SKIP } from '../../src/agent/actions';
 import { HERO_DIM, OBS_DIM, WORLD_DIM, heroObs, worldObs } from '../../src/agent/obs';
-import { GOLDEN_EXT, outcome, type Journal } from '../../src/core/journal';
+import { outcome, type Journal } from '../../src/core/journal';
 import { feedInput } from '../../src/core/fuzzinput';
 import { Recorder } from '../../src/core/session';
 import { makeTtrec, type Ttrec } from '../../src/core/ttrec';
 import type { Inp } from '../../src/core/types';
 import { World } from '../../src/core/world';
 
-export type RlBoss = 'misha' | 'vladik' | 'tima' | 'korne';
+export type RlBoss = string;
 
 /** Награда и шейпинг. Всё настраивается из Python (--reward '{"hurt":1.0}') и персонажем. */
 export interface RewardCfg {
@@ -41,7 +41,7 @@ export interface EnvCfg {
   lag: number;
   record: boolean; ver: string; label: string;
 }
-export const DEFAULT_CFG: EnvCfg = { boss: 'misha', maxSec: 150, reward: DEFAULT_REWARD, lag: 3, record: false, ver: '0', label: 'Нейросеть' };
+export const DEFAULT_CFG: EnvCfg = { boss: 'misha2', maxSec: 150, reward: DEFAULT_REWARD, lag: 3, record: false, ver: '0', label: 'Нейросеть' };
 
 export const INFO_DIM = 10;
 /** done: 0 идёт, 1 победа, 2 обрыв нити, 3 таймаут (усечение) */
@@ -69,18 +69,18 @@ export class RlEnv {
     for (let i = 0; i < 8; i++) this.ring.push(new Float32Array(WORLD_DIM));
   }
 
-  private boss(): any { return this.cfg.boss === 'korne' ? this.w.boss : this.w.testBoss(); }
+  private boss(): any { return this.w.testBoss(); }
   private bossFracNow(): number { const b = this.boss(); return b ? Math.max(0, b.hp) / b.maxHp : 1; }
   private dist(): number {
     const b = this.boss(), p: any = this.w.players[0]!;
     if (!b || b.y < -100) return 0;
-    return Math.abs(b.x + b.w / 2 - (this.w.td ? (p.tdx ?? p.x) : p.x + 7));
+    return Math.abs(b.x + b.w / 2 - (p.x + 7));
   }
 
   /** Новый бой с зерном seed; пишет наблюдение в obs. */
   reset(seed: number, obs: Float32Array, off: number): void {
     const boss = this.cfg.boss;
-    const w = this.w = new World(boss === 'korne' ? { seed, mode: 'story', players: 1 } : { seed, mode: 'bosstest', boss, players: 1 });
+    const w = this.w = new World({ seed, mode: 'bosstest', boss, players: 1 });
     this.seed = seed;
     this.rec = this.cfg.record ? Recorder.start({ cat: null, seed, ver: this.cfg.ver, mem: true }) : null;
     this.rec?.begin(w);
@@ -88,7 +88,6 @@ export class RlEnv {
     let parries = 0;
     (w as unknown as { emit: World['emit'] }).emit = (k, props) => { if (k === 'flash' && props && props['ms'] === 90) parries++; };
     this.parryRef = () => parries; this.parryReset = () => { parries = 0; };
-    if (boss === 'korne') { GOLDEN_EXT[10]!(w, 0, 0); this.rec?.act('ex', 10, 0, 0); }
     this.frame = 0; this.started = -1; this.fightFrames = 0; this.steps = 0; this.ret = 0; this.hpLost = 0; this.parries = 0; this.bombs = 0; this.dmgDone = 0;
     this.prevAct.fill(0);
     // вступление босса: герой стоит, награда не начисляется

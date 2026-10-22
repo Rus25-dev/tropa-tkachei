@@ -27,12 +27,11 @@ describe('Владик на данных', () => {
     expect(bodyDrawer('vladik2', null)).toBeTypeOf('function');
     expect(d.chains.length).toBeGreaterThanOrEqual(8);
   });
-  it('в списках: карточка Босс-теста и список ботов; старый Владик остаётся ручным автоматом', () => {
-    expect(testCards(false).map((c) => c.id)).toEqual(expect.arrayContaining(['vladik', 'vladik2']));
-    expect(raceBossIds()).toEqual(expect.arrayContaining(['vladik', 'vladik2']));
-    expect(duelBossIds()).not.toContain('vladik2');
-    const old = new World({ seed: 1, mode: 'bosstest', boss: 'vladik', players: 1 });
-    expect(old.vladik).toBeTruthy(); expect(old.bosses).toHaveLength(0);
+  it('босс главы III: карточка Босс-теста, список ботов и дуэли; старого автомата нет', () => {
+    expect(testCards(false).map((c) => c.id)).toContain('vladik2');
+    expect(raceBossIds()).toContain('vladik2');
+    expect(duelBossIds()).toContain('vladik2'); // боссы глав — основа дуэли
+    expect(bossDef('vladik')).toBeUndefined();
   });
   it('детерминизм: то же зерно и ввод — то же состояние', () => {
     const run = (): string => {

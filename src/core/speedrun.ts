@@ -1,7 +1,6 @@
 // Спидран: забег живёт дольше одной сцены (главы), считает IGT в тиках, сплиты на смерти боссов (legacy/src/speedrun.js).
 // Здесь — детерминированная часть, нужная ядру. Часы реального времени (RTA) приходят снаружи: sr.clock(); хранилище рекордов,
 // код результата, табличка соперника и сеть — в слоях выше (session/net).
-import { T } from './balance';
 import type { World } from './world';
 import { freshCamp, freshUp, go, snap, type CampState } from './campaign';
 import { statSub, statTick, type StatsData } from './racestats';
@@ -38,9 +37,9 @@ export function newRun(cat: 'trail' | 'boss', opt: RunOpts = {}): SrRun {
   return { cat, t0: null, end: null, igt: 0, splits: [], deaths: 0, done: false, taint: null, hold: !!opt.race || !!opt.rc, race: opt.race ?? null, rc: opt.rc ?? null, result: null, restored: 0, downMs: 0,
     ver: opt.ver ?? '', clock: opt.clock ?? (() => 0), replay: null, duel: cat === 'boss' ? duelOf(opt.rc) : null };
 }
-/** данные первой сцены забега; дуэль — арена одного босса (первый босс — в уровне, как в босс-раше) */
+/** данные первой сцены забега; босс-раш и дуэль — сразу арена босса главы (дуэль: нужной, иначе первой) */
 export function runStartData(cat: 'trail' | 'boss', seed: number, duel?: DuelRun | null): { players: 1; mode: 'story'; camp: CampState; seed: number } {
-  const camp: CampState = cat === 'boss' ? { ch: duel ? duel.ch : 1, st: duel && duel.ch > 1 ? 'arena' : 'level', beads: 0, abil: { double: true }, up: freshUp(), time: 0, deaths: 0 } : freshCamp();
+  const camp: CampState = cat === 'boss' ? { ch: duel ? duel.ch : 1, st: 'arena', beads: 0, abil: { double: true }, up: freshUp(), time: 0, deaths: 0 } : freshCamp();
   return { players: 1, mode: 'story', camp, seed: seed >>> 0 };
 }
 
@@ -71,7 +70,7 @@ export function srOnSplit(sc: World): void {
   const r = sc.sr; if (!r || r.done || r.t0 == null) return;
   const i = r.duel ? 0 : Math.max(0, (sc.camp ? sc.camp.ch : 1) - 1); // в дуэли один сплит: смерть босса раунда
   if (r.splits.length > i) return;
-  if (r.replay && r.replay.splits[i]) { r.splits[i] = { ...r.replay.splits[i]! }; statSub(sc, 'kill'); if ((i >= 3 || r.duel) && r.replay.mem) srFinish(sc); return; } // при воспроизведении берём записанное
+  if (r.replay && r.replay.splits[i]) { r.splits[i] = { ...r.replay.splits[i]! }; statSub(sc, 'kill'); if ((i >= 3 || r.duel)) srFinish(sc); return; } // при воспроизведении берём записанное
   r.splits[i] = { rta: rta(r), igt: Math.round(r.igt) };
   statSub(sc, 'kill');
   sc.emit('srSplit', { i, split: { ...r.splits[i]! } });
@@ -79,7 +78,7 @@ export function srOnSplit(sc: World): void {
 }
 /** здоровье босса сейчас и нанесённый ему урон: итог дуэльного раунда (hp из mh) */
 function duelOutcome(sc: World, kill: boolean): DuelOutcome {
-  const b = sc.testBoss() ?? sc.boss, mh = b && b.maxHp ? b.maxHp : 1, hp = kill ? 0 : Math.max(0, Math.min(mh, b ? b.hp : mh));
+  const b = sc.testBoss(), mh = b && b.maxHp ? b.maxHp : 1, hp = kill ? 0 : Math.max(0, Math.min(mh, b ? b.hp : mh));
   return { kill, ch: sc.camp ? sc.camp.ch : 1, hp: Math.round(hp * 100) / 100, mh, dmg: Math.round(((sc.sr?.stats?.bossDmg) ?? 0) * 10) / 10 };
 }
 export function srFinish(sc: World): void {
@@ -105,15 +104,6 @@ export function srAdvance(sc: World): void {
   sc.won = true; sc.snd('win');
   const next: CampState = r.cat === 'boss' ? { ...sn, ch: c.ch + 1, st: 'arena', beads: 0, abil: { double: true }, up: freshUp() } : { ...sn, ch: c.ch + 1, st: 'road' };
   go(sc, next);
-}
-/** конец create(): босс-раш — сразу к арене Корнематки */
-export function srOnCreate(sc: World): void {
-  const r = sc.sr; if (!r) return;
-  if (r.cat === 'boss' && sc.camp && sc.camp.st === 'level' && sc.L.boss && sc.L.boss.trigger != null) {
-    const tr = sc.L.boss.trigger, by = (sc.L.boss.y + 1) * T;
-    sc.respawn = { x: (tr - 1) * T, y: by };
-    for (const p of sc.players) { p.x = (tr + 1) * T + p.i * 20; p.y = by - 26; p.vx = p.vy = 0; p.safeX = p.x; p.safeY = p.y; }
-  }
 }
 /** техническая пауза гонки (команда организатора): мир стоит, время не идёт; replay — воспроизведение журнала (паузы считаются по настенному времени из журнала) */
 export function srTechPause(sc: World, on: boolean, replay?: boolean): void {

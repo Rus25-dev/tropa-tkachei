@@ -1,18 +1,15 @@
-// Снаряды и вещи на карте: споры, волны, буквы Миши, ноты Владика, пиво Тимы, корни, инструменты, бусины, предметы, ворота, выход, шкала стойкости, статусы.
-// (legacy/src/game.js render, misha.js drawLetters, vladik.js drawVladikProjs, tima.js drawTimaProjs, bosses2.js drawExtraProjs/drawPoiseBars, tools.js, status.js, combat2.js drawItems)
-import type Phaser from 'phaser';
+// Снаряды и вещи на карте: споры, волны, камни, плевки, дымовые бомбы, инструменты, бусины, предметы, шкала стойкости, статусы.
+// Снаряды Владика (ключи, ноты, эхо) рисует его тело (draw/boss/vladik2.ts). Свои снаряды любого босса можно нарисовать в его файле draw/boss/<id>.ts.
 import { KIT, POISE_MAX, STAGGER_T, STATUS_KINDS, T } from '../../core/balance';
 import type { World } from '../../core/world';
-import { type G, PI, drawClef, pts } from './common';
+import { type G, PI } from './common';
 
 type Q = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any -- сущности: мешок полей ядра
-export interface TextPool { take(): Phaser.GameObjects.Text }
-export interface ProjPools { letters: TextPool; big: TextPool; stamps: TextPool }
 
 const STORY_KINDS = new Set(['spore', 'wave', 'rock']);
 
-export function drawProjectiles(w: World, fx: G, fb: G, now: number, pools: ProjPools): void {
-  // снаряды Корнематки
+export function drawProjectiles(w: World, fx: G, now: number): void {
+  // общие снаряды боссов: споры, волны, камни
   for (const pr of w.projs) {
     if (!STORY_KINDS.has(pr.kind)) continue;
     if ((pr.delay ?? 0) > 0) {
@@ -29,162 +26,22 @@ export function drawProjectiles(w: World, fx: G, fb: G, now: number, pools: Proj
       fx.fillStyle(0x2b3d36, 1); fx.fillRoundedRect(pr.x, pr.y, 16, 16, 4); fx.fillStyle(0x3b7448, 1); fx.fillRect(pr.x + 2, pr.y, 12, 3);
     }
   }
-  if (w.misha) drawLetters(w, fx, now, pools);
-  if (w.vladik) drawVladikProjs(w, fx, now);
-  if (w.tima) { drawTimaProjs(w, fx, fb, now); drawStampLabels(w, pools.stamps); }
-  drawExtraProjs(w, fx, fb, now);
+  drawExtraProjs(w, fx, now);
   drawToolEntities(w, fx, now);
 }
 
-function drawLetters(w: World, fx: G, now: number, pools: ProjPools): void {
-  let li = 0;
+function drawExtraProjs(w: World, fx: G, now: number): void {
   for (const pr of w.projs) {
-    if (pr.kind === 'letter' || pr.kind === 'rain') {
-      const t = pools.letters.take();
-      const hover = (pr.delay ?? 0) > 0, rain = pr.kind === 'rain';
-      if (rain) { t.setText(pr['ch']).setPosition(pr.x + 11, pr.y + 13).setVisible(true).setRotation(0).setColor(hover ? '#ff9a7a' : '#f4efe0').setAlpha(hover ? 0.45 + Math.sin(now * 18) * 0.2 : 1); li++; continue; }
-      t.setAlpha(1);
-      t.setText(pr['ch']).setPosition(pr.x + 11, pr.y + 13 + (hover ? Math.sin(now * 8 + li) * 3 : 0)).setVisible(true)
-        .setRotation(hover ? 0 : now * 9 + li).setColor(hover ? '#ffd47a' : '#f4efe0');
-      li++;
-    } else if (pr.kind === 'bigletter') {
-      const t = pools.big.take();
-      const warn = (pr.delay ?? 0) > 0;
-      t.setText(pr['ch']).setPosition(pr.x + 28, pr.y + 30).setVisible(true).setAlpha(warn ? 0.35 + Math.sin(now * 20) * 0.15 : 1);
-      if (warn) { fx.fillStyle(0xff6a4a, 0.45 + Math.sin(now * 20) * 0.15); fx.fillEllipse(pr.x + 28, 18 * T - 2, 64, 12); }
-    } else if (pr.kind === 'bomb') {
+    if (pr.kind === 'glob') {
+      const x = pr.x + 6, y = pr.y + 6;
+      fx.fillStyle(0xc7f08a, 0.2); fx.fillCircle(x, y, 11);
+      fx.fillStyle(0x86a342, 1); fx.fillCircle(x, y, 6.5); fx.fillStyle(0xd5f26a, 1); fx.fillCircle(x - 1.5, y - 1.5, 3);
+      fx.fillStyle(0x86a342, 0.6); fx.fillCircle(x - pr.vx * 0.02, y - pr.vy * 0.02, 3.5); // хвостик капли
+    } else if (pr.kind === 'bomb') { // дымовая бомба героя
       const x = pr.x + 6, y = pr.y + 6;
       fx.fillStyle(0x3a3f45, 1); fx.fillCircle(x, y, 6); fx.fillStyle(0x9aa39f, 1); fx.fillCircle(x - 2, y - 2, 1.6);
       fx.lineStyle(1.5, 0xffd47a, 1); fx.lineBetween(x + 2, y - 5, x + 4, y - 9);
-      fx.fillStyle(0xffd47a, 0.6 + Math.random() * 0.4); fx.fillCircle(x + 4, y - 10, 2);
-    }
-  }
-}
-
-function drawVladikProjs(w: World, fx: G, now: number): void {
-  for (const pr of w.projs) {
-    if (pr.kind === 'clef') { if (pr['t0'] > 0) continue; drawClef(fx, pr.x + 14, pr.y + 20, 1.05, pr['rot'], 0xf4efe0); }
-    else if (pr.kind === 'echo') {
-      const warn = (pr.delay ?? 0) > 0, a = warn ? 0.22 + Math.sin(now * 24) * 0.1 : 0.7, f = pr.vx > 0 ? 1 : -1, cx = pr.x + 20, fy = pr.y + 84;
-      if (!warn) for (let i = 1; i <= 4; i++) { fx.fillStyle(0xf4efe0, a * 0.2 / i); fx.fillEllipse(cx - f * i * 24, fy - 40, 30, 70); }
-      fx.fillStyle(0xe8d9b0, a); fx.fillEllipse(cx, fy - 22, 36, 30); fx.fillEllipse(cx, fy - 46, 28, 26);
-      fx.fillStyle(0xc0712f, a * 0.8); fx.fillEllipse(cx - 4, fy - 24, 12, 16);
-      fx.fillStyle(0xd9b98f, a); fx.fillCircle(cx + 3 * f, fy - 72, 12);
-      fx.lineStyle(2, 0xf4efe0, a); fx.lineBetween(cx + 10 * f, fy - 50, cx + 32 * f, fy - 34);
-      if (warn) { fx.fillStyle(0xff9a7a, 0.55 + Math.sin(now * 20) * 0.2); for (let k = 0; k < 4; k++) { const ax = cx + f * (46 + k * 30); fx.fillTriangle(ax, fy - 6, ax - f * 12, fy - 14, ax - f * 12, fy + 2); } }
-    } else if (pr.kind === 'note') {
-      const x = pr.x + 7, y = pr.y + 14;
-      fx.fillStyle(0x1a1410, 1); fx.fillEllipse(x, y, 13, 10); fx.fillStyle(0xffd47a, 1); fx.fillEllipse(x, y, 10, 7.5);
-      fx.fillStyle(0xffd47a, 1); fx.fillRect(x + 3.5, y - 16, 2.2, 16); fx.fillTriangle(x + 5.5, y - 16, x + 12, y - 9, x + 5.5, y - 11);
-    } else if (pr.kind === 'drip') {
-      fx.fillStyle(0x9be84a, 0.95); fx.fillCircle(pr.x + 4, pr.y + 6, 4); fx.fillTriangle(pr.x + 1, pr.y + 5, pr.x + 7, pr.y + 5, pr.x + 4, pr.y - 2);
-    }
-  }
-}
-
-function drawTimaProjs(w: World, fx: G, fb: G, now: number): void {
-  for (const q of w.puddles || []) {
-    const a = Math.min(1, q.t) * 0.85;
-    fb.fillStyle(0xf2c14e, a); fb.fillEllipse(q.x + q.w / 2, q.y - 2, q.w, 9);
-    fb.fillStyle(0xfff6d8, a); for (let i = 0; i < 5; i++) fb.fillCircle(q.x + 10 + i * 15, q.y - 4 - Math.abs(Math.sin(now * 3 + i)) * 2, 3);
-  }
-  for (const pr of w.projs) {
-    if (pr.kind === 'bottle') {
-      const cs = Math.cos(pr['rot']), sn = Math.sin(pr['rot']), x = pr.x + 5, y = pr.y + 11;
-      const P2 = (px: number, py: number): { x: number; y: number } => ({ x: x + px * cs - py * sn, y: y + px * sn + py * cs });
-      fx.fillStyle(0x6b3d14, 1); fx.fillPoints(pts([P2(-5, -4), P2(5, -4), P2(5, 11), P2(-5, 11)]), true);
-      fx.fillPoints(pts([P2(-2, -11), P2(2, -11), P2(2, -4), P2(-2, -4)]), true);
-      fx.fillStyle(0xf4efe0, 1); fx.fillPoints(pts([P2(-5, 1), P2(5, 1), P2(5, 6), P2(-5, 6)]), true);
-    } else if (pr.kind === 'pad') {
-      fx.lineStyle(2, 0x1a1a22, 1); fx.lineBetween(pr['cx'] || pr.x, pr['cy'] || pr.y, pr.x + 13, pr.y + 9);
-      fx.fillStyle(0x2a2a30, 1); fx.fillRoundedRect(pr.x, pr.y + 2, 26, 14, 6); fx.fillCircle(pr.x + 4, pr.y + 14, 5); fx.fillCircle(pr.x + 22, pr.y + 14, 5);
-      fx.fillStyle(0xd0d0d6, 1); fx.fillCircle(pr.x + 8, pr.y + 8, 2.2);
-      fx.fillStyle(0xff5a4a, 1); fx.fillCircle(pr.x + 19, pr.y + 6, 1.6); fx.fillStyle(0x5ab0ff, 1); fx.fillCircle(pr.x + 17, pr.y + 9, 1.6);
-      fx.fillStyle(0x6bd36b, 1); fx.fillCircle(pr.x + 21, pr.y + 9, 1.6); fx.fillStyle(0xffd47a, 1); fx.fillCircle(pr.x + 19, pr.y + 12, 1.6);
-    } else if (pr.kind === 'rwave') {
-      fx.fillStyle(0xff3a2a, 0.3); fx.fillEllipse(pr.x + 12, pr.y + 12, 36, 22);
-      fx.fillStyle(0xff6a4a, 1); for (let i = 0; i < 3; i++) fx.fillTriangle(pr.x + i * 8, pr.y + 18, pr.x + 4 + i * 8, pr.y + 2 + Math.sin(now * 30 + i) * 3, pr.x + 8 + i * 8, pr.y + 18);
-    } else if (pr.kind === 'ringfx') {
-      const a = Math.max(0, pr.life / 0.9);
-      fx.lineStyle(10, 0xff3a2a, 0.6 * a); fx.strokeCircle(pr.x, pr.y, pr['r']); fx.lineStyle(3, 0xffc0b0, 0.8 * a); fx.strokeCircle(pr.x, pr.y, pr['r']);
-    } else if (pr.kind === 'box') {
-      fx.fillStyle(0x1e1e22, 1); fx.fillRoundedRect(pr.x, pr.y, 36, 22, 5); fx.fillStyle(0x34343c, 1); fx.fillRect(pr.x + 4, pr.y + 4, 28, 3);
-      fx.fillStyle(0x6bd36b, 1); fx.fillCircle(pr.x + 28, pr.y + 14, 2);
-    } else if (pr.kind === 'stamp') {
-      const warn = (pr.delay ?? 0) > 0;
-      if (warn) { fx.fillStyle(0xff5a4a, 0.45 + Math.sin(now * 20) * 0.15); fx.fillEllipse(pr.x + 40, w.L.floorY! * T - 2, 84, 12); }
-      const a = warn ? 0.4 : 1;
-      fx.fillStyle(0x6b3d14, a); fx.fillRect(pr.x + 34, pr.y - 26, 12, 26); fx.fillCircle(pr.x + 40, pr.y - 28, 9);
-      fx.fillStyle(0x3a2a22, a); fx.fillRect(pr.x, pr.y, 80, 34); fx.fillStyle(0xd23a2a, a); fx.fillRect(pr.x + 2, pr.y + 34, 76, 10);
-    }
-  }
-}
-function drawStampLabels(w: World, pool: TextPool): void {
-  for (const pr of w.projs) if (pr.kind === 'stamp') {
-    const t = pool.take();
-    t.setPosition(pr.x + 40, pr.y + 17).setAlpha((pr.delay ?? 0) > 0 ? 0.4 : 1).setVisible(true);
-  }
-}
-
-function drawExtraProjs(w: World, fx: G, fb: G, now: number): void {
-  for (const pr of w.projs as Q[]) {
-    if (pr['kind'] === 'rootspike') {
-      const fy = pr['y'] + pr['h'];
-      if (pr['delay'] > 0) {
-        fb.fillStyle(0x3b2a1c, 0.8); fb.fillEllipse(pr['x'] + 18, fy - 2, 46, 10);
-        fb.lineStyle(2, 0x8a5a2c, 0.6 + Math.sin(now * 30) * 0.3);
-        for (let i = 0; i < 4; i++) fb.lineBetween(pr['x'] + 18, fy - 2, pr['x'] + 18 + Math.cos(i * 1.6) * 20, fy - 2 + Math.sin(i * 1.6) * 4);
-      } else {
-        const k = Math.min(1, (0.55 - pr['life']) / 0.08 + 0.2), hh = pr['h'] * k;
-        fx.fillStyle(0x4a3220, 1); fx.fillTriangle(pr['x'] + 2, fy, pr['x'] + 34, fy, pr['x'] + 18, fy - hh);
-        fx.fillStyle(0x7a5434, 1); fx.fillTriangle(pr['x'] + 6, fy, pr['x'] + 18, fy, pr['x'] + 18, fy - hh);
-        fx.fillStyle(0x3b7448, 1); fx.fillTriangle(pr['x'] + 10, fy - hh * 0.4, pr['x'] + 4, fy - hh * 0.55, pr['x'] + 12, fy - hh * 0.48);
-      }
-    } else if (pr['kind'] === 'staff') {
-      const y = pr['y'] + 5;
-      if (pr['delay'] > 0) {
-        fx.lineStyle(3, 0xff9a7a, 0.4 + Math.sin(now * 16) * 0.2); fx.lineBetween(pr['x'], y, pr['x'] + pr['w'], y);
-        fx.fillStyle(0xf4efe0, 0.35); for (let x = pr['x'] + 40; x < pr['x'] + pr['w']; x += 120) fx.fillEllipse(x, y, 7, 5);
-      } else {
-        fx.lineStyle(10, 0xffd47a, 0.25); fx.lineBetween(pr['x'], y, pr['x'] + pr['w'], y);
-        fx.lineStyle(4, 0xfff6d8, 0.95); fx.lineBetween(pr['x'], y, pr['x'] + pr['w'], y);
-        fx.fillStyle(0xffd47a, 1); for (let x = pr['x'] + 40 + ((now * 300) % 120); x < pr['x'] + pr['w']; x += 120) { fx.fillEllipse(x, y, 9, 7); fx.fillRect(x + 3, y - 14, 2, 14); }
-      }
-    } else if (pr['kind'] === 'mark') { // метка падения: сужающееся кольцо на полу
-      const fy = w.L.floorY! * T, k = Math.max(0, pr['life'] / 1.3), r = 24 + 40 * k;
-      fb.fillStyle(0xff5a4a, 0.28 + Math.sin(now * 22) * 0.12); fb.fillEllipse(pr['x'], fy - 2, r * 2, 14);
-      fb.lineStyle(3, 0xffd47a, 0.9); fb.strokeEllipse(pr['x'], fy - 2, r * 2, 14);
-      fb.lineStyle(1.5, 0xff9a7a, 0.4 + Math.sin(now * 22) * 0.2); fb.lineBetween(pr['x'], fy - 2, pr['x'], 4 * T);
-    } else if (pr['kind'] === 'roller') {
-      const warn = pr['delay'] > 0, a = warn ? 0.3 + Math.sin(now * 20) * 0.12 : 1, cx = pr['x'] + 23, cy = pr['y'] + 26, f = pr['vx'] > 0 ? 1 : -1;
-      fx.fillStyle(0x23262e, a); fx.fillRoundedRect(pr['x'], pr['y'], 46, 52, 14);
-      fx.fillStyle(0x3a4560, a); fx.fillRoundedRect(pr['x'] + 4, pr['y'] + 4, 38, 44, 11);
-      fx.fillStyle(0xf4efe0, a * 0.8); for (let i = 0; i < 4; i++) fx.fillRect(pr['x'] + 10 + i * 8 - ((pr['x'] * 0.4) % 8), pr['y'] + 10, 3, 32);
-      fx.lineStyle(3, 0xc9a227, a); fx.strokeCircle(cx, cy, 6);
-      if (warn) { fx.fillStyle(0xff9a7a, 0.5 + Math.sin(now * 20) * 0.2); for (let k = 0; k < 4; k++) { const ax = cx + f * (46 + k * 30); fx.fillTriangle(ax, cy + 20, ax - f * 12, cy + 12, ax - f * 12, cy + 28); } }
-    } else if (pr['kind'] === 'staffghost') {
-      fx.lineStyle(1, 0xf4efe0, 0.12); fx.lineBetween(pr['x'], pr['y'] + 5, pr['x'] + pr['w'], pr['y'] + 5);
-    } else if (pr['kind'] === 'collector') {
-      const x = pr['x'] + 11, fy = pr['y'] + 22, f = pr['face'] || 1, fl = pr['flash'] > 0;
-      fx.lineStyle(2, 0x15161c, 1); const leg = Math.sin(now * 20 + x) * 2; fx.lineBetween(x - 4, fy - 6, x - 4 + leg, fy); fx.lineBetween(x + 4, fy - 6, x + 4 - leg, fy);
-      fx.fillStyle(fl ? 0xffffff : 0x2c2f38, 1); fx.fillEllipse(x, fy - 11, 20, 16);
-      fx.fillStyle(0xf4efe0, 1); fx.fillTriangle(x + 2 * f, fy - 18, x + 8 * f, fy - 18, x + 5 * f, fy - 10);
-      fx.fillStyle(0xd23a2a, 1); fx.fillRect(x + 4 * f - 1, fy - 17, 2, 6);
-      fx.fillStyle(fl ? 0xffffff : 0x3a3f48, 1); fx.fillCircle(x + 6 * f, fy - 22, 6);
-      fx.fillStyle(0xffd47a, 1); fx.fillCircle(x + 8 * f, fy - 23, 1.6);
-      fx.fillStyle(0x6b3d14, 1); fx.fillRect(x - 13 * f - 4, fy - 9, 8, 7);
-    } else if (pr['kind'] === 'trophy') {
-      const x = pr['x'] + 15, y = pr['y'];
-      if (pr['delay'] > 0) { fx.fillStyle(0xffd47a, 0.35 + Math.sin(now * 20) * 0.15); fx.fillEllipse(x, w.L.floorY! * T - 2, 40, 10); continue; }
-      fx.fillStyle(0xffd47a, 1); fx.fillRect(x - 10, y + 24, 20, 6); fx.fillRect(x - 3, y + 16, 6, 9);
-      fx.fillStyle(0xf2c14e, 1); fx.beginPath(); fx.arc(x, y + 6, 12, 0, Math.PI, false); fx.closePath(); fx.fillPath(); fx.fillRect(x - 12, y, 24, 7);
-      fx.lineStyle(2, 0xffd47a, 1); fx.strokeCircle(x - 13, y + 7, 4); fx.strokeCircle(x + 13, y + 7, 4);
-      fx.fillStyle(0xfff6d8, 0.9); fx.fillCircle(x - 4, y + 4, 2);
-    } else if (pr['kind'] === 'glob') {
-      const x = pr['x'] + 6, y = pr['y'] + 6;
-      fx.fillStyle(0xc7f08a, 0.2); fx.fillCircle(x, y, 11);
-      fx.fillStyle(0x86a342, 1); fx.fillCircle(x, y, 6.5); fx.fillStyle(0xd5f26a, 1); fx.fillCircle(x - 1.5, y - 1.5, 3);
-      fx.fillStyle(0x86a342, 0.6); fx.fillCircle(x - pr['vx'] * 0.02, y - pr['vy'] * 0.02, 3.5); // хвостик капли
+      fx.fillStyle(0xffd47a, 0.6 + Math.abs(Math.sin(now * 40)) * 0.4); fx.fillCircle(x + 4, y - 10, 2);
     }
   }
 }
@@ -288,8 +145,9 @@ export function drawHitKinds(w: World, fx: G, now: number, strong: boolean): voi
 
 /** шкала стойкости над боссом: видна, только пока стойкость копится или босс оглушён */
 export function drawPoiseBars(w: World, fx: G, now: number): void {
-  for (const [b, dy, wd] of [[w.boss, -24, 76], [w.vladik, -28, 70], [w.tima, -13, 70], ...w.bosses.map((db) => [db, -20, 70] as const)] as const) {
-    if (!b || ['dead', 'gone', 'sleep', 'intro'].includes(b.state) || b.y < -50) continue;
+  for (const b of w.bosses) {
+    const dy = -20, wd = 70;
+    if (['dead', 'gone', 'sleep', 'intro'].includes(b.state) || b.y < -50) continue;
     const pz = b['poise'] || 0, sg = b.stagger || 0;
     if (pz <= 0 && sg <= 0) continue;
     const mx = POISE_MAX[b.phase || 1]!, x = b.x + b.w / 2 - wd / 2, y = b.y + dy, h = 6;
@@ -308,7 +166,7 @@ export function drawPoiseBars(w: World, fx: G, now: number): void {
 
 /** цветная вуаль статусов на цели и значки над головой */
 export function drawStatus(w: World, g: G, now: number, spawn: (col: number, x: number, y: number) => void): void {
-  for (const t of [...w.enemies, w.boss, w.vladik, w.tima, ...w.bosses] as (Q | null)[]) {
+  for (const t of [...w.enemies, ...w.bosses] as (Q | null)[]) {
     if (!t || t['dead'] || t['w'] < 2) continue;
     const s = t['status']; if (!s) continue;
     let m = 0; for (const k in s) if (s[k]) m |= STATUS_KINDS[k as keyof typeof STATUS_KINDS].bit;

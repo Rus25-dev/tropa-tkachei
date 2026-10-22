@@ -68,7 +68,6 @@ class SndImpl {
       case 'puff': this.hiss(0.45, 0.22, 500, 0.4); break;
       case 'cough': this.later([0, 160, 320], () => { this.hiss(0.12, 0.2, 900, 1.5); this.tone('sawtooth', 180, 120, 0.1, 0.06); }); break;
       case 'pickup': this.tone('sine', 660, 990, 0.12, 0.1); break;
-      case 'letter': this.tone('triangle', 900 + R() * 300, 500, 0.08, 0.04); this.hiss(0.06, 0.05, 3000, 2); break;
       case 'violin': {
         const c = this.ctx, t = c.currentTime, o = c.createOscillator(), l = c.createOscillator(), lg = c.createGain(), g = c.createGain();
         o.type = 'sawtooth'; o.frequency.setValueAtTime(660, t); o.frequency.linearRampToValueAtTime(990, t + 0.35); l.frequency.value = 7; lg.gain.value = 14;
@@ -76,16 +75,11 @@ class SndImpl {
         o.connect(g); g.connect(this.master!); o.start(t); l.start(t); o.stop(t + 0.55); l.stop(t + 0.55); break;
       }
       case 'squish': this.hiss(0.35, 0.18, 260, 2.5); this.tone('sine', 140, 70, 0.3, 0.12); break;
-      case 'glug': this.later([0, 220, 440], () => this.tone('sine', 220, 140, 0.15, 0.12)); break;
-      case 'burp': this.tone('sawtooth', 110, 70, 0.6, 0.18); this.hiss(0.5, 0.06, 200, 0.6); break;
       case 'glass': this.tone('triangle', 2600, 1800, 0.12, 0.08); this.hiss(0.2, 0.12, 4000, 2); break;
       case 'coin': this.later([0, 90], (i) => this.tone('square', i ? 1320 : 990, i ? 1320 : 990, 0.12, 0.05)); break;
       case 'sparkle': this.later([0, 60, 120, 180, 240], () => this.tone('sine', 1500 + R() * 1500, 2500, 0.1, 0.04)); break;
       case 'buzz': this.tone('square', 120, 120, 0.35, 0.05); this.tone('square', 123, 123, 0.35, 0.05); break;
       // удары по боссам: у каждого свой тембр, у оглушённого и у финишера — свои
-      case 'hitWood': this.tone('triangle', 190, 60, 0.14, 0.26); this.tone('square', 95, 50, 0.1, 0.1); this.hiss(0.07, 0.16, 700, 1.2); break;
-      case 'hitString': this.tone('sawtooth', 540, 330, 0.17, 0.11); this.tone('triangle', 810, 610, 0.13, 0.08); this.hiss(0.04, 0.1, 2600, 2); break;
-      case 'hitDull': this.tone('sine', 150, 55, 0.2, 0.32); this.hiss(0.06, 0.14, 340, 0.8); break;
       case 'hitCrit': this.tone('triangle', 320, 90, 0.15, 0.26); this.tone('square', 1250, 700, 0.1, 0.08); this.hiss(0.06, 0.2, 1900, 1.5); break;
       case 'hitHeavy': this.tone('triangle', 140, 45, 0.24, 0.32); this.tone('sawtooth', 230, 100, 0.15, 0.1); this.hiss(0.12, 0.26, 520, 0.8); break;
       case 'stagger': this.hiss(0.28, 0.3, 300, 0.7); this.tone('sine', 85, 32, 0.5, 0.34); this.tone('square', 960, 380, 0.14, 0.08); this.tone('triangle', 1400, 1400, 0.3, 0.05); break;

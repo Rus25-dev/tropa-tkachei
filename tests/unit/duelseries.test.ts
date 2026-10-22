@@ -1,6 +1,7 @@
 // «Дуэль ткачей», ядро: бан/пик, порядок раундов, счёт, победитель раунда, модификаторы и их влияние на забег.
 // Главное: модификаторы — параметры забега, поэтому журнал с ними воспроизводится бит в бит, а без них ядро не меняется (золотые записи — в golden.test.ts).
 import { describe, expect, it } from 'vitest';
+import { CHAPTER_BOSSES } from '../../src/core/balance';
 import {
   applyVeto, autoVeto, BOSS_INFO, cardStates, DUEL_BOSSES, fracOf, modsFor, newSeries, planRound, recordRound, roundWinner, undoRound, vetoNow, vetoPlan, winsNeeded,
   type DuelBoss, type RoundVerdict, type Series, type SeriesFmt, type Side,
@@ -42,10 +43,10 @@ describe('бан/пик', () => {
   it('Bo3: A банит, B пикает, A пикает; порядок раундов — пик B, пик A, решающий (остаток)', () => {
     const s0 = newSeries(3, 5), A = s0.first, B: Side = A === 0 ? 1 : 0;
     expect(vetoNow(s0)).toMatchObject({ kind: 'ban', side: A });
-    const s = veto(s0, ['korne', 'misha', 'vladik']);
-    expect(s.bans).toEqual([{ kind: 'ban', side: A, boss: 'korne' }]);
-    expect(s.picks).toEqual([{ kind: 'pick', side: B, boss: 'misha' }, { kind: 'pick', side: A, boss: 'vladik' }]);
-    expect(s.decider).toBe('tima'); expect(s.order).toEqual(['misha', 'vladik', 'tima']);
+    const s = veto(s0, ['penitent', 'misha2', 'vladik2']);
+    expect(s.bans).toEqual([{ kind: 'ban', side: A, boss: 'penitent' }]);
+    expect(s.picks).toEqual([{ kind: 'pick', side: B, boss: 'misha2' }, { kind: 'pick', side: A, boss: 'vladik2' }]);
+    expect(s.decider).toBe('tima2'); expect(s.order).toEqual(['misha2', 'vladik2', 'tima2']);
   });
 
   it('Bo5: четыре пика по очереди, пятый (решающий) босс выпадает жребием из зерна и повторяет одного из боссов', () => {
@@ -58,11 +59,11 @@ describe('бан/пик', () => {
 
   it('чужой ход, занятый босс и ход после конца отклоняются понятным текстом', () => {
     const s0 = newSeries(3, 1), A = s0.first, B: Side = A === 0 ? 1 : 0;
-    expect(applyVeto(s0, B, 'misha')).toEqual({ ok: false, why: 'сейчас ходит соперник' });
+    expect(applyVeto(s0, B, 'misha2')).toEqual({ ok: false, why: 'сейчас ходит соперник' });
     expect(applyVeto(s0, A, 'ghost')).toMatchObject({ ok: false });
-    const r1 = applyVeto(s0, A, 'misha'); expect(r1.ok).toBe(true);
-    if (r1.ok) expect(applyVeto(r1.s, B, 'misha')).toEqual({ ok: false, why: 'этого босса уже нет в списке' });
-    const done = veto(s0); expect(applyVeto(done, A, 'korne')).toEqual({ ok: false, why: 'бан/пик уже закончен' });
+    const r1 = applyVeto(s0, A, 'misha2'); expect(r1.ok).toBe(true);
+    if (r1.ok) expect(applyVeto(r1.s, B, 'misha2')).toEqual({ ok: false, why: 'этого босса уже нет в списке' });
+    const done = veto(s0); expect(applyVeto(done, A, 'penitent')).toEqual({ ok: false, why: 'бан/пик уже закончен' });
   });
 
   it('первого назначает жребий из зерна: встречаются обе стороны, результат повторяем', () => {
@@ -72,9 +73,9 @@ describe('бан/пик', () => {
 
   it('выбор за игрока детерминирован и всегда из списка; карточки показывают баны, пики и решающего', () => {
     const s = newSeries(3, 8), a = autoVeto(s)!; expect(s.pool).toContain(a); expect(autoVeto(s)).toBe(a);
-    const done = veto(s, ['tima', 'korne', 'misha']), st = cardStates(done);
-    expect(st.tima.st).toBe('ban'); expect(st.korne.st).toBe('pick'); expect(st.misha.st).toBe('pick'); expect(st.vladik.st).toBe('decider');
-    expect(done.log.map((x) => x.boss)).toEqual(['tima', 'korne', 'misha']);
+    const done = veto(s, ['tima2', 'penitent', 'misha2']), st = cardStates(done);
+    expect(st.tima2.st).toBe('ban'); expect(st.penitent.st).toBe('pick'); expect(st.misha2.st).toBe('pick'); expect(st.vladik2.st).toBe('decider');
+    expect(done.log.map((x) => x.boss)).toEqual(['tima2', 'penitent', 'misha2']);
   });
 });
 
@@ -95,12 +96,12 @@ describe('раунды и счёт серии', () => {
   });
 
   it('Bo3: 2:0 заканчивает серию; 1:1 ведёт к решающему; раунды берут босса по порядку', () => {
-    let s = veto(newSeries(3, 21), ['korne', 'misha', 'vladik']); // раунды: misha, vladik, tima
-    const p1 = planRound(s)!; expect(p1.boss).toBe('misha'); expect(p1.ch).toBe(2); expect(p1.n).toBe(1);
+    let s = veto(newSeries(3, 21), ['penitent', 'misha2', 'vladik2']); // раунды: misha, vladik, tima
+    const p1 = planRound(s)!; expect(p1.boss).toBe('misha2'); expect(p1.ch).toBe(2); expect(p1.n).toBe(1);
     s = recordRound(s, p1, win('a')).s; expect(s.score).toEqual([1, 0]); expect(s.stage).toBe('play');
-    const p2 = planRound(s)!; expect(p2.boss).toBe('vladik'); expect(p2.seed).not.toBe(p1.seed);
+    const p2 = planRound(s)!; expect(p2.boss).toBe('vladik2'); expect(p2.seed).not.toBe(p1.seed);
     s = recordRound(s, p2, win('b')).s; expect(s.score).toEqual([1, 1]);
-    const p3 = planRound(s)!; expect(p3.boss).toBe('tima'); expect(BOSS_INFO[p3.boss].ch).toBe(4);
+    const p3 = planRound(s)!; expect(p3.boss).toBe('tima2'); expect(BOSS_INFO[p3.boss].ch).toBe(4);
     s = recordRound(s, p3, win('b')).s; expect(s.stage).toBe('over'); expect(s.winner).toBe(1); expect(planRound(s)).toBeNull();
   });
 
@@ -112,7 +113,7 @@ describe('раунды и счёт серии', () => {
   });
 
   it('ничья переигрывается тем же боссом и новым зерном; третья ничья подряд решается жребием', () => {
-    let s = veto(newSeries(3, 4), ['korne', 'misha', 'vladik']);
+    let s = veto(newSeries(3, 4), ['penitent', 'misha2', 'vladik2']);
     const d: RoundVerdict = { winner: 'draw', why: 'draw', gap: null };
     const p1 = planRound(s)!; s = recordRound(s, p1, d).s;
     const p2 = planRound(s)!; expect(p2.boss).toBe(p1.boss); expect(p2.seed).not.toBe(p1.seed); expect(p2.n).toBe(2); expect(s.score).toEqual([0, 0]);
@@ -176,7 +177,7 @@ describe('дуэльный забег: старт, поражение, побе�
       expect(s.world.players[0]!.maxHp).toBe(1); expect(s.world.players[0]!.hp).toBe(1);
     }
     expect(mk(2, []).world.players[0]!.maxHp).toBeGreaterThan(1);
-    expect(mk(1, []).world.camp!.st).toBe('level'); expect(mk(3, []).world.camp!.st).toBe('arena');
+    for (const ch of [1, 2, 3, 4]) { const w = mk(ch, []).world; expect(w.camp!.st).toBe('arena'); expect(w.testBoss()).toBeTruthy(); expect(w.bossKind).toBe(CHAPTER_BOSSES[ch - 1]); } // у всех глав дуэль идёт сразу в арене босса, в том числе у первой
   });
 
   it('обрыв нити заканчивает раунд поражением: итог с долей здоровья босса, мир замирает', () => {

@@ -1,5 +1,5 @@
 // Оценка экспортированной модели движком игры в Node (тот же код, что в браузере) на зёрнах таблицы бота.
-//   npm run rl:eval -- --pack public/agents/tkachi.json --boss misha [--persona average] [--fights 200] [--skill 0.6] [--seed 1] [--workers 4] [--temp 1.5 --stick 0.3 --atk-gap 0]
+//   npm run rl:eval -- --pack public/agents/tkachi.json --boss misha2 [--persona average] [--fights 200] [--skill 0.6] [--seed 1] [--workers 4] [--temp 1.5 --stick 0.3 --atk-gap 0]
 import { readFileSync } from 'node:fs';
 import { Worker } from 'node:worker_threads';
 import type { AgentPack } from '../../src/agent/policy';
@@ -9,7 +9,7 @@ import type { AgentJob, AgentResult } from './agent-fight';
 const argv = process.argv.slice(2);
 const opt = (n: string, d?: string): string | undefined => { const i = argv.indexOf('--' + n); return i >= 0 && i + 1 < argv.length ? argv[i + 1] : d; };
 const pack = JSON.parse(readFileSync(opt('pack', 'public/agents/tkachi.json')!, 'utf8')) as AgentPack;
-const boss = opt('boss', 'misha') as AgentJob['boss'];
+const boss = opt('boss', 'misha2') as AgentJob['boss'];
 const model = pack.models[boss]; if (!model) throw new Error('В паке нет модели ' + boss + ': ' + Object.keys(pack.models).join(', '));
 const persona = pack.personas[opt('persona', 'average')!]!;
 const play = { ...persona, ...(opt('temp') ? { bossTemp: {} } : {}), ...(opt('temp') ? { temperature: +opt('temp')! } : {}), ...(opt('stick') ? { stick: +opt('stick')! } : {}), ...(opt('atk-gap') ? { atkGap: +opt('atk-gap')! } : {}), ...(opt('lag') ? { playLag: +opt('lag')! } : {}) };

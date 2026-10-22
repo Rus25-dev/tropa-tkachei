@@ -2,28 +2,19 @@
 // Это «база» без обёрток: слои оружия, оберегов, стойкости и статистики собраны в damage.ts.
 import { BAL, P, PARRY2, SLASH_KINDS, SPIKE, T, clamp } from './balance';
 import type { Boss, Enemy, HitKind, Player, Rect } from './types';
-import type { BossRef } from './balance';
 import type { World } from './world';
 import { inset, overlap } from './world';
 import { atkBox, wdef, type WeaponDef } from './weapons';
 import { damageBoss, damageEnemy, hurtPlayer } from './damage';
 import { e2Blocked, spawnEnemies, e2Parry } from './enemies';
-import { makeBoss } from './korne';
-import { makeMisha, mishaNeedle, makeMishaIfAlive } from './misha';
-import { makeVladik } from './vladik';
 import { resetFight } from './boss/exec';
 import { bossRefs } from './bosses2';
-import { makeTima, setRepo } from './tima';
-import { hitCollector } from './bosses2';
 import { campaignSave, campaignSaveName } from './campaign';
 import { poiseAdd } from './bosses2';
 import { areaOf } from './coop';
 import { statParry } from './racestats';
 import { srDuelDefeat } from './speedrun';
 import { kitClear, kitGhost } from './kit/moves';
-
-/** Владик, Тима и боссы на данных: удары игрока по ним разбираются одинаково */
-const dataRefs = (sc: World): [Boss | null, BossRef][] => [[sc.vladik, 'vladik'], [sc.tima, 'tima'], ...bossRefs(sc).filter(([, k]) => k.startsWith('d')) as [Boss, BossRef][]];
 
 // ---------- коробка удара (база) ----------
 export function atkBoxBase(_sc: World, p: Player, W: WeaponDef): Rect {
@@ -47,25 +38,16 @@ export function resolveAttackBase(sc: World, p: Player): void {
     if (auth) { damageEnemy(sc, e, p); if (p['heavy'] && !e.dead) damageEnemy(sc, e, p); } else if (!e2Blocked(sc, e, p, true)) { e.flash = 0.1; if (!p.remote) { sc.hitstop = 0.045; sc.snd('hit'); } } // удар напарника уже озвучил хост (snd), зависание кадра — только своему
     if (local) { if (p.atkDir === 'd') pogo(); else if (p.atkDir === 'f') p.kbx = -p.face * 150; }
   }
-  const b = sc.boss;
-  if (!p.atkHits.has(b) && b.state !== 'sleep' && b.state !== 'dead' && b.state !== 'gone' && overlap(box, b)) {
-    p.atkHits.add(b);
-    if (auth) { damageBoss(sc, 'boss', p); if (p['heavy'] && b.state !== 'dead' && b.state !== 'gone') damageBoss(sc, 'boss', p); } else { b.flash = 0.09; if (!p.remote) { sc.hitstop = 0.04; sc.snd('hit'); } }
-    if (local) { if (p.atkDir === 'd') pogo(); else if (p.atkDir === 'f') p.kbx = -p.face * 170; }
-  }
-  if (sc.misha && mishaNeedle(sc, p, box) && local) { if (p.atkDir === 'd') pogo(); else if (p.atkDir === 'f') p.kbx = -p.face * 190; }
-  for (const [vb, key] of dataRefs(sc)) {
-    if (!vb || p.atkHits.has(vb) || ['dead', 'intro'].includes(vb.state) || !overlap(box, vb)) continue;
+  for (const [vb, key] of bossRefs(sc)) { // удары игрока по боссам на данных
+    if (p.atkHits.has(vb) || ['dead', 'intro'].includes(vb.state) || !overlap(box, vb)) continue;
     p.atkHits.add(vb);
     if (auth) { damageBoss(sc, key, p); if (p['heavy'] && vb.state !== 'dead') damageBoss(sc, key, p); } else { vb.flash = 0.09; if (!p.remote) { sc.hitstop = 0.04; sc.snd('hit'); } }
     if (local) { if (p.atkDir === 'd') pogo(); else if (p.atkDir === 'f') p.kbx = -p.face * 170; }
   }
   for (const pr of sc.projs) if (SLASH_KINDS.has(pr.kind) && !pr.dead && overlap(box, pr)) {
-    if (pr.kind === 'collector') { if (auth) hitCollector(sc, pr, p.face); else if (local) sc.sendEv({ k: 'cut', kind: 'collector', x: Math.round(pr.x), y: Math.round(pr.y), d: p.face }); if (local && p.atkDir === 'd') pogo(); continue; }
     if (auth) {
       pr.dead = true;
-      if (pr.kind === 'letter' || pr.kind === 'rain') { sc.paperAt(6, pr.x + 11, pr.y + 13); sc.sfx('clink'); }
-      else if (pr.kind === 'spore') sc.burst(6, pr.x + 6, pr.y + 6, 0xc7f08a);
+      if (pr.kind === 'spore') sc.burst(6, pr.x + 6, pr.y + 6, 0xc7f08a);
       else { sc.burst(6, pr.x + pr.w / 2, pr.y + pr.h / 2, 0xffd47a); sc.sfx('clink'); }
     } else if (pr.kind !== 'spore') { pr.dead = true; if (local) sc.sendEv({ k: 'cut', kind: pr.kind, x: Math.round(pr.x), y: Math.round(pr.y) }); } // чужой взмах срезает хост сам
     if (local && p.atkDir === 'd') pogo();
@@ -148,11 +130,6 @@ export function respawnAll(sc: World): void {
   sc.fightOn = false;
   spawnEnemies(sc);
   for (const pr of sc.projs) pr.dead = true;
-  if (!sc.bossDead) { makeBoss(sc); if (sc.gates[0]) sc.setGate(sc.gates[0], false); sc.bossBar(false); }
-  if (sc.td) { sc.td = null; sc.tdFlip = false; sc.emit('td', { on: false }); }
-  if (sc.misha && sc.misha.state !== 'dead') { makeMisha(sc); sc.bossBar(false); }
-  if (sc.vladik && sc.vladik.state !== 'dead') { makeVladik(sc); sc.bossBar(false); }
-  if (sc.tima && sc.tima.state !== 'dead') { sc.repoT = 0; makeTima(sc); sc.sendEv({ k: 'repo', on: 0 }); sc.bossBar(false); }
   if (sc.bosses.some((b) => b.state !== 'dead')) { resetFight(sc); sc.bossBar(false); }
   sc.sendEv({ k: 'respawn', x: sc.respawn.x, y: sc.respawn.y });
   respawnLocal(sc);
@@ -203,7 +180,7 @@ export function parrySuccess(sc: World, p: Player, _srcX: number | null, hk?: Hi
 }
 /** стойкость босса за отбив: обычный +3 (как в v2.0; у боссов с posture:true — POSTURE_NORMAL_POISE), идеальный ×PERFECT_POISE_MUL. Шкала та же, что у ударов (poiseAdd) */
 export function parryPoise(sc: World, cx: number, cy: number, perfect = false): void {
-  for (const b of [sc.boss, sc.vladik, sc.tima, ...sc.bosses]) if (b && Math.hypot(b.x + b.w / 2 - cx, b.y + b.h / 2 - cy) < 190) poiseAdd(sc, b, perfect ? 3 * PARRY2.PERFECT_POISE_MUL : b.posture ? PARRY2.POSTURE_NORMAL_POISE : 3);
+  for (const b of sc.bosses) if (Math.hypot(b.x + b.w / 2 - cx, b.y + b.h / 2 - cy) < 190) poiseAdd(sc, b, perfect ? 3 * PARRY2.PERFECT_POISE_MUL : b.posture ? PARRY2.POSTURE_NORMAL_POISE : 3);
 }
 // нитяной всполох (↑ + кнопка нити): тратит BURST нити, бьёт всё вокруг и сбивает снаряды
 export function silkBurst(sc: World, p: Player): void {
@@ -229,5 +206,5 @@ export function silkBurstHit(sc: World, p: Player, cx: number, cy: number): void
   } finally { sc._e2burst = false; }
 }
 
-export { inset, clamp, setRepo, makeMishaIfAlive, wdef };
+export { inset, clamp, wdef };
 export type { Boss };

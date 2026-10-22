@@ -22,7 +22,7 @@ export function useTick(ms = 100): number {
   return n;
 }
 
-export interface WinSummary { title?: string; time: number; beads: number; deaths: number; players: number; hits?: number; bag?: number; camp?: { title: string; final: boolean; ch: number; time: number; deaths: number; next: CampState | null } }
+export interface WinSummary { title?: string; time: number; beads: number; deaths: number; players: number; camp?: { title: string; final: boolean; ch: number; time: number; deaths: number; next: CampState | null } }
 
 // ===== пауза =====
 export function Pause({ ses, online, onRetry, onExit, openGear }: { ses: Session; online: boolean; onRetry: () => void; onExit: () => void; openGear: () => void }) {
@@ -316,13 +316,12 @@ export function Win({ ses, s, online, onNext, onRetry, onExit }: { ses: Session;
   if (k) {
     if (k.final) {
       const tm = Math.floor(k.time / 60), ts = Math.floor(k.time % 60).toString().padStart(2, '0');
-      lines = ['Корнематка, Миша, Владик и Тима побеждены.', `Нить сплетена: ${w.nPlayers === 2 ? 'вдвоём' : 'в одиночку'} вы дошли до конца.`, '', `Всё время кампании: ${tm}:${ts}`, `Обрывов нити за всю игру: ${k.deaths}`];
+      lines = ['Первый Кающийся, Миша, Владик и Тима побеждены.', `Нить сплетена: ${w.nPlayers === 2 ? 'вдвоём' : 'в одиночку'} вы дошли до конца.`, '', `Всё время кампании: ${tm}:${ts}`, `Обрывов нити за всю игру: ${k.deaths}`];
     } else {
       const nx = CHAPTERS[k.ch + 1]!;
       lines = [`Время главы: ${m}:${sec}`, `Бусин при себе: ${w.beads}`, `Обрывов нити: ${s.deaths ?? w.deaths}`, `Ткачей: ${s.players}`, '', `Дальше: Глава ${nx.roman} · ${nx.name}`];
     }
-  } else if (s.bag != null) lines = [`Время боя: ${m}:${sec}`, `Дымовух в рюкзаке: ${s.bag}`, `Обрывов нити: ${s.deaths}`, `Ткачей: ${s.players}`];
-  else if (s.hits != null) lines = [`Время боя: ${m}:${sec}`, `Ударов иглой: ${s.hits}`, `Обрывов нити: ${s.deaths}`, `Ткачей: ${s.players}`];
+  } else if (w.mode === 'bosstest') lines = [`Время боя: ${m}:${sec}`, `Обрывов нити: ${s.deaths}`, `Ткачей: ${s.players}`];
   else lines = [`Время: ${m}:${sec}`, `Бусин собрано: ${s.beads}`, `Обрывов нити: ${s.deaths}`, `Ткачей: ${s.players}`];
   const gate = (f: () => void) => () => { if (armed) f(); };
   return (

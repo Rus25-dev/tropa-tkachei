@@ -29,6 +29,8 @@
     "boss:check": "tsx --import ./tools/ldtk-register.mjs tools/boss/check.ts",
     "boss:nohit": "tsx --import ./tools/ldtk-register.mjs tools/boss/nohit-cli.ts",
     "boss:cheese": "tsx --import ./tools/ldtk-register.mjs tools/boss/cheese.ts",
+    "golden:record": "tsx --import ./tools/ldtk-register.mjs tools/golden/record.ts",
+    "golden:race": "tsx --import ./tools/ldtk-register.mjs tools/golden/race.ts",
     "levels:export": "tsx tools/ldtk-export.ts",
     "levels:check": "tsx tools/levels-check.ts",
     "rl:env": "tsx --import ./tools/ldtk-register.mjs tools/rl/server.ts",

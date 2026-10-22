@@ -383,7 +383,7 @@ export function WatchView({ races }: { races: Races }) {
   const lead = duel ? null : w.lead(), clock = w.clockMs();
   const hpLead = duel && p1 && p2 ? chaseLead(w.chase[p1.seat], w.chase[p2.seat], chaseEnd(w.chase[p1.seat], w.chase[p2.seat])) : 0;
   const duelSeat = (i: number): RoomPlayer | undefined => (dpub ? ps.find((p) => p.seat === dpub.seats[i]) : undefined);
-  const bossName = (k: string): string => ({ k: 'Корнематка', m: 'Миша Додик', v: 'Владик Скрипка', t: 'Тима Пиво' } as Record<string, string>)[k] || 'Босс';
+  const bossName = (k: string): string => ({ k: 'Первый Кающийся', m: 'Миша Додик', v: 'Владик Скрипка', t: 'Тима Пиво' } as Record<string, string>)[k] || 'Босс';
   const res = S.result || w.resultLite;
   const showCards = phase === 'lobby' || phase === 'prep' || phase === 'count';
   const chart = duel && dpub && dpub.plan && (phase === 'run' || (phase === 'done' && !res)) ? dpub : null;
@@ -531,7 +531,7 @@ export function DuelPanel({ races }: { races: Races }) {
           <div class={d.me ? 'good' : ''}>Вы: {d.me ? 'готов' : 'не готов'}</div>
           <div class={d.opp ? 'good' : ''}>Соперник: {d.lost ? 'нет связи' : !online && !d.opp ? 'ждём…' : d.opp ? 'готов' : 'не готов'}</div>
         </div>
-        <div class="lead">{SR_CATS[d.cat] ? (d.cat === 'trail' ? 'Главы I–IV подряд, с нуля. Лавка и бусины разрешены. Сплит — на смерти босса каждой главы.' : 'Четыре босса подряд: Корнематка, Миша, Владик, Тима. Все способности открыты, лавки нет.') : ''}</div>
+        <div class="lead">{SR_CATS[d.cat] ? (d.cat === 'trail' ? 'Главы I–IV подряд, с нуля. Лавка и бусины разрешены. Сплит — на смерти босса каждой главы.' : 'Четыре босса подряд: Первый Кающийся, Миша, Владик, Тима. Все способности открыты, лавки нет.') : ''}</div>
         {warn.length > 0 && <div class="bad" data-testid="duel-warn">{warn.join(' ')}</div>}
         <div class="row">
           <button type="button" class="btn primary" id="du-ready" data-testid="duel-ready" disabled={d.lost || v.length > 0 || (!!d.peerVer && d.peerVer !== races.version) || d.state !== 'room' || d.status !== 'online' && d.status !== 'open'} onClick={() => d.toggleReady()}>{d.me ? 'Не готов' : 'Готов'}</button>

@@ -327,7 +327,7 @@ describe('2.2 «Тропа целиком»: подсплиты, лавка, с�
     expect(p2.play.rival().text).toBe(s.text);
     const s1 = p1.play.strip()!; expect(s1.text).toMatch(/^Ярь · Гл\. I · .* · −\d+\.\d с$/); expect(s1.col).toBe('#9ff0c8');
     tel(p1, 1, { st: 'arena', sh: 0 }); sim.run(600); tel(p1, 1, { st: 'arena', sh: 0 }); sim.run(600);
-    expect(p2.play.strip()!.text).toContain('бой с Корнематкой');
+    expect(p2.play.strip()!.text).toContain('бой с Кающимся');
   });
 
   it('личный рекорд и лучшие отрезки уходят в снимок комнаты со второй гонки; итог содержит подсплиты', () => {
@@ -368,12 +368,12 @@ describe('2.3 «Босс-раш»: дисциплина организатора
     sim.run(1000); ev(p1, 'sub', { ch: 1, sk: 'fight' }); sim.run(500); ev(p2, 'sub', { ch: 1, sk: 'fight' }); sim.run(8000);
     ev(p1, 'sub', { ch: 1, sk: 'ph2' }); ev(p1, 'boss', { ch: 1, dmg: 31.5, par: 4, tk: 2, stn: 1, exe: 0, dth: 1, fgt: 9000 }); p1.game.split(0); sim.run(300);
     const text = w1.feed.map((e) => e.x);
-    expect(text).toContain('Ива: Корнематка · начало боя'); expect(text).toContain('Ярь: Корнематка · начало боя'); expect(text).toContain('Ива: Корнематка · фаза 2'); expect(text.some((x) => /^Ива: Корнематка · /.test(x) && /0:\d\d/.test(x))).toBe(true);
+    expect(text).toContain('Ива: Кающийся · начало боя'); expect(text).toContain('Ярь: Кающийся · начало боя'); expect(text).toContain('Ива: Кающийся · фаза 2'); expect(text.some((x) => /^Ива: Кающийся · /.test(x) && /0:\d\d/.test(x))).toBe(true);
     const a = w1.S!.players[0]!, b = w1.S!.players[1]!;
     expect(a.bosses).toEqual([{ ch: 1, dmg: 31.5, parries: 4, taken: 2, stuns: 1, execs: 0, deaths: 1, fight: 9000 }]); expect(b.bosses).toEqual([]);
-    expect(w1.lead()!.txt).toMatch(/Корнематка/);
-    const rows = bossRows('boss', a, b); expect(rows[0]!.ta).toBe(a.splits[0]); expect(rows[0]!.tb).toBeNull(); expect(rows[0]!.a!.parries).toBe(4); expect(rows.map((r) => r.name)).toEqual(['Корнематка', 'Миша', 'Владик', 'Тима']);
-    expect(stageText('boss', { ch: 1, st: 'level' }, a.subs, false)).toBe('Корнематка · бой, фаза 2');
+    expect(w1.lead()!.txt).toMatch(/Кающийся/);
+    const rows = bossRows('boss', a, b); expect(rows[0]!.ta).toBe(a.splits[0]); expect(rows[0]!.tb).toBeNull(); expect(rows[0]!.a!.parries).toBe(4); expect(rows.map((r) => r.name)).toEqual(['Кающийся', 'Миша', 'Владик', 'Тима']);
+    expect(stageText('boss', { ch: 1, st: 'level' }, a.subs, false)).toBe('Кающийся · бой, фаза 2');
   });
 
   it('итог: время по боссам, урон и отбивы в результате; лучший босс; Эло и личный рекорд считаются отдельно по дисциплине', () => {

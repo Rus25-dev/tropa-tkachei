@@ -83,8 +83,6 @@ function stepSpirit(sc: World, q: Q, dt: number, bosses: [Boss, BossRef][]): voi
       toolHurtBoss(sc, key, owner, KIT.SPIRIT.DMG);
       q['dead'] = true; sc.sfx('clink'); sc.burst(14, cx, cy, 0xcfe8ff); break;
     }
-    const m = sc.misha;
-    if (!q['dead'] && m && !['dead', 'intro'].includes(m.state) && overlap(q as never, inset(m, 6))) { q['dead'] = true; sc.sfx('clink'); sc.burst(6, cx, cy, 0xffffff); }
   }
   if (!q['dead'] && Math.floor(q['age'] * 60) % 3 === 0) sc.parts(1, q['x'] + q['w'] / 2 - f * 10, q['y'] + q['h'] / 2, 0xcfe8ff);
 }

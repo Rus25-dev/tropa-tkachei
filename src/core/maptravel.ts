@@ -54,9 +54,9 @@ export function mapVisit(sc: World, dt: number): void {
 }
 /** идёт ли бой с боссом (телепорт тогда запрещён) */
 function fighting(sc: World): boolean {
-  if (sc.td || sc.fightOn) return true;
+  if (sc.fightOn) return true;
   if (sc.gates && sc.gates[0] && sc.gates[0].closed) return true;
-  for (const b of [sc.boss, sc.misha, sc.vladik, sc.tima]) if (b && !['sleep', 'gone', 'dead', 'intro'].includes(b.state) && !sc.bossDead) return true;
+  for (const b of sc.bosses) if (!['sleep', 'gone', 'dead', 'intro'].includes(b.state) && !sc.bossDead) return true;
   return false;
 }
 const sitter = (sc: World): Player | null => sc.players.find((p) => !p.remote && p.sit && !p.downed) || null;

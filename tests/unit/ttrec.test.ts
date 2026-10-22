@@ -11,9 +11,9 @@ import { runFight } from '../../tools/bot/fight';
 import { runFuzz } from '../../tools/fuzz/run';
 import { makeSpec } from '../../tools/fuzz/spec';
 
-const golden = (n: string): { journal: Journal; expect: Record<string, unknown>; loadout?: unknown } => JSON.parse(readFileSync(join(__dirname, '../golden', n + '.json'), 'utf8')) as never;
+const golden = (n: string): { journal: Journal; expect: Record<string, unknown>; loadout?: unknown } => JSON.parse(readFileSync(join(__dirname, '../golden/v2', n + '.json'), 'utf8')) as never;
 const fromGolden = (n: string): Ttrec => { const g = golden(n); return makeTtrec(g.journal, { ver: '1.8', meta: { kind: 'repro', label: n }, setup: { loadout: g.loadout as never }, expect: g.expect }); };
-const fight = (): Ttrec => runFight({ boss: 'vladik', skill: 0.9, players: 1, seed: 5, maxSec: 25, record: true, ver: 't' }).ttrec!;
+const fight = (): Ttrec => runFight({ boss: 'vladik2', skill: 0.9, players: 1, seed: 5, maxSec: 25, record: true, ver: 't' }).ttrec!;
 
 describe('.ttrec: формат', () => {
   it('запись бота сериализуется и читается обратно без потерь', () => {
@@ -36,8 +36,8 @@ describe('.ttrec: формат', () => {
     expect(playTtrec(t).match).toBe(false);
   }, 60_000);
 
-  it('золотая запись v1.8 в обёртке .ttrec проигрывается в тот же исход', () => {
-    for (const n of ['boss-misha-win', 'coop-two-bots', 'speedrun-boss-rush']) expect(playTtrec(fromGolden(n)).match, n).toBe(true);
+  it('золотая запись v2 в обёртке .ttrec проигрывается в тот же исход', () => {
+    for (const n of ['boss-misha2-win', 'coop-two-bots', 'speedrun-boss-rush']) expect(playTtrec(fromGolden(n)).match, n).toBe(true);
   }, 60_000);
 
   let baseText = '';

@@ -14,8 +14,8 @@ const browser = await chromium.launch({ executablePath: chromeExe(), args: ['--i
 const scenes = [
   ['заставка меню', null],
   ['глава I (один)', { kind: 'story', fresh: true }],
-  ['босс: Миша, фаза 3', { kind: 'bosstest', boss: 'misha', train: true, trainPhase: 3 }],
-  ['босс: Тима, фаза 3', { kind: 'bosstest', boss: 'tima', train: true, trainPhase: 3 }],
+  ['босс: Миша, фаза 3', { kind: 'bosstest', boss: 'misha2', train: true, trainPhase: 3 }],
+  ['босс: Тима, фаза 3', { kind: 'bosstest', boss: 'tima2', train: true, trainPhase: 3 }],
   ['вдвоём, глава I', { kind: 'story', fresh: true, players: 2 }],
 ];
 const out = { size, throttle: Number(throttle), quality, dpr: Number(dpr), scenes: {} };

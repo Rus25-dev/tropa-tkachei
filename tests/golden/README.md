@@ -46,6 +46,13 @@
 Поле `loadout` записи — содержимое `tt_loadout` на время проверки (в старой игре его кладут в localStorage, в ядре v2 оно уходит в `loadoutSave`).
 Дополнительное действие `ex 12` — выдать 70 бусин (чтобы быстро покупать в лавке).
 
+## Записи v2 (`tests/golden/v2`)
+В кампании и везде теперь бои с боссами на данных (`penitent`, `misha2`, `vladik2`, `tima2`), поэтому записи боёв, коопа, Босс-раша, главы I и гонки
+сняты заново **ядром v2** (`npm run golden:record`, гонка — `npm run golden:race`) и лежат в `tests/golden/v2/`: `boss-<id>-win / -lose`, `fuzz-<id>-0…4`,
+`fuzz-coop-vladik2/tima2`, `fuzz-heart-penitent/tima2`, `chapter1-full`, `coop-two-bots`, `speedrun-boss-rush`, `race-b1`.
+Каждую запись рекордер перед записью проверяет воспроизведением. Победы проходит безошибочный бот (`NoHitPilot`), остальное — `Brain`.
+Записи v1.8 в `tests/golden/` (коридоры `road-ch*`, `fuzz-level-*`, `fuzz-road*`, `ui-*`, `race-b1`) остались: их читает и старая игра (`legacy-golden`), в них нет боя со старыми боссами.
+
 ## Как проверять
 - v2: `npm test` (файл `tests/unit/golden.test.ts`) — каждая запись воспроизводится ядром в тот же исход и по пути сверяются контрольные хэши.
 - v1.8: `npm run legacy:golden`.

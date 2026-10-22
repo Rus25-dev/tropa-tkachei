@@ -77,7 +77,7 @@ export function statTick(sc: World): void {
     if (sc.camp.st === 'arena' || (sc.camp.st === 'level' && tr != null && p.x >= tr * T)) statSub(sc, 'exit');
   }
   if (p.sit) statSub(sc, 'bench');
-  const b = sc.testBoss() ?? sc.boss;
+  const b = sc.testBoss();
   // подсплиты боя идут по самому боссу, а не по sc.bossDead: на арене глав II–IV этот флаг стоит с начала сцены
   if (b && b.maxHp && b.state && !['sleep', 'dead', 'gone', 'intro'].includes(b.state) && !(b.hp <= 0)) {
     statSub(sc, 'fight');

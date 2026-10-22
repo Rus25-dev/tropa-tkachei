@@ -1,4 +1,5 @@
 // Запуск партии: собирает сессию ядра из настроек и хранилища и подключает сохранение, рекорды и награды.
+import { CHAPTERS } from '../core/balance';
 import { resumeCamp, freshCamp, type CampState } from '../core/campaign';
 import { Session, type SceneData } from '../core/session';
 import { attachRecording, recWanted } from './record';
@@ -41,7 +42,7 @@ export function createSession(p: LaunchParams, version: string): Session {
   const cfg = { easy: settings.s.easy && p.kind !== 'trail' && p.kind !== 'boss', loadoutSave: loadout.get(), progress: p.kind === 'story' && !p.fresh && p.online !== 'guest' ? progress.get() : null, online: p.online ?? null, kit: settings.s.kit && !p.rc && !p.race, ver: version, clock: () => performance.now(), fx: true, wall: () => Date.now() };
   let first: SceneData;
   let run: { cat: 'trail' | 'boss'; opt?: RunOpts } | undefined;
-  if (p.kind === 'bosstest') first = { seed, mode: 'bosstest', boss: p.boss ?? 'misha', players, camp: null, train: !!p.train, trainPhase: p.trainPhase ?? 1 };
+  if (p.kind === 'bosstest') first = { seed, mode: 'bosstest', boss: p.boss ?? CHAPTERS[2]!.boss, players, camp: null, train: !!p.train, trainPhase: p.trainPhase ?? 1 };
   else if (p.kind === 'trail' || p.kind === 'boss') { first = { seed, mode: 'story', players: 1, camp: null }; run = { cat: p.kind, opt: p.rc ? { rc: p.rc } : p.race ? { race: {} } : undefined }; }
   else first = { seed, mode: 'story', players, camp: p.camp ?? (p.fresh ? freshCamp() : resumeCamp(cfg.progress)) };
   const s = p.resumed ? new Session(cfg, null, undefined, p.resumed) : new Session(cfg, first, run);

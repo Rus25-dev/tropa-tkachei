@@ -15,23 +15,23 @@ test.afterAll(() => { server?.close?.(); });
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Any = any;
-const ag = (page: Page) => page.evaluate(() => { const t = (window as Any).__tt, w = t.shared.session?.world; const b = w && (w.testBoss?.() ?? w.boss); return { stats: t.agent?.stats ?? null, tick: w?.tickN ?? 0, seed: w?.seed ?? null, bossHp: b ? b.hp : null, bossMax: b ? b.maxHp : null, bossState: b ? b.state : null, ch: w?.camp?.ch ?? 0, hp: w?.players?.[0]?.hp ?? null, over: !!(w?.wiping || w?.won) }; });
+const ag = (page: Page) => page.evaluate(() => { const t = (window as Any).__tt, w = t.shared.session?.world; const b = w && w.testBoss?.(); return { stats: t.agent?.stats ?? null, tick: w?.tickN ?? 0, seed: w?.seed ?? null, bossHp: b ? b.hp : null, bossMax: b ? b.maxHp : null, bossState: b ? b.state : null, ch: w?.camp?.ch ?? 0, hp: w?.players?.[0]?.hp ?? null, over: !!(w?.wiping || w?.won) }; });
 async function ctxFor(browser: import('@playwright/test').Browser): Promise<BrowserContext> {
   const ctx = await browser.newContext();
   await ctx.addInitScript(() => { try { localStorage.setItem('tt_settings', JSON.stringify({ gfx: 'low' })); } catch { /* нет доступа */ } });
   return ctx;
 }
 
-test('агент в браузере: бой с Мишей в босс-тесте без участия человека', async ({ browser }) => {
+test('агент в браузере: бой с Мишей (misha2) в босс-тесте без участия человека', async ({ browser }) => {
   test.setTimeout(150_000);
   const ctx = await ctxFor(browser), page = await ctx.newPage();
   const errs: string[] = []; page.on('pageerror', (e) => errs.push(e.message));
   await page.goto('/?agent=tkachi&persona=average');
   await page.waitForFunction(() => !!(window as Any).__tt?.agent);
-  await page.evaluate(() => (window as Any).__tt.start({ kind: 'bosstest', boss: 'misha', seed: 77 }));
+  await page.evaluate(() => (window as Any).__tt.start({ kind: 'bosstest', boss: 'misha2', seed: 77 }));
   await expect.poll(async () => (await ag(page)).stats?.decisions ?? 0, { timeout: 60_000 }).toBeGreaterThan(100);
   const a = await ag(page);
-  expect(a.stats!.boss).toBe('misha');
+  expect(a.stats!.boss).toBe('misha'); // своей модели у Миши на данных ещё нет: играет модель прежнего Миши (agent.ts OLD_MODEL)
   // босс получает урон от агента (в среднем за короткий срок): либо бой закончился, либо здоровье босса упало
   await expect.poll(async () => { const s = await ag(page); return s.over || s.bossHp! < s.bossMax!; }, { timeout: 90_000 }).toBe(true);
   expect(errs).toEqual([]);

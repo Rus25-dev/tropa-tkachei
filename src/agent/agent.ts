@@ -11,10 +11,11 @@ const RING = 8;
 
 export const DEFAULT_PLAY: PersonaPlay = { temperature: 1.5, stick: 0.3, atkGap: 0 };
 
-/** Выбор модели по миру: босс-тест и истории (Корнематка) */
+/** Имена моделей, обученных ещё на прежних боссах глав: пока для нового босса своей модели нет, играет модель прежнего босса той же главы */
+const OLD_MODEL: Record<string, string> = { penitent: 'korne', misha2: 'misha', vladik2: 'vladik', tima2: 'tima' };
+/** Выбор модели по миру: модель с id босса, иначе модель прежнего босса главы (см. OLD_MODEL) */
 export function modelFor(pack: AgentPack, w: World): AgentModel | null {
-  const key = w.misha ? 'misha' : w.vladik ? 'vladik' : w.tima ? 'tima' : w.boss ? 'korne' : '';
-  return pack.models[key] ?? null;
+  return pack.models[w.bossKind] ?? pack.models[OLD_MODEL[w.bossKind] ?? ''] ?? null;
 }
 
 export class Agent {
@@ -37,7 +38,7 @@ export class Agent {
 
   /** Кадр ввода на текущий тик (вызывать перед w.tick()). */
   tick(w: World): Inp {
-    const b = w.testBoss() ?? w.boss;
+    const b = w.testBoss();
     const p = w.players[this.idx];
     if (!b || !p || p.downed || p.remote || INTRO.has(b.state) || ['dead', 'gone'].includes(b.state)) { this.started = false; this.sub = 0; return {}; }
     if (!this.started) { this.started = true; this.sub = 0; this.hasPrev = false; this.since = 99; }

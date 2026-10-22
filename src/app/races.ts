@@ -28,7 +28,8 @@ import { journalStore, playStore, raceStore, rcIds, sr as srStore } from './stor
 export type RacesView = null | 'org' | 'archive' | 'join' | 'watchjoin' | 'duel';
 export interface RacesOpts { version: string; start(p: LaunchParams): Session; stop(): void; shared: Shared; game: Phaser.Game; snd(n: string): void; transport?: Transport }
 
-const KIND_LETTER: Record<string, string> = { korne: 'k', misha: 'm', vladik: 'v', tima: 't' };
+/** буква босса в телеметрии гонки (по ней обсервер выбирает музыку и рисунок): боссы глав по порядку глав */
+const KIND_LETTER: Record<string, string> = { penitent: 'k', misha2: 'm', vladik2: 'v', tima2: 't' };
 const r1 = (x: number): number => Math.round(x * 10) / 10;
 
 /** Порт сессии для забегов гонки: телеметрия соперникам и организатору (~15 Гц), события забега, сохранение журнала для восстановления */
@@ -53,11 +54,11 @@ class RunPort implements NetPort {
     const S = r.stats, play = this.R.play; if (!play) return;
     if (!this.inited) { this.inited = true; this.deaths = r.deaths; this.parries = S?.parries ?? 0; this.execs = S?.execs ?? 0; this.buys = S?.buys.length ?? 0; this.subs = S?.subs.length ?? 0; this.bosses = S?.bosses.length ?? 0; }
     const ch0 = w.camp ? w.camp.ch : 1, p0 = w.players[0];
-    if (r.deaths > this.deaths) { play.event('death', { ch: ch0 }); if (p0) this.dead = { x: p0.x, ch: ch0, at: runRta(r), fight: bossLive(w.testBoss() ?? w.boss) }; }
+    if (r.deaths > this.deaths) { play.event('death', { ch: ch0 }); if (p0) this.dead = { x: p0.x, ch: ch0, at: runRta(r), fight: bossLive(w.testBoss()) }; }
     this.deaths = r.deaths;
     // потерянное время: от обрыва нити до возвращения «в дело» (к месту смерти или к бою с боссом), не больше 90 с
     if (this.dead && p0 && !w.wiping) {
-      const d = this.dead, el = runRta(r) - d.at, back = (w.camp ? w.camp.ch : 1) !== d.ch || Math.abs(p0.x - d.x) < 48 || (d.fight && bossLive(w.testBoss() ?? w.boss));
+      const d = this.dead, el = runRta(r) - d.at, back = (w.camp ? w.camp.ch : 1) !== d.ch || Math.abs(p0.x - d.x) < 48 || (d.fight && bossLive(w.testBoss()));
       if (el > 1200 && (back || el > 90000)) { play.event('lost', { ms: Math.round(Math.min(el, 90000)) }); this.dead = null; }
     }
     if (S) {
@@ -67,7 +68,7 @@ class RunPort implements NetPort {
       if (S.execs > this.execs) play.event('exec'); this.execs = S.execs;
       if (S.buys.length > this.buys) { const b = S.buys[S.buys.length - 1]!, it = SHOP.find((s) => s.id === b.id); play.event('buy', { id: b.id, name: it ? it.name : b.id, ch: b.ch, price: b.price }); } this.buys = S.buys.length;
     }
-    const b = w.testBoss() ?? w.boss, ph = b && b.maxHp ? bossPhase(b) : 0, ch = w.camp ? w.camp.ch : 1;
+    const b = w.testBoss(), ph = b && b.maxHp ? bossPhase(b) : 0, ch = w.camp ? w.camp.ch : 1;
     if (ph && this.ph && this.ph.k === ch && ph > this.ph.v) play.event('phase', { ph, ch });
     if (ph) this.ph = { k: ch, v: ph };
   }
@@ -240,7 +241,7 @@ export class Races {
 
   // ---- телеметрия (legacy/race-play.js frame) ----
   telemetry(w: World, r: SrRun, seat: number): Record<string, unknown> {
-    const p = w.players[0]!, b = w.testBoss() ?? w.boss, camp = w.camp, kind = camp ? CHAPTERS[camp.ch]!.boss : 'korne';
+    const p = w.players[0]!, b = w.testBoss(), camp = w.camp, kind = camp ? CHAPTERS[camp.ch]!.boss : CHAPTERS[1]!.boss;
     const o: Record<string, any> = {
       s: seat, el: Math.round(runRta(r)), ig: Math.round(r.igt), ch: camp ? camp.ch : 1, st: camp ? camp.st : 'level', x: Math.round(p.x), y: Math.round(p.y), f: p.face, g: p.onGround ? 1 : 0, vx: Math.round(p.vx), vy: Math.round(p.vy),
       d: p.dashT > 0 ? 1 : 0, a: p.atkT > 0 ? (p.atkDir === 'u' ? 2 : p.atkDir === 'd' ? 3 : 1) : 0, hp: p.hp, mh: p.maxHp, sk: Math.round(p.silk * 10) / 10, ps: P.SILK, bd: w.beads | 0, dn: p.downed ? 1 : 0, sit: p.sit ? 1 : 0,

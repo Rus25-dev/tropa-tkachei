@@ -115,8 +115,8 @@ test('дуэль на подложных снимках: бан/пик, ход �
   await fakeWatch(page, 'veto');
   await expect(page.getByTestId('duel-veto')).toBeVisible({ timeout: 20_000 });
   await expect(page.getByTestId('duel-veto')).toContainText('Bo3'); await expect(page.getByTestId('duel-veto-turn')).toContainText('Ходит Ярь');
-  await expect(page.getByTestId('duel-card-korne')).toHaveAttribute('data-state', 'ban'); await expect(page.getByTestId('duel-card-korne')).toContainText('БАН · Ива');
-  await expect(page.getByTestId('duel-card-misha')).toHaveAttribute('data-state', 'free');
+  await expect(page.getByTestId('duel-card-penitent')).toHaveAttribute('data-state', 'ban'); await expect(page.getByTestId('duel-card-penitent')).toContainText('БАН · Ива');
+  await expect(page.getByTestId('duel-card-misha2')).toHaveAttribute('data-state', 'free');
   // ход раунда: счёт, босс, модификатор, график, разница к фазам
   await fakeWatch(page, 'run');
   await expect(page.getByTestId('duel-chase')).toBeVisible({ timeout: 20_000 });
@@ -137,7 +137,7 @@ test('дуэль на подложных снимках: бан/пик, ход �
   // игрок: ход в бан/пик с подтверждением
   await fakeJoin(page, 'veto');
   await expect(page.getByTestId('duel-turn')).toContainText('Ходит Ярь');
-  await expect(page.getByTestId('duel-card-misha')).toBeDisabled(); await expect(page.getByTestId('duel-confirm')).toBeDisabled();
+  await expect(page.getByTestId('duel-card-misha2')).toBeDisabled(); await expect(page.getByTestId('duel-confirm')).toBeDisabled();
   await fakeJoin(page, 'lobby');
   await expect(page.getByTestId('duel-ready-hint')).toContainText('Миша Додик'); await expect(page.getByTestId('join-ready')).toBeEnabled();
   // организатор: серия, график и разница к фазам
@@ -158,11 +158,11 @@ test('дуэль, игрок: свой ход — выбор карточки и
   await page.exposeFunction('__veto', (b: string) => sent.push(b));
   await page.evaluate(() => { const p = (window as any).__tt.races.play; p.veto = (b: string) => (window as any).__veto(b); }); // eslint-disable-line @typescript-eslint/no-explicit-any
   await expect(page.getByTestId('duel-confirm')).toBeDisabled();
-  await page.getByTestId('duel-card-misha').click(); await expect(page.getByTestId('duel-card-misha')).toHaveAttribute('aria-pressed', 'true');
+  await page.getByTestId('duel-card-misha2').click(); await expect(page.getByTestId('duel-card-misha2')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByTestId('duel-confirm')).toContainText('Миша'); await expect(page.getByTestId('duel-confirm')).toBeEnabled();
-  await page.getByTestId('duel-card-korne').click({ force: true }); await expect(page.getByTestId('duel-card-misha')).toHaveAttribute('aria-pressed', 'true'); // забаненный босс не выбирается
+  await page.getByTestId('duel-card-penitent').click({ force: true }); await expect(page.getByTestId('duel-card-misha2')).toHaveAttribute('aria-pressed', 'true'); // забаненный босс не выбирается
   await page.getByTestId('duel-confirm').click();
-  await expect.poll(() => sent).toEqual(['misha']);
+  await expect.poll(() => sent).toEqual(['misha2']);
 });
 
 for (const [W, H] of SIZES) {
@@ -186,7 +186,7 @@ for (const [W, H] of SIZES) {
     // игрок
     await fakeJoin(page, 'veto'); await check(page, 'игрок: бан/пик'); await shot('play-veto');
     await page.evaluate(() => { const p = (window as any).__tt.races.play; p.state.duel.series.step = 1; p.seat = 2; p.name = 'Ярь'; p.changed(); }); // eslint-disable-line @typescript-eslint/no-explicit-any
-    await page.getByTestId('duel-card-misha').click(); await check(page, 'игрок: свой ход, карточка выбрана'); await shot('play-veto-mine');
+    await page.getByTestId('duel-card-misha2').click(); await check(page, 'игрок: свой ход, карточка выбрана'); await shot('play-veto-mine');
     await fakeJoin(page, 'lobby'); await check(page, 'игрок: ожидание раунда'); await shot('play-lobby');
     await fakeJoin(page, 'done'); await check(page, 'игрок: итог раунда'); await shot('play-done');
     await page.keyboard.press('Escape');
@@ -230,7 +230,7 @@ test('рейтинг: серия дуэли — отдельная вкладк�
 });
 
 // ---------- многооконная серия (локально) ----------
-const BOSSES = ['korne', 'misha', 'vladik', 'tima'] as const;
+const BOSSES = ['penitent', 'misha2', 'vladik2', 'tima2'] as const;
 const duelRun = (p: Page) => p.evaluate(() => { const w = window.__tt!.shared.session?.world as Record<string, any> | undefined; return w ? { duel: w['sr']?.duel as { ch: number; mods: string[] } | null, ch: w['camp']?.ch as number, seed: w['seed'] as number, hold: !!w['sr']?.hold, mirror: document.documentElement.classList.contains('tt-mirror') } : null; }); // eslint-disable-line @typescript-eslint/no-explicit-any
 /** герой неуязвим, время забега задаётся, босс считается убитым */
 const killBoss = (p: Page, ms: number) => p.evaluate((t) => {
@@ -288,10 +288,10 @@ test('дуэль Bo1: бан/пик у игроков и обсервера, р�
   await expect.poll(() => duelRun(p2), { timeout: 60_000 }).toMatchObject({ duel: { mods: ['mirror'] }, mirror: true });
   const [d1, d2] = [(await duelRun(p1))!, (await duelRun(p2))!];
   expect(d1.duel!.ch).toBe(d2.duel!.ch); expect(d1.seed).toBe(d2.seed); expect(d1.ch).toBe(d1.duel!.ch);
-  expect(plan).toContain(['Корнематка', 'Миша Додик', 'Владик Скрипка', 'Тима Пиво'][d1.duel!.ch - 1]!);
+  expect(plan).toContain(['Первый Кающийся', 'Миша Додик', 'Владик Скрипка', 'Тима Пиво'][d1.duel!.ch - 1]!);
   await expect(org.getByTestId('org-phase')).toHaveText('гонка идёт', { timeout: 60_000 });
   await expect.poll(async () => (await duelRun(p1))!.hold || (await duelRun(p2))!.hold, { timeout: 30_000 }).toBe(false);
-  await expect(p1.getByTestId('duel-hud-boss')).toContainText(['Корнематка', 'Миша Додик', 'Владик Скрипка', 'Тима Пиво'][d1.duel!.ch - 1]!);
+  await expect(p1.getByTestId('duel-hud-boss')).toContainText(['Первый Кающийся', 'Миша Додик', 'Владик Скрипка', 'Тима Пиво'][d1.duel!.ch - 1]!);
   await expect(wp.getByTestId('duel-watch')).toBeVisible({ timeout: 30_000 }); // график погони на табло
   await expect(wp.getByTestId('duel-score')).toContainText('Bo1');
   // Ярь обрывает нить, Ива убивает босса: раунд и серия за Ивой

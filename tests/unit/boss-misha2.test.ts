@@ -1,7 +1,7 @@
 // Миша Додик на данных (misha2): загрузка, детерминизм, состав связок по фазам, дымовуха в рюкзак (в том числе «застёгнутая» последняя четверть),
 // отрисовка с пустым Graphics. Старый автомат (misha) этими тестами не затрагивается: его проверяют прежние тесты и золотые записи.
 import { describe, expect, it } from 'vitest';
-import { duelBossIds, LEGACY_CARDS, raceBossIds, testCards } from '../../src/core/boss/catalog';
+import { duelBossIds, raceBossIds, testCards } from '../../src/core/boss/catalog';
 import { dstate, enterPhase, weakStates } from '../../src/core/boss/exec';
 import { bossDef } from '../../src/core/boss/registry';
 import { feedInput, makeFuzzer } from '../../src/core/fuzzinput';
@@ -19,13 +19,12 @@ const bomb = (w: World): void => {
 };
 
 describe('Миша Додик на данных', () => {
-  it('загружен, виден в Босс-тесте и среди ботов; старые карточки и их порядок на месте', () => {
+  it('загружен, босс главы II: виден в Босс-тесте, среди ботов и в дуэли; боссы глав идут по порядку глав', () => {
     const d = bossDef(ID)!;
     expect(d).toBeTruthy(); expect(d.dev).toBe(false); expect(d.arena).toBe('misha');
-    expect(testCards(false).map((c) => c.id)).toEqual(expect.arrayContaining(['misha', ID]));
-    expect(testCards(false).slice(0, 3).map((c) => c.id)).toEqual(LEGACY_CARDS.map((c) => c.id));
-    expect(raceBossIds()).toEqual(expect.arrayContaining(['misha', ID]));
-    expect(duelBossIds()).not.toContain(ID); // дуэль для боссов на данных ещё не подключена
+    expect(testCards(false).slice(0, 4).map((c) => c.id)).toEqual(['penitent', ID, 'vladik2', 'tima2']);
+    expect(raceBossIds()).toContain(ID);
+    expect(duelBossIds()).toContain(ID);
   });
 
   it('устроен как средний босс: 3 фазы, 9+ связок игрока, все четыре цвета замаха', () => {

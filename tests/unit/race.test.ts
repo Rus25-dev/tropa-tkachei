@@ -1,4 +1,5 @@
-// Гонка v1.8 (запись race-b1): журналы обоих игроков воспроизводятся ядром v2 в тот же исход и ту же статистику забега.
+// Гонка «Тропа целиком» (запись race-b1, tests/golden/v2): журналы обоих игроков воспроизводятся ядром в тот же исход и ту же статистику забега.
+// (Запись v1.8 tests/golden/race-b1.json остаётся только для старой игры: в ней босс главы I стоял в уровне, теперь это отдельная арена.)
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -7,7 +8,7 @@ import { packStats } from '../../src/core/racestats';
 import { replayJournal } from '../../src/core/replay';
 
 interface RacePlayer { name: string; journal: Journal; expect: Record<string, unknown>; stats: Record<string, unknown> }
-const rec = JSON.parse(readFileSync(join(__dirname, '../golden/race-b1.json'), 'utf8')) as { players: RacePlayer[] };
+const rec = JSON.parse(readFileSync(join(__dirname, '../golden/v2/race-b1.json'), 'utf8')) as { players: RacePlayer[] };
 
 describe('гонка race-b1 (журналы игроков)', () => {
   for (const p of rec.players) {

@@ -32,9 +32,9 @@ describe('разница к фазам', () => {
 
 describe('подписи', () => {
   it('босс, модификаторы, журнал бан/пика по ходам с решающим', () => {
-    expect(bossName('vladik')).toBe('Владик Скрипка'); expect(bossName(null)).toBe('—'); expect(modsLine([])).toBe('без модификаторов'); expect(modsLine(['mirror', 'blitz'])).toBe('Зеркало · Блиц +20 %');
+    expect(bossName('vladik2')).toBe('Владик Скрипка'); expect(bossName(null)).toBe('—'); expect(modsLine([])).toBe('без модификаторов'); expect(modsLine(['mirror', 'blitz'])).toBe('Зеркало · Блиц +20 %');
     let s = newSeries(3, 2);
-    for (const b of ['korne', 'misha', 'vladik'] as const) { const r = applyVeto(s, vetoNow(s)!.side, b); if (!r.ok) throw new Error(r.why); s = r.s; }
-    expect(vetoLines(s).map((l) => [l.kind, l.boss])).toEqual([['ban', 'korne'], ['pick', 'misha'], ['pick', 'vladik'], ['decider', 'tima']]);
+    for (const b of ['penitent', 'misha2', 'vladik2'] as const) { const r = applyVeto(s, vetoNow(s)!.side, b); if (!r.ok) throw new Error(r.why); s = r.s; }
+    expect(vetoLines(s).map((l) => [l.kind, l.boss])).toEqual([['ban', 'penitent'], ['pick', 'misha2'], ['pick', 'vladik2'], ['decider', 'tima2']]);
   });
 });

@@ -3,7 +3,7 @@
 // только из зерна комнаты через именованные потоки (core/rng.ts), поэтому организатор, игроки и обсервер всегда видят одно и то же.
 //
 // Правила (подробнее — docs/NEXT_VERSIONS.md, раздел 2.4):
-//  * Боссов четыре: Корнематка, Миша, Владик, Тима. «A» — тот, кто ходит первым в бан/пик; его назначает жребий из зерна.
+//  * Боссов четыре (боссы глав): Первый Кающийся, Миша, Владик, Тима. «A» — тот, кто ходит первым в бан/пик; его назначает жребий из зерна.
 //  * Bo1: баны A, B, A — остаётся один босс, он и решающий. Bo3: A банит, B пикает, A пикает — остаётся решающий.
 //    Bo5: бана нет, пики A, B, A, B — четыре раунда по пикам, пятый (решающий) босс выпадает жребием из зерна, потому что остатка нет.
 //    (Схема «бан-бан-пик-пик-остаток» требует пяти боссов; при четырёх она не оставила бы решающего, поэтому баны урезаны.)
@@ -12,26 +12,27 @@
 //    у кого сняно больше здоровья босса. Ничья переигрывается новым зерном; третья ничья подряд решается жребием из зерна.
 //  * Серия кончается, когда у кого-то набралось нужное число побед (Bo1 — 1, Bo3 — 2, Bo5 — 3).
 import { cleanMods, DUEL_MODS, type DuelMod } from './duelmods';
-import { duelBossIds, LEGACY_DUEL } from './boss/catalog';
+import { CHAPTER_IDS, duelBossIds } from './boss/catalog';
 import { bossDef } from './boss/registry';
 import { mulberry32, rngSeedFor } from './rng';
 
-/** Боссы дуэли: четыре старых по порядку глав + боссы на данных с duel: true (список строится из реестра боссов, этот файл при добавлении босса не меняется) */
+/** Боссы дуэли: боссы глав по порядку глав + боссы на данных с duel: true (список строится из реестра боссов, этот файл при добавлении босса не меняется) */
 export const DUEL_BOSSES: readonly string[] = duelBossIds();
 export type DuelBoss = string;
 export interface BossInfo { name: string; short: string; ch: number; note: string }
-const LEGACY_INFO: Record<string, BossInfo> = {
-  korne: { name: 'Корнематка', short: 'Корнематка', ch: 1, note: 'Прыжки, споры и три фазы' },
-  misha: { name: 'Миша Додик', short: 'Миша', ch: 2, note: 'Рюкзак, буквы и диктовка' },
-  vladik: { name: 'Владик Скрипка', short: 'Владик', ch: 3, note: 'Смычок, ноты и занавесы' },
-  tima: { name: 'Тима Пиво', short: 'Тима', ch: 4, note: 'Пена, лужи и гипер-режим' },
+/** короткие имена и подсказки боссов глав для экрана бан/пик (остальное берётся из описания босса) */
+const CHAPTER_INFO: Record<string, { short: string; note: string }> = {
+  penitent: { short: 'Кающийся', note: 'Вериги, язык цветов и смена боя на половине' },
+  misha2: { short: 'Миша', note: 'Рюкзак, печатные буквы и валик' },
+  vladik2: { short: 'Владик', note: 'Смычок, нотный стан и эхо' },
+  tima2: { short: 'Тима', note: 'Пиво, банкротство и волшебная пыль' },
 };
-/** карточка босса: имя, глава (0 — босс на данных, у него нет главы), короткая подсказка для экрана бан/пик */
+/** карточка босса: имя, глава (0 — босс не из глав, у него нет главы), короткая подсказка для экрана бан/пик */
 export const BOSS_INFO: Record<DuelBoss, BossInfo> = Object.fromEntries(DUEL_BOSSES.map((id): [string, BossInfo] => {
-  const d = bossDef(id);
-  return [id, LEGACY_INFO[id] ?? { name: d?.name ?? id, short: d?.name ?? id, ch: 0, note: d?.landmark || d?.about || '' }];
+  const d = bossDef(id), ch = CHAPTER_IDS.indexOf(id) + 1, i = CHAPTER_INFO[id];
+  return [id, { name: d?.name ?? id, short: i?.short ?? d?.name ?? id, ch, note: i?.note ?? (d?.landmark || d?.about || '') }];
 }));
-export const bossOfCh = (ch: number): DuelBoss => LEGACY_DUEL[Math.max(0, Math.min(3, ch - 1))]!;
+export const bossOfCh = (ch: number): DuelBoss => CHAPTER_IDS[Math.max(0, Math.min(3, ch - 1))]!;
 export const isBossId = (x: unknown): x is DuelBoss => typeof x === 'string' && DUEL_BOSSES.includes(x);
 
 export type SeriesFmt = 1 | 3 | 5;

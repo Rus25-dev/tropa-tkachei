@@ -126,7 +126,7 @@ for (const [W, H] of SIZES) {
       await expect(wp.getByTestId('watch-splits-table')).toContainText(disc === 'trail' ? 'выход из коридора' : 'фаза 2');
       if (disc === 'trail') await expect(wp.getByTestId('splits-sob')).toContainText(/\d:\d\d\.\d\d/); // сумма лучших отрезков у первого игрока
       else { // «босс × игрок»: время, урон, отбивы, лучший босс и сумма лучших
-        await expect(wp.getByTestId('watch-boss-table')).toBeVisible(); await expect(wp.getByTestId('boss-sob')).toContainText(/\d:\d\d\.\d\d/); await expect(wp.getByTestId('boss-best')).toContainText('Корнематка');
+        await expect(wp.getByTestId('watch-boss-table')).toBeVisible(); await expect(wp.getByTestId('boss-sob')).toContainText(/\d:\d\d\.\d\d/); await expect(wp.getByTestId('boss-best')).toContainText('Кающийся');
       }
       await wp.waitForTimeout(300);
       await wp.screenshot({ path: `test-results/races-shots/${W}x${H}-watch-${disc}-table.png` });

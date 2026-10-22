@@ -7,12 +7,12 @@ import type { Session } from '../../core/session';
 import type { World } from '../../core/world';
 import { drawClassroom, drawDen } from '../artRooms';
 import { drawLevelChunks } from '../art';
-import { drawCurtains, drawDataBoss, drawDataProjs, drawKorne, drawMisha, drawTima, drawVladik, type Say } from '../draw/bosses';
+import { drawDataBoss, drawDataProjs } from '../draw/bosses';
 import { bossDef } from '../../core/boss/registry';
 import { drawEnemy } from '../draw/enemies';
 import { drawArena } from '../draw/arena';
 import { drawPlayer, drawSwingArc, trailStyle } from '../draw/hero';
-import { drawBeads, drawHitKinds, drawItems, drawPoiseBars, drawProjectiles, drawStatus, type TextPool } from '../draw/projectiles';
+import { drawBeads, drawHitKinds, drawItems, drawPoiseBars, drawProjectiles, drawStatus } from '../draw/projectiles';
 import { drawWeaver, type G } from '../draw/common';
 import { currentFit, fitCamera, type Fit } from '../fit';
 import { Snd } from '../audio/snd';
@@ -25,26 +25,16 @@ import { QualityGovernor, applyCameraFx, gradeMatrix } from '../quality';
 
 const FONT = '"Fira Sans", sans-serif', DISPLAY = '"Cormorant SC", Georgia, serif';
 
-/** Пул текстовых объектов: берём по порядку, лишние прячем после кадра */
-class Pool implements TextPool {
-  private items: Phaser.GameObjects.Text[] = []; private n = 0;
-  constructor(private make: () => Phaser.GameObjects.Text) {}
-  begin(): void { this.n = 0; }
-  take(): Phaser.GameObjects.Text { let t = this.items[this.n]; if (!t) { t = this.make(); this.items.push(t); } this.n++; return t; }
-  end(): void { for (let i = this.n; i < this.items.length; i++) this.items[i]!.setVisible(false); }
-  destroy(): void { for (const t of this.items) t.destroy(); this.items = []; }
-}
-
 interface SignObj { txt: Phaser.GameObjects.Text; px: number; py: number }
 
-const NOT_HARM = new Set(['bomb', 'ringfx', 'staffghost', 'mark']);
+const NOT_HARM = new Set(['bomb']);
 export class GameScene extends Phaser.Scene {
   private sh!: Shared;
   private sess: Session | null = null;
   private w: World | null = null;
   private fit: Fit = currentFit();
   // слои
-  private fx!: G; private fb!: G; private itemG!: G; private curtainG!: G; private slimeG!: G; private exitG!: G; private stG!: G;
+  private fx!: G; private fb!: G; private itemG!: G; private exitG!: G; private stG!: G;
   private chunkImgs: Phaser.GameObjects.Image[] = [];
   private roomObjs: Phaser.GameObjects.GameObject[] = [];
   private signs: SignObj[] = [];
@@ -55,10 +45,7 @@ export class GameScene extends Phaser.Scene {
   private dataG: G[] = []; private arenaG: G | null = null;
   /** подсказка камере от сцены боссов (событие camZoom): множитель масштаба и сколько ещё секунд */
   private zoomK = 1; private zoomT = 0;
-  private bossG: G | null = null; private mishaG: G | null = null; private vladikG: G | null = null; private timaG: G | null = null;
-  private say = { misha: null as Phaser.GameObjects.Text | null, vladik: null as Phaser.GameObjects.Text | null, tima: null as Phaser.GameObjects.Text | null };
-  private letters!: Pool; private big!: Pool; private stamps!: Pool;
-  private stampTexts: Phaser.GameObjects.Text[] = []; private furnG: G | null = null;
+  private furnG: G | null = null;
   // призрак соперника (гонка 1×1)
   private ghostG: G | null = null; private ghostTag: Phaser.GameObjects.Text | null = null; private ghostPos: { x: number; y: number } | null = null;
   // частицы
@@ -73,11 +60,8 @@ export class GameScene extends Phaser.Scene {
   create(): void {
     this.sh = this.registry.get('shared') as Shared;
     this.fx = this.add.graphics().setDepth(6); this.fb = this.add.graphics().setDepth(4.5);
-    this.itemG = this.add.graphics().setDepth(2.5); this.curtainG = this.add.graphics().setDepth(3); this.slimeG = this.add.graphics().setDepth(3.1);
+    this.itemG = this.add.graphics().setDepth(2.5);
     this.exitG = this.add.graphics().setDepth(1.5); this.stG = this.add.graphics().setDepth(5.6);
-    this.letters = new Pool(() => this.add.text(0, 0, '', { fontFamily: FONT, fontSize: '28px', fontStyle: '700', color: '#f4efe0', stroke: '#1a1410', strokeThickness: 5 }).setOrigin(0.5).setDepth(6.2));
-    this.big = new Pool(() => this.add.text(0, 0, '', { fontFamily: FONT, fontSize: '74px', fontStyle: '700', color: '#e8e2cf', stroke: '#1a1410', strokeThickness: 7 }).setOrigin(0.5).setDepth(6.2));
-    this.stamps = new Pool(() => this.add.text(0, 0, 'БАНКРОТ', { fontFamily: FONT, fontSize: '14px', fontStyle: '700', color: '#f4efe0' }).setOrigin(0.5).setDepth(6.4));
     this.parts = this.add.particles(0, 0, 'spark', { emitting: false, lifespan: 500, speed: { min: 60, max: 220 }, scale: { start: 0.9, end: 0 }, blendMode: 'ADD' }).setDepth(7);
     this.dustE = this.add.particles(0, 0, 'dot', { emitting: false, lifespan: 380, speed: { min: 20, max: 70 }, angle: { min: 200, max: 340 }, scale: { start: 1, end: 0 }, alpha: { start: 0.6, end: 0 }, tint: 0x8fae9c, gravityY: 80 }).setDepth(7);
     this.gov = new QualityGovernor(this.sh.gfx().quality, this.sh.touch);
@@ -106,16 +90,12 @@ export class GameScene extends Phaser.Scene {
     for (const g of this.gateG) g.destroy(); this.gateG = [];
     for (const g of this.entG.values()) g.destroy(); this.entG.clear();
     for (const p of this.playerG) { p.g.destroy(); p.tag.destroy(); } this.playerG = [];
-    for (const g of [this.bossG, this.mishaG, this.vladikG, this.timaG]) g?.destroy();
-    this.bossG = this.mishaG = this.vladikG = this.timaG = null;
     for (const g of this.dataG) g.destroy(); this.dataG = [];
     this.arenaG?.destroy(); this.arenaG = null; this.zoomK = 1; this.zoomT = 0;
-    for (const t of Object.values(this.say)) t?.destroy(); this.say = { misha: null, vladik: null, tima: null };
     for (const e of [this.smoke, this.paper, this.foam, this.dustFx]) e?.destroy(); this.smoke = this.paper = this.foam = this.dustFx = null;
-    for (const t of this.stampTexts) t.destroy(); this.stampTexts = []; this.furnG?.destroy(); this.furnG = null;
+    this.furnG?.destroy(); this.furnG = null;
     this.ghostG?.destroy(); this.ghostG = null; this.ghostTag?.destroy(); this.ghostTag = null; this.ghostPos = null;
-    this.fx.clear(); this.fb.clear(); this.itemG.clear(); this.curtainG.clear(); this.slimeG.clear(); this.exitG.clear(); this.stG.clear();
-    this.letters.destroy(); this.big.destroy(); this.stamps.destroy();
+    this.fx.clear(); this.fb.clear(); this.itemG.clear(); this.exitG.clear(); this.stG.clear();
     this.accG?.destroy(); this.accG = null; this.spkFor = null;
     this.registry.remove('hud'); this.appliedQ = ''; this.appliedKey = '';
     this.registry.set('cam', { x: 0, y: 0, room: false, active: false } satisfies CamInfo);
@@ -124,10 +104,6 @@ export class GameScene extends Phaser.Scene {
   private build(w: World): void {
     this.teardown();
     this.w = w;
-    // пулы текстов пересозданы в teardown — создаём заново
-    this.letters = new Pool(() => this.add.text(0, 0, '', { fontFamily: FONT, fontSize: '28px', fontStyle: '700', color: '#f4efe0', stroke: '#1a1410', strokeThickness: 5 }).setOrigin(0.5).setDepth(6.2));
-    this.big = new Pool(() => this.add.text(0, 0, '', { fontFamily: FONT, fontSize: '74px', fontStyle: '700', color: '#e8e2cf', stroke: '#1a1410', strokeThickness: 7 }).setOrigin(0.5).setDepth(6.2));
-    this.stamps = new Pool(() => this.add.text(0, 0, 'БАНКРОТ', { fontFamily: FONT, fontSize: '14px', fontStyle: '700', color: '#f4efe0' }).setOrigin(0.5).setDepth(6.4));
     const L = w.L;
     // карта
     const chunks = L.theme === 'class' ? drawClassroom(this, L) : L.theme === 'den' ? drawDen(this, L) : drawLevelChunks(this, L);
@@ -163,12 +139,9 @@ export class GameScene extends Phaser.Scene {
     this.gateG = w.gates.map(() => this.add.graphics().setDepth(3)); this.gateAnim = w.gates.map((gt) => (gt.closed ? 1 : 0));
     // герои
     this.playerG = w.players.map((p) => ({ g: this.add.graphics().setDepth(5), tag: this.add.text(0, 0, p.pal.tag, { fontFamily: FONT, fontSize: '9px', fontStyle: '700', color: '#f4efe0', stroke: '#10141a', strokeThickness: 2 }).setOrigin(0.5).setDepth(5.1) }));
-    // боссы
-    this.bossG = this.add.graphics().setDepth(4);
-    const bubble = (): Phaser.GameObjects.Text => this.add.text(0, 0, '', { fontFamily: FONT, fontSize: '15px', fontStyle: '600', color: '#1a1410', backgroundColor: '#f4efe0', padding: { x: 8, y: 4 } }).setOrigin(0.5, 1).setDepth(8.5).setVisible(false);
+    // убранство арен (по уровню: боссы на данных рисуются отдельно, ниже)
     const dust = (key: string, cfg: Phaser.Types.GameObjects.Particles.ParticleEmitterConfig, depth: number): Phaser.GameObjects.Particles.ParticleEmitter => this.add.particles(0, 0, key, { emitting: false, ...cfg }).setDepth(depth);
-    if (w.misha) {
-      this.mishaG = this.add.graphics().setDepth(4); this.say.misha = bubble();
+    if (L.misha) {
       // буквы на задней стене — следы старых наборных касс
       const R = mulberry32(404), chars = 'АБВГДЕЖЗИКЛМНОПРСТУФХЦЧШЩЫЭЮЯ';
       for (let i = 0; i < 22; i++) {
@@ -188,15 +161,12 @@ export class GameScene extends Phaser.Scene {
       this.smoke = dust('spark', { lifespan: { min: 900, max: 1600 }, speed: { min: 10, max: 60 }, scale: { start: 2.2, end: 6 }, alpha: { start: 0.55, end: 0 }, tint: [0x8e9894, 0xb3bab6, 0x6f7774], gravityY: -40 }, 6.5);
       this.paper = dust('dot', { lifespan: 600, speed: { min: 40, max: 160 }, scale: { start: 1.4, end: 0 }, rotate: { min: 0, max: 360 }, tint: 0xf4efe0, gravityY: 300 }, 7);
     }
-    if (w.vladik) {
-      this.vladikG = this.add.graphics().setDepth(4); this.say.vladik = bubble();
+    if (L.vladik && w.bossKind === 'vladik2') {
       this.roomObjs.push(this.add.text(14 * T, 5 * T + 22, 'Тема: скрипичный ключ', { fontFamily: FONT, fontSize: '13px', fontStyle: 'italic', color: '#e8eadf' }).setOrigin(0.5, 0).setAlpha(0.75).setDepth(0.25));
     }
-    if (w.tima) {
-      this.timaG = this.add.graphics().setDepth(4); this.say.tima = bubble();
+    if (L.tima) {
       this.furnG = this.add.graphics().setDepth(0.6);
       this.drawFurniture(w);
-      this.stampTexts = w.L.furniture!.map((f) => this.add.text((f.x0 + f.x1 + 1) * T / 2, f.y * T - 6, 'ИЗЪЯТО', { fontFamily: FONT, fontSize: '22px', fontStyle: '700', color: '#ff5a4a', stroke: '#1a1410', strokeThickness: 4 }).setOrigin(0.5).setAngle(-8).setDepth(6.3).setVisible(false));
       this.dustFx = dust('spark', { lifespan: 700, speed: { min: 20, max: 90 }, scale: { start: 0.9, end: 0 }, tint: [0xffe38a, 0xffffff, 0xffb6f0, 0x9ff0ff], blendMode: 'ADD' }, 7);
       this.foam = dust('dot', { lifespan: 500, speed: { min: 40, max: 180 }, scale: { start: 1.6, end: 0 }, tint: [0xfff6d8, 0xf2c14e], gravityY: 400 }, 7);
     }
@@ -273,8 +243,8 @@ export class GameScene extends Phaser.Scene {
   }
   private musicTrack(w: World): string {
     if (w.won) return 'menu';
-    if (w.mode === 'bosstest') return bossDef(w.bossKind)?.music ?? w.bossKind;
-    const b = w.boss; return b && !['sleep', 'gone', 'dead'].includes(b.state) ? 'boss' : 'cave';
+    if (w.mode === 'bosstest') return bossDef(w.bossKind)?.music ?? 'boss';
+    return 'cave';
   }
 
   /** события ядра → звук, частицы, камера, интерфейс */
@@ -299,7 +269,6 @@ export class GameScene extends Phaser.Scene {
         case 'flash': if (!gfx.noflash) cam.flash(e['ms'] as number, e['r'] as number, e['g'] as number, e['b'] as number); else this.game.events.emit('tt:ui', { k: 'dim', d: e['ms'] }); break; // «без вспышек»: мягкое затемнение вместо белой вспышки
         case 'fade': if (e['out']) cam.fadeOut(e['ms'] as number, 3, 8, 7); else cam.fadeIn(e['ms'] as number, 3, 8, 7); break;
         case 'camSnap': { const w = s.world; const p = w.alivePlayers()[0] ?? w.players[0]!; this.camX = w.respawn.x; this.camY = w.respawn.y - 80; void p; break; }
-        case 'repo': { const on = e['on'] as boolean; this.furnG?.setAlpha(on ? 0.18 : 1); this.stampTexts.forEach((t) => t.setVisible(on)); break; }
         case 'chargeSnd': if (e['on']) Snd.chargeStart(e['i'] as number, e['dur'] as number, e['id'] as string); else Snd.chargeStop(e['i'] as number); break;
         case 'enemyKill': break;
         case 'camZoom': this.zoomK = e['zoom'] as number; this.zoomT = (e['frames'] as number) / 60; break;
@@ -327,7 +296,7 @@ export class GameScene extends Phaser.Scene {
 
   /** «Контуры опасного»: яркая обводка снарядов и шипов (доступность) */
   private outlines(w: World): void {
-    const on = this.sh.gfx().outl && !w.td;
+    const on = this.sh.gfx().outl;
     if (!on) { this.accG?.clear(); return; }
     const g = this.accG ?? (this.accG = this.add.graphics().setDepth(8.5)); g.clear();
     const line = (x: number, y: number, ww: number, hh: number): void => { g.lineStyle(5, 0x000000, 0.65); g.strokeRect(x, y, ww, hh); g.lineStyle(2.5, 0xffe600, 1); g.strokeRect(x, y, ww, hh); };
@@ -370,22 +339,16 @@ export class GameScene extends Phaser.Scene {
       drawEnemy(e, g, now);
     }
     for (const [k, g] of this.entG) if (!alive.has(k)) { g.destroy(); this.entG.delete(k); }
-    if (this.bossG) drawKorne(w.boss, this.bossG, now);
     drawItems(w, this.itemG, now);
-    if (w.misha && this.mishaG && this.say.misha) drawMisha(w, w.misha, this.mishaG, now, this.sayOf(this.say.misha), (n, x, y) => this.smoke?.explode(n, x, y));
-    this.letters.begin(); this.big.begin(); this.stamps.begin();
-    if (w.vladik && this.vladikG && this.say.vladik) { drawCurtains(w, this.curtainG, this.slimeG, now); drawVladik(w.vladik, this.vladikG, now, this.sayOf(this.say.vladik)); }
-    if (w.tima && this.timaG && this.say.tima) drawTima(w.tima, this.timaG, now, this.sayOf(this.say.tima), (n, x, y) => this.dustFx?.explode(n, x, y));
     if (this.arenaG) drawArena(w, this.arenaG, now);
     w.bosses.forEach((db, i) => { const dg = this.dataG[i]; if (dg) drawDataBoss(w, db, dg, now); });
     // удары
     for (const p of w.players) drawSwingArc(w, p, fx);
-    drawProjectiles(w, fx, fb, now, { letters: this.letters, big: this.big, stamps: this.stamps });
+    drawProjectiles(w, fx, now);
     drawPoiseBars(w, fx, now);
-    drawHitKinds(w, fx, now, this.sh.gfx().outl && !w.td);
+    drawHitKinds(w, fx, now, this.sh.gfx().outl);
     if (w.bosses.length) drawDataProjs(w, fx, now);
     drawBeads(w, fx);
-    this.letters.end(); this.big.end(); this.stamps.end();
     if (w.sr?.race) this.drawGhost(w, dt);
     this.stG.clear(); drawStatus(w, this.stG, now, (c, x, y) => { this.dustE.setParticleTint(c); this.dustE.explode(1, x, y); this.dustE.setParticleTint(0x8fae9c); });
     // ворота
@@ -430,13 +393,8 @@ export class GameScene extends Phaser.Scene {
     drawWeaver(g, 0, 0, o.f || 1, PAL[1]!, { leg: run ? Math.sin(ph) * 5 : (o.g ? 0 : 2), bob: run ? Math.abs(Math.sin(ph)) * 1.5 : 0, sway: run ? -4 : (!o.g ? (o.vy < 0 ? -2 : 3) : 0), lift: (!o.g && o.vy > 0) ? -4 : 0 }, 1);
     tag.setVisible(true).setAlpha(0.6).setPosition(cx, fy - 52);
   }
-  private sayOf(t: Phaser.GameObjects.Text): Say {
-    return { show: (text, x, y) => { t.setText(text).setPosition(x, y).setVisible(true); }, hide: () => { t.setVisible(false); } };
-  }
-
   private updateCamera(w: World, dt: number): void {
     const cam = this.cameras.main;
-    if (w.tdFlip) { this.registry.set('cam', { x: this.camX, y: this.camY, room: !!w.L.theme, active: true } satisfies CamInfo); return; }
     const pts = w.alivePlayers().length ? w.alivePlayers() : w.players;
     let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
     for (const p of pts) { x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x + p.w); y0 = Math.min(y0, p.y); y1 = Math.max(y1, p.y + p.h); }

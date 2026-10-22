@@ -12,7 +12,7 @@ import { scanJournal } from '../../tools/fuzz/scan';
 import { MODES, makeSpec, type FuzzSpec } from '../../tools/fuzz/spec';
 import { emptyButtons, edgesBetween } from '../../src/core/input';
 
-const world = (): World => new World({ seed: 5, mode: 'bosstest', boss: 'vladik' });
+const world = (): World => new World({ seed: 5, mode: 'bosstest', boss: 'vladik2' });
 /** n проверок подряд; каждая — один тик логического времени (timeSec двигается, как в живом мире) */
 const feed = (m: Monitor, w: World, n: number, moved = false): Finding | null => { for (let i = 0; i < n; i++) { w.timeSec += 1 / 60; const f = m.check(w, moved); if (f) return f; } return null; };
 
@@ -23,7 +23,7 @@ describe('фаззер: инварианты ловят нарушения', () 
   });
   const kinds: [InvariantId, string, (w: World) => void][] = [
     ['nan', 'NaN в позиции героя', (w) => { w.players[0]!.x = NaN; }],
-    ['nan', 'Infinity в скорости босса', (w) => { (w.testBoss() ?? w.boss).vx = Infinity; }],
+    ['nan', 'Infinity в скорости босса', (w) => { w.testBoss()!.vx = Infinity; }],
     ['range', 'здоровье героя выше максимума', (w) => { w.players[0]!.hp = w.players[0]!.maxHp + 3; }],
     ['outside', 'герой упал под уровень', (w) => { w.players[0]!.y = w.L.H * 32 + 900; }],
   ];
@@ -88,7 +88,7 @@ describe('фаззер: прогоны', () => {
   });
 
   const short = (mode: FuzzSpec['mode'], over: Partial<FuzzSpec> = {}): FuzzSpec => ({ ...makeSpec(11, 1, [mode]), ticks: 2400, ...over });
-  for (const mode of ['ch1', 'road3', 'korne', 'arena-tima', 'camp-arena2', 'train-misha', 'chain', 'sr-boss'] as const) {
+  for (const mode of ['ch1', 'road3', 'arena-penitent', 'arena-tima2', 'camp-arena2', 'train-misha2', 'chain', 'sr-boss'] as const) {
     it(`режим ${mode}: чисто и воспроизводимо`, () => {
       const spec = short(mode, { ui: true });
       const a = runFuzz(spec), b = runFuzz(spec);
@@ -97,7 +97,7 @@ describe('фаззер: прогоны', () => {
     }, 60_000);
   }
   it('вдвоём у одного компьютера: чисто, журнал воспроизводится', () => {
-    for (const mode of ['ch1', 'arena-vladik', 'chain'] as const) expect(runFuzz(short(mode, { players: 2, ui: true })).finding).toBeNull();
+    for (const mode of ['ch1', 'arena-vladik2', 'chain'] as const) expect(runFuzz(short(mode, { players: 2, ui: true })).finding).toBeNull();
   }, 60_000);
 });
 
@@ -112,13 +112,13 @@ describe('фаззер: минимизатор', () => {
     for (let t = 0; t < 3000; t++) { const b = { ...emptyButtons(), ...fz(0) } as typeof prev; ses.frame(1000 / 60, [{ buttons: b, edges: edgesBetween(prev, b) }]); prev = b; ses.fxq.length = 0; }
     return { J: rec.journal, replay: { loadoutSave: spec.loadout, easy: spec.easy, ver: FUZZ_VER } };
   };
-  const short0 = (): FuzzSpec => ({ ...makeSpec(2, 0, ['arena-misha']), players: 1, easy: false });
+  const short0 = (): FuzzSpec => ({ ...makeSpec(2, 0, ['arena-misha2']), players: 1, easy: false });
 
   it('укорачивает журнал, пока «ошибка» воспроизводится', () => {
     const { J, replay } = record();
     expect(replayJournal(J, replay).ok).toBe(true);
     // искусственная «ошибка»: герой оказался правее 450 пикселей от старта
-    const x0 = (() => { const w = new World({ seed: J.segs[0]!.seed, mode: 'bosstest', boss: 'misha' }); return w.players[0]!.x; })();
+    const x0 = (() => { const w = new World({ seed: J.segs[0]!.seed, mode: 'bosstest', boss: 'misha2' }); return w.players[0]!.x; })();
     class Stop extends Error {}
     const scan = (j: Journal, opt: ReplayOpts): Finding | null => {
       let n = 0, f: Finding | null = null;

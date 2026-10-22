@@ -7,8 +7,8 @@ import type { BossRow, Pb, PSub, RaceResult, RoomPlayer } from './racecommon';
 export type Kind = 'exit' | 'bench' | 'fight' | 'ph2' | 'ph3' | 'kill';
 export const SUB_NAME: Record<string, string> = { exit: 'выход из коридора', bench: 'скамья', fight: 'начало боя', ph2: 'фаза 2', ph3: 'фаза 3', kill: 'смерть босса' };
 /** босс в творительном падеже («бой с Владиком») */
-export const BOSS_WITH = ['Корнематкой', 'Мишей', 'Владиком', 'Тимой'];
-export const BOSS_NOM = ['Корнематка', 'Миша', 'Владик', 'Тима'];
+export const BOSS_WITH = ['Кающимся', 'Мишей', 'Владиком', 'Тимой'];
+export const BOSS_NOM = ['Кающийся', 'Миша', 'Владик', 'Тима'];
 const ROMAN = ['I', 'II', 'III', 'IV'];
 
 export const isBoss = (disc: string): boolean => disc === 'boss';

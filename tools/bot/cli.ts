@@ -1,10 +1,10 @@
 // ИИ-тестер боссов на ядре v2.
-//   npm run bot -- table --fights 200 [--boss misha|vladik|tima|korne] [--skill 0.6] [--players 1] [--max 240] [--seed 1]
+//   npm run bot -- table --fights 200 [--boss penitent|misha2|vladik2|tima2|…] [--skill 0.6] [--players 1] [--max 240] [--seed 1]
 //                          [--workers N] [--balance файл.json] [--json] [--verbose] [--kit]
 //   --kit: открыть приёмы набора игрока (теневой рывок…) в Босс-тесте; бот пользуется ими при мастерстве ≥ 0,9. По умолчанию выключено, таблицы баланса не меняются
-//   npm run bot -- record --boss misha [--skill 0.9] [--seed 5] [--out бой.ttrec]    один бой с записью
+//   npm run bot -- record --boss misha2 [--skill 0.9] [--seed 5] [--out бой.ttrec]    один бой с записью
 //   npm run bot -- watch бой.ttrec          смотреть запись в браузере (движок игры воспроизводит её по ?watch=)
-//   npm run bot -- watch --boss tima --skill 0.6 --seed 3    записать бой и сразу открыть (--speed 2 — скорость, --no-open — не открывать браузер сам)
+//   npm run bot -- watch --boss tima2 --skill 0.6 --seed 3    записать бой и сразу открыть (--speed 2 — скорость, --no-open — не открывать браузер сам)
 // Баланс можно переопределить файлом (--balance) или переменной окружения TT_BALANCE (путь к файлу или JSON): только для этих инструментов.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -68,7 +68,7 @@ async function table(): Promise<void> {
 function recordOne(defaultDir = ''): ReturnType<typeof runFight> & { path: string } {
   const bal = loadBalanceOverride();
   if (bal) applyBalanceOverride(bal);
-  const boss = (opt('boss', 'misha')) as BossId;
+  const boss = (opt('boss', 'misha2')) as BossId;
   if (!BOSSES.includes(boss)) throw new Error(`Неизвестный босс «${boss}»`);
   const r = runFight({ boss, skill: +(opt('skill', '0.9')!), players: +(opt('players', '1')!), seed: +(opt('seed', '1')!), maxSec: +(opt('max', '240')!), record: true, ver: pkg.version, kit: flag('kit') });
   if (r.error) throw new Error(r.error);

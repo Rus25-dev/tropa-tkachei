@@ -1,5 +1,6 @@
 // Экран «Снаряжение»: что лежит в разделах, что можно сделать с предметом, покупка и надевание (legacy/src/loadoutui.js).
 // Хранилище снаряжения — tt_loadout; мир получает уже готовое надетое (core/loadout.applyLoadout).
+import { bossDef } from '../core/boss/registry';
 import { campaignSave } from '../core/campaign';
 import { ABILS, KIT_IDS, kitHas, type KitId } from '../core/kit/abilities';
 import { CHARMS, CHARM_SLOTS, TOOLS, applyLoadout, canFit, equipped, openAll, owned, slotsOf, type LoadoutState } from '../core/loadout';
@@ -12,7 +13,6 @@ export type GKind = 'weapons' | 'tools' | 'charms' | 'abils';
 export const KINDS: GKind[] = ['weapons', 'tools', 'charms', 'abils'];
 export const KIND_NAMES: Record<GKind, string> = { weapons: 'Оружие', tools: 'Инструмент', charms: 'Обереги', abils: 'Приёмы' };
 const SINGLE = { weapons: 'weapon', tools: 'tool', charms: 'charm', abils: 'weapon' } as const;
-const BOSS_NAMES: Record<string, string> = { korn: 'Корнематка', misha: 'Миша Додик', vladik: 'Владик Скрипка', tima: 'Тима Пиво', misha2: 'Миша Додик', vladik2: 'Владик Скрипка', tima2: 'Тима Пиво', keeper: 'Хранительница Печатей', vessel: 'Пустой сосуд', nightking: 'Король кошмаров', raven: 'Ворон-тиран', radiant: 'Сияющая', penitent: 'Первый Кающийся', brainmother: 'Мозг-мать', mantises: 'Три Богомола' };
 
 export interface GEntry { id: string; name: string; desc: string; unlock: string; col?: number; [k: string]: unknown }
 export interface GItem { id: string; e: GEntry; none?: boolean; owned: boolean }
@@ -37,7 +37,7 @@ export function equippedIds(w: World, kind: GKind): string[] {
 export const priceOf = (e: GEntry): number => { const m = /^shop:(\d+)$/.exec(e.unlock || ''); return m ? Number(m[1]) : 0; };
 export function lockText(e: GEntry): string {
   const u = e.unlock || '';
-  if (u.startsWith('boss:')) return `Получите: босс ${BOSS_NAMES[u.slice(5)] ?? u.slice(5)}`;
+  if (u.startsWith('boss:')) return `Получите: босс ${bossDef(u.slice(5))?.name ?? u.slice(5)}`;
   if (u.startsWith('shop:')) return `Цена: ${u.slice(5)} бусин`;
   if (u === 'locked') return 'Пока не получен: награда за босса';
   return 'Пока недоступно';

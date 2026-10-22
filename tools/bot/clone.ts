@@ -4,7 +4,8 @@
 import { World } from '../../src/core/world';
 
 /** поля мира, которые только читаются в бою: копировать их незачем */
-const SHARED = new Set(['L', 'grid', 'startData', 'camp', 'progress', 'sr']);
+// (sr — забег спидрана — копируется: тик мира двигает его IGT и статистику, а копия не должна портить настоящий забег)
+const SHARED = new Set(['L', 'grid', 'startData', 'camp', 'progress']);
 
 function walk(v: unknown, seen: Map<object, unknown>): unknown {
   if (v === null || typeof v !== 'object') {
