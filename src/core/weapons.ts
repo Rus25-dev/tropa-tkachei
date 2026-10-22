@@ -8,6 +8,7 @@ import { overlap } from './world';
 import { resolveAttackBase, atkBoxBase, gainSilkBase, damageEnemyBase } from './combat';
 import { needleBonus } from './campaign';
 import { killEnemy } from './combat';
+import { kitSlow } from './kit/moves';
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- реестр оружия: свободные поля, как в v1.8 */
 export interface SwingDef { t?: number; cd?: number; dm?: number; hits?: number; box?: (sc: World, p: Player, sw: Swing, el: number, rm: number, cx: number, cy: number) => Rect; flip?: boolean; tot?: number; pulses?: number; pulse?: number; noRecoil?: boolean; snd?: string; start?: (sc: World, p: Player, sw: Swing) => void; cutAll?: boolean; br?: boolean; pm?: number }
@@ -171,6 +172,7 @@ export function speedMul(sc: World, p: Player | null): number {
   let m = 1;
   if (sc.puddles && p && p.onGround) for (const q of sc.puddles) if (p.x + p.w > q.x && p.x < q.x + q.w && Math.abs(p.y + p.h - q.y) < 6) { m = 0.5; break; }
   if (!sc.puddles || !p || !p.onGround) m = 1;
+  if (p && !p.remote && (p['kcF'] as number) > 0) m *= kitSlow(p);
   return p && !p.remote && (p['chg'] as number) > CH_SHOW ? m * CH_SLOW : m;
 }
 

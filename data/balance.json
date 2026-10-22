@@ -26,6 +26,15 @@
   "CH_SHOW": 0.16,
   "CH_SLOW": 0.45,
   "MV2": { "GLIDE_V": 120, "GLIDE_DEC": 3000, "GLIDE_HOLD": 0.1, "CLIMB_T": 0.2 },
+  "KIT": {
+    "SHADOW": { "T": 0.195, "SPD": 600, "GHOST_F": 11, "CD": 1.1 },
+    "FLASH": { "DIST": 100, "FRAMES": 9, "GHOST_F": 4 },
+    "CRYSTAL": { "CHARGE_T": 0.5, "MIN_HOLD": 0.12, "SLOW": 0.35, "SPD": 1100, "GHOST_F": 12, "MAXT": 1.2, "CD": 1.0, "CARRY": 320 },
+    "SPIRIT": { "COST": 2, "CD": 0.8, "DMG": 3, "SPD": 620, "LIFE": 0.9 },
+    "DIVE": { "COST": 3, "CD": 1.0, "SPD": 900, "MAXT": 1.5, "STRIKE": 1, "LAND_DMG": 3, "ENEMY_DMG": 3, "R": 110 },
+    "WRAITH": { "COST": 3, "CD": 1.0, "H": 200, "W": 48, "PULSES": 4, "GAP": 0.12, "DMG": 1 },
+    "NEEDLE_DPS": 4
+  },
   "STATUS": {
     "poison": { "iv": 1.2, "n": 4 },
     "burn": { "iv": 0.8, "n": 3 },

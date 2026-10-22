@@ -24,6 +24,8 @@ export interface FightJob {
   record?: boolean;
   /** версия игры в журнале */
   ver?: string;
+  /** открыть приёмы набора игрока (теневой рывок и др.); по умолчанию выключено — таблицы баланса не меняются. Бот пользуется ими при мастерстве ≥ 0,9 */
+  kit?: boolean;
   /** тиков тишины перед боем (в золотых записях v1.8 их 30) */
   preTicks?: number;
 }
@@ -38,8 +40,8 @@ export interface FightResult {
 }
 
 /** Мир боя: арена босса (босс-тест) или Корнематка из истории с героями у входа в арену и двойным прыжком (как в golden: ex 10). */
-export function newFightWorld(boss: BossId, players: number, seed: number): World {
-  return new World(boss === 'korne' ? { seed, mode: 'story', players } : { seed, mode: 'bosstest', boss, players });
+export function newFightWorld(boss: BossId, players: number, seed: number, kit = false): World {
+  return new World(boss === 'korne' ? { seed, mode: 'story', players } : { seed, mode: 'bosstest', boss, players, ...(kit ? { kit: true } : {}) });
 }
 
 const hurtCause = (w: World, p: World['players'][number]): string => {
@@ -55,7 +57,7 @@ export const failed = (e: unknown): FightResult => ({ won: false, sec: 0, ticks:
 
 export function runFight(job: FightJob): FightResult {
   const { boss, skill, players, seed, maxSec } = job;
-  const w = newFightWorld(boss, players, seed);
+  const w = newFightWorld(boss, players, seed, !!job.kit);
   const rec = job.record ? Recorder.start({ cat: null, seed, ver: job.ver ?? '0', mem: true }) : null;
   rec?.begin(w);
   for (let i = 0; i < (job.preTicks ?? 0); i++) { feedInput(w, w.players.map(() => ({}))); rec?.tick(w); w.tick(); }

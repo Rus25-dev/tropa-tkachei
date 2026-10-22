@@ -2,14 +2,14 @@
 import { BOSSES, BOSS_NAMES, type BossId, type FightJob, type FightResult } from './fight';
 import { bootstrapCI, mean, median, num, pct, wilson } from './stats';
 
-export interface TableSpec { bosses: BossId[]; skills: number[]; fights: number; players: number; maxSec: number; seed: number; ver?: string }
+export interface TableSpec { bosses: BossId[]; skills: number[]; fights: number; players: number; maxSec: number; seed: number; ver?: string; /** приёмы набора игрока открыты (--kit) */ kit?: boolean }
 
 export const DEFAULT_SKILLS = [0.3, 0.6, 0.95];
 
 /** Задания таблицы. Зерно боя — как в legacy/tools/bot.js: seed + r*13 + round(мастерство*100); один и тот же spec даёт те же бои. */
 export function tableJobs(s: TableSpec): FightJob[] {
   const jobs: FightJob[] = [];
-  for (const boss of s.bosses) for (const skill of s.skills) for (let r = 0; r < s.fights; r++) jobs.push({ boss, skill, players: s.players, seed: s.seed + r * 13 + Math.round(skill * 100), maxSec: s.maxSec, ver: s.ver });
+  for (const boss of s.bosses) for (const skill of s.skills) for (let r = 0; r < s.fights; r++) jobs.push({ boss, skill, players: s.players, seed: s.seed + r * 13 + Math.round(skill * 100), maxSec: s.maxSec, ver: s.ver, ...(s.kit ? { kit: true } : {}) });
   return jobs;
 }
 
