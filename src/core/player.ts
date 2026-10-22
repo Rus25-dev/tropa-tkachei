@@ -5,7 +5,7 @@ import type { Player } from './types';
 import type { World } from './world';
 import { inset, overlap } from './world';
 import { hasCharm, useTool } from './loadout';
-import { speedMul, weaponsPre, wdef } from './weapons';
+import { beginSwing, speedMul, weaponsPre, wdef } from './weapons';
 import { openShop } from './campaign';
 import { tryExecute } from './bosses2';
 import { silkBurst } from './combat';
@@ -243,7 +243,7 @@ function baseStepPlayer(sc: World, p: Player, dt: number): void {
       p['counterHit'] = false; p['counterSeen'] = null;
       if ((p['counterT'] as number) > 0 && p.atkDir === 'f') { p['counterHit'] = true; p['counterT'] = 0; p['counterFx'] = 0.3; sc.snd('counter'); sc.parts(14, p.x + 7 + p.face * 22, p.y + 13, 0xffd96a); }
       sc.snd(p['heavy'] ? 'slam' : 'slash');
-      if (W.onSwing) W.onSwing(sc, p);
+      if (W.onSwing) W.onSwing(sc, p); else beginSwing(sc, p, W);
     }
     if (inp.bombP) throwBomb(sc, p);
     if (inp.toolP) useTool(sc, p);

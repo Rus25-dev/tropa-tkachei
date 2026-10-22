@@ -1,5 +1,7 @@
 // Звук: маленький синтезатор на WebAudio (legacy/src/sound.js + звуки оружия из weapons.js и движения из movement2.js). Файлов нет.
 // Ядро только называет звук (событие 'snd'); играет его этот модуль.
+import { weaponViewReg } from '../content/regs';
+
 type OscType = OscillatorType;
 
 class SndImpl {
@@ -123,7 +125,7 @@ class SndImpl {
     this.chargeStop(owner);
     const c = this.ctx; if (!c || !this.master) return;
     try {
-      const t = c.currentTime, f0 = ({ needle: 200, twin: 320, sickle: 170, mace: 110, lance: 260 } as Record<string, number>)[id] || 200;
+      const t = c.currentTime, f0 = weaponViewReg.get(id)?.chargePitch || 200;
       const o = c.createOscillator(), o2 = c.createOscillator(), g = c.createGain();
       o.type = 'sawtooth'; o2.type = 'sine';
       o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f0 * 3.4, t + dur);

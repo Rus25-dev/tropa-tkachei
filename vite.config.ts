@@ -26,5 +26,5 @@ export default defineConfig({
   },
   build: { target: 'es2022', assetsInlineLimit: 100_000_000, chunkSizeWarningLimit: 4000, sourcemap: false },
   server: { port: 5173, strictPort: true },
-  test: { include: ['tests/unit/**/*.test.ts'], environment: 'node' },
+  test: { include: ['tests/unit/**/*.test.ts'], environment: 'node', setupFiles: ['src/content/index.ts'] },
 });

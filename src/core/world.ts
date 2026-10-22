@@ -31,6 +31,7 @@ import { effForm } from './boss/form';
 import { makeFight, stepDataBoss } from './boss/exec';
 import { arenaStep, type ArenaRt } from './boss/arena';
 import { stepCond, type CondRt } from './boss/conductor';
+import '../content'; // содержимое (оружие и др.) регистрируется до создания мира
 
 
 export type Mode = 'story' | 'bosstest';
