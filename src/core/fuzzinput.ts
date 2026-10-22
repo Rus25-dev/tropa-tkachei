@@ -35,6 +35,7 @@ export function feedInput(w: World, raws: Inp[]): void {
     const r = raws[p.i] ?? {}, pr = p.prev, pd = p.pend;
     pd.jumpP ||= !!r.jump && !pr.jump; pd.atkP ||= !!r.atk && !pr.atk; pd.dashP ||= !!r.dash && !pr.dash; pd.healP ||= !!r.heal && !pr.heal;
     pd.upP ||= !!r.up && !pr.up; pd.bombP ||= !!r.bomb && !pr.bomb; pd.toolP ||= !!r.tool && !pr.tool;
+    if (r.parry && !pr.parry) pd.parryP = true; if (r.bind && !pr.bind) pd.bindP = true; if (r.burst && !pr.burst) pd.burstP = true;
     p.raw = r; p.prev = r;
   }
 }

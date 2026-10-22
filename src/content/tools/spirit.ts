@@ -34,7 +34,7 @@ export default defineTool({
         for (const [b, key] of bosses) {
           if (!liveBoss(b) || !overlap(q as never, inset(b, 4))) continue;
           if (b.state === 'rage') { sc.sfx('clink'); q['dead'] = true; sc.burst(6, cx, cy, 0xffffff); break; }
-          toolHurtBoss(sc, key, owner, KIT.SPIRIT.DMG);
+          toolHurtBoss(sc, key, owner, KIT.SPIRIT.DMG, { weak: 'geometry', shape: { type: 'rect', rect: q as never } });
           q['dead'] = true; sc.sfx('clink'); sc.burst(14, cx, cy, 0xcfe8ff); break;
         }
       }

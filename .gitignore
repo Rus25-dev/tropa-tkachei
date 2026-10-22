@@ -7,6 +7,13 @@ dev-shots/
 dist/
 playwright-report/
 test-results/
+coverage/
+.vite/
+*.tsbuildinfo
+__pycache__/
+*.pyc
+.venv/
+.venv-rl/
 tests/trace/
 
 # записи партий игроков (скачиваются из игры); находки фаззера лежат в tests/repro/*.json и в git входят

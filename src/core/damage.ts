@@ -7,14 +7,15 @@ import type { World } from './world';
 import { damageBossWeapons, damageEnemyWeapons, gainSilkWeapons } from './weapons';
 import { gainSilkBase, hurtPlayerBase } from './combat';
 import { charmsOn } from './loadout';
-import { bossDamage, bossKey } from './status';
+import { bossKey } from './status';
 import { killEnemy } from './combat';
-import { bossOf, nameOf, poiseWrapDamage } from './bosses2';
+import { bossOf, poiseWrapDamage } from './bosses2';
+import type { BossHit, HitResult, HitSource } from './hit';
 import { rawData } from './boss/exec';
 import { statBegin, statEndBoss, statEndEnemy, statHurt } from './racestats';
 
 // ---------- исходные функции урона по боссам (RAW) ----------
-export function rawBossDamage(sc: World, key: BossRef, p: Player): void { rawData(sc, key, p); }
+export function rawBossDamage(sc: World, key: BossRef, p: Player, hit?: BossHit): HitResult { return rawData(sc, key, p, hit); }
 
 // ---------- нить ----------
 /** gainSilk: оберег «Быстрая нить» (внешний) → оружие (по урону) → база */
@@ -53,20 +54,18 @@ function damageEnemyCharms(sc: World, e: Enemy, p: Player): void {
 }
 
 // ---------- боссы: статистика → обереги → оружие → стойкость → RAW ----------
-export function damageBoss(sc: World, key: BossRef, p: Player): void {
+export function damageBoss(sc: World, key: BossRef, p: Player, hit: BossHit = {}): void {
   const S = statBegin(sc);
-  const cur = sc.testBoss(), h0 = cur ? cur.hp : 0;
-  damageBossCharms(sc, key, p);
+  const cur = bossOf(sc, key), h0 = cur ? cur.hp : 0;
+  damageBossCharms(sc, key, p, hit);
   if (S) statEndBoss(S, cur, h0);
 }
-function damageBossCharms(sc: World, key: BossRef, p: Player): void {
+function damageBossCharms(sc: World, key: BossRef, p: Player, hit: BossHit): void {
   const b = bossOf(sc, key), hp0 = b && b.hp, stag = !!b && b.stagger > 0;
   const ctr = !!b && counterOn(p, b);
   if (ctr) sc._cm = PARRY2.COUNTER_POISE_MUL; // контратака: стойкость за удар ×2 (poiseMul)
-  try { damageBossWeapons(sc, b, p, () => poiseWrapDamage(sc, key, p)); } finally { sc._cm = 1; }
-  if (ctr && b && b.hp < hp0! && b.hp > 0) { // и урон ×1.5: полхода добавки; если она добивает — настоящий удар
-    const add = (stag ? 2 : 1) * (PARRY2.COUNTER_DMG - 1);
-    if (b.hp - add > 0) { b.hp -= add; sc.bossBar(true, nameOf(key, b), Math.max(0, b.hp) / b.maxHp); } else bossDamage(sc, key, p, 1);
+  try { damageBossWeapons(sc, b, p, (weapon) => poiseWrapDamage(sc, key, p, { ...hit, amount: (hit.amount ?? 1) * (weapon?.amount ?? 1) * (ctr ? PARRY2.COUNTER_DMG : 1) })); } finally { sc._cm = 1; }
+  if (ctr && b && b.hp < hp0!) {
     sc.burst(12, b.x + b.w / 2, b.y + b.h / 2, 0xffd96a);
   }
   if (b && b.hp < hp0! && b.hp > 0 && sc.auth()) for (const c of charmsOn(p)) c.hitBoss?.(sc, key, b, p, { stag });
@@ -74,21 +73,21 @@ function damageBossCharms(sc: World, key: BossRef, p: Player): void {
 
 // ---------- урон героям: статистика → обереги (колючий плащ) → тренировка → база ----------
 /** hk — тип удара (язык атак боссов 2.5): без него 'parry', как раньше */
-export function hurtPlayer(sc: World, p: Player, dmg: number, srcX: number | null, spike?: boolean, hk?: HitKind): void {
+export function hurtPlayer(sc: World, p: Player, dmg: number, srcX: number | null, spike?: boolean, hk?: HitKind, source?: HitSource): void {
   const S = !p.remote ? statBegin(sc) : null;
   const h0 = p.hp, pd0 = (p['pdodge'] as number) || 0;
-  hurtPlayerCharms(sc, p, dmg, srcX, spike, hk);
+  hurtPlayerCharms(sc, p, dmg, srcX, spike, hk, source);
   if (S) statHurt(S, p, h0, pd0);
 }
-function hurtPlayerCharms(sc: World, p: Player, dmg: number, srcX: number | null, spike?: boolean, hk?: HitKind): void {
+function hurtPlayerCharms(sc: World, p: Player, dmg: number, srcX: number | null, spike?: boolean, hk?: HitKind, source?: HitSource): void {
   const hp0 = p.hp;
-  hurtPlayerTraining(sc, p, dmg, srcX, spike, hk);
+  hurtPlayerTraining(sc, p, dmg, srcX, spike, hk, source);
   for (const c of charmsOn(p)) c.hurt?.(sc, p, { srcX, spike, hp0 });
 }
-function hurtPlayerTraining(sc: World, p: Player, dmg: number, srcX: number | null, spike?: boolean, hk?: HitKind): void {
-  if (!sc.train) return hurtPlayerBase(sc, p, dmg, srcX, spike, hk);
+function hurtPlayerTraining(sc: World, p: Player, dmg: number, srcX: number | null, spike?: boolean, hk?: HitKind, source?: HitSource): void {
+  if (!sc.train) return hurtPlayerBase(sc, p, dmg, srcX, spike, hk, source);
   const before = p.hp; p.hp = before + 99;
-  hurtPlayerBase(sc, p, dmg, srcX, spike, hk);
+  hurtPlayerBase(sc, p, dmg, srcX, spike, hk, source);
   const taken = before + 99 - p.hp; p.hp = before;
   if (taken > 0) { sc.train.hits++; sc.emit('trainHit', { x: p.x + 7, y: p.y - 6, n: taken }); }
 }

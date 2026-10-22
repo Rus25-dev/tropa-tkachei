@@ -11,7 +11,8 @@ import { poiseMul } from './weapons';
 import { rawBossDamage } from './damage';
 import { slowDt } from './status';
 import { statBegin } from './racestats';
-import { dataBody, dataPoiseMul, dataStaggerBegin, dataStaggerRoom, onStagger, onStaggerWorld } from './boss/exec';
+import { dataBody, dataPoiseMul, dataStaggerBegin, onStagger, onStaggerWorld } from './boss/exec';
+import type { BossHit } from './hit';
 
 export const bossOf = (sc: World, key: BossRef): Boss | null => sc.bosses[dataIdx(key)] ?? null;
 export const nameOf = (_key: BossRef, b: Boss): string => b['name'] as string;
@@ -72,18 +73,15 @@ export function stepBossLayered(sc: World, key: BossRef, dt0: number, base: (sc:
   if (b) { b['poiseImmune'] = Math.max(0, (b['poiseImmune'] || 0) - dt); b['poiseT'] = (b['poiseT'] || 0) + dt; if (b['poiseT'] > 1.4 && b['poise'] > 0) { b['poise']--; b['poiseT'] = 0; } }
 }
 /** обёртка урона: двойной по оглушённому и рост стойкости (внутри — исходная функция RAW) */
-export function poiseWrapDamage(sc: World, key: BossRef, p: Player): void {
+export function poiseWrapDamage(sc: World, key: BossRef, p: Player, hit: BossHit = {}): void {
   const b = bossOf(sc, key);
   const live = b && !['sleep', 'dead', 'gone', 'intro', 'rage'].includes(b.state);
   const was = b && b.hp;
-  rawBossDamage(sc, key, p);
+  const staggered = !!b && b.stagger > 0;
+  rawBossDamage(sc, key, p, { ...hit, amount: (hit.amount ?? 1) * (staggered ? 2 : 1) });
   if (!live || b!.hp <= 0 || b!.hp === was) return;
-  if (b!.stagger > 0) {
-    // двойной урон по оглушённому (у боссов на данных — не выше потолка за окно оглушения)
-    if (!dataStaggerRoom(b!)) return;
-    b!.hp -= 1; sc.bossBar(true, nameOf(key, b!), Math.max(0, b!.hp) / b!.maxHp);
+  if (staggered) {
     sc.burst(8, b!.x + b!.w / 2, b!.y + b!.h / 2, 0xffd47a);
-    if (b!.hp <= 0) rawBossDamage(sc, key, p);
     return;
   }
   poiseAdd(sc, b, 1);
@@ -136,10 +134,11 @@ function execBossBase(sc: World, p: Player, kit: { key: BossRef }, dir: string):
   sc.sendEv({ k: 'execfx', i: p.i, d: dir, x: Math.round(cx), y: Math.round(cy) });
   sc.emit('execFx', { x: cx, y: cy, dir });
   sc.sfx('exec'); sc.shake(420, 0.018); sc.hitstop = 0.22;
-  // урон без шума: n ударов исходной функцией, нить за них не копится — вместо этого фиксированный бонус
+  // Один атомарный удар; нить за него не копится — вместо этого фиксированный бонус.
+  const quiet = sc.quiet, noSilkGain = p['noSilkGain'];
   sc.quiet = true; p['noSilkGain'] = true;
-  for (let i = 0; i < n && b.hp > 0 && !['dead', 'gone', 'rage'].includes(b.state); i++) rawBossDamage(sc, kit.key, p);
-  sc.quiet = false; p['noSilkGain'] = false;
+  try { rawBossDamage(sc, kit.key, p, { amount: n, source: 'execute', weak: 'bypass' }); }
+  finally { sc.quiet = quiet; p['noSilkGain'] = noSilkGain; }
   if (p.remote) { for (let i = 0; i < 3; i++) sc.sendEv({ k: 'silk', i: p.i }); } else p.silk = Math.min(sc.silkMax, p.silk + 3);
   if (b.hp > 0) { b.stagger = Math.min(b.stagger, 0.4); b['poise'] = 0; b['poiseImmune'] = 6; }
 }

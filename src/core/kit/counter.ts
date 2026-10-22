@@ -15,6 +15,7 @@ import { bossDamage, bossLive } from '../status';
 import type { Boss, Player } from '../types';
 import type { World } from '../world';
 import { kitHas } from './abilities';
+import { bossDef } from '../boss/registry';
 
 export const COUNTER = {
   /** окно: сколько последних кадров замаха босса (включая кадр перед ударом) принимают контрудар */
@@ -51,9 +52,13 @@ export function counterTarget(sc: World, p: Player): [Boss, BossRef] | null {
   const cx = p.x + p.w / 2;
   for (const [b, key] of bossRefs(sc)) {
     const d = dstate(b); if (!d || !bossLive(b) || b.stagger > 0 || ((b['poiseImmune'] as number) || 0) > 0) continue;
+    const a = bossDef(d.id)?.attacks.find((x) => x.id === d.atk), spec = a?.counter;
+    if (!a || spec === false) continue;
+    // Совместимость прежних данных. Новые атаки задают counter явно.
+    if (spec === undefined && (!d.cue || !counterColor(d.cue.color))) continue;
     const left = tellLeft(b);
-    if (left < 1 || left > COUNTER.WINDOW_F || !d.cue || !counterColor(d.cue.color)) continue;
-    if (Math.abs(b.x + b.w / 2 - cx) > b.w / 2 + COUNTER.REACH || p.y + p.h <= b.y || p.y >= b.y + b.h) continue;
+    if (left < 1 || left > (spec?.windowFrames ?? COUNTER.WINDOW_F) || (spec?.grounded && !p.onGround)) continue;
+    if (Math.abs(b.x + b.w / 2 - cx) > b.w / 2 + (spec?.reach ?? COUNTER.REACH) || p.y + p.h <= b.y || p.y >= b.y + b.h) continue;
     return [b, key];
   }
   return null;

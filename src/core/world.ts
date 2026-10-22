@@ -410,7 +410,7 @@ export class World {
       for (const e of this.enemies) if (!e.dead && !e['m'] && overlap(pr, inset(e, 2))) { hurtPlayer(this, p, 1, e.x + e.w / 2); break; } // существа боссов бьют сами (minions.ts)
       for (const db of this.bosses) {
         const dd = bossDef((db['d'] as { id: string; formPh: number }).id), ct = dd ? effForm(dd, (db['d'] as { formPh: number }).formPh).contact : null;
-        if (ct && p.inv <= 0 && !(db.stagger > 0) && !['dead', 'intro', 'rage'].includes(db.state) && overlap(pr, inset(db, 8))) hurtPlayer(this, p, ct.dmg, db.x + db.w / 2, false, ct.kind);
+        if (ct && p.inv <= 0 && !(db.stagger > 0) && !['dead', 'intro', 'rage'].includes(db.state) && overlap(pr, inset(db, 8))) hurtPlayer(this, p, ct.dmg, db.x + db.w / 2, false, ct.kind, { boss: db });
       }
     }
     // выход

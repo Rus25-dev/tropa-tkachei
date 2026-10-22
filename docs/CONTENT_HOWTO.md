@@ -136,6 +136,8 @@ export default defineSounds({
 
 ## Проверка
 
+Контракт попаданий, отмены действий и новые поля атак описаны в [COMBAT_FOUNDATION.md](COMBAT_FOUNDATION.md).
+
 ```bash
 npm run content:check          # что найдено по видам; ошибки полноты (нет отрисовки, неизвестный снаряд или арена); незаведённые звуки
 npm run content:check -- --json # то же для стенда

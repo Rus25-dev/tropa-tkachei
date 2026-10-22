@@ -11,6 +11,7 @@ export interface Body extends Rect {
 
 /** Ввод одного тика: удержание (raw) и фронты нажатий (pend → carry → inp). */
 export interface Inp {
+  parry?: boolean; bind?: boolean; burst?: boolean; parryP?: boolean; bindP?: boolean; burstP?: boolean;
   left?: boolean; right?: boolean; up?: boolean; down?: boolean; jump?: boolean; atk?: boolean; dash?: boolean; heal?: boolean; bomb?: boolean; tool?: boolean;
   jumpP?: boolean; atkP?: boolean; dashP?: boolean; healP?: boolean; upP?: boolean; bombP?: boolean; toolP?: boolean;
 }
@@ -30,7 +31,7 @@ export interface Boss extends Body { posture?: boolean; hp: number; maxHp: numbe
 /** Тип удара (язык атак боссов, 2.5): parry — можно отбить; dodge — только уворот; unblockable — не отбивается и не гасится рывком, только избежать. */
 export type HitKind = 'parry' | 'dodge' | 'unblockable';
 /** hk — тип удара снаряда; без поля считается 'parry' (прежнее поведение). dmg — урон, если не задан: по виду снаряда (heavy в src/content/projectiles). */
-export interface Proj extends Rect { kind: string; vx: number; vy: number; life: number; dead?: boolean; delay?: number; hk?: HitKind; dmg?: number; [k: string]: any }
+export interface Proj extends Rect { kind: string; vx: number; vy: number; life: number; dead?: boolean; delay?: number; hk?: HitKind; dmg?: number; o?: number; attackId?: number; [k: string]: any }
 export interface Bead extends Body { t: number; dead?: boolean }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 

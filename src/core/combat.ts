@@ -2,7 +2,6 @@
 // Это «база» без обёрток: слои оружия, оберегов, стойкости и статистики собраны в damage.ts.
 import { BAL, P, PARRY2, SPIKE, T, clamp } from './balance';
 import { projReg } from './plugin/regs';
-import { isHeroProj } from './proj-kit';
 import type { Boss, Enemy, HitKind, Player, Rect } from './types';
 import type { World } from './world';
 import { inset, overlap } from './world';
@@ -17,6 +16,10 @@ import { areaOf } from './coop';
 import { statParry } from './racestats';
 import { srDuelDefeat } from './speedrun';
 import { kitClear, kitGhost } from './kit/moves';
+import type { HitSource } from './hit';
+import { canClearProj } from './proj-kit';
+import { cancelPlayerActions, resetPlayerActions } from './player-actions';
+import { defenseRules } from './defense';
 
 // ---------- коробка удара (база) ----------
 export function atkBoxBase(_sc: World, p: Player, W: WeaponDef): Rect {
@@ -88,20 +91,21 @@ export function dropBeads(sc: World, x: number, y: number, n: number): void {
 }
 
 // ---------- урон героям ----------
-export function hurtPlayerBase(sc: World, p: Player, dmg: number, srcX: number | null, spike?: boolean, hk?: HitKind): void {
+export function hurtPlayerBase(sc: World, p: Player, dmg: number, srcX: number | null, spike?: boolean, hk?: HitKind, source?: HitSource): void {
   if (p.inv > 0 || p.downed) return;
   if (!spike && kitGhost(p, hk)) return; // теневой рывок, вспышка, кристальный рывок, нырок: неуязвимость к тому, что не 'unblockable' (шипы бьют всегда)
   if (p.parryT > 0 && !spike) {
-    if (hk === undefined || hk === 'parry') { parrySuccess(sc, p, srcX, hk); return; } // hk не задан — исходное поведение v2.0
+    if (defenseRules(hk).parry) { parrySuccess(sc, p, srcX, hk, source); return; }
     // «dodge» и «unblockable» отбивом не гасятся: окно сгорает со «звоном», урон проходит
     p.parryT = 0; sc.snd('parryFail'); sc.parts(8, p.x + 7 + p.face * 10, p.y + 13, 0xb0a0a0);
   }
-  if (p.dashT > 0 && !spike && hk !== 'unblockable') { // идеальный уворот: рывок сквозь удар — без урона, +нить, замедление
+  if (p.dashT > 0 && !spike && defenseRules(hk).dodge) { // идеальный уворот: рывок сквозь удар — без урона, +нить, замедление
     p.inv = 0.35; p['pdodge'] = 0.4; if (!p.remote) { p.silk = Math.min(sc.silkMax, p.silk + 2); sc.hitstop = 0.07; }
     sc.snd('clink'); sc.parts(14, p.x + 7, p.y + 13, p.pal.accent);
     return;
   }
-  p.hp -= dmg; p.inv = P.INV; if (!p.remote) sc.emit('buzz', { ms: 45, dead: p.hp <= 0 }); p.hurtT = P.HURT; p.dashT = 0; p.sit = false; p.atkT = 0; p['healCh'] = 0; p.healT = 0;
+  cancelPlayerActions(sc, p);
+  p.hp -= dmg; p.inv = P.INV; if (!p.remote) sc.emit('buzz', { ms: 45, dead: p.hp <= 0 }); p.hurtT = P.HURT; p.dashT = 0; p.sit = false;
   p.vy = spike ? 0 : -320; p.kbx = srcX == null ? 0 : ((p.x + 7 < srcX) ? -1 : 1) * 260;
   sc.hitstop = 0.09; sc.emit('shake', { d: 160, i: 0.008 }); sc.snd('hurt');
   sc.parts(10, p.x + 7, p.y + 13, 0xffffff);
@@ -141,6 +145,7 @@ export function respawnAll(sc: World): void {
 export function respawnLocal(sc: World): void {
   sc.players.forEach((p) => {
     if (p.remote) return;
+    resetPlayerActions(sc, p);
     Object.assign(p, { x: sc.respawn.x - 7 + p.i * 24, y: sc.respawn.y - 26, vx: 0, vy: 0, kbx: 0, hp: p.maxHp, downed: false, inv: 1, hurtT: 0, dashT: 0, atkT: 0, sit: false, reviveT: 0, healCh: 0, healT: 0, bombs: sc.L.crates ? 3 : 0 });
     p.safeX = p.x; p.safeY = p.y; kitClear(p);
   });
@@ -162,7 +167,7 @@ export function benchRest(sc: World, p: Player, b: { x: number; y: number }, qui
 
 // ---------- отбив и нитяной всполох (combat2.js) ----------
 // отбив: удар, пришедший в окно отбива, не ранит, даёт нить, сбивает снаряды и стойкость босса
-export function parrySuccess(sc: World, p: Player, _srcX: number | null, hk?: HitKind): void {
+export function parrySuccess(sc: World, p: Player, _srcX: number | null, hk?: HitKind, source?: HitSource): void {
   statParry(sc, p);
   // идеальный отбив: нажатие пришлось на первые PERFECT_F кадров окна (parryF считает player.ts; у выставленного вручную окна его нет — тогда обычный)
   // и только для ударов с явным hk: у снарядов без hk (боссы v2.0, золотые записи) отбив прежний (PERFECT_LEGACY=1 включает идеальный и для них)
@@ -177,14 +182,15 @@ export function parrySuccess(sc: World, p: Player, _srcX: number | null, hk?: Hi
     sc.parts(30, cx + p.face * 10, cy, 0xffd96a);
   } else { sc.snd('parry'); sc.emit('flash', { ms: 90, r: 255, g: 255, b: 255 }); }
   sc.parts(18, cx + p.face * 10, cy, 0xffffff);
-  for (const pr of sc.projs) if (!pr.dead && !isHeroProj(pr.kind) && Math.hypot(pr.x - cx, pr.y - cy) < 110) { pr.dead = true; sc.burst(5, pr.x, pr.y, 0xffffff); }
+  for (const pr of sc.projs) if (canClearProj(pr, 'parry') && Math.hypot(pr.x - cx, pr.y - cy) < 110) { pr.dead = true; sc.burst(5, pr.x, pr.y, 0xffffff); }
   for (const e of sc.enemies) if (!e.dead && Math.hypot(e.x + e.w / 2 - cx, e.y + e.h / 2 - cy) < 100) { e.kbT = 0.2; e.kbx = Math.sign(e.x - cx) * 300; e.kby = -120; e.flash = 0.1; if (e['state'] === 'charge') { e['state'] = 'stun'; e['st'] = 0.8; } }
-  if (sc.auth()) parryPoise(sc, cx, cy, perfect); else sc.sendEv({ k: 'parrypoise', x: Math.round(cx), y: Math.round(cy), pf: perfect ? 1 : 0 });
+  const attacker = source?.boss ?? (source?.projectile?.o !== undefined ? sc.bosses[source.projectile.o] : undefined);
+  if (sc.auth()) { if (!source || attacker) parryPoise(sc, cx, cy, perfect, attacker); } else sc.sendEv({ k: 'parrypoise', x: Math.round(cx), y: Math.round(cy), pf: perfect ? 1 : 0 });
   if (sc.auth()) e2Parry(sc, cx, cy); else sc.sendEv({ k: 'e2parry', x: Math.round(cx), y: Math.round(cy) }); // enemies2.js: отбив ломает броню панциря
 }
 /** стойкость босса за отбив: обычный +3 (как в v2.0; у боссов с posture:true — POSTURE_NORMAL_POISE), идеальный ×PERFECT_POISE_MUL. Шкала та же, что у ударов (poiseAdd) */
-export function parryPoise(sc: World, cx: number, cy: number, perfect = false): void {
-  for (const b of sc.bosses) if (Math.hypot(b.x + b.w / 2 - cx, b.y + b.h / 2 - cy) < 190) poiseAdd(sc, b, perfect ? 3 * PARRY2.PERFECT_POISE_MUL : b.posture ? PARRY2.POSTURE_NORMAL_POISE : 3);
+export function parryPoise(sc: World, cx: number, cy: number, perfect = false, attacker?: Boss): void {
+  for (const b of attacker ? [attacker] : sc.bosses) if (attacker || Math.hypot(b.x + b.w / 2 - cx, b.y + b.h / 2 - cy) < 190) poiseAdd(sc, b, perfect ? 3 * PARRY2.PERFECT_POISE_MUL : b.posture ? PARRY2.POSTURE_NORMAL_POISE : 3);
 }
 // нитяной всполох (↑ + кнопка нити): тратит BURST нити, бьёт всё вокруг и сбивает снаряды
 export function silkBurst(sc: World, p: Player): void {
@@ -197,17 +203,17 @@ export function silkBurst(sc: World, p: Player): void {
   silkBurstHit(sc, p, cx, cy);
 }
 export function silkBurstHit(sc: World, p: Player, cx: number, cy: number): void {
+  const burst = sc._e2burst, noSilkGain = p['noSilkGain'];
   sc._e2burst = true; // enemies2.js: всполох пробивает броню
   try {
     const R = 120; p['noSilkGain'] = true; // всполох нить не копит: иначе он оплачивал бы сам себя
-    for (const pr of sc.projs) if (!pr.dead && !isHeroProj(pr.kind) && Math.hypot(pr.x - cx, pr.y - cy) < R) pr.dead = true;
+    for (const pr of sc.projs) if (canClearProj(pr, 'burst') && Math.hypot(pr.x - cx, pr.y - cy) < R) pr.dead = true;
     for (const e of sc.enemies) if (!e.dead && Math.hypot(e.x + e.w / 2 - cx, e.y + e.h / 2 - cy) < R) { damageEnemy(sc, e, p); if (!e.dead) damageEnemy(sc, e, p); }
     for (const [b, key] of bossRefs(sc)) {
       if (!b || ['dead', 'gone', 'sleep', 'intro'].includes(b.state)) continue;
-      if (Math.hypot(b.x + b.w / 2 - cx, b.y + b.h / 2 - cy) < R + b.w / 2) { for (let i = 0; i < 3 && !['dead', 'gone'].includes(b.state); i++) damageBoss(sc, key, p); }
+      if (Math.hypot(b.x + b.w / 2 - cx, b.y + b.h / 2 - cy) < R + b.w / 2) damageBoss(sc, key, p, { amount: 3, source: 'area', weak: 'geometry', shape: { type: 'circle', x: cx, y: cy, radius: R } });
     }
-    p['noSilkGain'] = false;
-  } finally { sc._e2burst = false; }
+  } finally { sc._e2burst = burst; p['noSilkGain'] = noSilkGain; }
 }
 
 export { inset, clamp, wdef };

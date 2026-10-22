@@ -27,7 +27,7 @@ describe('реестр боссов находит файлы сам', () => {
 
   it('Node (tsx): те же файлы находятся чтением папки — без Vite, без правок общих списков', () => {
     const code = "import('./src/core/boss/catalog.ts').then((m) => { console.log(JSON.stringify({ dev: m.testCards(true).map((c) => c.id), off: m.testCards(false).map((c) => c.id), race: m.raceBossIds() })); });";
-    const out = execFileSync('npx', ['tsx', '--import', './tools/ldtk-register.mjs', '-e', code], { encoding: 'utf8', cwd: process.cwd(), timeout: 60_000 });
+    const out = execFileSync(process.execPath, ['--import', 'tsx', '--import', './tools/ldtk-register.mjs', '--input-type=module', '-e', code], { encoding: 'utf8', cwd: process.cwd(), timeout: 60_000 });
     const r = JSON.parse(out.trim().split('\n').pop()!) as { dev: string[]; off: string[]; race: string[] };
     expect(real(r.dev)).toEqual([...CH, 'dummy']); expect(real(r.off)).toEqual(CH);
     expect(real(r.race)).toEqual(CH);

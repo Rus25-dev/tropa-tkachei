@@ -10,8 +10,9 @@ import { killEnemy } from './combat';
 import { damageBoss } from './damage';
 
 import { toolEntReg, toolMsgs, toolReg } from './plugin/regs';
-import { isHeroProj } from './proj-kit';
 import { toolAim, type Q, type ToolDef, type ToolMsg } from './tool-kit';
+import type { BossHit } from './hit';
+import { canClearProj } from './proj-kit';
 
 export type { ToolMsg } from './tool-kit';
 /** все инструменты и навыки нити в порядке order (живой объект; описания — src/content/tools/<id>.ts) */
@@ -50,10 +51,11 @@ export function toolHurtEnemy(sc: World, e: Enemy, n: number, kdir: number, pier
 }
 export const liveBoss = (b: Boss | null | undefined): boolean => !!b && !['dead', 'gone', 'sleep', 'intro'].includes(b.state);
 // урон боссу от инструмента — через те же damageBoss/Vladik/Tima, что и у всполоха (фазы, стойка, оглушение работают)
-export function toolHurtBoss(sc: World, key: BossRef, p: Player, n: number): void {
+export function toolHurtBoss(sc: World, key: BossRef, p: Player, n: number, hit: BossHit = {}): void {
   const b = bossOf(sc, key);
+  const noSilk = p['noSilkGain'];
   p['noSilkGain'] = true;
-  try { for (let i = 0; i < n && liveBoss(b); i++) damageBoss(sc, key, p); } finally { p['noSilkGain'] = false; }
+  try { if (liveBoss(b)) damageBoss(sc, key, p, { source: 'projectile', weak: 'open', ...hit, amount: n }); } finally { p['noSilkGain'] = noSilk; }
 }
 export function freezeEnemy(sc: World, e: Enemy | undefined, t: number): void {
   if (!e || e.dead) return;
@@ -79,14 +81,14 @@ export function toolExplode(sc: World, cx: number, cy: number, p: Player): void 
   sc.sfx('slam'); sc.shake(220, 0.01); sc.hitstop = Math.max(sc.hitstop || 0, 0.05);
   sc.burst(30, cx, cy, p && p.pal ? p.pal.accent : 0xffe3a3); sc.burst(14, cx, cy, 0xffffff);
   tfxAdd(sc, { f: 'boom', x: cx, y: cy, t: 0.45, T: 0.45 }, true);
-  for (const pr of sc.projs) if (!pr.dead && !isHeroProj(pr.kind) && !isToolKind(pr.kind) && Math.hypot(pr.x - cx, pr.y - cy) < R) pr.dead = true;
+  for (const pr of sc.projs) if (canClearProj(pr, 'burst') && !isToolKind(pr.kind) && Math.hypot(pr.x - cx, pr.y - cy) < R) pr.dead = true;
   for (const e of sc.enemies) {
     if (e.dead || Math.hypot(e.x + e.w / 2 - cx, e.y + e.h / 2 - cy) > R) continue;
     toolHurtEnemy(sc, e, TOOL.BOMB_DMG, Math.sign(e.x + e.w / 2 - cx) || 1, true);
   }
   for (const [b, k2] of bossRefs(sc)) {
     if (!liveBoss(b)) continue;
-    if (Math.hypot(b.x + b.w / 2 - cx, b.y + b.h / 2 - cy) < R + b.w / 2) toolHurtBoss(sc, k2, p, TOOL.BOMB_DMG);
+    if (Math.hypot(b.x + b.w / 2 - cx, b.y + b.h / 2 - cy) < R + b.w / 2) toolHurtBoss(sc, k2, p, TOOL.BOMB_DMG, { source: 'area', weak: 'geometry', shape: { type: 'circle', x: cx, y: cy, radius: R } });
   }
 }
 

@@ -5,14 +5,15 @@ import { KEY_MAPS } from '../input/keyboard';
 
 export type Act = Exclude<Button, never>;
 export const ACTS: [Act, string][] = [['left', 'Идти влево'], ['right', 'Идти вправо'], ['up', 'Вверх (удар вверх, скамья)'], ['down', 'Вниз (удар вниз, лавка)'],
-  ['jump', 'Прыжок'], ['atk', 'Удар'], ['dash', 'Рывок'], ['heal', 'Нить: лечение и отбив'], ['bomb', 'Дымовуха'], ['tool', 'Инструмент']];
+  ['jump', 'Прыжок'], ['atk', 'Удар'], ['dash', 'Рывок'], ['heal', 'Нить: лечение и отбив'], ['bomb', 'Дымовуха'], ['tool', 'Инструмент'], ['parry', 'Только отбив'], ['bind', 'Только лечение'], ['burst', 'Нитяной всполох']];
 type Bind = [number, string, string?];
 export const DEF: Record<Act, Bind> = {
   left: [65, 'A', 'KeyA'], right: [68, 'D', 'KeyD'], up: [87, 'W', 'KeyW'], down: [83, 'S', 'KeyS'], jump: [32, 'Пробел', 'Space'],
   atk: [70, 'F', 'KeyF'], dash: [71, 'G', 'KeyG'], heal: [81, 'Q', 'KeyQ'], bomb: [82, 'R', 'KeyR'], tool: [69, 'E', 'KeyE'],
+  parry: [84, 'T', 'KeyT'], bind: [89, 'Y', 'KeyY'], burst: [72, 'H', 'KeyH'],
 };
 /** клавиши игрока 2, стрелок и запасной раскладки заняты и не отдаются */
-export const RESERVED = new Set([27, 37, 38, 39, 40, 96, 97, 98, 99, 100, 188, 190, 191, 77, 78, 90, 88, 67, 86, 66]);
+export const RESERVED = new Set([27, 37, 38, 39, 40, 96, 97, 98, 99, 100, 102, 103, 104, 188, 190, 191, 77, 78, 90, 88, 67, 86, 66]);
 
 /** код клавиши по старому keyCode (для сохранений v1.8) */
 export function codeFromKeyCode(k: number): string {
@@ -37,6 +38,15 @@ export function loadKeys(): void {
       if (r && typeof r[0] === 'number' && typeof r[1] === 'string') {
         const code = typeof r[2] === 'string' ? r[2] : codeFromKeyCode(r[0]);
         if (code) keys.map[a] = [r[0], r[1].slice(0, 12), code];
+      }
+    }
+    // Новые команды получают свободные клавиши: старая раскладка могла уже занять T/Y/H.
+    if (raw) {
+      const used = new Set(ACTS.filter(([a]) => raw[a]).map(([a]) => keys.map[a][2]));
+      for (const a of ['parry', 'bind', 'burst'] as const) if (!raw[a]) {
+        const choices = [DEF[a], ...['T', 'Y', 'H', 'U', 'I', 'O', 'P', 'J', 'K', 'L'].map((c): Bind => [c.charCodeAt(0), c, 'Key' + c])];
+        const free = choices.find((b) => !used.has(b[2]) && !RESERVED.has(b[0]));
+        if (free) { keys.map[a] = [...free]; used.add(free[2]); }
       }
     }
   } catch { /* битое сохранение: клавиши по умолчанию */ }
@@ -77,5 +87,5 @@ export function assignKey(act: Act, e: KeyboardEvent): boolean {
 /** строка подсказки про раскладку игрока 1 */
 export function keyLine(): string {
   const n = keyName, mv = [n('left'), n('right'), n('up'), n('down')].join(' ');
-  return `${mv} — ходить · ${n('jump')} — прыжок · ${n('atk')} — удар · ${n('dash')} — рывок · ${n('heal')} — лечение · ${n('bomb')} — дымовуха`;
+  return `${mv} — ходить · ${n('jump')} — прыжок · ${n('atk')} — удар · ${n('dash')} — рывок · ${n('heal')} — нить · ${n('parry')} — отбив · ${n('bind')} — лечение · ${n('burst')} — всполох`;
 }

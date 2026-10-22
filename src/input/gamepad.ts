@@ -39,6 +39,8 @@ export function readPad(p: Gamepad): PadState {
   if (pressed(p, 3) || trig(p, 6)) held.heal = true;
   if (pressed(p, 4)) held.bomb = true;
   if (pressed(p, 5)) held.tool = true;
+  if (pressed(p, 10) && pressed(p, 11)) held.burst = true;
+  else { if (pressed(p, 10)) held.parry = true; if (pressed(p, 11)) held.bind = true; }
   const pause = pressed(p, 9), map = pressed(p, 8) || pressed(p, 17);
   const any = Object.keys(held).length > 0 || pause;
   return { held, pause, map, any };

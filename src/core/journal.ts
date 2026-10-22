@@ -3,6 +3,7 @@
 import type { Inp, Player } from './types';
 import { BAL, T } from './balance';
 import type { World } from './world';
+import { ACTION_BUTTONS, ACTION_EDGES } from './input';
 
 export const BITS = ['left', 'right', 'up', 'down', 'jump', 'atk', 'dash', 'heal', 'bomb', 'tool'] as const;
 export const EBITS = ['jumpP', 'atkP', 'dashP', 'healP', 'upP', 'bombP', 'toolP'] as const;
@@ -24,18 +25,23 @@ export interface Journal {
   wall0?: number; wallT0?: number | null; wallSave?: number; restored?: number; downMs?: number; st?: unknown; meta?: unknown;
 }
 
-/** значение тика: ввод первого игрока, у двух локальных игроков второй добавляется старшими разрядами (по 17 бит на игрока) */
+/** Исходные 17 бит каждого игрока сохранены; новые команды занимают биты 34–45 (точное целое JS). */
 export function tickValue(ps: Player[]): number {
   const p = ps[0]!;
   let v = enc(p.raw, BITS) | (enc(p.pend, EBITS) << 10);
   if (ps.length > 1) v += (enc(ps[1]!.raw, BITS) | (enc(ps[1]!.pend, EBITS) << 10)) * 131072;
+  ps.slice(0, 2).forEach((q, i) => { v += (enc(q.raw, ACTION_BUTTONS) | (enc(q.pend, ACTION_EDGES) << 3)) * 2 ** (34 + i * 6); });
   return v;
 }
 /** разворачивает значение тика в ввод игроков */
 export function applyTickValue(ps: Player[], v: number): void {
-  const v0 = v % 131072, v1 = Math.floor(v / 131072);
+  const v0 = v % 131072, v1 = Math.floor(v / 131072) % 131072;
   ps[0]!.raw = dec(v0 & 1023, BITS); ps[0]!.pend = dec(v0 >> 10, EBITS);
   if (ps.length > 1) { ps[1]!.raw = dec(v1 & 1023, BITS); ps[1]!.pend = dec(v1 >> 10, EBITS); }
+  ps.slice(0, 2).forEach((q, i) => {
+    const extra = Math.floor(v / 2 ** (34 + i * 6)) % 64;
+    if (extra) { Object.assign(q.raw, dec(extra & 7, ACTION_BUTTONS)); Object.assign(q.pend, dec(extra >> 3, ACTION_EDGES)); }
+  });
 }
 /** RLE: добавляет значение тика в конец */
 export function rlePush(rle: number[], v: number): void {

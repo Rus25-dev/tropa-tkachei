@@ -46,6 +46,7 @@ export class InputHub {
       for (const b of [...this.keyboard.taps(sets), ...(i === 0 ? this.pendTouch : [])]) {
         if (b === 'jump') edges.jumpP = true; else if (b === 'atk') edges.atkP = true; else if (b === 'dash') edges.dashP = true;
         else if (b === 'heal') edges.healP = true; else if (b === 'up') edges.upP = true; else if (b === 'bomb') edges.bombP = true; else if (b === 'tool') edges.toolP = true;
+        else if (b === 'parry') edges.parryP = true; else if (b === 'bind') edges.bindP = true; else if (b === 'burst') edges.burstP = true;
       }
       this.prev[i] = buttons;
       out.push({ buttons, edges });

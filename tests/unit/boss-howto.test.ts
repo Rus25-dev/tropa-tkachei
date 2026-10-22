@@ -8,7 +8,7 @@ import { arenaInfo } from '../../tools/boss/files';
 import { runFlawless, scanChains } from '../../tools/bot/nohit';
 
 const md = readFileSync(new URL('../../docs/BOSS_HOWTO.md', import.meta.url), 'utf8');
-const template = JSON.parse(/```json\n([\s\S]*?)\n```/.exec(md)![1]!) as Record<string, unknown>;
+const template = JSON.parse(/```json\r?\n([\s\S]*?)\r?\n```/.exec(md)![1]!) as Record<string, unknown>;
 
 describe('шаблон из BOSS_HOWTO.md', () => {
   it('валидатор: ни одной ошибки', () => {

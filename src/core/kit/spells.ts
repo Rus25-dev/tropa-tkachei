@@ -41,7 +41,7 @@ export function diveStrike(sc: World, p: Player): boolean {
 export function diveStrikeHit(sc: World, p: Player, cx: number, fy: number): void {
   const r = { x: cx - 18, y: fy - 36, w: 36, h: 66 };
   for (const e of sc.enemies) if (!e.dead && overlap(r, e)) toolHurtEnemy(sc, e, 2, kdirOf(e, cx), false);
-  for (const [b, key] of bossRefs(sc)) if (liveBoss(b) && b.state !== 'rage' && overlap(r, inset(b, 4))) toolHurtBoss(sc, key, p, KIT.DIVE.STRIKE);
+  for (const [b, key] of bossRefs(sc)) if (liveBoss(b) && b.state !== 'rage' && overlap(r, inset(b, 4))) toolHurtBoss(sc, key, p, KIT.DIVE.STRIKE, { source: 'area', weak: 'geometry', shape: { type: 'rect', rect: r } });
 }
 /** приземление нырка: ударная волна по земле */
 export function diveLand(sc: World, p: Player): void {
@@ -55,5 +55,5 @@ export function diveLandHit(sc: World, p: Player, cx: number, fy: number): void 
   tfxAdd(sc, { f: 'shock', x: cx, y: fy, t: 0.4, T: 0.4 }, true);
   for (const pr of sc.projs) if (!pr.dead && pr.kind !== 'bomb' && pr.hk !== 'unblockable' && !(pr.delay && pr.delay > 0) && overlap(r, pr)) pr.dead = true;
   for (const e of sc.enemies) if (!e.dead && overlap(r, e)) { toolHurtEnemy(sc, e, KIT.DIVE.ENEMY_DMG, kdirOf(e, cx), true); if (!e.dead) e.kby = -240; }
-  for (const [b, key] of bossRefs(sc)) if (liveBoss(b) && b.state !== 'rage' && overlap(r, inset(b, 2))) toolHurtBoss(sc, key, p, KIT.DIVE.LAND_DMG);
+  for (const [b, key] of bossRefs(sc)) if (liveBoss(b) && b.state !== 'rage' && overlap(r, inset(b, 2))) toolHurtBoss(sc, key, p, KIT.DIVE.LAND_DMG, { source: 'area', weak: 'geometry', shape: { type: 'rect', rect: r } });
 }

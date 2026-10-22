@@ -11,6 +11,7 @@ import { killEnemy } from './combat';
 import { kitSlow } from './kit/moves';
 import { projReg, weaponReg } from './plugin/regs';
 import { ctr, type Swing, type WeaponDef } from './weapon-kit';
+import type { BossHit } from './hit';
 
 // ---------- реестр (описания — src/content/weapons/<id>.ts) ----------
 export type { Swing, SwingDef, WeaponDef } from './weapon-kit';
@@ -151,15 +152,13 @@ export function damageEnemyWeapons(sc: World, e: Enemy, p: Player): void {
   if (!p.remote && W.hs != null) sc.hitstop = W.hs;
 }
 /** weapons.js: обёртка damageBoss/Vladik/Tima. orig — следующий слой (стойкость → база) */
-export function damageBossWeapons(sc: World, b: Boss | null, p: Player, orig: () => void): void {
+export function damageBossWeapons(sc: World, b: Boss | null, p: Player, orig: (hit?: BossHit) => void): void {
   const s = special(sc, p);
   if (!s || !b) return orig();
   const { W, sw, d } = s;
   if (dup(p, sw, b)) return;
-  // урон оружия добавляем до исходного вызова: фазы, смерть и двойной урон по оглушённому считает он сам
-  if (!['rage', 'dead', 'gone', 'sleep', 'intro'].includes(b.state)) b.hp -= (b.stagger > 0 ? 2 : 1) * (d - 1);
   sc._hd = d;
-  try { orig(); } finally { sc._hd = 1; }
+  try { orig({ amount: d }); } finally { sc._hd = 1; }
   if (!p.remote && W.hs != null && sc.hitstop > 0) sc.hitstop = W.hs;
 }
 /** weapons.js: обёртка poiseAdd — свой множитель стойкости у каждого клинка */

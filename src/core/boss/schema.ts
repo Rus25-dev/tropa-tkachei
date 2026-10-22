@@ -43,6 +43,8 @@ const Spawn = z.strictObject({
   vx: z.number().default(0), vy: z.number().default(0),
   /** целиться в героя (длина скорости = hypot(vx, vy)) */
   aim: z.boolean().default(false),
+  /** live — целиться в момент выстрела; locked — использовать точку, зафиксированную замахом. */
+  aimTarget: z.enum(['live', 'locked']).optional(),
   count: z.number().int().min(1).max(12).default(1),
   /** угол веера между соседними снарядами, градусы */
   spread: z.number().min(0).max(180).default(0),
@@ -53,6 +55,8 @@ const Tell = z.strictObject({
   cue: z.strictObject({ color: z.enum(CUE_COLORS), sfx: z.string().min(1), pose: z.string().min(1) }),
   /** взгляд фиксируется в начале замаха (иначе босс следит за героем до конца замаха) */
   lockFace: z.boolean().default(false),
+  /** За сколько кадров до удара зафиксировать цель и направление; 0 — слежение до конца. */
+  commitFrames: frames.optional(),
 });
 const Recovery = z.strictObject({
   frames: pos,
@@ -67,6 +71,8 @@ const Fire = z.strictObject({ at: frames, ent: z.string().min(1) });
 const Fx = z.strictObject({ at: frames, name: z.string().min(1), args: z.record(z.string(), z.unknown()).default({}) });
 export const AttackSchema = z.strictObject({
   id: z.string().min(1), name: z.string().optional(),
+  /** Окно срыва контрударом; false запрещает срыв независимо от цвета/позы. */
+  counter: z.union([z.literal(false), z.strictObject({ windowFrames: pos, reach: z.number().positive().optional(), grounded: z.boolean().optional() })]).optional(),
   tell: Tell, active: z.array(Active).default([]), move: z.array(Move).default([]), spawn: z.array(Spawn).default([]),
   /** призывы существ, запуски расписаний арены и особые эффекты (волна 0); все — кадры от конца замаха */
   summon: z.array(Summon).default([]), fire: z.array(Fire).default([]), fx: z.array(Fx).default([]),
@@ -251,6 +257,8 @@ export const ConductorSchema = z.strictObject({
   beat: pos,
   /** длина цикла расписания в тактах */
   cycle: pos,
+  /** scripted — постановка без дистанционных условий; policy — все условия, cooldown и антиспам. */
+  commands: z.enum(['scripted', 'policy']).optional(),
   /** расписание: в такт beat цикла босс boss (индекс или 'all') начинает связку chain; arena — заодно запустить сущность арены */
   schedule: z.array(z.strictObject({ beat: z.number().int().min(0), boss: z.union([z.number().int().min(0).max(2), z.literal('all')]), chain: z.string().min(1), arena: z.string().min(1).optional() })).default([]),
   /** эстафета: когда босс from заканчивает связку chain, босс to через after кадров начинает связку next */
@@ -454,6 +462,8 @@ export function checkBossDef(def: BossDef, rules: Rules): string[] {
   const atk = new Map(def.attacks.map((a) => [a.id, a])), chn = new Map(def.chains.map((c) => [c.id, c]));
   for (const a of def.attacks) {
     const at = `атака «${a.id}»`;
+    if ((a.tell.commitFrames ?? 0) > a.tell.frames) errs.push(`${at}: commitFrames больше замаха`);
+    if (a.counter && a.counter.windowFrames > a.tell.frames) errs.push(`${at}: окно контрудара больше замаха`);
     for (const x of a.active) if (x.to < x.from) errs.push(`${at}: active.to < active.from`);
     for (const x of a.move) if (x.to < x.from) errs.push(`${at}: move.to < move.from`);
     const kinds = hitKindsOf(a);

@@ -1,13 +1,15 @@
 name: CI
 
-# На каждый pull request и на пуши в v2 и main — только быстрое и критичное (≈5 минут): линт, типы, быстрые тесты Vitest, сборка,
-# дымовой e2e (игра стартует в Chromium) и короткий фаззер. Тяжёлое (перебор связок боссов, бои ботов, полный e2e, золотые записи
-# старой игры) — на локальном стенде или вручную (Actions → CI → Run workflow).
+# Проверяем локально; GitHub не повторяет проверки после push/PR.
+# При необходимости весь набор можно запустить вручную: Actions → CI → Run workflow.
 on:
-  pull_request:
-  push:
-    branches: [v2, main]
   workflow_dispatch:
+    inputs:
+      suite:
+        description: 'Набор проверок'
+        type: choice
+        options: [quick, full]
+        default: quick
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -27,7 +29,12 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
-      - run: npm run test:fast
+      - if: inputs.suite != 'full'
+        run: npm run test:fast
+      - if: inputs.suite == 'full'
+        run: npm test -- --maxWorkers=2
+      - run: npm run content:check
+      - run: npm run boss:check
       - run: npm run build
 
   e2e:
@@ -43,7 +50,10 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npx playwright install --with-deps chromium
-      - run: npm run test:smoke
+      - if: inputs.suite != 'full'
+        run: npm run test:smoke
+      - if: inputs.suite == 'full'
+        run: npm run test:e2e
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
@@ -72,7 +82,7 @@ jobs:
 
   legacy-golden:
     # золотые записи v1.8 на старой игре: не зависят от текущих правок; по запросу вручную
-    if: github.event_name == 'workflow_dispatch'
+    if: inputs.suite == 'full'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -90,7 +100,7 @@ jobs:
 
   legacy-full:
     # полный набор тестов старой игры v1.8 (UI, сеть, меню): только по запросу вручную; на медленном CI страница старой игры иногда не успевает загрузиться
-    if: github.event_name == 'workflow_dispatch'
+    if: inputs.suite == 'full'
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:

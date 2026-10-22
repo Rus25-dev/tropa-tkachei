@@ -55,7 +55,7 @@ describe('Первый Кающийся', () => {
     {
       const w = new World({ seed: 1, mode: 'bosstest', boss: 'penitent', players: 1 });
       const b = w.bosses[0]!, d = dstate(b);
-      run(w, 5);
+      run(w, def().intro.frames + 5);
       expect(b.w).toBe(52);
       b.hp = Math.floor(b.maxHp * 0.5) + 1; w.fxq.length = 0; damageBoss(w, 'd0', w.players[0]!);
       expect(b.phase).toBe(2); expect(b.state).not.toBe('rage'); expect(d.mode).toBe('attack'); expect(d.enter).toBe(true); expect(d.atk).toBe('unchain');

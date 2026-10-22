@@ -7,6 +7,7 @@ import { hurtPlayer } from './damage';
 import { projReg } from './plugin/regs';
 import { projDmg } from './proj-kit';
 import { charmsOn } from './loadout';
+import { sweepTime } from './hit';
 
 export function stepProjs(sc: World, dt: number): void {
   for (const pr of sc.projs) {
@@ -14,9 +15,15 @@ export function stepProjs(sc: World, dt: number): void {
     if ((pr.delay ?? 0) > 0) { pr.delay! -= dt; continue; }
     pr.life -= dt; if (pr.life <= 0) { pr.dead = true; continue; }
     const d = projReg.get(pr.kind);
+    const from = { x: pr.x, y: pr.y, w: pr.w, h: pr.h };
     d?.step?.(sc, pr, dt); // вид снаряда: src/content/projectiles/<kind>.ts
     if (pr.dead || d?.hero) continue;
-    for (const p of sc.players) if (!p.remote && !p.downed && p.inv <= 0 && overlap(inset(p, 2), pr)) { hurtPlayer(sc, p, projDmg(pr), pr.x + pr.w / 2, false, pr.hk); if (!d?.persist) pr.dead = true; }
+    const contacts = sc.players.filter((p) => !p.remote && !p.downed && p.inv <= 0).map((p) => ({ p, at: d?.swept === false ? (overlap(inset(p, 2), pr) ? 1 : null) : sweepTime(from, pr, inset(p, 2)) })).filter((c) => c.at !== null).sort((a, b) => a.at! - b.at! || a.p.i - b.p.i);
+    for (const { p, at } of contacts) {
+      if (pr.dead) break;
+      hurtPlayer(sc, p, projDmg(pr), from.x + (pr.x - from.x) * at! + pr.w / 2, false, pr.hk, { projectile: pr });
+      if (!d?.persist) pr.dead = true;
+    }
   }
   sc.projs = sc.projs.filter((pr: Proj) => !pr.dead);
 }

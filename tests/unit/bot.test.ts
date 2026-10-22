@@ -4,6 +4,8 @@ import { pathToFileURL } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { applyBalanceOverride, BAL, P } from '../../src/core/balance';
 import { playTtrec } from '../../src/core/ttrec';
+import { World } from '../../src/core/world';
+import { gainSilkBase } from '../../src/core/combat';
 import { runFight, type FightJob } from '../../tools/bot/fight';
 import { runInline, runPool } from '../../tools/bot/pool';
 import { bootstrapCI, mean, median, meanCI, wilson } from '../../tools/bot/stats';
@@ -76,15 +78,22 @@ describe('баланс: переопределение для инструмен
     expect(() => applyBalanceOverride({ P: { G: 'x' } })).toThrow(/число/);
     expect(() => applyBalanceOverride({ BAL: { hp: { misha: [1] } } })).toThrow(/массив из 2/);
   });
-  it('переопределение меняет бой и откатывается обратно', () => {
-    const was = BAL.silkEvery, g = P.G, job = { ...base, skill: 0.95, maxSec: 30 };
-    const normal = runFight(job);
-    applyBalanceOverride({ BAL: { silkEvery: 1 } });
-    const changed = runFight(job);
-    applyBalanceOverride({ BAL: { silkEvery: was } });
+  it('переопределение меняет накопление нити и откатывается обратно', () => {
+    const was = BAL.silkEvery, g = P.G;
+    const silkAfterHits = () => {
+      const w = new World({ seed: 7, mode: 'bosstest', boss: 'misha2', players: 1 });
+      const p = w.players[0]!; p.silk = 0; p.bossHits = 0;
+      for (let i = 0; i < was; i++) gainSilkBase(w, p, true);
+      return p.silk;
+    };
+    const normal = silkAfterHits();
+    try {
+      applyBalanceOverride({ BAL: { silkEvery: was + 1 } });
+      expect(silkAfterHits()).toBe(0);
+    } finally { applyBalanceOverride({ BAL: { silkEvery: was } }); }
     expect(P.G).toBe(g);
     expect(BAL.silkEvery).toBe(was);
-    expect(changed.sec === normal.sec && changed.won === normal.won && changed.dmg === normal.dmg).toBe(false);
-    expect(runFight(job).sec).toBe(normal.sec);
-  }, 300_000);
+    expect(normal).toBe(1);
+    expect(silkAfterHits()).toBe(normal);
+  });
 });

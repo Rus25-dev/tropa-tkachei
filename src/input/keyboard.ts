@@ -6,9 +6,9 @@ import type { Button } from '../core/input';
 //  p2     — стрелки, Num1 или / прыжок, Num2 или . удар, Num3 или , рывок, Num0 или M нить, Num4 или N дымовуха, Num5 или J инструмент
 export type KeySet = 'p1' | 'arrows' | 'p2';
 export const KEY_MAPS: Record<KeySet, Record<string, Button>> = {
-  p1: { KeyA: 'left', KeyD: 'right', KeyW: 'up', KeyS: 'down', Space: 'jump', KeyF: 'atk', KeyG: 'dash', KeyQ: 'heal', KeyR: 'bomb', KeyE: 'tool' },
+  p1: { KeyA: 'left', KeyD: 'right', KeyW: 'up', KeyS: 'down', Space: 'jump', KeyF: 'atk', KeyG: 'dash', KeyQ: 'heal', KeyR: 'bomb', KeyE: 'tool', KeyT: 'parry', KeyY: 'bind', KeyH: 'burst' },
   arrows: { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down', KeyZ: 'jump', KeyX: 'atk', KeyC: 'dash', KeyV: 'heal', KeyB: 'bomb', KeyE: 'tool' },
-  p2: { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down', Numpad1: 'jump', Slash: 'jump', Numpad2: 'atk', Period: 'atk', Numpad3: 'dash', Comma: 'dash', Numpad0: 'heal', KeyM: 'heal', Numpad4: 'bomb', KeyN: 'bomb', Numpad5: 'tool', KeyJ: 'tool' },
+  p2: { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down', Numpad1: 'jump', Slash: 'jump', Numpad2: 'atk', Period: 'atk', Numpad3: 'dash', Comma: 'dash', Numpad0: 'heal', KeyM: 'heal', Numpad4: 'bomb', KeyN: 'bomb', Numpad5: 'tool', KeyJ: 'tool', Numpad6: 'parry', Numpad7: 'bind', Numpad8: 'burst' },
 };
 const ALL_CODES = new Set(Object.values(KEY_MAPS).flatMap((m) => Object.keys(m)));
 
@@ -26,13 +26,13 @@ export class Keyboard {
   }
   private inField(e: KeyboardEvent): boolean { const t = e.target as HTMLElement | null; return !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable); }
   private onDown = (e: KeyboardEvent): void => {
-    if (!this.enabled || this.inField(e) || !ALL_CODES.has(e.code)) return;
+    if (!this.enabled || this.inField(e) || !(ALL_CODES.has(e.code) || Object.values(KEY_MAPS).some((m) => e.code in m))) return;
     if (e.code.startsWith('Arrow') || e.code === 'Space') e.preventDefault();
     if (!e.repeat && !this.down.has(e.code)) this.tappedCodes.add(e.code);
     this.down.add(e.code);
   };
   private onUp = (e: KeyboardEvent): void => { this.down.delete(e.code); };
-  private onBlur = (): void => { this.down.clear(); };
+  private onBlur = (): void => { this.down.clear(); this.tappedCodes.clear(); };
   /** Какие кнопки удерживаются сейчас по выбранным раскладкам. */
   held(sets: KeySet[]): Partial<Record<Button, boolean>> {
     const out: Partial<Record<Button, boolean>> = {};

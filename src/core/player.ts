@@ -14,6 +14,7 @@ import { throwBomb, refillBombs } from './bombs';
 import { hookStep } from './tools';
 import { duelNoHeal } from './duelmods';
 import { dashSpeed, kitBusy, kitDashStart, kitStep } from './kit/moves';
+import { canStartAction } from './player-actions';
 
 const NOIN = { up: false, down: false, left: false, right: false, jump: false, atk: false, dash: false, heal: false, bomb: false, tool: false, jumpP: false, atkP: false, dashP: false, healP: false, upP: false, bombP: false, toolP: false };
 
@@ -248,12 +249,13 @@ function baseStepPlayer(sc: World, p: Player, dt: number): void {
     }
     if (inp.bombP) throwBomb(sc, p);
     if (inp.toolP) useTool(sc, p);
-    if (inp.healP) {
-      if (inp.up && p.silk >= P.BURST) silkBurst(sc, p);
-      else if (p.silk >= sc.silkMax && p.hp < p.maxHp && !duelNoHeal(sc)) {
+    const explicit = inp.parryP || inp.bindP || inp.burstP;
+    if ((explicit || inp.healP) && canStartAction(p, inp.parryP ? 'parry' : 'heal')) {
+      if (!inp.parryP && !inp.bindP && (inp.burstP || (inp.healP && inp.up)) && p.silk >= P.BURST) silkBurst(sc, p);
+      else if (!inp.parryP && !inp.burstP && p.silk >= sc.silkMax && p.hp < p.maxHp && !duelNoHeal(sc)) {
         p.silk = 0; p['healCh'] = P.HEAL_T; p.healT = P.HEAL_T; p.atkT = 0; sc.snd('bench');
         sc.parts(10, p.x + 7, p.y + 12, p.pal.accent);
-      } else if ((p['parryCd'] as number) <= 0) { p['parryT'] = P.PARRY_T; p['parryCd'] = P.PARRY_CD; p['parryF'] = 0; sc.snd('slash'); }
+      } else if ((inp.parryP || !explicit) && (p['parryCd'] as number) <= 0) { p['parryT'] = P.PARRY_T; p['parryCd'] = P.PARRY_CD; p['parryF'] = 0; sc.snd('slash'); }
     }
   }
   p['dropT'] = ((p['dropT'] as number) || 0) - dt; p.noPlat = (p['dropT'] as number) > 0;

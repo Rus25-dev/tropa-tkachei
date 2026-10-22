@@ -229,7 +229,7 @@ function stepBeam(sc: World, e: EntRt, d: Extract<ArenaEnt, { kind: 'beam' }>): 
       for (const p of sc.players) {
         if (p.remote || p.downed || p.inv > 0 || s.hits.includes(p.i) || !overlap(inset(p, 2), s.rect)) continue;
         s.hits.push(p.i);
-        hurtPlayer(sc, p, s.dmg, s.rect.x + s.rect.w / 2, false, s.hit);
+        hurtPlayer(sc, p, s.dmg, s.rect.x + s.rect.w / 2, false, s.hit, { boss: sc.bosses[e.own] });
       }
     }
   }

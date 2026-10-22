@@ -30,13 +30,14 @@ export interface ShotSpec {
   count: number; spread: number; dmg?: number;
 }
 /** Веер снарядов из точки base со скоростью (vx, vy); owner — индекс босса-хозяина (Proj.o), src 'd' — снаряд босса на данных (рисуется с контуром цвета удара). */
-export function fireShots(sc: World, base: { x: number; y: number }, vx: number, vy: number, s: ShotSpec, owner: number): void {
+export function fireShots(sc: World, base: { x: number; y: number }, vx: number, vy: number, s: ShotSpec, owner: number, attackId?: number): void {
   const a0 = Math.atan2(vy, vx), sp = Math.hypot(vx, vy);
   for (let k = 0; k < s.count; k++) {
     const ang = a0 + (k - (s.count - 1) / 2) * s.spread * (Math.PI / 180);
     const r = freeSpot(sc, { x: base.x - s.proj.w / 2, y: base.y - s.proj.h / 2, w: s.proj.w, h: s.proj.h });
     const pr: Proj = { kind: s.proj.kind, x: r.x, y: r.y, w: r.w, h: r.h, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, life: s.proj.life / 60, hk: s.kind, src: 'd', o: owner };
     if (s.dmg !== undefined) pr.dmg = s.dmg;
+    if (attackId !== undefined) pr.attackId = attackId;
     sc.projs.push(pr);
   }
 }

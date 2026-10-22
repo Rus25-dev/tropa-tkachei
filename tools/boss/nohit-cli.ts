@@ -5,6 +5,8 @@
 import { mean, median, pct, num } from '../bot/stats';
 import { parryImplemented, runFlawless, scanChains, scanFight, scanTransitions, type ChainReport, type FightScan, type FlawlessResult, type NoHitCfg, type NoHitMode, type TransitionReport } from '../bot/nohit';
 import { bossDef } from '../../src/core/boss/registry';
+import { weaponReg } from '../../src/core/plugin/regs';
+import { normalizeSave } from '../../src/core/loadout';
 
 const argv = process.argv.slice(2);
 const opt = (n: string, d?: string): string | undefined => { const i = argv.indexOf('--' + n); return i >= 0 && i + 1 < argv.length ? argv[i + 1] : d; };
@@ -57,6 +59,9 @@ if (import.meta.url === new URL(process.argv[1] ?? '', 'file://').href || proces
   let mode = (opt('mode', 'strict') as NoHitMode);
   if (mode === 'parry' && !parryImplemented()) { console.error('Режим parry отключён: в ядре нет Парирования 2.0 (HitKind-логики). Работаю в режиме strict.'); mode = 'strict'; }
   const cfg: Partial<NoHitCfg> = { mode, horizon: +(opt('horizon', '56')!) };
+  const weapon = opt('weapon');
+  if (weapon && !weaponReg.has(weapon)) { console.error(`Нет оружия «${weapon}»`); process.exit(2); }
+  if (weapon || flag('kit')) cfg.profile = { kit: flag('kit'), loadoutSave: weapon ? normalizeSave({ weapon, have: { weapons: ['needle', weapon] } }) : undefined };
   const seed = +(opt('seed', '1')!), runs = +(opt('runs', '50')!);
   const t0 = performance.now();
   const scan = scanChains({ boss, bossAt: SCAN_AT, offsets: SCAN_OFFSETS, seed, cfg });
@@ -73,5 +78,5 @@ if (import.meta.url === new URL(process.argv[1] ?? '', 'file://').href || proces
     if (multi.length) { console.log('\nБой нескольких боссов под дирижёром (бот только уходит от ударов, 2 цикла расписания)\n'); console.log(renderFightScan(multi)); }
     if (fights.length) { console.log('\nЦелые бои\n'); console.log(renderFights(fights)); }
   }
-  process.exitCode = scan.some((r) => !r.passable) || trans.some((r) => !r.passable) || multi.some((r) => !r.passable) ? 1 : 0;
+  process.exitCode = scan.some((r) => !r.passable) || trans.some((r) => !r.passable) || multi.some((r) => !r.passable) || fights.some((r) => !r.won || !r.flawless) ? 1 : 0;
 }

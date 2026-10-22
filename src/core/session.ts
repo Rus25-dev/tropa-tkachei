@@ -126,6 +126,7 @@ export class Session {
       const f = (w.online ? inputs[0] : inputs[p.i] ?? inputs[0]); if (!f) continue;
       const r = f.buttons as Inp, pd = p.pend, e = f.edges;
       pd.jumpP ||= e.jumpP; pd.atkP ||= e.atkP; pd.dashP ||= e.dashP; pd.healP ||= e.healP; pd.upP ||= e.upP; pd.bombP ||= e.bombP; pd.toolP ||= e.toolP;
+      if (e.parryP) pd.parryP = true; if (e.bindP) pd.bindP = true; if (e.burstP) pd.burstP = true;
       p.raw = { ...r }; p.prev = p.raw;
     }
     // дуэль: после конца раунда мир стоит; «Блиц» ускоряет часы тиков на 20 %

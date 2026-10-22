@@ -14,11 +14,13 @@ import { chainFrames } from '../../src/core/boss/validate';
 import { feedInput } from '../../src/core/fuzzinput';
 import { hurtPlayer } from '../../src/core/damage';
 import type { Inp, Player } from '../../src/core/types';
-import { World } from '../../src/core/world';
+import { World, type WorldOpts } from '../../src/core/world';
 import { cloneWorld } from './clone';
 
 export type NoHitMode = 'strict' | 'parry';
 export interface NoHitCfg {
+  /** Проверять реальный набор игрока, а не только стартовую иглу. */
+  profile?: Pick<WorldOpts, 'kit' | 'loadoutSave'> & { abilities?: Record<string, boolean> };
   mode: NoHitMode;
   /** сколько кадров вперёд проверять */
   horizon: number;
@@ -62,7 +64,7 @@ const byName = new Map([...ACTS, ...PARRY_ACTS].map((a) => [a.name, a]));
 const act = (n: string): Act => byName.get(n)!;
 
 function frameInp(a: Act, k: number): Inp {
-  return { left: a.dir < 0, right: a.dir > 0, up: false, down: false, jump: a.jump === 1 || (a.jump === 2 && k > 0) || (a.jump === 3 && k < 2), atk: !!a.atk && k === (a.at ?? 0), dash: !!a.dash && k === (a.at ?? 0), heal: !!a.parry && k === (a.at ?? 0), bomb: false, tool: false };
+  return { left: a.dir < 0, right: a.dir > 0, up: false, down: false, jump: a.jump === 1 || (a.jump === 2 && k > 0) || (a.jump === 3 && k < 2), atk: !!a.atk && k === (a.at ?? 0), dash: !!a.dash && k === (a.at ?? 0), parry: !!a.parry && k === (a.at ?? 0), bomb: false, tool: false };
 }
 
 const bossOfWorld = (w: World): ReturnType<World['testBoss']> => w.testBoss();
@@ -281,8 +283,13 @@ export interface ChainReport { phase: number; chain: string; scenarios: number; 
 
 /** Мир босса на данных в нужной фазе, без вступления, босс на доле bossAt ширины арены (null — остаётся на своём месте: неподвижные и участники).
  *  Несколько боссов: все встают в покой, дирижёр отключён (связки назначает сканер); сущности арены с bind.start запущены. */
-export function stageWorld(boss: string, phase: number, bossAt: number | null, seed: number): World {
-  const w = new World({ seed, mode: 'bosstest', boss, players: 1 });
+function profileWorld(boss: string, seed: number, profile?: NoHitCfg['profile']): World {
+  const w = new World({ seed, mode: 'bosstest', boss, players: 1, kit: profile?.kit, loadoutSave: profile?.loadoutSave });
+  if (profile?.abilities) Object.assign(w.abil, profile.abilities);
+  return w;
+}
+export function stageWorld(boss: string, phase: number, bossAt: number | null, seed: number, profile?: NoHitCfg['profile']): World {
+  const w = profileWorld(boss, seed, profile);
   const b = w.bosses[0]!, d = dstate(b);
   if (bossAt !== null && !d.pin) {
     const lo = T + 8, hi = (w.L.W - 1) * T - b.w - 8;
@@ -314,7 +321,7 @@ export function scanChains(spec: ScanSpec, onProgress?: (s: string) => void): Ch
       const chain = def.chains.find((c) => c.id === cid); if (!chain) continue;
       const rep: ChainReport = { phase: ph, chain: cid, scenarios: 0, clean: 0, passable: true, fails: [], frames: chainFrames(def, chain) };
       for (const at of still ? [null] : spec.bossAt) for (const off of spec.offsets) {
-        const w = stageWorld(spec.boss, ph, at, spec.seed + rep.scenarios);
+        const w = stageWorld(spec.boss, ph, at, spec.seed + rep.scenarios, spec.cfg?.profile);
         const b = w.bosses[0]!, p = w.players[0]!;
         // герой на полу в off px от центра босса (в пределах арены)
         const cx = b.x + b.w / 2, hx = Math.min((w.L.W - 1) * T - p.w - 2, Math.max(T + 2, cx + off - p.w / 2));
@@ -354,7 +361,7 @@ export function scanTransitions(spec: Pick<ScanSpec, 'boss' | 'bossAt' | 'offset
     const frames = ps.rageFrames + sc + (ps.enterChain ? chainFrames(def, def.chains.find((c) => c.id === ps.enterChain)!) : 0) + 90;
     const rep: TransitionReport = { phase: ph, scenarios: 0, clean: 0, passable: true, fails: [], frames };
     for (const at of effForm(def, ph - 1).still ? [null] : spec.bossAt) for (const off of spec.offsets) {
-      const w = stageWorld(spec.boss, ph - 1, at, spec.seed + rep.scenarios);
+      const w = stageWorld(spec.boss, ph - 1, at, spec.seed + rep.scenarios, spec.cfg?.profile);
       const b = w.bosses[0]!, p = w.players[0]!, d = dstate(b);
       const cx = b.x + b.w / 2, hx = Math.min((w.L.W - 1) * T - p.w - 2, Math.max(T + 2, cx + off - p.w / 2));
       p.x = hx; p.y = d.floor - p.h; p.safeX = p.x; p.safeY = p.y; p.vx = p.vy = 0; p.face = cx > hx ? 1 : -1;
@@ -385,7 +392,7 @@ export function scanFight(boss: string, seeds: number[], cfg: Partial<NoHitCfg> 
   const def = bossDef(boss)!, cd = def.conductor;
   const frames = (cd ? cd.beat * cd.cycle * cycles : 1800) + def.intro.frames + 120;
   return seeds.map((seed) => {
-    const w = new World({ seed, mode: 'bosstest', boss, players: 1 });
+    const w = profileWorld(boss, seed, cfg.profile);
     const p = w.players[0]!, pilot = new NoHitPilot({ ...cfg, aggressive: false });
     let hits = 0, hp = p.hp;
     for (let t = 0; t < frames; t++) {
@@ -412,7 +419,7 @@ export interface FlawlessResult {
   replans: number; nodes: number;
 }
 export function runFlawless(boss: string, seed: number, cfg: Partial<NoHitCfg> = {}, maxSec = 240): FlawlessResult {
-  const w = new World({ seed, mode: 'bosstest', boss, players: 1 });
+  const w = profileWorld(boss, seed, cfg.profile);
   const p = w.players[0]!;
   const pilot = new NoHitPilot(cfg);
   const chains: FlawlessResult['chains'] = {};

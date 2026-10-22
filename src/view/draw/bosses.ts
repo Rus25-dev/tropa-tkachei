@@ -40,6 +40,15 @@ function drawMannequin(_w: World, b: Boss, g: G, _now: number, c: DrawCtx): void
 function drawTelegraph(w: World, b: Boss, g: G, now: number, c: DrawCtx): void {
   const cx = b.x + b.w / 2, fy = b.y + b.h, lean = c.lean;
   if (c.tell) {
+    // Форма сигнала дублирует тип удара: читается и без различения цветов.
+    const a = c.def.attacks.find((x) => x.id === c.d.atk), kinds = [...new Set([...(a?.active.map((x) => x.kind) ?? []), ...(a?.spawn.map((x) => x.kind) ?? [])])];
+    kinds.forEach((kind, i) => {
+      const x = cx + (i - (kinds.length - 1) / 2) * 20, y = b.y - 20;
+      g.lineStyle(2, HIT_RGB[kind] ?? 0xffffff, 1);
+      if (kind === 'parry') g.strokeCircle(x, y, 6);
+      else if (kind === 'dodge') { g.lineBetween(x - 6, y - 6, x + 1, y); g.lineBetween(x + 1, y, x - 6, y + 6); g.lineBetween(x + 1, y - 6, x + 8, y); g.lineBetween(x + 8, y, x + 1, y + 6); }
+      else { g.lineBetween(x - 6, y - 6, x + 6, y + 6); g.lineBetween(x - 6, y + 6, x + 6, y - 6); }
+    });
     const hz = 5 + c.k * 16, on = Math.sin(now * hz * Math.PI * 2) > -0.2;
     if (on) { g.lineStyle(3, c.rgb, 0.95); g.strokeRoundedRect(cx - b.w / 2 - 2 + lean, b.y - 4, b.w + 4, b.h + 6, 10); }
     for (const x of liveBoxes(w, b)) {

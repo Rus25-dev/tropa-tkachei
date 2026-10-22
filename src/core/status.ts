@@ -48,8 +48,8 @@ export function bossDamage(sc: World, key: BossRef, p: Player, n: number): void 
   if (!bossLive(b)) return;
   const hs = sc.hitstop, hp0 = b!.hp, nsg = p['noSilkGain'], q = sc.quiet;
   sc.quiet = true; p['noSilkGain'] = true;
-  for (let i = 0; i < n && b!.hp > 0 && bossLive(b); i++) rawBossDamage(sc, key, p);
-  sc.quiet = q; p['noSilkGain'] = nsg; sc.hitstop = hs;
+  try { rawBossDamage(sc, key, p, { amount: n, source: 'dot', weak: 'open' }); }
+  finally { sc.quiet = q; p['noSilkGain'] = nsg; sc.hitstop = hs; }
   if (b!.hp < hp0) b!.flash = Math.max(b!.flash || 0, 0.06);
 }
 

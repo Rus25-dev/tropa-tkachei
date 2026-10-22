@@ -3,7 +3,7 @@
 // Эстафета: когда босс A заканчивает связку, босс B через after кадров начинает свою. Победа: общий пул обнулён / убиты все (win: all) / убит любой (win: any).
 // Состояние — sc.cond, обычные данные. Часы дирижёра — кадры мира, они идут, когда все участники вышли из вступления; занятый босс пропускает такт (skips).
 import { arenaFire } from './arena';
-import { dstate, forceChain } from './exec';
+import { dstate, commandChain } from './exec';
 import { bossDef } from './registry';
 import type { Conductor } from './schema';
 import type { World } from '../world';
@@ -44,7 +44,7 @@ function order(sc: World, i: number, chain: string): boolean {
   const c = bossDef(dstate(b).id)!.chains.find((x) => x.id === chain);
   if (!c) return false;
   if (c.requires?.phase && !c.requires.phase.includes(b.phase || 1)) return false; // приказ уважает requires.phase: так в ранних фазах часть бойцов молчит
-  return ready(sc, i) && forceChain(sc, i, chain);
+  return ready(sc, i) && commandChain(sc, i, chain, condOf(sc)?.commands);
 }
 
 /** Кадр дирижёра (до шагов боссов): метроном, расписание, эстафета. */

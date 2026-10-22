@@ -4,6 +4,7 @@
 // Если расходится — tools/trace-diff.mjs покажет первый тик расхождения (трасса снимается со старой игры: legacy/tools/trace.js).
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { outcome, type Journal } from '../../src/core/journal';
 import { normalizeSave } from '../../src/core/loadout';
@@ -18,7 +19,17 @@ describe('золотые записи', () => {
   for (const { n, file } of files) {
     if (only && !only.includes(n)) continue;
     it(n, () => {
-      const rec = JSON.parse(readFileSync(file, 'utf8')) as { journal: Journal; expect: Record<string, unknown>; loadout?: unknown };
+      const source = readFileSync(file, 'utf8');
+      const rec = JSON.parse(source) as { journal: Journal; expect: Record<string, unknown>; loadout?: unknown };
+      // Архив v1.8 остаётся неизменным для legacy/. Текущее ядро явно фиксирует
+      // намеренное отличие: возрождение очищает буферы и незавершённые действия.
+      const current = join(__dirname, '../golden/current', n + '.json');
+      if (existsSync(current)) {
+        const patch = JSON.parse(readFileSync(current, 'utf8')) as { sourceSha256: string; chk: number[][]; expect: Record<string, unknown> };
+        expect(createHash('sha256').update(source.replace(/\r\n/g, '\n')).digest('hex')).toBe(patch.sourceSha256);
+        rec.journal.segs.forEach((s, i) => { s.chk = patch.chk[i]!; });
+        rec.expect = patch.expect;
+      }
       const r = replayJournal(rec.journal, { loadoutSave: normalizeSave(rec.loadout) });
       if (!r.ok) throw new Error(r.why);
       expect(JSON.parse(JSON.stringify(outcome(r.world)))).toEqual(rec.expect); // через JSON: как хранится запись (-0 → 0)

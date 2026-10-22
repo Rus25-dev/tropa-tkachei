@@ -37,7 +37,7 @@ export default defineTool({
           for (const [b, key] of bosses) {
             if (!liveBoss(b) || !overlap(q as never, inset(b, 4))) continue;
             if (b.state === 'rage') { sc.sfx('clink'); q['st'] = 3; q['vx'] = -q['vx'] * 0.15; q['vy'] = -120; break; }
-            toolHurtBoss(sc, key, owner, TOOL.NEEDLE_DMG);
+            toolHurtBoss(sc, key, owner, TOOL.NEEDLE_DMG, { weak: 'geometry', shape: { type: 'rect', rect: q as never } });
             q['st'] = 2; q['boss'] = b; q['ox'] = q['x'] - b.x; q['oy'] = q['y'] - b.y; q['stuckT'] = TOOL.NEEDLE_STICK; q['vx'] = q['vy'] = 0;
             sc.sfx('clink'); break;
           }

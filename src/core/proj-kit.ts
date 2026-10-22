@@ -32,6 +32,13 @@ export interface ProjDef {
   dieOnStagger?: boolean;
   /** можно задавать в данных боссов (data/bosses/*.json, proj.kind) */
   data?: boolean;
+  /** Можно удалить успешным отбивом / всполохом; по умолчанию отбив чистит только parry. */
+  parryClear?: boolean;
+  burstClear?: boolean;
+  /** Связанный с атакой снаряд: удалить при её отмене (независимые опасности сохраняются). */
+  cancelOnInterrupt?: boolean;
+  /** false для телепортирующихся объектов: их перемещение не является траекторией удара. */
+  swept?: boolean;
 }
 
 export function defineProj(d: ProjDef): ProjDef { return d; }
@@ -40,3 +47,9 @@ export function defineProj(d: ProjDef): ProjDef { return d; }
 export const projDmg = (pr: Proj): number => pr.dmg ?? (projReg.get(pr.kind)?.heavy ? 2 : 1);
 /** снаряд героя (дымовая бомба): не ранит героев, не гаснет при смене фазы и во взрывах */
 export const isHeroProj = (kind: string): boolean => !!projReg.get(kind)?.hero;
+
+export function canClearProj(pr: Proj, by: 'parry' | 'burst'): boolean {
+  const def = projReg.get(pr.kind);
+  if (def?.hero || pr.dead || (pr.delay ?? 0) > 0) return false;
+  return by === 'parry' ? (def?.parryClear ?? (pr.hk === undefined || pr.hk === 'parry')) : (def?.burstClear ?? true);
+}

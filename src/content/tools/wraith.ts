@@ -29,7 +29,7 @@ export default defineTool({
         if (e.dead || !overlap(q as never, e)) continue;
         if (toolHurtEnemy(sc, e, KIT.WRAITH.DMG, kdirOf(e, cx), false) && !e.dead) { e.kby = -260; e.kbx *= 0.3; }
       }
-      for (const [b, key] of bosses) if (liveBoss(b) && b.state !== 'rage' && overlap(q as never, inset(b, 2))) toolHurtBoss(sc, key, owner, KIT.WRAITH.DMG);
+      for (const [b, key] of bosses) if (liveBoss(b) && b.state !== 'rage' && overlap(q as never, inset(b, 2))) toolHurtBoss(sc, key, owner, KIT.WRAITH.DMG, { weak: 'geometry', shape: { type: 'rect', rect: q as never } });
       for (const pr of sc.projs) {
         if (pr.dead || pr.kind === 'bomb' || pr.hk === 'unblockable' || (pr.delay ?? 0) > 0 || !overlap(q as never, pr)) continue;
         pr.dead = true; sc.burst(5, pr.x + pr.w / 2, pr.y + pr.h / 2, 0xcfe8ff);

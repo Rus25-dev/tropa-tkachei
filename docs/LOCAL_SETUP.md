@@ -1,6 +1,6 @@
 # Локальная разработка v2 (Windows PowerShell)
 
-Проект на ветке `v2`: **Phaser 4.2.1 + TypeScript (strict) + Vite + Preact**. Старая игра v1.8 лежит в `legacy/` со своими тестами и золотыми записями: пока она эталон поведения. Прежняя инструкция для v1.8 — `docs/LOCAL_SETUP_v1.8.md`.
+Текущая версия в `main`: **Phaser 4.2.1 + TypeScript (strict) + Vite + Preact**. Старая игра v1.8 в `legacy/` нужна для исторических тестов совместимости. Обычная разработка не требует её установки. Прежняя инструкция для v1.8 — `docs/LOCAL_SETUP_v1.8.md`.
 
 ## Установка (один раз)
 1. Поставьте **Git**, **Node.js 22+** (проверено на 24), **Python 3.10+** (нужен только для старой игры: `legacy/build.py`) и **Google Chrome**.
@@ -12,9 +12,7 @@
    ```powershell
    git clone https://github.com/Rus25-dev/tropa-tkachei.git
    cd tropa-tkachei
-   git checkout v2
-   npm install
-   npm run legacy:install   # зависимости старой игры (Phaser 3.90, playwright-core, peer)
+   npm ci
    ```
 3. Скажите тестам, где Chrome (в каждой новой сессии PowerShell или один раз в профиле):
    ```powershell
@@ -32,6 +30,8 @@
 | `npm run typecheck` | проверка типов (`tsc`, strict) |
 | `npm run lint` | ESLint; в `src/core/**` запрещены `Math.random`, `Date`, `performance`, таймеры, DOM и Phaser |
 | `npm test` | Vitest (ядро, ввод, раскладка) |
+| `npm run test:combat` | короткие регрессии боевой основы; удобно после локальной правки |
+| `npm run test:fast` | расширенные проверки без тяжёлых переборов боёв |
 | `npm run test:e2e` | Playwright Test: экраны, ввод, масштаб на 5 размерах (поднимает `preview` сам, нужна сборка `npm run build`) |
 | `npm run test:full` | линт + типы + Vitest + сборка + e2e + золотые записи v1.8 |
 | `npm run legacy:golden` | золотые записи v1.8 (`tests/golden`) на старой игре |
@@ -40,6 +40,8 @@
 | `npm run sim`, `bot`, `fuzz`, `replay` | инструменты ядра: симуляция, ИИ-бот, фаззер, воспроизведение записей (README, «Инструменты разработчика») |
 
 Два набора тестов одновременно не запускайте: нагрузка даёт ложные падения.
+
+Для обычной правки запускайте затронутый тест или `test:combat`; перед сдачей — линтер, типы, `test:fast`, проверку контента и сборку. Полный `npm test` и браузерные тесты нужны после изменений общей боевой логики и перед релизом. GitHub **не повторяет тесты** на push или PR: CI запускается только вручную через Actions → CI → Run workflow. Публикация Pages остаётся отдельным workflow Deploy.
 
 ## Структура
 ```
@@ -56,6 +58,7 @@ legacy/      игра v1.8 (Phaser 3) с тестами; эталон до ре�
 ```
 
 ## Старая игра (legacy/)
+Зависимости архива ставятся отдельно, только когда нужен его прогон: `npm run legacy:install`.
 ```powershell
 cd legacy
 npm run build            # python3 build.py → legacy/index.html
