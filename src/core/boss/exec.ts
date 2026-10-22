@@ -1,22 +1,32 @@
 // Исполнитель боссов на данных (2.5): один автомат на всех — замах → активные кадры → восстановление, связки, фазы.
 // Время идёт кадрами (60/с): шаг мира копит d.acc и выполняет целые кадры, так что замедление/оглушение из stepBossLayered работает без изменений.
 // Урон идёт через hurtPlayer (с типом удара hk), снаряды — через sc.projs, движение — через moveBody. Все числа лежат в data/bosses/*.json.
+// Волна 0: сцены и трансформация фаз (form), неподвижные и летающие тела, уязвимые точки, сущности арены, существа-приспешники,
+// несколько боссов под дирижёром (conductor.ts) и особая логика босса из kinds/<id>.ts.
 import { P, T, clamp, dataKey, dataIdx } from '../balance';
 import type { BossRef } from '../balance';
 import { STEP } from '../constants';
-import type { Boss, HitKind, Player, Proj, Rect } from '../types';
+import type { Boss, HitKind, Player, Rect } from '../types';
 import type { World } from '../world';
-import { inset, overlap } from '../world';
+import { inset, overlap, phaseOf } from '../world';
 import { bossDeathFx, bossHitSnd, checkPhase, stepBossLayered } from '../bosses2';
 import { gainSilk, hurtPlayer } from '../damage';
 import { bossDeath } from '../korne';
+import { atkBox } from '../weapons';
 import { winGame } from '../win';
-import { activeEnd, type Attack, type BossDef, type BoxDef, type Chain } from './schema';
-import { bossDef } from './registry';
+import { arenaAbort, arenaClear, arenaFire, arenaOnPhase, arenaOnStart, arenaOnStep, arenaStep, makeArena } from './arena';
+import { barFrac, condOnChainEnd, conducted, deathIsFinal, makeCond, syncPool } from './conductor';
+import { effForm } from './form';
+import { kindOf, type KindApi } from './kinds';
+import { spawnCreature } from './minions';
 import { newMem, noteUse, pickChain, policyOf, priorities, priorityChain, tickMem, type ArenaSide, type PickCtx, type PolicyMem } from './policy';
+import { BOSS_RULES, bossDef } from './registry';
+import { activeEnd, arenaLevel, type Attack, type BossDef, type Chain, type Weak } from './schema';
+import { aimAt, boxRect, centerX, dstate, fireShots, freeSpot } from './shared';
 import { attackEvents } from './validate';
 import { framesOf, newAc, poiseMulOf, resolveAnti, staggerBegin, staggerRoom, type AcState } from './anti';
 
+export { boxRect, dstate };
 export type DMode = 'intro' | 'idle' | 'rage' | 'scene' | 'attack' | 'dead';
 /** Состояние исполнителя: лежит в b['d'] обычными данными (без функций), чтобы его можно было снять в снимок. */
 export interface DState {
@@ -41,45 +51,98 @@ export interface DState {
   bar: boolean;
   /** защита от читов (anti.ts) */
   ac: AcState;
+  /** фаза, чьё тело (form) сейчас на боссе; фаза, для которой запущены сущности арены */
+  formPh: number; phA: number;
+  /** поверхность пола, px; для неподвижного — точка, где он закреплён */
+  floor: number; pin: { x: number; y: number } | null;
+  /** кадр исполнителя: приём задал вертикальную скорость полёта (выравнивание по высоте отключается) */
+  flyMove: boolean;
+  /** подсказка про броню уже показана */
+  hinted: boolean;
+  /** сцена: уже сыгранные события morph (применены) */
+  morphed: boolean;
 }
 
-export const dstate = (b: Boss): DState => b['d'] as DState;
 export const isDataBoss = (b: Boss | null | undefined): boolean => !!b && !!b['d'];
 export const defOfBoss = (b: Boss): BossDef => bossDef(dstate(b).id)!;
 export const attackOf = (def: BossDef, id: string): Attack => def.attacks.find((a) => a.id === id)!;
 export const chainOf = (def: BossDef, id: string): Chain => def.chains.find((c) => c.id === id)!;
 
-/** Создать (или пересоздать) босса на данных с индексом i. */
-export function makeDataBoss(sc: World, id: string, i = 0): Boss {
+const apiOf = (sc: World, b: Boss, d: DState, def: BossDef): KindApi => ({ sc, b, d, def, i: d.i, rng: sc.rBoss });
+const kindHook = (sc: World, b: Boss, d: DState, def: BossDef): { k: ReturnType<typeof kindOf>; api: KindApi } => ({ k: kindOf(def.id), api: apiOf(sc, b, d, def) });
+
+/** Создать (или пересоздать) босса на данных с индексом i. place — положение участника из раздела conductor. */
+export function makeDataBoss(sc: World, id: string, i = 0, place?: { x?: number; y?: number }): Boss {
   const def = bossDef(id);
   if (!def) throw new Error(`нет босса на данных «${id}»`);
-  const sp = sc.L[def.arena]!, hp = def.hp[sc.nPlayers === 2 ? 1 : 0]!;
+  const sp = sc.L[arenaLevel(def) as 'misha' | 'vladik' | 'tima']!, hp = def.hp[sc.nPlayers === 2 ? 1 : 0]!;
+  const e = effForm(def, 1), pl = place ?? def.place, floor = (sp.y + 1) * T;
+  const cx = pl?.x !== undefined ? T + pl.x * (sc.L.W - 2) * T : sp.x * T;
+  const bottom = floor - (pl?.y ?? (e.fly ? e.fly.hover : 0));
   const b: Boss = {
-    x: sp.x * T - def.size.w / 2, y: (sp.y + 1) * T - def.size.h, w: def.size.w, h: def.size.h, vx: 0, vy: 0, hp, maxHp: hp, phase: 1, state: 'intro', t: def.intro.frames / 60, face: -1, flash: 0,
+    x: cx - e.size.w / 2, y: bottom - e.size.h, w: e.size.w, h: e.size.h, vx: 0, vy: 0, hp, maxHp: hp, phase: 1, state: 'intro', t: def.intro.frames / 60, face: -1, flash: 0,
     name: def.name, thr: def.phases.slice(1).map((p) => p.fromHp), stagger: 0,
-    d: { id, i, mode: 'intro', f: 0, acc: 0, rest: 0, atk: null, af: 0, chain: null, step: 0, enter: false, dir: -1, lock: { x: 0, y: 0 }, hits: [], mdir: {}, punish: false, cue: null, closeF: {}, mem: newMem(), bar: false, ac: newAc() } satisfies DState,
+    d: { id, i, mode: 'intro', f: 0, acc: 0, rest: 0, atk: null, af: 0, chain: null, step: 0, enter: false, dir: -1, lock: { x: 0, y: 0 }, hits: [], mdir: {}, punish: false, cue: null, closeF: {}, mem: newMem(), bar: false, ac: newAc(), formPh: 1, phA: 0, floor, pin: null, flyMove: false, hinted: false, morphed: false } satisfies DState,
   };
+  (b['d'] as DState).pin = e.still ? { x: b.x, y: b.y } : null;
   sc.bosses[i] = b;
   return b;
+}
+
+/** Создать весь бой: ведущий босс, участники дирижёра, дирижёр, арена. Прежние боссы и существа убираются. */
+export function makeFight(sc: World, id: string): Boss {
+  const def = bossDef(id);
+  if (!def) throw new Error(`нет босса на данных «${id}»`);
+  sc.bosses = []; sc.enemies = sc.enemies.filter((e) => !e['m']);
+  const lead = makeDataBoss(sc, id, 0);
+  const cd = def.conductor;
+  if (cd) cd.members.forEach((m, k) => {
+    const mb = makeDataBoss(sc, m.boss, k + 1, m.place);
+    if (cd.pool) { mb.hp = mb.maxHp = lead.maxHp; mb.thr = bossDef(m.boss)!.phases.slice(1).map((p) => p.fromHp); }
+  });
+  makeCond(sc);
+  makeArena(sc);
+  return lead;
+}
+/** Начать бой заново (обрыв нити, сброс в тренировке) */
+export function resetFight(sc: World): void {
+  const lead = sc.bosses[0]; if (!lead) return;
+  makeFight(sc, dstate(lead).id);
 }
 
 // ---------- шаг ----------
 export function stepDataBoss(sc: World, i: number, dt: number): void { stepBossLayered(sc, dataKey(i), dt, (s, dt2) => stepBase(s, i, dt2)); }
 
+/** Ход оглушённого (и вообще любого) тела: неподвижный стоит, летающий висит, остальные падают и ходят по тайлам */
+export function dataBody(sc: World, b: Boss, dt: number): void {
+  const d = dstate(b), def = bossDef(d.id)!, e = effForm(def, d.formPh);
+  if (e.still) { b.vx = 0; b.vy = 0; b.onGround = true; b.hitL = b.hitR = false; return; }
+  if (e.fly) {
+    if (!d.flyMove) {
+      const want = d.floor - e.fly.hover - b.h + Math.sin(sc.animT * 2) * e.fly.bob, err = want - b.y;
+      b.vy = clamp(err * 5, -e.fly.speed, e.fly.speed);
+    }
+  } else b.vy = Math.min(b.vy + P.G * dt, P.MAXFALL);
+  sc.moveBody(b, dt);
+}
+
 function stepBase(sc: World, i: number, dt: number): void {
   const b = sc.bosses[i]; if (!b) return;
   const d = dstate(b), def = bossDef(d.id)!;
   b.flash -= dt;
-  if (!d.bar) { d.bar = true; sc.bossBar(true, def.name, b.hp / b.maxHp); }
+  if (!d.bar && (i === 0 || !sc.cond)) { d.bar = true; sc.bossBar(true, def.name, barFrac(sc)); }
+  if (sc.cond && !sc.cond.over && b.state !== 'dead') { // несколько боссов: общий пул и фазы по общему здоровью
+    syncPool(sc);
+    if (b.hp <= 0) { dataDie(sc, i); return; }
+    if ((d.mode === 'idle' || d.mode === 'attack') && checkPhase(sc, b, def.name, !!def.phases[phaseOf(b) - 1]?.silent)) beginPhase(sc, b, d, def);
+  }
   d.acc += dt / STEP;
   while (d.acc > 1 - 1e-6) { d.acc -= 1; frame(sc, b, d, def); }
-  b.vy = Math.min(b.vy + P.G * dt, P.MAXFALL);
   const vx0 = b.vx;
-  sc.moveBody(b, dt);
-  wallStun(sc, b, d, def, vx0);
+  dataBody(sc, b, dt);
+  if (!effForm(def, d.formPh).still) wallStun(sc, b, d, def, vx0);
 }
 
-const centerX = (b: Boss): number => b.x + b.w / 2;
 function arenaSide(sc: World, b: Boss): ArenaSide {
   const w = (sc.L.W - 2) * T, k = (centerX(b) - T) / w;
   return k < 1 / 3 ? 'left' : k > 2 / 3 ? 'right' : 'center';
@@ -95,23 +158,83 @@ function ctxOf(sc: World, b: Boss, d: DState, tp: Player | null, def: BossDef): 
   return { dist: tp ? Math.abs(tp.x + 7 - centerX(b)) : Infinity, side: arenaSide(sc, b), hpFrac: b.hp / b.maxHp, phase: b.phase || 1, closeF: d.closeF, corner: cfg ? heroInCorner(sc, tp, cfg.shove.cornerMargin) : false, calmF: d.ac.calm };
 }
 
+// ---------- сцены ----------
+type SceneEv = NonNullable<BossDef['phases'][number]['scene']>['events'][number];
+const skipPressed = (sc: World): boolean => sc.players.some((p) => !p.remote && !p.downed && (p.inp.jumpP || p.inp.atkP));
+/** События сцены на кадре f (камера, надпись, звук, превращение) */
+function sceneEvents(sc: World, b: Boss, d: DState, def: BossDef, evs: readonly SceneEv[], f: number): void {
+  for (const e of evs) {
+    if (e.at !== f) continue;
+    if (e.say) sc.toast(e.say, 2);
+    if (e.sfx) sc.sfx(e.sfx);
+    if (e.shake) sc.shake(e.shake.ms, e.shake.i);
+    if (e.flash) sc.emit('flash', { ms: e.flash.ms, r: e.flash.r, g: e.flash.g, b: e.flash.b });
+    if (e.fade) sc.emit('fade', { out: e.fade.out, ms: e.fade.ms });
+    if (e.zoom) sc.emit('camZoom', { zoom: e.zoom.k, frames: e.zoom.frames });
+    if (e.morph) { applyFormNow(sc, b, d, def); d.morphed = true; }
+  }
+}
+/** Сцену пропустили: недоигранные превращения применяются, камера и экран возвращаются */
+function sceneSkipped(sc: World, b: Boss, d: DState, def: BossDef, evs: readonly SceneEv[], f: number): void {
+  for (const e of evs) if (e.at > f && e.morph) { applyFormNow(sc, b, d, def); d.morphed = true; }
+  if (evs.some((e) => e.at <= f && e.fade?.out)) sc.emit('fade', { out: false, ms: 150 });
+  if (evs.some((e) => e.zoom)) sc.emit('camZoom', { zoom: 1, frames: 1 });
+  sc.emit('sceneSkip');
+}
+
+/** Идёт ли сейчас сцена босса (рёв не в счёт) и можно ли её пропустить: интерфейс рисует чёрные полосы и подсказку */
+export function sceneOn(sc: World): { skippable: boolean } | null {
+  for (const b of sc.bosses) {
+    const d = b['d'] as DState | undefined; if (!d) continue;
+    const def = bossDef(d.id)!;
+    if (d.mode === 'scene') return { skippable: def.phases[(b.phase || 1) - 1]?.scene?.skippable ?? true };
+    if (d.mode === 'intro' && def.intro.events.length) return { skippable: def.intro.skippable };
+  }
+  return null;
+}
+
+// ---------- тело (форма) ----------
+/** Применить тело текущей фазы: размер (низ и центр сохраняются), режим полёта и неподвижности, закрепление */
+function applyFormNow(sc: World, b: Boss, d: DState, def: BossDef): void {
+  const ph = b.phase || 1;
+  if (d.formPh === ph) return;
+  d.formPh = ph;
+  const e = effForm(def, ph), cx = centerX(b), bottom = b.y + b.h;
+  if (e.size.w !== b.w || e.size.h !== b.h) {
+    b.w = e.size.w; b.h = e.size.h; b.x = cx - b.w / 2; b.y = bottom - b.h;
+    const r = freeSpot(sc, { x: b.x, y: b.y, w: b.w, h: b.h }); b.y = r.y;
+    for (let k = 0; k < 16 && sc.solidRect({ x: b.x, y: b.y, w: b.w, h: b.h }); k++) b.y -= T / 2;
+  }
+  d.pin = e.still ? { x: b.x, y: b.y } : null;
+  if (!e.fly && !e.still) b.vy = 0;
+  sc.burst(24, cx, b.y + b.h / 2, e.color);
+}
+
 function frame(sc: World, b: Boss, d: DState, def: BossDef): void {
   const ph = b.phase || 1;
   tickMem(def, d.mem, ph);
-  d.ac.clk++;
+  d.ac.clk++; d.flyMove = false;
+  const e = effForm(def, d.formPh);
   const [tp] = sc.nearestPlayer(centerX(b), b.y + b.h / 2);
   const toward = tp ? (tp.x + 7 > centerX(b) ? 1 : -1) : b.face;
   // «вплотную»: считаем кадры, пока герой ближе порога приоритета и на одной высоте с боссом
   const dx = tp ? Math.abs(tp.x + 7 - centerX(b)) : Infinity;
   const level = !!tp && Math.abs(tp.y + 13 - (b.y + b.h / 2)) <= b.h / 2 + 40;
   for (const p of priorities(def, ph)) d.closeF[p.chain] = dx <= p.closeDist && level ? (d.closeF[p.chain] ?? 0) + 1 : 0;
-  trackCalm(sc, d, def, dx);
+  trackCalm(sc, d, def, dx, e.still);
+  // фаза началась без рёва (тренировка с фазы 2): тело и сущности арены подхватываются в покое
+  if ((d.mode === 'idle' || d.mode === 'attack') && d.formPh !== ph) { applyFormNow(sc, b, d, def); const k = kindHook(sc, b, d, def); k.k?.onPhase?.(k.api, ph); }
+  if (d.mode !== 'intro' && d.mode !== 'dead' && d.phA !== ph) { d.phA = ph; arenaOnPhase(sc, d.i, ph); }
   switch (d.mode) {
-    case 'intro':
+    case 'intro': {
       if (d.f === 0 && def.intro.say) sc.toast(def.intro.say, 2);
+      sceneEvents(sc, b, d, def, def.intro.events, d.f);
       b.state = 'intro'; b.vx = 0; d.f++; b.t = Math.max(0, def.intro.frames - d.f) / 60;
-      if (d.f >= def.intro.frames) toIdle(sc, d, def, b);
+      const skip = def.intro.skippable && skipPressed(sc);
+      if (skip) sceneSkipped(sc, b, d, def, def.intro.events, d.f);
+      if (d.f >= def.intro.frames || skip) { toIdle(sc, d, def, b); arenaOnStart(sc, d.i); }
       break;
+    }
     case 'rage': {
       b.vx = 0; d.f++;
       const ps = def.phases[ph - 1]!;
@@ -121,40 +244,52 @@ function frame(sc: World, b: Boss, d: DState, def: BossDef): void {
     }
     case 'scene': {
       b.vx = 0;
-      const sn = def.phases[ph - 1]!.scene!;
+      const sn = def.phases[ph - 1]!.scene!, cap = Math.min(sn.frames, BOSS_RULES.scene?.maxFrames ?? sn.frames);
       if (d.f === 0 && sn.say) sc.toast(sn.say, 2);
+      sceneEvents(sc, b, d, def, sn.events, d.f);
       d.f++;
-      const skip = sn.skippable && sc.players.some((p) => !p.remote && !p.downed && (p.inp.jumpP || p.inp.atkP));
-      if (d.f >= sn.frames || skip) afterScene(sc, b, d, def);
+      const skip = sn.skippable && skipPressed(sc);
+      if (skip) sceneSkipped(sc, b, d, def, sn.events, d.f);
+      if (d.f >= cap || skip) afterScene(sc, b, d, def);
       break;
     }
     case 'idle': {
       b.state = 'idle'; d.punish = false; d.cue = null; if (tp) b.face = toward;
-      if (b.onGround) b.vx = def.idle.walkSpeed > 0 && dx > def.idle.keepDist && tp ? toward * def.idle.walkSpeed : 0;
+      if (e.still) b.vx = 0;
+      else if (b.onGround || e.fly) b.vx = e.idle.walkSpeed > 0 && dx > e.idle.keepDist && tp ? toward * e.idle.walkSpeed : 0;
       d.f++; b.t = Math.max(0, d.rest - d.f) / 60;
-      if (d.f >= d.rest || priorityChain(def, ctxOf(sc, b, d, tp, def), d.mem)) choose(sc, b, d, def, tp);
+      const urgent = priorityChain(def, ctxOf(sc, b, d, tp, def), d.mem);
+      if (urgent || (d.f >= d.rest && !conducted(sc, d.i))) choose(sc, b, d, def, tp);
       break;
     }
     case 'attack': attackFrame(sc, b, d, def, tp); break;
     case 'dead': d.f++; b.t = Math.max(0, def.deathFrames - d.f) / 60; b.vx = 0; break;
   }
+  arenaStep(sc, 'b', d.i);
+  const kh = kindHook(sc, b, d, def); kh.k?.frame?.(kh.api);
 }
 
 function toIdle(sc: World, d: DState, def: BossDef, b: Boss): void {
+  const finished = d.chain;
   d.mode = 'idle'; d.f = 0; d.atk = null; d.chain = null; d.enter = false;
   const r = policyOf(def, b.phase || 1).restFrames;
   d.rest = r[0] + Math.floor(sc.rBoss() * (r[1] - r[0] + 1));
+  if (finished) condOnChainEnd(sc, d.i, finished);
 }
+/** Рёв и сцена позади: применяем тело фазы, затем переходный приём (или покой) */
 function afterScene(sc: World, b: Boss, d: DState, def: BossDef): void {
+  applyFormNow(sc, b, d, def);
   const ps = def.phases[(b.phase || 1) - 1]!;
+  const kh = kindHook(sc, b, d, def); kh.k?.onPhase?.(kh.api, b.phase || 1);
+  if (b.state === 'rage') b.state = 'idle';
   if (ps.enterChain) startChain(sc, b, d, def, ps.enterChain, true); else toIdle(sc, d, def, b);
 }
-/** (е) счёт кадров «герой рядом с боссом и не получает урона»; в вступлении, рёве и сцене не идёт */
-function trackCalm(sc: World, d: DState, def: BossDef, dx: number): void {
+/** (е) счёт кадров «герой рядом с боссом и не получает урона»; в вступлении, рёве и сцене не идёт. У неподвижного босса дистанция не ограничивает: стоять вдали, куда он не достаёт, нельзя */
+function trackCalm(sc: World, d: DState, def: BossDef, dx: number, still: boolean): void {
   const cfg = resolveAnti(def), ac = d.ac;
   const php = sc.players.reduce((n, p) => n + (p.downed ? 0 : p.hp), 0), hurt = ac.php >= 0 && php < ac.php;
   ac.php = php;
-  ac.calm = cfg && (d.mode === 'idle' || d.mode === 'attack') && dx <= cfg.relocate.dist && !hurt ? ac.calm + 1 : 0;
+  ac.calm = cfg && (d.mode === 'idle' || d.mode === 'attack') && (still || dx <= cfg.relocate.dist) && !hurt ? ac.calm + 1 : 0;
 }
 /** (д) самооглушение босса от удара о стену на рывке; с откатом */
 function wallStun(sc: World, b: Boss, d: DState, def: BossDef, vx0: number): void {
@@ -166,7 +301,7 @@ function wallStun(sc: World, b: Boss, d: DState, def: BossDef, vx0: number): voi
   sc.sfx('stagger'); sc.shake(200, 0.01); sc.burst(18, b.x + b.w / 2, b.y + 10, 0xffd47a);
   onStagger(b);
 }
-/** Запустить связку сразу, минуя выбор (тренировка и инструменты проверки): false, если босс не в бою или связки нет. */
+/** Запустить связку сразу, минуя выбор (тренировка, дирижёр и инструменты проверки): false, если босс не в бою или связки нет. */
 export function forceChain(sc: World, i: number, chainId: string): boolean {
   const b = sc.bosses[i]; if (!b || !isDataBoss(b)) return false;
   const d = dstate(b), def = bossDef(d.id)!;
@@ -175,8 +310,9 @@ export function forceChain(sc: World, i: number, chainId: string): boolean {
   return true;
 }
 function choose(sc: World, b: Boss, d: DState, def: BossDef, tp: Player | null): void {
-  const id = pickChain(def, ctxOf(sc, b, d, tp, def), d.mem, sc.rBoss());
-  if (!id) { d.f = 0; d.rest = 20; return; } // «сухое правило»: подходящих нет — подождать
+  const ctx = ctxOf(sc, b, d, tp, def), k = kindOf(def.id);
+  const id = pickChain(def, ctx, d.mem, sc.rBoss());
+  if (!id || (k?.allow && !k.allow(apiOf(sc, b, d, def), id))) { d.f = 0; d.rest = 20; return; } // «сухое правило»: подходящих нет — подождать
   startChain(sc, b, d, def, id, false);
 }
 function startChain(sc: World, b: Boss, d: DState, def: BossDef, id: string, enter: boolean): void {
@@ -192,32 +328,27 @@ function startAttack(sc: World, b: Boss, d: DState, def: BossDef, id: string): v
   if (a.tell.lockFace && tp) b.face = tp.x + 7 > centerX(b) ? 1 : -1;
   d.dir = b.face; d.lock = { x: tp ? tp.x + 7 : centerX(b) + b.face * 100, y: tp ? tp.y + 13 : b.y + b.h / 2 };
   sc.sfx(a.tell.cue.sfx);
-}
-
-/** Прямоугольник удара в мире. face — куда смотрит босс, lock — точка героя. */
-export function boxRect(b: Boss, face: number, h: BoxDef, lock: { x: number; y: number }): Rect {
-  if (h.at === 'target') return { x: lock.x + h.x, y: lock.y + h.y, w: h.w, h: h.h };
-  const cx = centerX(b);
-  return { x: face > 0 ? cx + h.x : cx - h.x - h.w, y: b.y + h.y, w: h.w, h: h.h };
+  if (d.chain) arenaOnStep(sc, d.i, d.chain, d.step);
+  const kh = kindHook(sc, b, d, def); kh.k?.onAttack?.(kh.api, id);
 }
 
 function attackFrame(sc: World, b: Boss, d: DState, def: BossDef, tp: Player | null): void {
   const a = attackOf(def, d.atk!), c = chainOf(def, d.chain!);
-  const T0 = a.tell.frames, end = activeEnd(a), af = d.af;
+  const T0 = a.tell.frames, end = activeEnd(a), af = d.af, e = effForm(def, d.formPh);
   if (af < T0) {
     b.state = 'tell'; b.t = (T0 - af) / 60; if (d.cue) d.cue.left = T0 - af;
     if (!a.tell.lockFace && tp) b.face = tp.x + 7 > centerX(b) ? 1 : -1;
-    if (b.onGround) b.vx = 0;
+    if (b.onGround || e.fly) b.vx = 0;
     d.dir = b.face; d.lock = { x: tp ? tp.x + 7 : d.lock.x, y: tp ? tp.y + 13 : d.lock.y };
   } else {
     const t = af - T0;
     if (t <= end) {
       b.state = 'active'; d.cue = null; d.punish = false; b.t = (end - t) / 60;
       if (t === 0) b.face = d.dir;
-      runActive(sc, b, d, a, t);
+      runActive(sc, b, d, def, a, t);
     } else {
       const r = t - end - 1, last = d.step >= c.steps.length - 1;
-      b.state = 'recover'; d.cue = null; if (b.onGround) b.vx = 0;
+      b.state = 'recover'; d.cue = null; if (b.onGround || e.fly) b.vx = 0;
       const pw = a.recovery.punishWindow;
       d.punish = r >= pw.from && r <= pw.to;
       b.t = Math.max(0, (last ? a.recovery.frames : (c.steps[d.step]!.gapFrames ?? a.recovery.frames)) - r) / 60;
@@ -232,21 +363,22 @@ function attackFrame(sc: World, b: Boss, d: DState, def: BossDef, tp: Player | n
   }
 }
 
-function runActive(sc: World, b: Boss, d: DState, a: Attack, t: number): void {
-  const cx = centerX(b);
-  // движение
+function runActive(sc: World, b: Boss, d: DState, def: BossDef, a: Attack, t: number): void {
+  const cx = centerX(b), e = effForm(def, d.formPh);
+  // движение (неподвижный босс не двигается; у летающего vy — непрерывная вертикальная скорость)
   let moving = false;
-  a.move.forEach((m, mi) => {
+  if (!e.still) a.move.forEach((m, mi) => {
     if (t < m.from || t > m.to) return;
     moving = true;
     if (d.mdir[mi] === undefined) {
       const [tp] = sc.nearestPlayer(cx, b.y + b.h / 2);
       d.mdir[mi] = m.toward === 'fixed' ? 1 : m.toward === 'wall' ? (cx < (sc.L.W * T) / 2 ? -1 : 1) : tp ? (tp.x + 7 > cx ? 1 : -1) : b.face;
-      if (m.vy !== 0) b.vy = m.vy;
+      if (m.vy !== 0 && !e.fly) b.vy = m.vy;
     }
     b.vx = d.mdir[mi]! * m.vx;
+    if (e.fly && m.vy !== 0) { b.vy = m.vy; d.flyMove = true; }
   });
-  if (!moving && b.onGround) b.vx = 0;
+  if (!moving && (b.onGround || e.fly)) b.vx = 0;
   // удары
   a.active.forEach((h, ai) => {
     if (t < h.from || t > h.to) return;
@@ -261,29 +393,20 @@ function runActive(sc: World, b: Boss, d: DState, a: Attack, t: number): void {
       if (h.knock && p.hurtT > hurt0) { p.kbx = (Math.sign(p.x + 7 - cx) || d.dir) * h.knock.vx; p.vy = h.knock.vy; }
     }
   });
-  // снаряды
+  // снаряды, призывы, запуск сущностей арены, особые эффекты
   for (const s of a.spawn) if (s.at === t) spawnProj(sc, b, d, s);
+  for (const s of a.summon) if (s.at === t) for (let k = 0; k < s.count; k++) spawnCreature(sc, d.i, s.creature, cx + d.dir * (s.ox + k * 30), b.y + b.h / 2 + s.oy);
+  for (const f of a.fire) if (f.at === t) arenaFire(sc, f.ent, 'b', d.i);
+  const kind = kindOf(def.id);
+  for (const f of a.fx) if (f.at === t) kind?.fx?.[f.name]?.(apiOf(sc, b, d, def), f.args);
 }
 
-/** место без тайла-стены: сдвигаем вниз от потолка (снаряд, появившийся в камне, умер бы сразу) */
-function freeSpot(sc: World, r: Rect): Rect {
-  const q = { ...r };
-  for (let k = 0; k < 24 && sc.solidRect(q); k++) q.y += T / 2;
-  return q;
-}
 function spawnProj(sc: World, b: Boss, d: DState, s: Attack['spawn'][number]): void {
   const cx = centerX(b), cy = b.y + b.h / 2, f = d.dir, [tp] = sc.nearestPlayer(cx, cy);
   const base = s.from === 'target' ? { x: d.lock.x + s.ox, y: d.lock.y + s.oy } : { x: cx + f * s.ox, y: cy + s.oy };
   let vx = s.from === 'target' ? s.vx : f * s.vx, vy = s.vy;
-  if (s.aim && tp) { const sp = Math.hypot(s.vx, s.vy), ax = tp.x + 7 - base.x, ay = tp.y + 13 - base.y, l = Math.hypot(ax, ay) || 1; vx = (ax / l) * sp; vy = (ay / l) * sp; }
-  const a0 = Math.atan2(vy, vx), sp = Math.hypot(vx, vy);
-  for (let k = 0; k < s.count; k++) {
-    const ang = a0 + (k - (s.count - 1) / 2) * s.spread * (Math.PI / 180);
-    const r = freeSpot(sc, { x: base.x - s.proj.w / 2, y: base.y - s.proj.h / 2, w: s.proj.w, h: s.proj.h });
-    const pr: Proj = { kind: s.proj.kind, x: r.x, y: r.y, w: r.w, h: r.h, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, life: s.proj.life / 60, hk: s.kind, src: 'd', o: d.i };
-    if (s.dmg !== undefined) pr.dmg = s.dmg;
-    sc.projs.push(pr);
-  }
+  if (s.aim && tp) { const v = aimAt(base, tp, Math.hypot(s.vx, s.vy), f); vx = v.vx; vy = v.vy; }
+  fireShots(sc, base, vx, vy, s, d.i);
 }
 
 // ---------- телеграф для отрисовки ----------
@@ -319,28 +442,110 @@ export function currentAttackName(b: Boss): string | null {
   return a.name ?? a.id;
 }
 
+// ---------- уязвимые точки ----------
+/** Прямоугольник точки в мире */
+export function weakRect(b: Boss, w: Weak): Rect {
+  const x = w.mirror && b.face < 0 ? b.x + b.w - w.box.x - w.box.w : b.x + w.box.x;
+  return { x, y: b.y + w.box.y, w: w.box.w, h: w.box.h };
+}
+/** Кадров в текущем состоянии босса (для окон from/to) */
+function stateFrames(b: Boss, d: DState, a: Attack | null): number {
+  if (!a) return d.f;
+  const T0 = a.tell.frames, end = Math.max(0, activeEnd(a));
+  if (b.state === 'tell') return d.af;
+  if (b.state === 'active') return d.af - 1 - T0;
+  if (b.state === 'recover') return d.af - 1 - T0 - end - 1;
+  return d.f;
+}
+/** Точка открыта сейчас? Окон нет — открыта всегда; окна объединяются по «или». */
+export function weakOpen(b: Boss, w: Weak): boolean {
+  const d = dstate(b); if (!w.open.length || b.stagger > 0) return true;
+  const def = bossDef(d.id)!, a = d.atk ? attackOf(def, d.atk) : null, sf = stateFrames(b, d, a);
+  for (const o of w.open) {
+    if (o.attack && d.atk !== o.attack) continue;
+    const st = b.state, pw = a?.recovery.punishWindow;
+    const inState = o.on === 'always' || (o.on === 'idle' ? d.mode === 'idle' : o.on === 'punish' ? d.punish : o.on === 'stagger' ? b.stagger > 0 : st === o.on);
+    if (!inState) continue;
+    // окно punish считается от начала окна наказания
+    const f = o.on === 'punish' && pw && a ? sf - pw.from : sf;
+    if (o.from !== undefined && f < o.from) continue;
+    if (o.to !== undefined && f > o.to) continue;
+    return true;
+  }
+  return false;
+}
+/** Точки тела босса сейчас: прямоугольник и открыта ли (для отрисовки и инструментов) */
+export function weakStates(b: Boss): { w: Weak; r: Rect; open: boolean }[] {
+  const d = b['d'] as DState | undefined; if (!d) return [];
+  const e = effForm(bossDef(d.id)!, d.formPh);
+  return e.weak.map((w) => ({ w, r: weakRect(b, w), open: weakOpen(b, w) }));
+}
+/** Сколько единиц урона получит босс от этого удара: 0 — броня (бьют не в открытую точку), иначе hits точки. Оглушённый броню теряет. */
+function weakHits(sc: World, b: Boss, d: DState, def: BossDef, p: Player): number {
+  const e = effForm(def, d.formPh);
+  if (!e.weak.length || b.stagger > 0) return 1;
+  const swing = p.atkT > 0 && !!p.atkHits && !p['noSilkGain'];
+  const box = swing ? atkBox(sc, p) : null;
+  let best = 0;
+  for (const w of e.weak) {
+    if (!weakOpen(b, w)) continue;
+    if (box && !overlap(box, weakRect(b, w))) continue;
+    best = Math.max(best, w.hits);
+  }
+  return best;
+}
+
 // ---------- урон по боссу, фазы, смерть ----------
+function barSet(sc: World, def: BossDef): void { sc.bossBar(true, def.name, barFrac(sc)); }
 /** Исходная функция урона (RAW) — вызывается слоями damage.ts. */
 export function rawData(sc: World, key: BossRef, p: Player): void {
   const i = dataIdx(key), b = sc.bosses[i]; if (!b) return;
   const d = dstate(b), def = bossDef(d.id)!;
   if (b.state === 'rage' || b.state === 'dead' || (b.stagger > 0 && !dataStaggerRoom(b))) { sc.snd('clink'); return; }
-  b.hp -= 1; b.flash = 0.09; gainSilk(sc, p, true); if (!p.remote) sc.hitstop = 0.04; sc.sfx(bossHitSnd(sc, key, p));
+  const n = weakHits(sc, b, d, def, p);
+  if (n <= 0) { // броня: звон, искры, подсказка
+    sc.snd('clink'); sc.parts(8, clamp(p.x + 7 + p.face * 26, b.x, b.x + b.w), b.y + b.h / 2, 0xffe3a3); if (!p.remote) sc.hitstop = 0.03;
+    if (!d.hinted && !p.remote) { d.hinted = true; sc.toast('Броня: бей в светящуюся уязвимую точку', 3); }
+    return;
+  }
+  b.hp -= n; b.flash = 0.09; gainSilk(sc, p, true); if (!p.remote) sc.hitstop = 0.04; sc.sfx(bossHitSnd(sc, key, p));
   sc.burst(9, clamp(p.x + 7 + p.face * 26, b.x, b.x + b.w), b.y + b.h / 2, 0xf4f1e6);
-  sc.bossBar(true, def.name, Math.max(0, b.hp) / b.maxHp);
-  if (checkPhase(sc, b, def.name)) beginRage(b, d, def);
+  if (sc.cond) { // общий пул: здоровье у всех одно
+    const cd = bossDef(dstate(sc.bosses[0]!).id)!.conductor!;
+    if (cd.pool) for (const o of sc.bosses) if (o !== b && o.state !== 'dead') o.hp = Math.min(o.hp, b.hp);
+  }
+  barSet(sc, def);
+  if (checkPhase(sc, b, def.name, !!def.phases[phaseOf(b) - 1]?.silent)) beginPhase(sc, b, d, def);
   if (b.hp <= 0 && b.state !== 'dead') dataDie(sc, i);
 }
-function beginRage(b: Boss, d: DState, def: BossDef): void {
+/** Фаза началась по урону: рёв (или без него, если silent), затем сцена и переходный приём */
+function beginPhase(sc: World, b: Boss, d: DState, def: BossDef): void {
   const ps = def.phases[(b.phase || 1) - 1]!;
-  d.mode = 'rage'; d.f = 0; d.atk = null; d.chain = null; d.punish = false; d.cue = null; d.hits = [];
-  b.t = ps.rageFrames / 60; b.vx = 0;
+  d.atk = null; d.chain = null; d.punish = false; d.cue = null; d.hits = []; d.enter = false; b.vx = 0; d.f = 0;
+  arenaAbort(sc, d.i);
+  if (ps.silent) {
+    b.state = 'idle'; d.mode = 'idle';
+    if (ps.scene) { d.mode = 'scene'; b.state = 'rage'; b.t = ps.scene.frames / 60; } else afterScene(sc, b, d, def);
+    return;
+  }
+  d.mode = 'rage'; b.t = ps.rageFrames / 60;
+}
+/** Перевести босса i в фазу ph тем же путём, что и урон (рёв, сцена, переходный приём): здоровье опускается к порогу фазы. Для тренировки и проверки переходов. */
+export function enterPhase(sc: World, i: number, ph: number): boolean {
+  const b = sc.bosses[i]; if (!b) return false;
+  const d = dstate(b), def = bossDef(d.id)!, ps = def.phases[ph - 1]; if (!ps || ph <= (b.phase || 1) || d.mode === 'dead') return false;
+  b.hp = Math.min(b.hp, Math.max(1, Math.floor(b.maxHp * ps.fromHp)));
+  if (!checkPhase(sc, b, def.name, !!def.phases[phaseOf(b) - 1]?.silent)) return false;
+  beginPhase(sc, b, d, def);
+  return true;
 }
 /** Хук оглушения (bosses2.poiseAdd): текущая атака обрывается, после оглушения босс снова в покое. */
 export function onStagger(b: Boss): void {
   const d = b['d'] as DState | undefined; if (!d || d.mode === 'dead') return;
   if (d.mode === 'attack' || d.mode === 'idle') { d.mode = 'idle'; d.f = 0; d.rest = 24; d.atk = null; d.chain = null; d.punish = false; d.cue = null; d.enter = false; }
 }
+/** Оглушение босса i: сущности арены, запущенные его связкой, гаснут (вызывает bosses2.poiseAdd через onStagger-хук мира) */
+export function onStaggerWorld(sc: World, b: Boss): void { const d = b['d'] as DState | undefined; if (d) arenaAbort(sc, d.i); }
 // ---------- защита от читов: хуки для общей стойки (bosses2.ts) ----------
 /** во сколько раз порог стойки выше обычного (убывающая отдача оглушений) */
 export function dataPoiseMul(b: Boss): number { const d = b['d'] as DState | undefined; return d ? poiseMulOf(d.ac, resolveAnti(bossDef(d.id)!)) : 1; }
@@ -349,13 +554,28 @@ export function dataStaggerBegin(b: Boss): number { const d = b['d'] as DState |
 /** можно ли ещё наносить урон оглушённому боссу (потолок за окно оглушения) */
 export function dataStaggerRoom(b: Boss): boolean { const d = b['d'] as DState | undefined; return !d || staggerRoom(d.ac, resolveAnti(bossDef(d.id)!), b.hp, b.maxHp); }
 
-export function dataDie(sc: World, i: number): void { bossDeath(sc, 'dataDie', (s) => dieBase(s, i)); }
-function dieBase(sc: World, i: number): void {
+export function dataDie(sc: World, i: number): void {
+  if (!deathIsFinal(sc, i)) { memberDie(sc, i); barSet(sc, bossDef(dstate(sc.bosses[i]!).id)!); return; }
+  bossDeath(sc, 'dataDie', (s) => dieBase(s, i));
+}
+/** Босс пал: состояние и хук kinds; final — бой на этом кончается (громкая смерть), иначе тише */
+function memberDie(sc: World, i: number, final = false): void {
   const b = sc.bosses[i]!, d = dstate(b), def = bossDef(d.id)!;
   b.state = 'dead'; d.mode = 'dead'; d.f = 0; d.atk = null; d.cue = null; d.punish = false; b.vx = 0; b.t = def.deathFrames / 60;
+  if (sc.cond) b.hp = Math.min(b.hp, 0);
+  arenaAbort(sc, i);
+  sc.sfx('roar'); if (final) sc.shake(700, 0.008); else sc.shake(400, 0.006);
+  sc.emit('bossBursts', { x: b.x, y: b.y, w: b.w, h: b.h });
+  const kh = kindHook(sc, b, d, def); kh.k?.onDeath?.(kh.api);
+}
+function dieBase(sc: World, i: number): void {
+  const live = sc.bosses.map((b, j) => (j !== i && b.state !== 'dead' ? j : -1)).filter((j) => j >= 0);
+  sc.bosses[i]!.state = 'dead';
+  if (sc.cond) sc.cond.over = true;
+  arenaClear(sc);
   sc.bossDead = true; bossDeathFx(sc);
   for (const pr of sc.projs) pr.dead = true;
-  sc.sfx('roar'); sc.shake(700, 0.008);
-  sc.emit('bossBursts', { x: b.x, y: b.y, w: b.w, h: b.h });
-  sc.after(def.deathFrames / 60 + 0.7, () => { sc.bossBar(false); winGame(sc); });
+  memberDie(sc, i, true);
+  for (const j of live) memberDie(sc, j, true);
+  sc.after(Math.max(...sc.bosses.map((b) => bossDef(dstate(b).id)!.deathFrames)) / 60 + 0.7, () => { sc.bossBar(false); winGame(sc); });
 }

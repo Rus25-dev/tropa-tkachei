@@ -3,6 +3,7 @@ import { E2_UNDER, E2_VULN, P, T, clamp } from './balance';
 import type { Enemy, Player } from './types';
 import type { World } from './world';
 import { stepFrozen } from './tools';
+import { stepMinion } from './boss/minions';
 
 /** порядок состояний «врагов 2» — по индексу они уходят в снимок гостю */
 export const E2_STATES: Record<string, string[]> = {
@@ -74,6 +75,7 @@ export function e2Parry(sc: World, cx: number, cy: number): void {
 export function stepEnemy(sc: World, e: Enemy, dt0: number): void {
   const dt = slowDt(sc, e as never, dt0, false);
   if (stepFrozen(sc, e, dt)) return;
+  if (e['m']) { stepMinion(sc, e, dt); return; } // существо босса на данных (core/boss/minions.ts)
   stepEnemyBase(sc, e, dt);
 }
 function stepEnemyBase(sc: World, e: Enemy, dt: number): void {

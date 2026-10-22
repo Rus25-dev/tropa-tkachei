@@ -2,8 +2,11 @@
 // связки, паузы, ответы на каждый тип удара, габариты в арене, поток урона. Чистый TS, без Node: годится и для CLI (npm run boss:check), и для Vitest.
 // Каждая находка — Issue: уровень (error — нечестно, warn — подозрительно), место (босс / фаза / связка / шаг / атака / кадр) и текст по-русски.
 import { HEAVY_KINDS, P } from '../balance';
-import { BossDefSchema, activeEnd, checkBossDef, type Attack, type BossDef, type Chain, type Fairness, type Rules } from './schema';
+import { BossDefSchema, activeEnd, arenaEnts, checkBossDef, type Attack, type BossDef, type Chain, type Fairness, type Rules } from './schema';
 import { resolveAnti } from './anti';
+import { policyOf } from './policy';
+import { bossDef } from './registry';
+import { validateExtra } from './validate-extra';
 
 export interface Issue {
   level: 'error' | 'warn';
@@ -41,7 +44,7 @@ const firstDamageAt = (a: Attack): number => {
   return t === Infinity ? 0 : t;
 };
 /** сколько кадров занимает шаг связки: замах + рабочая часть + пауза после него */
-function stepSpan(a: Attack, c: Chain, i: number): { tell: number; end: number; pause: number; total: number } {
+export function stepSpan(a: Attack, c: Chain, i: number): { tell: number; end: number; pause: number; total: number } {
   const last = i >= c.steps.length - 1, end = Math.max(0, activeEnd(a));
   const pause = last ? a.recovery.frames : (c.steps[i]!.gapFrames ?? a.recovery.frames);
   return { tell: a.tell.frames, end, pause, total: a.tell.frames + end + 1 + pause };
@@ -55,7 +58,7 @@ export const chainFrames = (def: BossDef, c: Chain): number => {
 const kindsOf = (a: Attack): Set<string> => new Set([...a.active.map((x) => x.kind), ...a.spawn.map((x) => x.kind)]);
 
 /** Все проверки честности для уже разобранного определения. */
-export function validateBoss(def: BossDef, rules: Rules, arena?: ArenaInfo): Issue[] {
+export function validateBoss(def: BossDef, rules: Rules, arena?: ArenaInfo, resolve: (id: string) => BossDef | undefined = bossDef): Issue[] {
   const out: Issue[] = [];
   const F: Fairness | undefined = rules.fairness;
   const add = (level: Issue['level'], code: string, msg: string, where: Partial<Issue> = {}): void => { out.push({ level, code, boss: def.id, msg, ...where }); };
@@ -90,8 +93,8 @@ export function validateBoss(def: BossDef, rules: Rules, arena?: ArenaInfo): Iss
   }
 
   // 3. паузы между связками (по политикам фаз)
-  if (F) def.phases.forEach((ph, pi) => {
-    const pol = ph.policy;
+  if (F) def.phases.forEach((_ph, pi) => {
+    const pol = policyOf(def, pi + 1);
     if (pol.restFrames[0] < F.minRestFrames) add('error', 'rest', `фаза ${pi + 1}: пауза между связками (restFrames[0]) ${pol.restFrames[0]} кадров, нужно не меньше ${F.minRestFrames}`, { phase: pi + 1 });
     for (const id of pol.chains) {
       const c = def.chains.find((x) => x.id === id); if (!c) continue;
@@ -112,11 +115,14 @@ export function validateBoss(def: BossDef, rules: Rules, arena?: ArenaInfo): Iss
 
   // 7. прочее: неиспользуемые атаки и связки, одинаковые замахи, настройки защиты от читов
   usage(def, add);
+
+  // 8. волна 0: тело и трансформация, уязвимые точки, существа, сущности арены, дирижёр
+  validateExtra(def, rules, arena, add, resolve);
   return out;
 }
 
-type Add = (level: Issue['level'], code: string, msg: string, where?: Partial<Issue>) => void;
-const hero = { run: P.RUN, w: 14, jump: (P.JUMP * P.JUMP) / (2 * P.G), dash: P.DASH * P.DASHT, react: 12 };
+export type Add = (level: Issue['level'], code: string, msg: string, where?: Partial<Issue>) => void;
+export const hero = { run: P.RUN, w: 14, jump: (P.JUMP * P.JUMP) / (2 * P.G), dash: P.DASH * P.DASHT, react: 12 };
 
 function responses(def: BossDef, a: Attack, add: Add): void {
   const where = { attack: a.id };
@@ -185,7 +191,7 @@ export function bestInWindow(ev: HitEvent[], win: number, inv: number): { dmg: n
   return { dmg: best, from: at };
 }
 /** Хронология ударов цепочки связок, начиная с кадра 0. */
-function chainEvents(def: BossDef, c: Chain, t0: number): { ev: HitEvent[]; end: number } {
+export function chainEvents(def: BossDef, c: Chain, t0: number): { ev: HitEvent[]; end: number } {
   const ev: HitEvent[] = []; let t = t0;
   c.steps.forEach((s, i) => {
     const a = def.attacks.find((x) => x.id === s.attack); if (!a) return;
@@ -198,10 +204,10 @@ function flux(def: BossDef, F: Fairness, add: Add): void {
   const win = fr(3), inv = fr(P.INV);
   def.phases.forEach((ph, pi) => {
     const limit = F.maxDamage3s[Math.min(pi, F.maxDamage3s.length - 1)]!;
-    const chains = ph.policy.chains.map((id) => def.chains.find((c) => c.id === id)).filter((c): c is Chain => !!c);
+    const pol = policyOf(def, pi + 1), chains = pol.chains.map((id) => def.chains.find((c) => c.id === id)).filter((c): c is Chain => !!c);
     if (!chains.length) return;
     let worst = { dmg: 0, seq: '', from: 0 };
-    const rest = ph.policy.restFrames[0];
+    const rest = pol.restFrames[0];
     const walk = (seq: Chain[], ev: HitEvent[], t: number): void => {
       if (t > win * 2 + 60 || seq.length >= 4) {
         const b = bestInWindow(ev, win, inv);
@@ -209,7 +215,7 @@ function flux(def: BossDef, F: Fairness, add: Add): void {
         return;
       }
       for (const c of chains) {
-        if (ph.policy.noRepeat > 0 && seq.length && seq[seq.length - 1] === c) continue;
+        if (pol.noRepeat > 0 && seq.length && seq[seq.length - 1] === c) continue;
         const r = chainEvents(def, c, t);
         walk([...seq, c], [...ev, ...r.ev], r.end + rest);
       }
@@ -224,11 +230,15 @@ function usage(def: BossDef, add: Add): void {
   for (const ph of def.phases) {
     ph.policy.chains.forEach((c) => used.add(c));
     ph.policy.priority.forEach((p) => used.add(p.chain));
+    ph.form?.policy?.chains.forEach((c) => used.add(c));
+    ph.form?.policy?.priority.forEach((p) => used.add(p.chain));
     if (ph.enterChain) used.add(ph.enterChain);
   }
+  for (const e of arenaEnts(def)) if (e.bind?.chain) used.add(e.bind.chain);
   if (cfg?.shoveChain) used.add(cfg.shoveChain);
   if (cfg?.relocateChain) used.add(cfg.relocateChain);
-  for (const c of def.chains) if (!used.has(c.id)) add('warn', 'chain-unused', `связка «${c.id}» не используется ни в одной фазе`, { chain: c.id });
+  // служебный участник дирижёра получает связки от ведущего: «не используется» для него не ошибка
+  if (!def.hidden) for (const c of def.chains) if (!used.has(c.id)) add('warn', 'chain-unused', `связка «${c.id}» не используется ни в одной фазе`, { chain: c.id });
   const inChains = new Set(def.chains.flatMap((c) => c.steps.map((s) => s.attack)));
   for (const a of def.attacks) if (!inChains.has(a.id)) add('warn', 'attack-unused', `атака «${a.id}» не входит ни в одну связку`, { attack: a.id });
   // одинаковые замахи у атак с разным типом удара: осознанная «обманка» или ошибка

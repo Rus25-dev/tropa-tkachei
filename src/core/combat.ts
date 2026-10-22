@@ -11,7 +11,7 @@ import { e2Blocked, spawnEnemies, e2Parry } from './enemies';
 import { makeBoss } from './korne';
 import { makeMisha, mishaNeedle, makeMishaIfAlive } from './misha';
 import { makeVladik } from './vladik';
-import { makeDataBoss } from './boss/exec';
+import { resetFight } from './boss/exec';
 import { bossRefs } from './bosses2';
 import { makeTima, setRepo } from './tima';
 import { hitCollector } from './bosses2';
@@ -151,7 +151,7 @@ export function respawnAll(sc: World): void {
   if (sc.misha && sc.misha.state !== 'dead') { makeMisha(sc); sc.bossBar(false); }
   if (sc.vladik && sc.vladik.state !== 'dead') { makeVladik(sc); sc.bossBar(false); }
   if (sc.tima && sc.tima.state !== 'dead') { sc.repoT = 0; makeTima(sc); sc.sendEv({ k: 'repo', on: 0 }); sc.bossBar(false); }
-  sc.bosses.forEach((b, i) => { if (b.state !== 'dead') { makeDataBoss(sc, (b['d'] as { id: string }).id, i); sc.bossBar(false); } });
+  if (sc.bosses.some((b) => b.state !== 'dead')) { resetFight(sc); sc.bossBar(false); }
   sc.sendEv({ k: 'respawn', x: sc.respawn.x, y: sc.respawn.y });
   respawnLocal(sc);
 }
