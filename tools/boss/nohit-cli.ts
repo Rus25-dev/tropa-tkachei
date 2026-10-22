@@ -3,7 +3,7 @@
 // 2) --runs целых боёв no-hit ботом: доля безупречных прохождений, время боя без урона, урон по связкам.
 // Режим parry включится, только если в ядре есть Парирование 2.0 (иначе сообщит и продолжит в strict).
 import { mean, median, pct, num } from '../bot/stats';
-import { parryImplemented, runFlawless, scanChains, type ChainReport, type FlawlessResult, type NoHitCfg, type NoHitMode } from '../bot/nohit';
+import { parryImplemented, runFlawless, scanChains, scanFight, scanTransitions, type ChainReport, type FightScan, type FlawlessResult, type NoHitCfg, type NoHitMode, type TransitionReport } from '../bot/nohit';
 import { bossDef } from '../../src/core/boss/registry';
 
 const argv = process.argv.slice(2);
@@ -20,6 +20,19 @@ export function renderScan(rs: ChainReport[]): string {
     const where = f ? `кадр боя ${f.forced.tick}${f.forced.attackFrame !== null ? `, кадр атаки «${f.forced.attack}» ${f.forced.attackFrame}` : ''}; герой ${f.forced.hero.dx >= 0 ? 'справа' : 'слева'} от центра босса на ${Math.abs(f.forced.hero.dx)} px (x ${f.forced.hero.x}, y ${f.forced.hero.y}); босс на ${pct(f.bossAt)} арены; выживает ещё ${f.forced.survives} кадров${f.forced.exhausted ? '' : ' (поиск оборван по лимиту)'}` : '';
     out.push(`| ${r.phase} | ${r.chain} | ${r.passable ? 'да' : '**НЕТ**'} | ${r.clean}/${r.scenarios} | ${where} |`);
   }
+  return out.join('\n');
+}
+export function renderTransitions(rs: TransitionReport[]): string {
+  const out = ['| Фаза | Переживается без урона | Чистых стартов | Где нет выхода |', '|---|---|---|---|'];
+  for (const r of rs) {
+    const f = r.fails[0];
+    out.push(`| ${r.phase} | ${r.passable ? 'да' : '**НЕТ**'} | ${r.clean}/${r.scenarios} | ${f ? `кадр боя ${f.forced.tick}${f.forced.attack ? `, «${f.forced.attack}»` : ''}; герой на ${f.forced.hero.dx >= 0 ? 'правее' : 'левее'} центра босса на ${Math.abs(f.forced.hero.dx)} px` : ''} |`);
+  }
+  return out.join('\n');
+}
+export function renderFightScan(rs: FightScan[]): string {
+  const out = ['| Зерно | Кадров | Ударов по герою | Бот переживает бой |', '|---|---|---|---|'];
+  for (const r of rs) out.push(`| ${r.seed} | ${r.frames} | ${r.hits} | ${r.passable ? 'да' : '**НЕТ**' + (r.forced[0] ? ` (кадр ${r.forced[0].tick}, ${r.forced[0].attack ?? 'вне атаки'})` : '')} |`);
   return out.join('\n');
 }
 export function renderFights(rs: FlawlessResult[]): string {
@@ -47,14 +60,18 @@ if (import.meta.url === new URL(process.argv[1] ?? '', 'file://').href || proces
   const seed = +(opt('seed', '1')!), runs = +(opt('runs', '50')!);
   const t0 = performance.now();
   const scan = scanChains({ boss, bossAt: SCAN_AT, offsets: SCAN_OFFSETS, seed, cfg });
+  const trans = scanTransitions({ boss, bossAt: SCAN_AT, offsets: SCAN_OFFSETS, seed, cfg });
+  const multi = bossDef(boss)!.conductor ? scanFight(boss, [seed, seed + 1], cfg, 2) : [];
   const fights: FlawlessResult[] = [];
   if (!flag('scan-only')) for (let i = 0; i < runs; i++) fights.push(runFlawless(boss, seed + i * 13, cfg, +(opt('max', '240')!)));
-  if (flag('json')) console.log(JSON.stringify({ boss, mode, scan, fights }, null, 2));
+  if (flag('json')) console.log(JSON.stringify({ boss, mode, scan, trans, multi, fights }, null, 2));
   else {
     console.log(`No-hit бот: босс «${boss}», режим ${mode}, горизонт ${cfg.horizon} кадров, ${((performance.now() - t0) / 1000).toFixed(0)} с счёта\n`);
     console.log('Проходимость связок (из ' + SCAN_AT.length * SCAN_OFFSETS.length + ' стартовых положений на связку и фазу)\n');
     console.log(renderScan(scan));
+    if (trans.length) { console.log('\nПереходы между фазами (рёв, сцена, переходный приём, сущности арены фазы)\n'); console.log(renderTransitions(trans)); }
+    if (multi.length) { console.log('\nБой нескольких боссов под дирижёром (бот только уходит от ударов, 2 цикла расписания)\n'); console.log(renderFightScan(multi)); }
     if (fights.length) { console.log('\nЦелые бои\n'); console.log(renderFights(fights)); }
   }
-  process.exitCode = scan.some((r) => !r.passable) ? 1 : 0;
+  process.exitCode = scan.some((r) => !r.passable) || trans.some((r) => !r.passable) || multi.some((r) => !r.passable) ? 1 : 0;
 }
