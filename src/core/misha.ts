@@ -1,10 +1,11 @@
 // Босс «Миша Додик»: арена «Старая типография», буквы, рюкзак и дымовухи, фаза «Пропустите!» (legacy/src/misha.js).
-import { BAL, MISHA_BIG, MISHA_SAY_HIT, MISHA_WORDS, P, T, clamp } from './balance';
+import { BAL, MISHA_BIG, MISHA_SAY_HIT, MISHA_WORDS, P, T, clamp, dataKey } from './balance';
 import type { Boss, Player, Rect } from './types';
 import type { World } from './world';
 import { inset, overlap } from './world';
 import { bossDeathFx } from './bosses2';
 import { gainSilk } from './damage';
+import { bossDamage } from './status';
 import { bossDeath } from './korne';
 import { teamWipe } from './combat';
 import { winGame } from './win';
@@ -68,7 +69,27 @@ export function stepBomb(sc: World, pr: { x: number; y: number; vx: number; vy: 
       return;
     }
   }
+  else if (dataMishaBomb(sc, pr, cx, cy)) return;
   if (sc.isSolid(Math.floor(cx / T), Math.floor(cy / T))) { pr.dead = true; smokeAt(sc, 8, cx, cy - 4); sc.sfx('puff'); }
+}
+/** Новый Миша на данных (misha2): дымовуха в рюкзак за спиной снимает 3 единицы здоровья (в фазе «застёгнуто» — только когда рюкзак открыт, это решает общий урон по боссу). true — бомба потрачена. */
+const BAG_BOMB_HITS = 3, BAG_BOMB_CD = 0.9;
+function dataMishaBomb(sc: World, pr: { x: number; y: number; vy: number; w: number; h: number; dead?: boolean; [k: string]: unknown }, cx: number, cy: number): boolean {
+  const m = sc.bosses[0];
+  if (!m || (m['d'] as { id?: string } | undefined)?.id !== 'misha2' || ['dead', 'intro', 'rage'].includes(m.state)) return false;
+  const bag = mishaBag(m), behind = (cx - (m.x + m.w / 2)) * m.face < 0;
+  const mouth = pr.vy > 0 ? { x: bag.x - 8, y: bag.y - 26, w: bag.w + 16, h: bag.h + 26 } : bag;
+  if (behind && overlap(pr, mouth)) {
+    pr.dead = true;
+    if (((m['bagT'] as number | undefined) ?? 0) > sc.timeSec) { smokeAt(sc, 6, bag.x + 15, bag.y); sc.sfx('puff'); return true; }
+    m['bagT'] = sc.timeSec + BAG_BOMB_CD;
+    smokeAt(sc, 26, bag.x + 15, bag.y + 4); sc.sfx('bag'); sc.sfx('puff'); sc.shake(180, 0.008);
+    const owner = sc.players[pr['owner'] as number] ?? sc.players[0];
+    if (owner && sc.auth()) bossDamage(sc, dataKey(0), owner, BAG_BOMB_HITS);
+    return true;
+  }
+  if (overlap(pr, inset(m, 4))) { pr.dead = true; smokeAt(sc, 6, cx, cy); sc.sfx('puff'); return true; }
+  return false;
 }
 export function mishaBagHit(sc: World): void {
   const S = statBegin(sc), cur = sc.testBoss() ?? sc.boss, h0 = cur ? cur.hp : 0;
