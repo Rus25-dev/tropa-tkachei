@@ -1,0 +1,218 @@
+{
+  "id": "vessel",
+  "name": "Пустой сосуд",
+  "about": "Чистая дуэль без помех на арене: выверенные связки, быстрые рывки, ритм. Жёлтое отбивай, красное обходи рывком или прыжком, фиолетовое только пережидай.",
+  "landmark": "Дуэль с тенью: учи ритм",
+  "tips": [
+    "У Сосуда нет случайных ударов: каждая связка — одна и та же цепочка. Выучи порядок и ответь на каждый удар.",
+    "Жёлтый замах отбивается, красный — только уворот: теневой рывок проходит сквозь тело, но не через фиолетовое «Затмение».",
+    "После каждой связки есть окно: бей в нём, затем возвращайся к ритму."
+  ],
+  "arena": "vladik",
+  "size": { "w": 34, "h": 84 },
+  "hp": [170, 230],
+  "color": 14210280,
+  "intro": { "frames": 120, "say": "Тишина. Покажи, чего ты стоишь." },
+  "deathFrames": 160,
+  "idle": { "walkSpeed": 110, "keepDist": 60 },
+  "contact": { "dmg": 1, "kind": "dodge" },
+  "antiCheese": { "shoveChain": "c_shove", "relocateChain": "c_hop" },
+  "attacks": [
+    {
+      "id": "cut", "name": "Росчерк",
+      "tell": { "frames": 20, "cue": { "color": "yellow", "sfx": "slash1", "pose": "slash_h" } },
+      "active": [{ "from": 0, "to": 3, "hit": { "x": 4, "y": 16, "w": 86, "h": 64 }, "dmg": 1, "kind": "parry" }],
+      "recovery": { "frames": 30, "punishWindow": { "from": 6, "to": 26 } },
+      "requires": { "dist": [0, 130] }
+    },
+    {
+      "id": "cut2", "name": "Обратный росчерк",
+      "tell": { "frames": 20, "cue": { "color": "yellow", "sfx": "slash2", "pose": "slash_up" } },
+      "active": [{ "from": 0, "to": 3, "hit": { "x": 2, "y": 8, "w": 92, "h": 70 }, "dmg": 1, "kind": "parry" }],
+      "recovery": { "frames": 30, "punishWindow": { "from": 6, "to": 26 } },
+      "requires": { "dist": [0, 140] }
+    },
+    {
+      "id": "cut3", "name": "Крест",
+      "tell": { "frames": 20, "cue": { "color": "yellow", "sfx": "slash3", "pose": "slash_x" } },
+      "active": [{ "from": 0, "to": 3, "hit": { "x": 0, "y": 12, "w": 96, "h": 68 }, "dmg": 1, "kind": "parry" }],
+      "recovery": { "frames": 32, "punishWindow": { "from": 6, "to": 28 } }
+    },
+    {
+      "id": "lunge", "name": "Укол",
+      "tell": { "frames": 22, "lockFace": true, "cue": { "color": "yellow", "sfx": "thrust1", "pose": "stab" } },
+      "move": [{ "from": 0, "to": 8, "vx": 760, "toward": "player" }],
+      "active": [{ "from": 0, "to": 8, "hit": { "x": 0, "y": 26, "w": 64, "h": 40 }, "dmg": 1, "kind": "parry" }],
+      "recovery": { "frames": 34, "punishWindow": { "from": 8, "to": 30 } },
+      "requires": { "dist": [80, 300] }
+    },
+    {
+      "id": "lunge2", "name": "Низкий укол",
+      "tell": { "frames": 20, "lockFace": true, "cue": { "color": "yellow", "sfx": "thrust2", "pose": "stab_low" } },
+      "move": [{ "from": 0, "to": 7, "vx": 840, "toward": "player" }],
+      "active": [{ "from": 0, "to": 7, "hit": { "x": 0, "y": 44, "w": 66, "h": 36 }, "dmg": 1, "kind": "parry" }],
+      "recovery": { "frames": 34, "punishWindow": { "from": 8, "to": 30 } }
+    },
+    {
+      "id": "rush", "name": "Бросок",
+      "tell": { "frames": 24, "lockFace": true, "cue": { "color": "red", "sfx": "dash1", "pose": "lean" } },
+      "move": [{ "from": 0, "to": 9, "vx": 1050, "toward": "player" }],
+      "active": [{ "from": 0, "to": 9, "hit": { "x": -20, "y": 18, "w": 62, "h": 62 }, "dmg": 1, "kind": "dodge" }],
+      "recovery": { "frames": 36, "punishWindow": { "from": 8, "to": 32 } },
+      "requires": { "dist": [150, 460] }
+    },
+    {
+      "id": "rush2", "name": "Обратный бросок",
+      "tell": { "frames": 24, "lockFace": true, "cue": { "color": "red", "sfx": "dash2", "pose": "lean_back" } },
+      "move": [{ "from": 0, "to": 9, "vx": 1100, "toward": "player" }],
+      "active": [{ "from": 0, "to": 9, "hit": { "x": -20, "y": 18, "w": 62, "h": 62 }, "dmg": 1, "kind": "dodge" }],
+      "recovery": { "frames": 38, "punishWindow": { "from": 8, "to": 34 } }
+    },
+    {
+      "id": "rise", "name": "Подъём клинка",
+      "tell": { "frames": 26, "lockFace": true, "cue": { "color": "red", "sfx": "rise", "pose": "crouch_up" } },
+      "active": [{ "from": 0, "to": 4, "hit": { "x": -6, "y": -100, "w": 84, "h": 180 }, "dmg": 1, "kind": "dodge" }],
+      "recovery": { "frames": 40, "punishWindow": { "from": 8, "to": 34 } },
+      "requires": { "dist": [0, 150] }
+    },
+    {
+      "id": "leap", "name": "Падение",
+      "tell": { "frames": 28, "lockFace": true, "cue": { "color": "red", "sfx": "leap", "pose": "crouch" } },
+      "move": [{ "from": 0, "to": 44, "vx": 340, "vy": -560, "toward": "player" }],
+      "active": [{ "from": 44, "to": 48, "hit": { "x": -70, "y": 50, "w": 140, "h": 28 }, "dmg": 1, "kind": "dodge" }],
+      "recovery": { "frames": 42, "punishWindow": { "from": 10, "to": 36 } },
+      "requires": { "dist": [200, 560] }
+    },
+    {
+      "id": "quake", "name": "Падение с волнами",
+      "tell": { "frames": 28, "lockFace": true, "cue": { "color": "red", "sfx": "quake", "pose": "crouch_big" } },
+      "move": [{ "from": 0, "to": 44, "vx": 340, "vy": -560, "toward": "player" }],
+      "active": [{ "from": 44, "to": 48, "hit": { "x": -70, "y": 50, "w": 140, "h": 28 }, "dmg": 1, "kind": "dodge" }],
+      "spawn": [
+        { "at": 56, "proj": { "kind": "wave", "w": 24, "h": 18, "life": 80 }, "kind": "dodge", "ox": 40, "oy": 30, "vx": 360 },
+        { "at": 56, "proj": { "kind": "wave", "w": 24, "h": 18, "life": 80 }, "kind": "dodge", "ox": -40, "oy": 30, "vx": -360 }
+      ],
+      "recovery": { "frames": 44, "punishWindow": { "from": 12, "to": 38 } },
+      "requires": { "dist": [140, 600] }
+    },
+    {
+      "id": "fan3", "name": "Веер из трёх",
+      "tell": { "frames": 24, "cue": { "color": "yellow", "sfx": "whoosh1", "pose": "wind_up" } },
+      "spawn": [{ "at": 0, "proj": { "kind": "spore", "w": 12, "h": 12, "life": 180 }, "kind": "parry", "ox": 24, "oy": -10, "vx": 360, "vy": -300, "count": 3, "spread": 16 }],
+      "recovery": { "frames": 36, "punishWindow": { "from": 8, "to": 32 } }
+    },
+    {
+      "id": "fan5", "name": "Веер из пяти",
+      "tell": { "frames": 24, "cue": { "color": "yellow", "sfx": "whoosh2", "pose": "wind_up_big" } },
+      "spawn": [{ "at": 0, "proj": { "kind": "spore", "w": 12, "h": 12, "life": 180 }, "kind": "parry", "ox": 24, "oy": -10, "vx": 380, "vy": -300, "count": 5, "spread": 14 }],
+      "recovery": { "frames": 38, "punishWindow": { "from": 8, "to": 34 } }
+    },
+    {
+      "id": "sky", "name": "Клинки сверху",
+      "tell": { "frames": 36, "cue": { "color": "red", "sfx": "rumble", "pose": "look_up" } },
+      "spawn": [
+        { "at": 0, "proj": { "kind": "rock", "w": 16, "h": 16, "life": 120 }, "kind": "dodge", "from": "target", "oy": -300 },
+        { "at": 28, "proj": { "kind": "rock", "w": 16, "h": 16, "life": 120 }, "kind": "dodge", "from": "target", "ox": -70, "oy": -300 },
+        { "at": 56, "proj": { "kind": "rock", "w": 16, "h": 16, "life": 120 }, "kind": "dodge", "from": "target", "ox": 70, "oy": -300 }
+      ],
+      "recovery": { "frames": 44, "punishWindow": { "from": 16, "to": 39 } },
+      "requires": { "dist": [60, 900] }
+    },
+    {
+      "id": "sky2", "name": "Ливень клинков",
+      "tell": { "frames": 34, "cue": { "color": "red", "sfx": "rumble2", "pose": "look_up_big" } },
+      "spawn": [
+        { "at": 0, "proj": { "kind": "rock", "w": 16, "h": 16, "life": 120 }, "kind": "dodge", "from": "target", "oy": -300 },
+        { "at": 12, "proj": { "kind": "rock", "w": 16, "h": 16, "life": 120 }, "kind": "dodge", "from": "target", "ox": -80, "oy": -300 },
+        { "at": 24, "proj": { "kind": "rock", "w": 16, "h": 16, "life": 120 }, "kind": "dodge", "from": "target", "ox": 80, "oy": -300 },
+        { "at": 36, "proj": { "kind": "rock", "w": 16, "h": 16, "life": 120 }, "kind": "dodge", "from": "target", "ox": 0, "oy": -300 }
+      ],
+      "recovery": { "frames": 44, "punishWindow": { "from": 20, "to": 41 } },
+      "requires": { "dist": [60, 900] }
+    },
+    {
+      "id": "nova", "name": "Затмение",
+      "tell": { "frames": 44, "lockFace": true, "cue": { "color": "purple", "sfx": "crush", "pose": "overhead_big" } },
+      "active": [{ "from": 0, "to": 7, "hit": { "x": -105, "y": -6, "w": 210, "h": 90 }, "dmg": 2, "kind": "unblockable", "knock": { "vx": 380, "vy": -300 } }],
+      "recovery": { "frames": 56, "punishWindow": { "from": 12, "to": 51 } }
+    },
+    {
+      "id": "repel", "name": "Отстранение",
+      "tell": { "frames": 30, "cue": { "color": "white", "sfx": "shove", "pose": "brace" } },
+      "active": [{ "from": 0, "to": 3, "hit": { "x": -70, "y": 30, "w": 140, "h": 48 }, "dmg": 1, "kind": "dodge", "knock": { "vx": 420, "vy": -320 } }],
+      "recovery": { "frames": 30, "punishWindow": { "from": 6, "to": 25 } }
+    },
+    {
+      "id": "hop", "name": "Прыжок через героя",
+      "tell": { "frames": 32, "lockFace": true, "cue": { "color": "white", "sfx": "hop", "pose": "crouch_low" } },
+      "move": [{ "from": 0, "to": 44, "vx": 300, "vy": -560, "toward": "player" }],
+      "active": [{ "from": 44, "to": 48, "hit": { "x": -70, "y": 50, "w": 140, "h": 28 }, "dmg": 1, "kind": "dodge" }],
+      "recovery": { "frames": 40, "punishWindow": { "from": 8, "to": 35 } }
+    }
+  ],
+  "chains": [
+    { "id": "c_a1", "steps": [{ "attack": "cut", "gapFrames": 22 }, { "attack": "cut2" }], "weight": 3, "requires": { "dist": [0, 130] } },
+    { "id": "c_a2", "steps": [{ "attack": "cut2", "gapFrames": 24 }, { "attack": "rise" }], "weight": 3, "requires": { "dist": [0, 130] } },
+    { "id": "c_b1", "steps": [{ "attack": "lunge", "gapFrames": 20 }, { "attack": "cut" }], "weight": 3 },
+    { "id": "c_b2", "steps": [{ "attack": "rush", "gapFrames": 16 }, { "attack": "cut2" }], "weight": 3 },
+    { "id": "c_leap", "steps": [{ "attack": "leap" }], "weight": 2 },
+    { "id": "c_fan3", "steps": [{ "attack": "fan3" }], "weight": 2 },
+    { "id": "c_sky", "steps": [{ "attack": "sky" }], "weight": 2 },
+
+    { "id": "c_a3", "steps": [{ "attack": "cut", "gapFrames": 18 }, { "attack": "cut2", "gapFrames": 18 }, { "attack": "cut3" }], "weight": 3, "requires": { "dist": [0, 130] } },
+    { "id": "c_b3", "steps": [{ "attack": "lunge", "gapFrames": 18 }, { "attack": "lunge2", "gapFrames": 20 }, { "attack": "rise" }], "weight": 3, "requires": { "dist": [80, 220] } },
+    { "id": "c_dbl", "steps": [{ "attack": "rush", "gapFrames": 20 }, { "attack": "rush2" }], "weight": 3 },
+    { "id": "c_quake", "steps": [{ "attack": "quake" }], "weight": 2 },
+    { "id": "c_fan5", "steps": [{ "attack": "fan5", "gapFrames": 24 }, { "attack": "lunge" }], "weight": 2 },
+    { "id": "c_nova", "steps": [{ "attack": "nova" }], "weight": 2, "requires": { "dist": [0, 260] }, "cooldown": 420 },
+
+    { "id": "c_sky2", "steps": [{ "attack": "sky2" }], "weight": 2 },
+    { "id": "c_a3f", "steps": [{ "attack": "cut", "gapFrames": 12 }, { "attack": "cut2", "gapFrames": 12 }, { "attack": "cut3", "gapFrames": 16 }, { "attack": "rise" }], "weight": 3, "requires": { "dist": [0, 130] } },
+    { "id": "c_b3f", "steps": [{ "attack": "lunge", "gapFrames": 12 }, { "attack": "lunge2", "gapFrames": 14 }, { "attack": "cut" }], "weight": 3, "requires": { "dist": [80, 220] } },
+    { "id": "c_trip", "steps": [{ "attack": "rush", "gapFrames": 12 }, { "attack": "rush2", "gapFrames": 12 }, { "attack": "cut3" }], "weight": 3 },
+    { "id": "c_exam", "steps": [
+        { "attack": "cut", "gapFrames": 16 }, { "attack": "rise", "gapFrames": 20 },
+        { "attack": "rush", "gapFrames": 12 }, { "attack": "rush2", "gapFrames": 30 }, { "attack": "nova" }
+      ], "weight": 1000, "requires": { "dist": [0, 260] }, "cooldown": 1100 },
+
+    { "id": "c_shove", "steps": [{ "attack": "repel" }], "weight": 1, "cooldown": 180 },
+    { "id": "c_hop", "steps": [{ "attack": "hop" }], "weight": 1, "cooldown": 600 },
+    { "id": "c_enter2", "steps": [{ "attack": "fan3" }], "weight": 1 },
+    { "id": "c_enter3", "steps": [{ "attack": "nova" }], "weight": 1 }
+  ],
+  "phases": [
+    {
+      "fromHp": 1,
+      "policy": {
+        "chains": ["c_a1", "c_a2", "c_b1", "c_b2", "c_leap", "c_fan3", "c_sky"],
+        "noRepeat": 2,
+        "fatigue": { "factor": 0.1, "decay": 900 },
+        "restFrames": [30, 30]
+      }
+    },
+    {
+      "fromHp": 0.66,
+      "rageFrames": 45,
+      "scene": { "frames": 60, "skippable": true, "say": "Ещё раз. Быстрее." },
+      "enterChain": "c_enter2",
+      "policy": {
+        "chains": ["c_a1", "c_a3", "c_b1", "c_b3", "c_dbl", "c_quake", "c_fan5", "c_sky", "c_nova"],
+        "noRepeat": 3,
+        "fatigue": { "factor": 0.1, "decay": 900 },
+        "restFrames": [22, 22]
+      }
+    },
+    {
+      "fromHp": 0.33,
+      "rageFrames": 60,
+      "scene": { "frames": 80, "skippable": true, "say": "Последний вопрос." },
+      "enterChain": "c_enter3",
+      "policy": {
+        "chains": ["c_a3f", "c_b3f", "c_trip", "c_dbl", "c_quake", "c_fan5", "c_sky2", "c_nova", "c_exam"],
+        "noRepeat": 3,
+        "fatigue": { "factor": 0.1, "decay": 900 },
+        "restFrames": [14, 14]
+      }
+    }
+  ]
+}

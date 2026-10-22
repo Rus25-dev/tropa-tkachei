@@ -38,9 +38,9 @@ describe('Три Богомола: состав и данные', () => {
     expect(w.cond).not.toBeNull();
   });
 
-  it('участники скрыты из списков, главный босс виден по ?dev=1; у каждого свой рисовальщик', () => {
+  it('участники скрыты из списков, главный босс виден всем; у каждого свой рисовальщик', () => {
     expect(bossDef('mantises_b')!.hidden).toBe(true); expect(bossDef('mantises_c')!.hidden).toBe(true);
-    expect(bossDef(ID)!.dev).toBe(true);
+    expect(bossDef(ID)!.dev).toBeFalsy(); expect(bossDef(ID)!.hidden).toBeFalsy();
   });
 
   it('валидатор: ошибок нет ни у ведущего, ни у участников; расписание проверено по каждой фазе отдельно', () => {

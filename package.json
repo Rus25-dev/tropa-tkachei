@@ -1,6 +1,6 @@
 {
   "name": "tropa-tkachei",
-  "version": "2.5.0",
+  "version": "2.6.0",
   "private": true,
   "type": "module",
   "description": "Тропа Ткачей v2: Phaser 4 + TypeScript + Vite. Старая игра v1.8 лежит в legacy/.",
@@ -14,7 +14,9 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
+    "test:fast": "vitest run --exclude tests/unit/bot.test.ts --exclude tests/unit/boss-wave0-nohit.test.ts --exclude tests/unit/ttrec.test.ts --exclude tests/unit/subsplits.test.ts -t \"^(?!.*(проходима без урона|бой проходится безупречно)).*$\"",
     "test:e2e": "playwright test",
+    "test:smoke": "playwright test tests/e2e/smoke.spec.ts -g \"игра стартует\"",
     "verify": "npm run lint && npm run typecheck && npm test && npm run build && npm run test:e2e",
     "test:full": "npm run lint && npm run typecheck && npm test && npm run build && npm run test:e2e && npm run legacy:golden",
     "legacy:install": "npm --prefix legacy install",
