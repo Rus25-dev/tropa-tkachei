@@ -14,7 +14,7 @@ export const dec = (m: number, names: readonly string[]): Inp => { const o: Reco
 export type Act = [tick: number, name: string, a: number, b: number, c: number];
 export interface JournalSeg {
   seed: number; np: number; hv: 1 | 2;
-  data: { players: number; mode: 'story' | 'bosstest'; boss: string | null; camp: unknown };
+  data: { players: number; mode: 'story' | 'bosstest'; boss: string | null; camp: unknown; /** набор приёмов был открыт (v2.5); у старых записей поля нет */ kit?: boolean };
   n: number; rle: number[]; acts: Act[]; chk: number[];
 }
 export interface Journal {

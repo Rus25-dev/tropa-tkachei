@@ -1,7 +1,7 @@
 // Снаряды и вещи на карте: споры, волны, буквы Миши, ноты Владика, пиво Тимы, корни, инструменты, бусины, предметы, ворота, выход, шкала стойкости, статусы.
 // (legacy/src/game.js render, misha.js drawLetters, vladik.js drawVladikProjs, tima.js drawTimaProjs, bosses2.js drawExtraProjs/drawPoiseBars, tools.js, status.js, combat2.js drawItems)
 import type Phaser from 'phaser';
-import { POISE_MAX, STAGGER_T, STATUS_KINDS, T } from '../../core/balance';
+import { KIT, POISE_MAX, STAGGER_T, STATUS_KINDS, T } from '../../core/balance';
 import type { World } from '../../core/world';
 import { type G, PI, drawClef, pts } from './common';
 
@@ -211,6 +211,18 @@ function drawToolEntities(w: World, fx: G, now: number): void {
       const blink = arming ? 0.3 : 0.5 + Math.sin(now * 8) * 0.5;
       fx.fillStyle(0xff6a4a, 0.25 + blink * 0.6); fx.fillCircle(x, by - 2, 2.2);
       fx.lineStyle(1, 0xffe3a3, 0.35); fx.strokeCircle(x, by - 4, 18 + Math.sin(now * 4) * 2);
+    } else if (q['kind'] === 'tspirit') { // нитяной снаряд: светящийся клубок с хвостом
+      const f = q['f'] as number, pul = 1 + Math.sin(now * 30) * 0.1;
+      for (let i = 1; i <= 4; i++) { fx.fillStyle(0xcfe8ff, 0.32 - i * 0.06); fx.fillEllipse(x - f * i * 11, y, 22 - i * 3, 12 - i * 1.6); }
+      fx.fillStyle(0x9fd0ff, 0.28); fx.fillCircle(x, y, 17 * pul);
+      fx.fillStyle(0xffffff, 1); fx.fillCircle(x, y, 7 * pul);
+      fx.lineStyle(1.6, 0xcfe8ff, 0.9); fx.beginPath(); fx.arc(x, y, 11, now * 9, now * 9 + 4, false); fx.strokePath();
+    } else if (q['kind'] === 'twraith') { // вопль: столб нити вверх, вспыхивает на каждом ударе
+      const k = Math.max(0, q['life'] / (q['T'] || 1)), hit = (q['gap'] as number) > 0.06 ? 1 : 0.5;
+      const cx = q['x'] + q['w'] / 2, top = q['y'], bot = q['y'] + q['h'];
+      fx.fillStyle(0x9fd0ff, 0.14 * k * hit); fx.fillRect(q['x'], top, q['w'], q['h']);
+      for (let i = -2; i <= 2; i++) { fx.lineStyle(i ? 1.5 : 3, i ? 0xcfe8ff : 0xffffff, 0.75 * k * hit); fx.lineBetween(cx + i * 9, bot, cx + i * 9 + Math.sin(now * 12 + i) * 5, top + (i % 2 ? 30 : 0)); }
+      fx.lineStyle(2, 0xffffff, 0.8 * k); fx.strokeEllipse(cx, bot - 4, q['w'] * (1.3 - k * 0.3), 12);
     } else if (q['kind'] === 'tbomb') {
       const fuse = q['fuse'], pul = 1 + Math.sin(now * (14 + (0.9 - fuse) * 30)) * 0.12;
       fx.fillStyle(0xffd47a, 0.2); fx.fillCircle(x, y, 11 * pul);
@@ -244,6 +256,15 @@ function drawToolEntities(w: World, fx: G, now: number): void {
       fx.fillStyle(0xffe3a3, 0.22 * k); fx.fillCircle(f['x'], f['y'], r);
       fx.lineStyle(4, 0xffffff, k); fx.strokeCircle(f['x'], f['y'], r);
       fx.lineStyle(2, 0xffd47a, k); fx.strokeCircle(f['x'], f['y'], r * 0.7);
+    } else if (f['f'] === 'shock') { // волна нырка: две стороны по земле
+      const R = KIT.DIVE.R * (1 - k * k * 0.6), fy = f['y'];
+      for (const s of [-1, 1]) {
+        const x = f['x'] + s * R;
+        fx.fillStyle(0xcfe8ff, 0.8 * k); fx.fillTriangle(x, fy, x - s * 30, fy - 6, x - s * 18, fy - 36 * (0.4 + 0.6 * k));
+        fx.fillStyle(0xffffff, 0.6 * k); fx.fillTriangle(x - s * 34, fy, x - s * 56, fy - 5, x - s * 46, fy - 20 * k);
+      }
+      fx.lineStyle(3, 0xffffff, 0.8 * k); fx.lineBetween(f['x'] - R, fy - 1, f['x'] + R, fy - 1);
+      fx.fillStyle(0xcfe8ff, 0.25 * k); fx.fillEllipse(f['x'], fy - 4, R * 2, 24);
     } else if (f['f'] === 'snap') {
       fx.lineStyle(3, 0xffffff, k);
       for (let s = -2; s <= 2; s++) fx.lineBetween(f['x'] + s * 6, f['y'], f['x'] + s * 9, f['y'] - 26 * (1 - k * 0.3));

@@ -1,5 +1,5 @@
 // Шаг героя. В v1.8 stepPlayer обёрнут по порядку загрузки модулей: движение 2 → обереги → крюк → оружие (заряд) → перезарядка инструмента → база.
-// Здесь та же вложенность записана вызовами: stepPlayer → mv2 → charms → hook → weapons → loadout → base.
+// Здесь та же вложенность записана вызовами: stepPlayer → mv2 → charms → hook → kit (приёмы набора игрока, v2.5) → weapons → loadout → base.
 import { MV2, P, SPIKE, EMPTY, PLAT, SOLID, T } from './balance';
 import type { Player } from './types';
 import type { World } from './world';
@@ -13,6 +13,7 @@ import { hurtPlayer } from './damage';
 import { throwBomb, refillBombs } from './misha';
 import { hookStep } from './tools';
 import { duelNoHeal } from './duelmods';
+import { dashSpeed, kitBusy, kitDashStart, kitStep } from './kit/moves';
 
 const NOIN = { up: false, down: false, left: false, right: false, jump: false, atk: false, dash: false, heal: false, bomb: false, tool: false, jumpP: false, atkP: false, dashP: false, healP: false, upP: false, bombP: false, toolP: false };
 
@@ -113,14 +114,14 @@ function mv2Step(sc: World, p: Player, dt: number): void {
   }
   // хват за уступ
   if (!p['ledge'] && hasLedge(sc) && air && p.vy > 0 && (p['ledgeCd'] as number) <= 0 && (dir === 1 || dir === -1) &&
-    p.hurtT <= 0 && p.dashT <= 0 && p.atkT <= 0 && !((p['healCh'] as number) > 0) && !p.sit && !p.downed && p.wjLock <= 0 && !((p['execT'] as number) > 0)) {
+    p.hurtT <= 0 && p.dashT <= 0 && p.atkT <= 0 && !((p['healCh'] as number) > 0) && !p.sit && !p.downed && p.wjLock <= 0 && !((p['execT'] as number) > 0) && !kitBusy(p)) {
     const L2 = findLedge(sc, p, dir);
     if (L2) { grab(sc, p, L2); p['gliding'] = false; return; }
   }
   // планер
   if (!hasG || p.onGround || !inp.jump) { p['glideOff'] = false; p['glideHold'] = 0; p['gliding'] = false; }
   else {
-    const ok = p.vy >= 0 && !p['glideOff'] && p.hurtT <= 0 && p.dashT <= 0 && !p.wallDir && !((p['healCh'] as number) > 0) && !p.downed &&
+    const ok = p.vy >= 0 && !p['glideOff'] && !kitBusy(p) && p.hurtT <= 0 && p.dashT <= 0 && !p.wallDir && !((p['healCh'] as number) > 0) && !p.downed &&
       (p['usedDouble'] || !sc.abil['double']);
     if (p.atkT > 0 || p.hurtT > 0 || p.dashT > 0) p['glideOff'] = true; // удар, урон, рывок обрывают планирование до следующего нажатия
     if (!ok || p['glideOff']) { p['gliding'] = false; p['glideHold'] = 0; }
@@ -141,9 +142,11 @@ function mv2Step(sc: World, p: Player, dt: number): void {
 function charmsStep(sc: World, p: Player, dt: number): void {
   if (p.dashCd > 0 && hasCharm(p, 'stride')) p.dashCd -= dt * 0.25;
   const before = (p['parryT'] as number) || 0;
-  hookStep(sc, p, dt, weaponsStep);
+  hookStep(sc, p, dt, kitInner);
   if ((p['parryT'] as number) > before && (p['parryT'] as number) >= P.PARRY_T - 1e-6 && hasCharm(p, 'window')) p['parryT'] = P.PARRY_T * 1.5;
 }
+
+const kitInner = (sc: World, p: Player, dt: number): void => kitStep(sc, p, dt, weaponsStep);
 
 // ---------- оружие (заряд) → перезарядка инструмента → база ----------
 function weaponsStep(sc: World, p: Player, dt: number): void {
@@ -190,8 +193,8 @@ function baseStepPlayer(sc: World, p: Player, dt: number): void {
   if (p.hurtT > 0) {
     p.vx = p.kbx; p.kbx *= 0.9; p.vy = Math.min(p.vy + P.G * dt, P.MAXFALL);
   } else if (p.dashT > 0) {
-    p.dashT -= dt; p.vx = p.face * P.DASH; p.vy = 0;
-    p.trail.push({ x: p.x + 7, y: p.y + 26, a: 1, f: p.face });
+    p.dashT -= dt; p.vx = p.face * dashSpeed(p); p.vy = 0;
+    p.trail.push({ x: p.x + 7, y: p.y + 26, a: 1, f: p.face, s: p['shade'] ? 1 : 0 });
     if (p.dashT <= 0) p.vx = dir * P.RUN;
   } else {
     if (p.wjLock <= 0) { p.vx = dir * P.RUN * speedMul(sc, p) + p.kbx; if (dir) p.face = dir; }
@@ -224,7 +227,7 @@ function baseStepPlayer(sc: World, p: Player, dt: number): void {
       if (p.wallDir) p.face = -p.wallDir;
       else if (dir) p.face = dir;
       p.dashT = P.DASHT; p.dashCd = P.DASHCD; if (!p.onGround) p.canDash = false; p.vy = 0; p.atkT = 0;
-      sc.snd('dash');
+      sc.snd('dash'); kitDashStart(sc, p);
     }
     if ((p['atkBuf'] as number) > 0 && p.atkCd <= 0 && (inp.up || inp.down) && tryExecute(sc, p, inp.up ? 'u' : 'd')) {
       p['atkBuf'] = 0; // казнь оглушённого босса: удар вверх/вниз рядом с ним

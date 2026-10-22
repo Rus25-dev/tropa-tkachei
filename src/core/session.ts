@@ -32,6 +32,8 @@ export interface SessionCfg {
   wall?: () => number;
   /** сетевая игра вдвоём: роль этой сессии */
   online?: 'host' | 'guest' | null;
+  /** набор приёмов открыт в Босс-тесте и Босс-раше (настройка «Приёмы»); в журнал попадает вместе с данными сцены */
+  kit?: boolean;
 }
 /** Сетевой порт сессии (его даёт слой net/): события ядра напарнику и такт отправки поз и снимков */
 export interface NetPort {
@@ -52,7 +54,7 @@ export class Recorder {
   }
   begin(w: World): void {
     const sd = w.startData;
-    this.seg = { seed: w.seed, np: w.nPlayers, hv: this.J.mem ? 2 : 1, data: { players: w.nPlayers, mode: sd.mode || 'story', boss: sd.boss || null, camp: sd.camp ? JSON.parse(JSON.stringify(sd.camp)) : null }, n: 0, rle: [], acts: [], chk: [] };
+    this.seg = { seed: w.seed, np: w.nPlayers, hv: this.J.mem ? 2 : 1, data: { players: w.nPlayers, mode: sd.mode || 'story', boss: sd.boss || null, camp: sd.camp ? JSON.parse(JSON.stringify(sd.camp)) : null, ...(sd.kit ? { kit: true } : {}) }, n: 0, rle: [], acts: [], chk: [] };
     this.J.segs.push(this.seg); this.dirty = true;
   }
   /** вызывается перед тиком мира */
@@ -101,7 +103,7 @@ export class Session {
   }
 
   private spawn(data: SceneData): void {
-    this.world = new World({ ...data, easy: this.cfg.easy, loadoutSave: this.cfg.loadoutSave, progress: this.cfg.progress, sr: this.sr, fx: this.cfg.fx, online: this.cfg.online ?? null });
+    this.world = new World({ ...data, easy: this.cfg.easy, loadoutSave: this.cfg.loadoutSave, progress: this.cfg.progress, sr: this.sr, fx: this.cfg.fx, online: this.cfg.online ?? null, kit: !!this.cfg.kit });
     this.scenes++;
     if (this.rec && this.world.nPlayers === 1) this.rec.begin(this.world);
   }

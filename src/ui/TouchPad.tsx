@@ -17,9 +17,9 @@ export function goFullscreen(): void {
 
 function cap(e: PointerEvent): void { try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch { /* синтетическое событие или палец уже отпущен */ } }
 
-interface Props { hub: InputHub; tool: boolean; bombs: boolean; hidden?: boolean; padMode?: boolean; showMap?: boolean; onPause: () => void; onMap: () => void }
+interface Props { hub: InputHub; tool: boolean; bombs: boolean; /** открытые приёмы рывка (kit): подсказки на кнопке рывка */ kit?: string[]; hidden?: boolean; padMode?: boolean; showMap?: boolean; onPause: () => void; onMap: () => void }
 
-export function TouchPad({ hub, tool, bombs, hidden, padMode, showMap, onPause, onMap }: Props) {
+export function TouchPad({ hub, tool, bombs, kit, hidden, padMode, showMap, onPause, onMap }: Props) {
   const [base, setBase] = useState<{ x: number; y: number } | null>(null);
   const [knob, setKnob] = useState({ x: 0, y: 0 });
   const [on, setOn] = useState<Partial<Record<Button, boolean>>>({});
@@ -69,11 +69,11 @@ export function TouchPad({ hub, tool, bombs, hidden, padMode, showMap, onPause, 
     <div id="touch" class={`${padMode ? 'padmode' : ''}`} data-testid="touchpad" hidden={hidden}>
       <div class="t-zone" data-testid="stick" onPointerDown={zoneDown} onPointerMove={zoneMove} onPointerUp={zoneEnd} onPointerCancel={zoneEnd} onLostPointerCapture={zoneEnd}>
         {base && <div class="t-base" style={{ left: base.x + 'px', top: base.y + 'px' }}><div class="t-knob" style={{ transform: `translate(${knob.x}px, ${knob.y}px)` }} /></div>}
-        <span class={`t-hint ${hint ? '' : 'gone'}`}>тяни, чтобы идти</span>
+        <span class={`t-hint ${hint ? '' : 'gone'}`}>тяни, чтобы идти{kit && kit.length > 0 ? ' · рывок: держи — заряд, в воздухе со стиком — вспышка' : ''}</span>
       </div>
       <div class="t-btns">
         {btn('heal', 't-heal', '✚', 'Нить', 'Лечение')}
-        {btn('dash', 't-dash', '»', 'Рывок', 'Рывок')}
+        {btn('dash', 't-dash', '»', kit?.includes('crystal') ? 'держи' : 'Рывок', kit && kit.length > 0 ? 'Рывок: держите для заряда, в воздухе со стиком — вспышка' : 'Рывок')}
         {btn('tool', 't-tool', '✦', 'Инстр.', 'Инструмент', !tool)}
         {btn('bomb', 't-bomb', '●', 'Бомба', 'Дымовая бомба', !bombs)}
         {btn('atk', 't-atk', '⟋', 'Удар', 'Удар')}

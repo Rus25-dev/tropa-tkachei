@@ -10,7 +10,7 @@ import { drawLevelChunks } from '../art';
 import { drawCurtains, drawDataBoss, drawDataProjs, drawKorne, drawMisha, drawTima, drawVladik, type Say } from '../draw/bosses';
 import { bossDef } from '../../core/boss/registry';
 import { drawEnemy } from '../draw/enemies';
-import { drawPlayer, drawSwingArc } from '../draw/hero';
+import { drawPlayer, drawSwingArc, trailStyle } from '../draw/hero';
 import { drawBeads, drawHitKinds, drawItems, drawPoiseBars, drawProjectiles, drawStatus, type TextPool } from '../draw/projectiles';
 import { drawWeaver, type G } from '../draw/common';
 import { currentFit, fitCamera, type Fit } from '../fit';
@@ -343,7 +343,7 @@ export class GameScene extends Phaser.Scene {
     }
     w.benches.forEach((b, i) => this.benchObjs[i]?.prompt.setAlpha((b as { near?: boolean }).near ? 1 : 0));
     // хвосты рывка
-    for (const p of w.players) for (const tr of p.trail as { x: number; y: number; a: number }[]) { fb.fillStyle(p.pal.cloak, tr.a * 0.35); fb.fillEllipse(tr.x, tr.y - 13, 18, 22); }
+    for (const p of w.players) for (const tr of p.trail as { x: number; y: number; a: number; s?: number }[]) { const ts = trailStyle(p, tr); fb.fillStyle(ts.col, ts.a); fb.fillEllipse(tr.x, tr.y - 13, ts.w, ts.h); }
     w.players.forEach((p, i) => {
       const pv = this.playerG[i]; if (!pv) return;
       const r = drawPlayer(w, p, pv.g, now);

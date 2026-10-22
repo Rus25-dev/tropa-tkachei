@@ -16,6 +16,15 @@ const SCHEMA: Tree = {
   PARRY2: Object.fromEntries(['PERFECT_F', 'PERFECT_LEGACY', 'PERFECT_SILK', 'PERFECT_POISE_MUL', 'POSTURE_NORMAL_POISE', 'PERFECT_HITSTOP', 'COUNTER_T', 'COUNTER_DMG', 'COUNTER_POISE_MUL'].map((k) => [k, 'n' as const])),
   CH_T: 'n', CH_SHOW: 'n', CH_SLOW: 'n',
   MV2: { GLIDE_V: 'n', GLIDE_DEC: 'n', GLIDE_HOLD: 'n', CLIMB_T: 'n' },
+  KIT: {
+    SHADOW: { T: 'n', SPD: 'n', GHOST_F: 'n', CD: 'n' },
+    FLASH: { DIST: 'n', FRAMES: 'n', GHOST_F: 'n' },
+    CRYSTAL: { CHARGE_T: 'n', MIN_HOLD: 'n', SLOW: 'n', SPD: 'n', GHOST_F: 'n', MAXT: 'n', CD: 'n', CARRY: 'n' },
+    SPIRIT: { COST: 'n', CD: 'n', DMG: 'n', SPD: 'n', LIFE: 'n' },
+    DIVE: { COST: 'n', CD: 'n', SPD: 'n', MAXT: 'n', STRIKE: 'n', LAND_DMG: 'n', ENEMY_DMG: 'n', R: 'n' },
+    WRAITH: { COST: 'n', CD: 'n', H: 'n', W: 'n', PULSES: 'n', GAP: 'n', DMG: 'n' },
+    NEEDLE_DPS: 'n',
+  },
   STATUS: { poison: { iv: 'n', n: 'n' }, burn: { iv: 'n', n: 'n' }, slow: { t: 'n' } },
 };
 
@@ -29,6 +38,15 @@ export interface BalanceData {
   PARRY2: Record<'PERFECT_F' | 'PERFECT_LEGACY' | 'PERFECT_SILK' | 'PERFECT_POISE_MUL' | 'POSTURE_NORMAL_POISE' | 'PERFECT_HITSTOP' | 'COUNTER_T' | 'COUNTER_DMG' | 'COUNTER_POISE_MUL', number>;
   CH_T: number; CH_SHOW: number; CH_SLOW: number;
   MV2: Record<'GLIDE_V' | 'GLIDE_DEC' | 'GLIDE_HOLD' | 'CLIMB_T', number>;
+  KIT: {
+    SHADOW: Record<'T' | 'SPD' | 'GHOST_F' | 'CD', number>;
+    FLASH: Record<'DIST' | 'FRAMES' | 'GHOST_F', number>;
+    CRYSTAL: Record<'CHARGE_T' | 'MIN_HOLD' | 'SLOW' | 'SPD' | 'GHOST_F' | 'MAXT' | 'CD' | 'CARRY', number>;
+    SPIRIT: Record<'COST' | 'CD' | 'DMG' | 'SPD' | 'LIFE', number>;
+    DIVE: Record<'COST' | 'CD' | 'SPD' | 'MAXT' | 'STRIKE' | 'LAND_DMG' | 'ENEMY_DMG' | 'R', number>;
+    WRAITH: Record<'COST' | 'CD' | 'H' | 'W' | 'PULSES' | 'GAP' | 'DMG', number>;
+    NEEDLE_DPS: number;
+  };
   STATUS: { poison: { iv: number; n: number }; burn: { iv: number; n: number }; slow: { t: number } };
 }
 export type DeepPartial<T> = { [K in keyof T]?: T[K] extends number ? number : T[K] extends number[] ? number[] : DeepPartial<T[K]> };

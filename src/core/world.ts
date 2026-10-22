@@ -57,6 +57,8 @@ export interface WorldOpts {
   fx?: boolean;
   /** сетевая игра вдвоём: хост считает мир, гость получает снимки (v1.8: GameScene.online) */
   online?: 'host' | 'guest' | null;
+  /** набор приёмов игрока открыт в Босс-тесте и Босс-раше (kit/abilities.ts); в записях и мирах без флага приёмы закрыты */
+  kit?: boolean;
 }
 
 export interface Timer { t: number; fn: () => void }
@@ -69,7 +71,7 @@ export class World {
   _vb = false; _tb = false; _mb = false; _bb = false;
   /** по сети пауза — только окно (мир идёт) */
   uiPause = false;
-  startData: WorldOpts; camp: CampState | null = null; sr: SrRun | null;
+  startData: WorldOpts; camp: CampState | null = null; sr: SrRun | null; kit: boolean;
   progress: Progress | null;
   // ----- ГСЧ -----
   rng!: Rng; rBoss!: Rng; rLoot!: Rng; rEnemy!: Rng;
@@ -113,7 +115,7 @@ export class World {
     this.nPlayers = opts.players ?? 1;
     this.easy = !!opts.easy;
     this.online = opts.online ?? null; this.localIdx = this.online === 'guest' ? 1 : 0;
-    this.sr = opts.sr ?? null;
+    this.sr = opts.sr ?? null; this.kit = !!opts.kit;
     this.progress = this.sr || this.online === 'guest' ? null : (opts.progress ?? null); // в забеге спидрана обычное сохранение не читается
     this.fxOn = !!opts.fx;
     campaignInit(this, opts);
