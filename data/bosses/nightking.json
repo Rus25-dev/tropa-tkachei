@@ -1,0 +1,1500 @@
+{
+  "id": "nightking",
+  "name": "Король кошмаров",
+  "about": "Танец-ритуал на тёмной сцене: он исчезает и выходит из красного круга, а огненные столбы вырастают по порядку. Жёлтое отбивай, красное обходи, после каждой связки бей.",
+  "landmark": "Ритуал: ищи красный круг и столбы",
+  "tips": [
+    "Белое «исчезновение» — смотри, где загорелся красный круг: именно там он появится.",
+    "Столбы вырастают в порядке, который видно по красным зонам: стой в промежутках.",
+    "После каждой связки у него есть окно — бей."
+  ],
+  "order": 60,
+  "dev": true,
+  "arena": {
+    "level": "vladik",
+    "ents": [
+      {
+        "id": "burst_l",
+        "kind": "beam",
+        "hit": "dodge",
+        "area": {
+          "x": 90,
+          "y": 0,
+          "w": 180,
+          "h": 170
+        },
+        "timeline": [
+          {
+            "at": 0,
+            "tell": 36,
+            "active": 12
+          }
+        ]
+      },
+      {
+        "id": "burst_c",
+        "kind": "beam",
+        "hit": "dodge",
+        "area": {
+          "x": 582,
+          "y": 0,
+          "w": 180,
+          "h": 170
+        },
+        "timeline": [
+          {
+            "at": 0,
+            "tell": 36,
+            "active": 12
+          }
+        ]
+      },
+      {
+        "id": "burst_r",
+        "kind": "beam",
+        "hit": "dodge",
+        "area": {
+          "x": 1074,
+          "y": 0,
+          "w": 180,
+          "h": 170
+        },
+        "timeline": [
+          {
+            "at": 0,
+            "tell": 36,
+            "active": 12
+          }
+        ]
+      },
+      {
+        "id": "cols_ab",
+        "kind": "beam",
+        "hit": "dodge",
+        "area": {
+          "x": 0,
+          "y": 0,
+          "w": 96,
+          "h": 320
+        },
+        "timeline": [
+          {
+            "at": 0,
+            "tell": 36,
+            "active": 12,
+            "area": {
+              "x": 60,
+              "y": 0,
+              "w": 96,
+              "h": 320
+            }
+          },
+          {
+            "at": 0,
+            "tell": 36,
+            "active": 12,
+            "area": {
+              "x": 420,
+              "y": 0,
+              "w": 96,
+              "h": 320
+            }
+          },
+          {
+            "at": 0,
+            "tell": 36,
+            "active": 12,
+            "area": {
+              "x": 780,
+              "y": 0,
+              "w": 96,
+              "h": 320
+            }
+          },
+          {
+            "at": 0,
+            "tell": 36,
+            "active": 12,
+            "area": {
+              "x": 1140,
+              "y": 0,
+              "w": 96,
+              "h": 320
+            }
+          },
+          {
+            "at": 44,
+            "tell": 36,
+            "active": 12,
+            "area": {
+              "x": 240,
+              "y": 0,
+              "w": 96,
+              "h": 320
+            }
+          },
+          {
+            "at": 44,
+            "tell": 36,
+            "active": 12,
+            "area": {
+              "x": 600,
+              "y": 0,
+              "w": 96,
+              "h": 320
+            }
+          },
+          {
+            "at": 44,
+            "tell": 36,
+            "active": 12,
+            "area": {
+              "x": 960,
+              "y": 0,
+              "w": 96,
+              "h": 320
+            }
+          }
+        ]
+      },
+      {
+        "id": "sweep_lr",
+        "kind": "beam",
+        "hit": "dodge",
+        "area": {
+          "x": 0,
+          "y": 0,
+          "w": 96,
+          "h": 320
+        },
+        "timeline": [
+          {
+            "at": 0,
+            "tell": 36,
+            "active": 12,
+            "area": {
+              "x": 20,
+              "y": 0,
+              "w": 96,
+              "h": 320
+            }
+          },
+          {
+            "at": 18,
+            "tell": 36,
+            "active": 12,
+            "area": {
+              "x": 212,
+              "y": 0,
+              "w": 96,
+              "h": 320
+            }
+          },
+          {
+            "at": 36,
+            "tell": 36,
+            "active": 12,
+            "area": {
+              "x": 404,
+              "y": 0,
+              "w": 96,
+              "h": 320
+            }
+          },
+          {
+            "at": 54,
+            "tell": 36,
+            "active": 12,
+            "area": {
+              "x": 596,
+              "y": 0,
+              "w": 96,
+              "h": 320
+            }
+          },
+          {
+            "at": 72,
+            "tell": 36,
+            "active": 12,
+            "area": {
+              "x": 788,
+              "y": 0,
+              "w": 96,
+              "h": 320
+            }
+          },
+          {
+            "at": 90,
+            "tell": 36,
+            "active": 12,
+            "area": {
+              "x": 980,
+              "y": 0,
+              "w": 96,
+              "h": 320
+            }
+          },
+          {
+            "at": 108,
+            "tell": 36,
+            "active": 12,
+            "area": {
+              "x": 1172,
+              "y": 0,
+              "w": 96,
+              "h": 320
+            }
+          }
+        ]
+      },
+      {
+        "id": "sweep_rl",
+        "kind": "beam",
+        "hit": "dodge",
+        "area": {
+          "x": 0,
+          "y": 0,
+          "w": 96,
+          "h": 320
+        },
+        "timeline": [
+          {
+            "at": 0,
+            "tell": 36,
+            "active": 12,
+            "area": {
+              "x": 1172,
+              "y": 0,
+              "w": 96,
+              "h": 320
+            }
+          },
+          {
+            "at": 18,
+            "tell": 36,
+            "active": 12,
+            "area": {
+              "x": 980,
+              "y": 0,
+              "w": 96,
+              "h": 320
+            }
+          },
+          {
+            "at": 36,
+            "tell": 36,
+            "active": 12,
+            "area": {
+              "x": 788,
+              "y": 0,
+              "w": 96,
+              "h": 320
+            }
+          },
+          {
+            "at": 54,
+            "tell": 36,
+            "active": 12,
+            "area": {
+              "x": 596,
+              "y": 0,
+              "w": 96,
+              "h": 320
+            }
+          },
+          {
+            "at": 72,
+            "tell": 36,
+            "active": 12,
+            "area": {
+              "x": 404,
+              "y": 0,
+              "w": 96,
+              "h": 320
+            }
+          },
+          {
+            "at": 90,
+            "tell": 36,
+            "active": 12,
+            "area": {
+              "x": 212,
+              "y": 0,
+              "w": 96,
+              "h": 320
+            }
+          },
+          {
+            "at": 108,
+            "tell": 36,
+            "active": 12,
+            "area": {
+              "x": 20,
+              "y": 0,
+              "w": 96,
+              "h": 320
+            }
+          }
+        ]
+      },
+      {
+        "id": "ritual",
+        "kind": "beam",
+        "hit": "dodge",
+        "area": {
+          "x": 0,
+          "y": 0,
+          "w": 96,
+          "h": 320
+        },
+        "bind": {
+          "phase": [
+            2,
+            3
+          ]
+        },
+        "loop": 720,
+        "timeline": [
+          {
+            "at": 240,
+            "tell": 44,
+            "active": 12,
+            "area": {
+              "x": 600,
+              "y": 0,
+              "w": 96,
+              "h": 320
+            }
+          },
+          {
+            "at": 480,
+            "tell": 44,
+            "active": 12,
+            "area": {
+              "x": 200,
+              "y": 0,
+              "w": 96,
+              "h": 320
+            }
+          },
+          {
+            "at": 630,
+            "tell": 44,
+            "active": 12,
+            "area": {
+              "x": 1050,
+              "y": 0,
+              "w": 96,
+              "h": 320
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "size": {
+    "w": 48,
+    "h": 80
+  },
+  "hp": [
+    195,
+    260
+  ],
+  "color": 6953805,
+  "intro": {
+    "frames": 120,
+    "say": "Занавес поднят."
+  },
+  "deathFrames": 160,
+  "idle": {
+    "walkSpeed": 70,
+    "keepDist": 100
+  },
+  "contact": {
+    "dmg": 1,
+    "kind": "dodge"
+  },
+  "antiCheese": {
+    "shoveChain": "c_shove",
+    "relocateChain": "c_pyre_ab"
+  },
+  "attacks": [
+    {
+      "id": "slash",
+      "name": "Косой взмах",
+      "tell": {
+        "frames": 24,
+        "cue": {
+          "color": "yellow",
+          "sfx": "swing",
+          "pose": "raise"
+        }
+      },
+      "active": [
+        {
+          "from": 0,
+          "to": 5,
+          "hit": {
+            "x": 4,
+            "y": 10,
+            "w": 96,
+            "h": 60
+          },
+          "dmg": 1,
+          "kind": "parry"
+        }
+      ],
+      "recovery": {
+        "frames": 34,
+        "punishWindow": {
+          "from": 6,
+          "to": 29
+        }
+      },
+      "requires": {
+        "dist": [
+          0,
+          150
+        ]
+      }
+    },
+    {
+      "id": "cleave",
+      "name": "Обратный взмах",
+      "tell": {
+        "frames": 22,
+        "cue": {
+          "color": "yellow",
+          "sfx": "swing",
+          "pose": "raise_back"
+        }
+      },
+      "active": [
+        {
+          "from": 0,
+          "to": 5,
+          "hit": {
+            "x": -10,
+            "y": 0,
+            "w": 110,
+            "h": 80
+          },
+          "dmg": 1,
+          "kind": "parry"
+        }
+      ],
+      "recovery": {
+        "frames": 40,
+        "punishWindow": {
+          "from": 8,
+          "to": 35
+        }
+      }
+    },
+    {
+      "id": "rise",
+      "name": "Огненный подъём",
+      "tell": {
+        "frames": 30,
+        "cue": {
+          "color": "red",
+          "sfx": "rumble",
+          "pose": "crouch"
+        }
+      },
+      "active": [
+        {
+          "from": 0,
+          "to": 8,
+          "hit": {
+            "x": 0,
+            "y": -90,
+            "w": 100,
+            "h": 170
+          },
+          "dmg": 1,
+          "kind": "dodge"
+        }
+      ],
+      "recovery": {
+        "frames": 42,
+        "punishWindow": {
+          "from": 8,
+          "to": 37
+        }
+      },
+      "requires": {
+        "dist": [
+          0,
+          150
+        ]
+      }
+    },
+    {
+      "id": "fan",
+      "name": "Веер углей",
+      "tell": {
+        "frames": 28,
+        "cue": {
+          "color": "yellow",
+          "sfx": "whoosh",
+          "pose": "wind_up"
+        }
+      },
+      "spawn": [
+        {
+          "at": 0,
+          "proj": {
+            "kind": "spore",
+            "w": 12,
+            "h": 12,
+            "life": 180
+          },
+          "kind": "parry",
+          "ox": 24,
+          "oy": -10,
+          "vx": 360,
+          "vy": -300,
+          "count": 3,
+          "spread": 16
+        }
+      ],
+      "recovery": {
+        "frames": 38,
+        "punishWindow": {
+          "from": 8,
+          "to": 33
+        }
+      }
+    },
+    {
+      "id": "ring",
+      "name": "Кольцо углей",
+      "tell": {
+        "frames": 36,
+        "cue": {
+          "color": "red",
+          "sfx": "ring",
+          "pose": "arms_wide"
+        }
+      },
+      "spawn": [
+        {
+          "at": 0,
+          "proj": {
+            "kind": "spore",
+            "w": 14,
+            "h": 14,
+            "life": 150
+          },
+          "kind": "dodge",
+          "ox": 0,
+          "oy": -20,
+          "vx": 300,
+          "vy": -420,
+          "count": 5,
+          "spread": 18
+        }
+      ],
+      "recovery": {
+        "frames": 44,
+        "punishWindow": {
+          "from": 10,
+          "to": 39
+        }
+      }
+    },
+    {
+      "id": "rain",
+      "name": "Дождь искр",
+      "tell": {
+        "frames": 36,
+        "cue": {
+          "color": "red",
+          "sfx": "rumble",
+          "pose": "look_up"
+        }
+      },
+      "spawn": [
+        {
+          "at": 0,
+          "proj": {
+            "kind": "rock",
+            "w": 16,
+            "h": 16,
+            "life": 120
+          },
+          "kind": "dodge",
+          "from": "target",
+          "oy": -300
+        },
+        {
+          "at": 14,
+          "proj": {
+            "kind": "rock",
+            "w": 16,
+            "h": 16,
+            "life": 120
+          },
+          "kind": "dodge",
+          "from": "target",
+          "ox": -70,
+          "oy": -300
+        },
+        {
+          "at": 28,
+          "proj": {
+            "kind": "rock",
+            "w": 16,
+            "h": 16,
+            "life": 120
+          },
+          "kind": "dodge",
+          "from": "target",
+          "ox": 70,
+          "oy": -300
+        }
+      ],
+      "recovery": {
+        "frames": 44,
+        "punishWindow": {
+          "from": 16,
+          "to": 39
+        }
+      },
+      "requires": {
+        "dist": [
+          60,
+          700
+        ]
+      }
+    },
+    {
+      "id": "dash",
+      "name": "Рывок-танец",
+      "tell": {
+        "frames": 30,
+        "cue": {
+          "color": "red",
+          "sfx": "dash",
+          "pose": "lean"
+        }
+      },
+      "move": [
+        {
+          "from": 0,
+          "to": 20,
+          "vx": 720,
+          "toward": "player"
+        }
+      ],
+      "active": [
+        {
+          "from": 0,
+          "to": 20,
+          "hit": {
+            "x": -23,
+            "y": 26,
+            "w": 46,
+            "h": 52
+          },
+          "dmg": 1,
+          "kind": "dodge"
+        }
+      ],
+      "recovery": {
+        "frames": 44,
+        "punishWindow": {
+          "from": 10,
+          "to": 41
+        }
+      },
+      "requires": {
+        "dist": [
+          150,
+          800
+        ]
+      }
+    },
+    {
+      "id": "crush",
+      "name": "Чёрное пламя",
+      "tell": {
+        "frames": 44,
+        "lockFace": true,
+        "cue": {
+          "color": "purple",
+          "sfx": "crush",
+          "pose": "overhead_big"
+        }
+      },
+      "active": [
+        {
+          "from": 0,
+          "to": 7,
+          "hit": {
+            "x": 0,
+            "y": -10,
+            "w": 130,
+            "h": 90
+          },
+          "dmg": 2,
+          "kind": "unblockable",
+          "knock": {
+            "vx": 380,
+            "vy": -300
+          }
+        }
+      ],
+      "recovery": {
+        "frames": 56,
+        "punishWindow": {
+          "from": 12,
+          "to": 51
+        }
+      },
+      "requires": {
+        "dist": [
+          0,
+          240
+        ]
+      }
+    },
+    {
+      "id": "shove",
+      "name": "Выдох пепла",
+      "tell": {
+        "frames": 30,
+        "cue": {
+          "color": "white",
+          "sfx": "shove",
+          "pose": "brace"
+        }
+      },
+      "active": [
+        {
+          "from": 0,
+          "to": 3,
+          "hit": {
+            "x": -70,
+            "y": 30,
+            "w": 140,
+            "h": 48
+          },
+          "dmg": 1,
+          "kind": "dodge",
+          "knock": {
+            "vx": 420,
+            "vy": -320
+          }
+        }
+      ],
+      "recovery": {
+        "frames": 30,
+        "punishWindow": {
+          "from": 6,
+          "to": 25
+        }
+      }
+    },
+    {
+      "id": "warp_l",
+      "name": "Уход в тень (слева)",
+      "tell": {
+        "frames": 28,
+        "lockFace": true,
+        "cue": {
+          "color": "white",
+          "sfx": "vanish",
+          "pose": "fade_l"
+        }
+      },
+      "fire": [
+        {
+          "at": 0,
+          "ent": "burst_l"
+        }
+      ],
+      "fx": [
+        {
+          "at": 36,
+          "name": "warp",
+          "args": {
+            "x": 180
+          }
+        }
+      ],
+      "recovery": {
+        "frames": 26,
+        "punishWindow": {
+          "from": 4,
+          "to": 22
+        }
+      }
+    },
+    {
+      "id": "warp_c",
+      "name": "Уход в тень (в центре)",
+      "tell": {
+        "frames": 28,
+        "lockFace": true,
+        "cue": {
+          "color": "white",
+          "sfx": "vanish",
+          "pose": "fade_c"
+        }
+      },
+      "fire": [
+        {
+          "at": 0,
+          "ent": "burst_c"
+        }
+      ],
+      "fx": [
+        {
+          "at": 36,
+          "name": "warp",
+          "args": {
+            "x": 672
+          }
+        }
+      ],
+      "recovery": {
+        "frames": 26,
+        "punishWindow": {
+          "from": 4,
+          "to": 22
+        }
+      }
+    },
+    {
+      "id": "warp_r",
+      "name": "Уход в тень (справа)",
+      "tell": {
+        "frames": 28,
+        "lockFace": true,
+        "cue": {
+          "color": "white",
+          "sfx": "vanish",
+          "pose": "fade_r"
+        }
+      },
+      "fire": [
+        {
+          "at": 0,
+          "ent": "burst_r"
+        }
+      ],
+      "fx": [
+        {
+          "at": 36,
+          "name": "warp",
+          "args": {
+            "x": 1164
+          }
+        }
+      ],
+      "recovery": {
+        "frames": 26,
+        "punishWindow": {
+          "from": 4,
+          "to": 22
+        }
+      }
+    },
+    {
+      "id": "pyre_ab",
+      "name": "Два ряда столбов",
+      "tell": {
+        "frames": 30,
+        "cue": {
+          "color": "red",
+          "sfx": "pyre",
+          "pose": "arms_up"
+        }
+      },
+      "fire": [
+        {
+          "at": 0,
+          "ent": "cols_ab"
+        }
+      ],
+      "recovery": {
+        "frames": 120,
+        "punishWindow": {
+          "from": 92,
+          "to": 115
+        }
+      }
+    },
+    {
+      "id": "pyre_lr",
+      "name": "Волна столбов слева",
+      "tell": {
+        "frames": 30,
+        "cue": {
+          "color": "red",
+          "sfx": "pyre_l",
+          "pose": "arms_left"
+        }
+      },
+      "fire": [
+        {
+          "at": 0,
+          "ent": "sweep_lr"
+        }
+      ],
+      "recovery": {
+        "frames": 150,
+        "punishWindow": {
+          "from": 118,
+          "to": 145
+        }
+      }
+    },
+    {
+      "id": "pyre_rl",
+      "name": "Волна столбов справа",
+      "tell": {
+        "frames": 30,
+        "cue": {
+          "color": "red",
+          "sfx": "pyre_r",
+          "pose": "arms_right"
+        }
+      },
+      "fire": [
+        {
+          "at": 0,
+          "ent": "sweep_rl"
+        }
+      ],
+      "recovery": {
+        "frames": 150,
+        "punishWindow": {
+          "from": 118,
+          "to": 145
+        }
+      }
+    }
+  ],
+  "chains": [
+    {
+      "id": "c_slash",
+      "steps": [
+        {
+          "attack": "slash"
+        }
+      ],
+      "weight": 3
+    },
+    {
+      "id": "c_combo",
+      "steps": [
+        {
+          "attack": "slash",
+          "gapFrames": 14
+        },
+        {
+          "attack": "cleave"
+        }
+      ],
+      "weight": 3,
+      "requires": {
+        "dist": [
+          0,
+          150
+        ]
+      }
+    },
+    {
+      "id": "c_rise",
+      "steps": [
+        {
+          "attack": "rise"
+        }
+      ],
+      "weight": 2
+    },
+    {
+      "id": "c_fan",
+      "steps": [
+        {
+          "attack": "fan"
+        }
+      ],
+      "weight": 2
+    },
+    {
+      "id": "c_ring",
+      "steps": [
+        {
+          "attack": "ring"
+        }
+      ],
+      "weight": 2
+    },
+    {
+      "id": "c_rain",
+      "steps": [
+        {
+          "attack": "rain"
+        }
+      ],
+      "weight": 2
+    },
+    {
+      "id": "c_dash",
+      "steps": [
+        {
+          "attack": "dash"
+        }
+      ],
+      "weight": 2
+    },
+    {
+      "id": "c_pyre_ab",
+      "steps": [
+        {
+          "attack": "pyre_ab"
+        }
+      ],
+      "weight": 2,
+      "cooldown": 300
+    },
+    {
+      "id": "c_pyre_lr",
+      "steps": [
+        {
+          "attack": "pyre_lr"
+        }
+      ],
+      "weight": 2,
+      "cooldown": 360
+    },
+    {
+      "id": "c_pyre_rl",
+      "steps": [
+        {
+          "attack": "pyre_rl"
+        }
+      ],
+      "weight": 2,
+      "cooldown": 360
+    },
+    {
+      "id": "c_crush",
+      "steps": [
+        {
+          "attack": "crush"
+        }
+      ],
+      "weight": 3,
+      "requires": {
+        "phase": [
+          2,
+          3
+        ],
+        "dist": [
+          0,
+          240
+        ]
+      },
+      "cooldown": 240
+    },
+    {
+      "id": "c_rise_fan",
+      "steps": [
+        {
+          "attack": "rise",
+          "gapFrames": 18
+        },
+        {
+          "attack": "fan"
+        }
+      ],
+      "weight": 2,
+      "requires": {
+        "dist": [
+          0,
+          150
+        ]
+      }
+    },
+    {
+      "id": "c_ring_dash",
+      "steps": [
+        {
+          "attack": "ring",
+          "gapFrames": 26
+        },
+        {
+          "attack": "dash"
+        }
+      ],
+      "weight": 2,
+      "requires": {
+        "phase": [
+          3
+        ]
+      }
+    },
+    {
+      "id": "c_shove",
+      "steps": [
+        {
+          "attack": "shove"
+        }
+      ],
+      "weight": 1,
+      "cooldown": 180
+    },
+    {
+      "id": "c_enter2",
+      "steps": [
+        {
+          "attack": "pyre_lr"
+        }
+      ],
+      "weight": 1
+    },
+    {
+      "id": "c_enter3",
+      "steps": [
+        {
+          "attack": "warp_c",
+          "gapFrames": 14
+        },
+        {
+          "attack": "ring"
+        }
+      ],
+      "weight": 1
+    },
+    {
+      "id": "c_wl_c",
+      "steps": [
+        {
+          "attack": "warp_l",
+          "gapFrames": 10
+        },
+        {
+          "attack": "fan"
+        }
+      ],
+      "weight": 1,
+      "requires": {
+        "arenaSide": "center"
+      }
+    },
+    {
+      "id": "c_xl_c",
+      "steps": [
+        {
+          "attack": "warp_l",
+          "gapFrames": 12
+        },
+        {
+          "attack": "slash",
+          "gapFrames": 10
+        },
+        {
+          "attack": "cleave"
+        }
+      ],
+      "weight": 1,
+      "requires": {
+        "arenaSide": "center"
+      }
+    },
+    {
+      "id": "c_wl_r",
+      "steps": [
+        {
+          "attack": "warp_l",
+          "gapFrames": 10
+        },
+        {
+          "attack": "fan"
+        }
+      ],
+      "weight": 1,
+      "requires": {
+        "arenaSide": "right"
+      }
+    },
+    {
+      "id": "c_xl_r",
+      "steps": [
+        {
+          "attack": "warp_l",
+          "gapFrames": 12
+        },
+        {
+          "attack": "slash",
+          "gapFrames": 10
+        },
+        {
+          "attack": "cleave"
+        }
+      ],
+      "weight": 1,
+      "requires": {
+        "arenaSide": "right"
+      }
+    },
+    {
+      "id": "c_wc_l",
+      "steps": [
+        {
+          "attack": "warp_c",
+          "gapFrames": 10
+        },
+        {
+          "attack": "fan"
+        }
+      ],
+      "weight": 1,
+      "requires": {
+        "arenaSide": "left"
+      }
+    },
+    {
+      "id": "c_xc_l",
+      "steps": [
+        {
+          "attack": "warp_c",
+          "gapFrames": 12
+        },
+        {
+          "attack": "slash",
+          "gapFrames": 10
+        },
+        {
+          "attack": "cleave"
+        }
+      ],
+      "weight": 1,
+      "requires": {
+        "arenaSide": "left"
+      }
+    },
+    {
+      "id": "c_wc_r",
+      "steps": [
+        {
+          "attack": "warp_c",
+          "gapFrames": 10
+        },
+        {
+          "attack": "fan"
+        }
+      ],
+      "weight": 1,
+      "requires": {
+        "arenaSide": "right"
+      }
+    },
+    {
+      "id": "c_xc_r",
+      "steps": [
+        {
+          "attack": "warp_c",
+          "gapFrames": 12
+        },
+        {
+          "attack": "slash",
+          "gapFrames": 10
+        },
+        {
+          "attack": "cleave"
+        }
+      ],
+      "weight": 1,
+      "requires": {
+        "arenaSide": "right"
+      }
+    },
+    {
+      "id": "c_wr_l",
+      "steps": [
+        {
+          "attack": "warp_r",
+          "gapFrames": 10
+        },
+        {
+          "attack": "fan"
+        }
+      ],
+      "weight": 1,
+      "requires": {
+        "arenaSide": "left"
+      }
+    },
+    {
+      "id": "c_xr_l",
+      "steps": [
+        {
+          "attack": "warp_r",
+          "gapFrames": 12
+        },
+        {
+          "attack": "slash",
+          "gapFrames": 10
+        },
+        {
+          "attack": "cleave"
+        }
+      ],
+      "weight": 1,
+      "requires": {
+        "arenaSide": "left"
+      }
+    },
+    {
+      "id": "c_wr_c",
+      "steps": [
+        {
+          "attack": "warp_r",
+          "gapFrames": 10
+        },
+        {
+          "attack": "fan"
+        }
+      ],
+      "weight": 1,
+      "requires": {
+        "arenaSide": "center"
+      }
+    },
+    {
+      "id": "c_xr_c",
+      "steps": [
+        {
+          "attack": "warp_r",
+          "gapFrames": 12
+        },
+        {
+          "attack": "slash",
+          "gapFrames": 10
+        },
+        {
+          "attack": "cleave"
+        }
+      ],
+      "weight": 1,
+      "requires": {
+        "arenaSide": "center"
+      }
+    }
+  ],
+  "phases": [
+    {
+      "fromHp": 1,
+      "policy": {
+        "chains": [
+          "c_slash",
+          "c_combo",
+          "c_rise",
+          "c_fan",
+          "c_rain",
+          "c_dash",
+          "c_wl_c",
+          "c_wl_r",
+          "c_wc_l",
+          "c_wc_r",
+          "c_wr_l",
+          "c_wr_c"
+        ],
+        "noRepeat": 2,
+        "fatigue": {
+          "factor": 0.6,
+          "decay": 600
+        },
+        "restFrames": [
+          30,
+          50
+        ]
+      }
+    },
+    {
+      "fromHp": 0.66,
+      "silent": true,
+      "enterChain": "c_enter2",
+      "policy": {
+        "chains": [
+          "c_slash",
+          "c_combo",
+          "c_rise_fan",
+          "c_ring",
+          "c_rain",
+          "c_dash",
+          "c_crush",
+          "c_pyre_ab",
+          "c_pyre_lr",
+          "c_pyre_rl",
+          "c_wl_c",
+          "c_xl_c",
+          "c_wl_r",
+          "c_xl_r",
+          "c_wc_l",
+          "c_xc_l",
+          "c_wc_r",
+          "c_xc_r",
+          "c_wr_l",
+          "c_xr_l",
+          "c_wr_c",
+          "c_xr_c"
+        ],
+        "noRepeat": 2,
+        "fatigue": {
+          "factor": 0.6,
+          "decay": 600
+        },
+        "restFrames": [
+          22,
+          40
+        ]
+      }
+    },
+    {
+      "fromHp": 0.33,
+      "silent": true,
+      "enterChain": "c_enter3",
+      "policy": {
+        "chains": [
+          "c_combo",
+          "c_rise_fan",
+          "c_ring",
+          "c_ring_dash",
+          "c_rain",
+          "c_crush",
+          "c_pyre_ab",
+          "c_pyre_lr",
+          "c_pyre_rl",
+          "c_wl_c",
+          "c_xl_c",
+          "c_wl_r",
+          "c_xl_r",
+          "c_wc_l",
+          "c_xc_l",
+          "c_wc_r",
+          "c_xc_r",
+          "c_wr_l",
+          "c_xr_l",
+          "c_wr_c",
+          "c_xr_c"
+        ],
+        "noRepeat": 2,
+        "fatigue": {
+          "factor": 0.6,
+          "decay": 600
+        },
+        "restFrames": [
+          16,
+          32
+        ]
+      }
+    }
+  ]
+}
