@@ -6065,6 +6065,283 @@
 				}
 			],
 			"__neighbours": []
+		},
+		{
+			"identifier": "ArenaKeeper",
+			"iid": "3b123204-751e-4bc2-a9bb-90cad33d7db3",
+			"uid": 507,
+			"worldX": 0,
+			"worldY": 7296,
+			"worldDepth": 0,
+			"pxWid": 1216,
+			"pxHei": 704,
+			"__bgColor": "#696A79",
+			"bgColor": null,
+			"useAutoIdentifier": false,
+			"bgRelPath": null,
+			"bgPos": null,
+			"bgPivotX": 0.5,
+			"bgPivotY": 0.5,
+			"__smartColor": "#ADADB5",
+			"__bgPos": null,
+			"externalRelPath": null,
+			"fieldInstances": [
+				{
+					"__identifier": "region",
+					"__type": "String",
+					"__value": "Зал Неразрывной Клятвы",
+					"__tile": null,
+					"defUid": 1011,
+					"realEditorValues": [
+						{
+							"id": "V_String",
+							"params": ["Зал Неразрывной Клятвы"]
+						}
+					]
+				},
+				{
+					"__identifier": "theme",
+					"__type": "String",
+					"__value": null,
+					"__tile": null,
+					"defUid": 1012,
+					"realEditorValues": []
+				},
+				{
+					"__identifier": "road",
+					"__type": "Int",
+					"__value": null,
+					"__tile": null,
+					"defUid": 1013,
+					"realEditorValues": []
+				},
+				{
+					"__identifier": "ceilY",
+					"__type": "Int",
+					"__value": null,
+					"__tile": null,
+					"defUid": 1014,
+					"realEditorValues": []
+				},
+				{
+					"__identifier": "floorY",
+					"__type": "Int",
+					"__value": 18,
+					"__tile": null,
+					"defUid": 1015,
+					"realEditorValues": [
+						{
+							"id": "V_Int",
+							"params": [18]
+						}
+					]
+				},
+				{
+					"__identifier": "noGates",
+					"__type": "Bool",
+					"__value": true,
+					"__tile": null,
+					"defUid": 1016,
+					"realEditorValues": [
+						{
+							"id": "V_Bool",
+							"params": [true]
+						}
+					]
+				}
+			],
+			"layerInstances": [
+				{
+					"__identifier": "Entities",
+					"__type": "Entities",
+					"__cWid": 38,
+					"__cHei": 22,
+					"__gridSize": 32,
+					"__opacity": 1,
+					"__pxTotalOffsetX": 0,
+					"__pxTotalOffsetY": 0,
+					"__tilesetDefUid": null,
+					"__tilesetRelPath": null,
+					"iid": "2c5f0839-2727-4077-a619-90ed2c707dae",
+					"levelId": 507,
+					"layerDefUid": 2,
+					"pxOffsetX": 0,
+					"pxOffsetY": 0,
+					"visible": true,
+					"optionalRules": [],
+					"intGridCsv": [],
+					"autoLayerTiles": [],
+					"seed": 1,
+					"overrideTilesetUid": null,
+					"gridTiles": [],
+					"entityInstances": [
+						{
+							"__identifier": "Spawn",
+							"__grid": [7, 17],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#2fbf71",
+							"__worldX": 224,
+							"__worldY": 7840,
+							"iid": "0f7464f1-da91-41ad-a17e-bbc3855a67bb",
+							"width": 32,
+							"height": 32,
+							"defUid": 10,
+							"px": [224, 544],
+							"fieldInstances": []
+						},
+						{
+							"__identifier": "BossArena",
+							"__grid": [27, 17],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#ff4081",
+							"__worldX": 864,
+							"__worldY": 7840,
+							"iid": "196ff43c-31a9-4187-aec9-7c4efeffdb98",
+							"width": 32,
+							"height": 32,
+							"defUid": 18,
+							"px": [864, 544],
+							"fieldInstances": [
+								{
+									"__identifier": "arenaX0",
+									"__type": "Int",
+									"__value": 1,
+									"__tile": null,
+									"defUid": 1005,
+									"realEditorValues": [
+										{
+											"id": "V_Int",
+											"params": [1]
+										}
+									]
+								},
+								{
+									"__identifier": "arenaX1",
+									"__type": "Int",
+									"__value": 36,
+									"__tile": null,
+									"defUid": 1006,
+									"realEditorValues": [
+										{
+											"id": "V_Int",
+											"params": [36]
+										}
+									]
+								},
+								{
+									"__identifier": "trigger",
+									"__type": "Int",
+									"__value": 10,
+									"__tile": null,
+									"defUid": 1007,
+									"realEditorValues": [
+										{
+											"id": "V_Int",
+											"params": [10]
+										}
+									]
+								},
+								{
+									"__identifier": "floorY",
+									"__type": "Int",
+									"__value": 18,
+									"__tile": null,
+									"defUid": 1008,
+									"realEditorValues": [
+										{
+											"id": "V_Int",
+											"params": [18]
+										}
+									]
+								}
+							]
+						},
+						{
+							"__identifier": "Area",
+							"__grid": [1, 0],
+							"__pivot": [0, 0],
+							"__tags": [],
+							"__tile": null,
+							"__smartColor": "#4aa3df",
+							"__worldX": 32,
+							"__worldY": 7296,
+							"iid": "fb27d109-a496-406e-aafa-7bc8e56e46a3",
+							"width": 32,
+							"height": 32,
+							"defUid": 19,
+							"px": [32, 0],
+							"fieldInstances": [
+								{
+									"__identifier": "name",
+									"__type": "String",
+									"__value": "Зал Неразрывной Клятвы",
+									"__tile": null,
+									"defUid": 1009,
+									"realEditorValues": [
+										{
+											"id": "V_String",
+											"params": ["Зал Неразрывной Клятвы"]
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"__identifier": "Tiles",
+					"__type": "IntGrid",
+					"__cWid": 38,
+					"__cHei": 22,
+					"__gridSize": 32,
+					"__opacity": 1,
+					"__pxTotalOffsetX": 0,
+					"__pxTotalOffsetY": 0,
+					"__tilesetDefUid": null,
+					"__tilesetRelPath": null,
+					"iid": "69791227-b22f-4484-ac40-5d262a3b4f9e",
+					"levelId": 507,
+					"layerDefUid": 1,
+					"pxOffsetX": 0,
+					"pxOffsetY": 0,
+					"visible": true,
+					"optionalRules": [],
+					"intGridCsv": [
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+						1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+					],
+					"autoLayerTiles": [],
+					"seed": 1,
+					"overrideTilesetUid": null,
+					"gridTiles": [],
+					"entityInstances": []
+				}
+			],
+			"__neighbours": []
 		}
 	],
 	"worlds": [],

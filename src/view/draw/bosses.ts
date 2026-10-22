@@ -7,6 +7,8 @@ import { liveBoxes, weakStates, type DState } from '../../core/boss/exec';
 import { effForm } from '../../core/boss/form';
 import { bodyDrawer, type DrawCtx } from './bossdraw';
 import { bossDef } from '../../core/boss/registry';
+import { arenaEnts, type Attack, type BossDef } from '../../core/boss/schema';
+import type { HitKind } from '../../core/types';
 import type { G } from './common';
 import '../content';
 import { projViewReg } from '../content/regs';
@@ -14,6 +16,16 @@ import { projViewReg } from '../content/regs';
 /** цвет подсказки замаха и удара по типу: жёлтое — можно отбить, красное — только уворот, фиолетовое — не отбивается, белое — нейтральный замах */
 export const CUE_RGB: Record<string, number> = { yellow: 0xffd447, red: 0xff4a3a, purple: 0xb877ff, white: 0xffffff };
 export const HIT_RGB: Record<string, number> = { parry: CUE_RGB['yellow']!, dodge: CUE_RGB['red']!, unblockable: CUE_RGB['purple']! };
+
+/** Типы угроз телеграфа, включая запускаемые атакой сущности арены. */
+export function telegraphKinds(def: BossDef, a: Attack | undefined): HitKind[] {
+  if (!a) return [];
+  const ents = arenaEnts(def), fired = a.fire.flatMap((f) => {
+    const e = ents.find((x) => x.id === f.ent);
+    return e?.kind === 'beam' ? [e.hit] : e?.kind === 'spawner' ? e.timeline.map((s) => s.kind) : [];
+  });
+  return [...new Set([...a.active.map((h) => h.kind), ...a.spawn.map((s) => s.kind), ...fired])];
+}
 
 /** Универсальное тело босса («манекен»): столбик, голова, руки по позе. Размер берётся из b.w, b.h — после трансформации тело меняется само. */
 function drawMannequin(_w: World, b: Boss, g: G, _now: number, c: DrawCtx): void {
@@ -41,7 +53,7 @@ function drawTelegraph(w: World, b: Boss, g: G, now: number, c: DrawCtx): void {
   const cx = b.x + b.w / 2, fy = b.y + b.h, lean = c.lean;
   if (c.tell) {
     // Форма сигнала дублирует тип удара: читается и без различения цветов.
-    const a = c.def.attacks.find((x) => x.id === c.d.atk), kinds = [...new Set([...(a?.active.map((x) => x.kind) ?? []), ...(a?.spawn.map((x) => x.kind) ?? [])])];
+    const a = c.def.attacks.find((x) => x.id === c.d.atk), kinds = telegraphKinds(c.def, a);
     kinds.forEach((kind, i) => {
       const x = cx + (i - (kinds.length - 1) / 2) * 20, y = b.y - 20;
       g.lineStyle(2, HIT_RGB[kind] ?? 0xffffff, 1);

@@ -2,188 +2,395 @@
   "id": "keeper",
   "name": "Хранительница Печатей",
   "about": "Дуэль на отбиве: жёлтое отбивай, красное — уворот, фиолетовое (печати) не берётся ни тем ни другим: сбей взмахом или обойди. Идеальные отбивы копят её равновесие.",
-  "landmark": "Дуэль: читай цвет замаха",
+  "landmark": "Три клятвы: дуэль, ответная стойка, освобождение печатей",
   "tips": [
     "Хранительница: жёлтый замах — отбей (идеальный отбив в первые кадры окна копит её равновесие сильнее всего), красный — только уворот, фиолетовый («печать») не отбивается и не гасится рывком.",
-    "Печатные талисманы можно сбить взмахом или обойти; в фазах 2 и 3 одинаковый замах бывает разного цвета — смотри на цвет, а не на позу."
+    "Печатные талисманы можно сбить взмахом или обойти; в фазах 2 и 3 одинаковый замах бывает разного цвета — смотри на цвет, а не на позу.",
+    "Подсечку можно перепрыгнуть и ответить ударом вниз. Воздушная нить делает два жёлтых взмаха, затем следует подсечка.",
+    "Со второй фазы ранний удар в стойку обратной печати вызывает ответный оттиск с новым замахом. Дождись окончания серии или отбей ответ.",
+    "В третьей фазе Разрыв клятвы отмечает две полосы пола: уходи в промежуток или перепрыгни их. Восстановление начинается после погасания печатей."
   ],
   "order": 40,
-  "arena": "vladik",
-  "size": { "w": 44, "h": 84 },
+  "arena": {
+    "level": "keeper",
+    "ents": [
+      {
+        "id": "oathLeft",
+        "kind": "beam",
+        "area": {
+          "x": 160,
+          "y": 0,
+          "w": 256,
+          "h": 28
+        },
+        "hit": "unblockable",
+        "dmg": 1,
+        "timeline": [
+          {
+            "at": 0,
+            "tell": 42,
+            "active": 18
+          }
+        ]
+      },
+      {
+        "id": "oathRight",
+        "kind": "beam",
+        "area": {
+          "x": 736,
+          "y": 0,
+          "w": 256,
+          "h": 28
+        },
+        "hit": "unblockable",
+        "dmg": 1,
+        "timeline": [
+          {
+            "at": 0,
+            "tell": 42,
+            "active": 18
+          }
+        ]
+      }
+    ]
+  },
+  "size": {"w": 44, "h": 84},
   "hp": [150, 210],
   "color": 5917322,
-  "intro": { "frames": 150, "say": "Каждая печать — чья-то клятва. Не ломай их." },
+  "intro": {"frames": 150, "say": "Каждая печать — чья-то клятва. Не ломай их.", "events": [{"at": 30, "sfx": "seal"}, {"at": 80, "say": "Кольцо — отбив. Стрелы — рывок или прыжок. Крест — покинь зону."}]},
   "deathFrames": 170,
-  "idle": { "walkSpeed": 70, "keepDist": 80 },
-  "contact": { "dmg": 1, "kind": "dodge" },
-  "antiCheese": { "shoveChain": "c_shove", "relocateChain": "c_leap" },
+  "idle": {"walkSpeed": 70, "keepDist": 80},
+  "contact": {"dmg": 1, "kind": "dodge"},
+  "antiCheese": {"shoveChain": "c_shove", "relocateChain": "c_leap"},
   "attacks": [
     {
-      "id": "stamp", "name": "Оттиск",
-      "tell": { "frames": 24, "cue": { "color": "yellow", "sfx": "stamp", "pose": "raise_seal" } },
-      "active": [{ "from": 0, "to": 5, "hit": { "x": 6, "y": 12, "w": 78, "h": 62 }, "dmg": 1, "kind": "parry" }],
-      "recovery": { "frames": 34, "punishWindow": { "from": 6, "to": 29 } },
-      "requires": { "dist": [0, 140] }
+      "id": "stamp",
+      "name": "Оттиск",
+      "tell": {"frames": 24, "cue": {"color": "yellow", "sfx": "stamp", "pose": "raise_seal"}, "commitFrames": 10},
+      "active": [{"from": 0, "to": 5, "hit": {"x": 6, "y": 12, "w": 78, "h": 62}, "dmg": 1, "kind": "parry"}],
+      "recovery": {"frames": 34, "punishWindow": {"from": 6, "to": 29}},
+      "requires": {"dist": [0, 140]},
+      "counter": {"windowFrames": 9, "reach": 70, "grounded": true}
     },
     {
-      "id": "flick", "name": "Росчерк",
-      "tell": { "frames": 20, "cue": { "color": "yellow", "sfx": "flick", "pose": "wrist" } },
-      "active": [{ "from": 0, "to": 3, "hit": { "x": 4, "y": 18, "w": 70, "h": 44 }, "dmg": 1, "kind": "parry" }],
-      "recovery": { "frames": 30, "punishWindow": { "from": 5, "to": 25 } },
-      "requires": { "dist": [0, 130] }
+      "id": "flick",
+      "name": "Росчерк",
+      "tell": {"frames": 20, "cue": {"color": "yellow", "sfx": "flick", "pose": "wrist"}, "commitFrames": 10},
+      "active": [{"from": 0, "to": 3, "hit": {"x": 4, "y": 18, "w": 70, "h": 44}, "dmg": 1, "kind": "parry"}],
+      "recovery": {"frames": 30, "punishWindow": {"from": 5, "to": 25}},
+      "requires": {"dist": [0, 130]},
+      "counter": {"windowFrames": 9, "reach": 70, "grounded": true}
     },
     {
-      "id": "lunge", "name": "Выпад кистью",
-      "tell": { "frames": 24, "lockFace": true, "cue": { "color": "yellow", "sfx": "thrust", "pose": "crouch" } },
-      "move": [{ "from": 0, "to": 11, "vx": 500, "toward": "player" }],
-      "active": [{ "from": 0, "to": 11, "hit": { "x": -4, "y": 24, "w": 58, "h": 42 }, "dmg": 1, "kind": "parry" }],
-      "recovery": { "frames": 38, "punishWindow": { "from": 10, "to": 33 } },
-      "requires": { "dist": [90, 360] }
+      "id": "lunge",
+      "name": "Выпад кистью",
+      "tell": {"frames": 24, "lockFace": true, "cue": {"color": "yellow", "sfx": "thrust", "pose": "crouch"}, "commitFrames": 10},
+      "move": [{"from": 0, "to": 11, "vx": 500, "toward": "facing"}],
+      "active": [{"from": 0, "to": 11, "hit": {"x": -4, "y": 24, "w": 58, "h": 42}, "dmg": 1, "kind": "parry"}],
+      "recovery": {"frames": 38, "punishWindow": {"from": 10, "to": 33}},
+      "requires": {"dist": [90, 360]},
+      "counter": {"windowFrames": 9, "reach": 70, "grounded": true}
     },
     {
-      "id": "sweep", "name": "Подсечка",
-      "tell": { "frames": 28, "cue": { "color": "red", "sfx": "sweep", "pose": "low_sweep" } },
-      "active": [{ "from": 0, "to": 4, "hit": { "x": -20, "y": 54, "w": 130, "h": 30 }, "dmg": 1, "kind": "dodge" }],
-      "recovery": { "frames": 38, "punishWindow": { "from": 8, "to": 33 } },
-      "requires": { "dist": [0, 150] }
+      "id": "sweep",
+      "name": "Подсечка",
+      "tell": {"frames": 28, "cue": {"color": "red", "sfx": "sweep", "pose": "low_sweep"}, "commitFrames": 10},
+      "active": [{"from": 0, "to": 4, "hit": {"x": -20, "y": 54, "w": 130, "h": 30}, "dmg": 1, "kind": "dodge"}],
+      "recovery": {"frames": 38, "punishWindow": {"from": 8, "to": 33}},
+      "requires": {"dist": [0, 150]},
+      "counter": {"windowFrames": 9, "reach": 70, "grounded": true}
     },
     {
-      "id": "slam", "name": "Печать оземь",
-      "tell": { "frames": 34, "cue": { "color": "red", "sfx": "slam", "pose": "overhead" } },
-      "active": [{ "from": 0, "to": 3, "hit": { "x": -60, "y": 58, "w": 120, "h": 26 }, "dmg": 1, "kind": "dodge" }],
-      "spawn": [
-        { "at": 0, "proj": { "kind": "wave", "w": 24, "h": 18, "life": 150 }, "kind": "dodge", "dmg": 1, "ox": 30, "oy": 30, "vx": 300 },
-        { "at": 0, "proj": { "kind": "wave", "w": 24, "h": 18, "life": 150 }, "kind": "dodge", "dmg": 1, "ox": -30, "oy": 30, "vx": -300 }
-      ],
-      "recovery": { "frames": 38, "punishWindow": { "from": 8, "to": 33 } }
+      "id": "slam",
+      "name": "Печать оземь",
+      "tell": {"frames": 34, "cue": {"color": "red", "sfx": "slam", "pose": "overhead"}, "commitFrames": 10},
+      "active": [{"from": 0, "to": 3, "hit": {"x": -60, "y": 58, "w": 120, "h": 26}, "dmg": 1, "kind": "dodge"}],
+      "spawn": [{"at": 0, "proj": {"kind": "wave", "w": 24, "h": 18, "life": 150}, "kind": "dodge", "dmg": 1, "ox": 30, "oy": 30, "vx": 300}, {"at": 0, "proj": {"kind": "wave", "w": 24, "h": 18, "life": 150}, "kind": "dodge", "dmg": 1, "ox": -30, "oy": 30, "vx": -300}],
+      "recovery": {"frames": 38, "punishWindow": {"from": 8, "to": 33}},
+      "counter": {"windowFrames": 9, "reach": 70, "grounded": true}
     },
     {
-      "id": "rush", "name": "Росчерк сквозь",
-      "tell": { "frames": 30, "cue": { "color": "red", "sfx": "dash", "pose": "lean" } },
-      "move": [{ "from": 0, "to": 20, "vx": 700, "toward": "player" }],
-      "active": [{ "from": 0, "to": 20, "hit": { "x": -23, "y": 28, "w": 46, "h": 56 }, "dmg": 1, "kind": "dodge" }],
-      "recovery": { "frames": 46, "punishWindow": { "from": 10, "to": 41 } },
-      "requires": { "dist": [150, 800] }
+      "id": "rush",
+      "name": "Росчерк сквозь",
+      "tell": {"frames": 30, "cue": {"color": "red", "sfx": "dash", "pose": "lean"}, "commitFrames": 10},
+      "move": [{"from": 0, "to": 20, "vx": 700, "toward": "facing"}],
+      "active": [{"from": 0, "to": 20, "hit": {"x": -23, "y": 28, "w": 46, "h": 56}, "dmg": 1, "kind": "dodge"}],
+      "recovery": {"frames": 46, "punishWindow": {"from": 10, "to": 41}},
+      "requires": {"dist": [150, 800]},
+      "counter": {"windowFrames": 9, "reach": 70, "grounded": true}
     },
     {
-      "id": "fan", "name": "Веер печатей",
-      "tell": { "frames": 34, "cue": { "color": "purple", "sfx": "talisman", "pose": "palms_raise" } },
-      "spawn": [{ "at": 0, "proj": { "kind": "note", "w": 14, "h": 14, "life": 150 }, "kind": "unblockable", "ox": 26, "oy": -10, "vx": 600, "vy": -150, "count": 3, "spread": 14 }],
-      "recovery": { "frames": 42, "punishWindow": { "from": 8, "to": 37 } }
+      "id": "fan",
+      "name": "Веер печатей",
+      "tell": {"frames": 34, "cue": {"color": "purple", "sfx": "talisman", "pose": "palms_raise"}, "commitFrames": 10},
+      "spawn": [{"at": 0, "proj": {"kind": "note", "w": 14, "h": 14, "life": 150}, "kind": "unblockable", "ox": 26, "oy": -10, "vx": 600, "vy": -150, "count": 3, "spread": 14}],
+      "recovery": {"frames": 42, "punishWindow": {"from": 8, "to": 37}},
+      "counter": false
     },
     {
-      "id": "bind", "name": "Запечатывание",
-      "tell": { "frames": 42, "lockFace": true, "cue": { "color": "purple", "sfx": "seal", "pose": "palms_out" } },
-      "active": [{ "from": 0, "to": 6, "hit": { "x": -66, "y": 6, "w": 132, "h": 78 }, "dmg": 1, "kind": "unblockable", "knock": { "vx": 360, "vy": -280 } }],
-      "recovery": { "frames": 56, "punishWindow": { "from": 12, "to": 51 } },
-      "requires": { "dist": [0, 200] }
+      "id": "bind",
+      "name": "Запечатывание",
+      "tell": {"frames": 42, "lockFace": true, "cue": {"color": "purple", "sfx": "seal", "pose": "palms_out"}, "commitFrames": 10},
+      "active": [{"from": 0, "to": 6, "hit": {"x": -66, "y": 6, "w": 132, "h": 78}, "dmg": 1, "kind": "unblockable", "knock": {"vx": 360, "vy": -280}}],
+      "recovery": {"frames": 56, "punishWindow": {"from": 12, "to": 51}},
+      "requires": {"dist": [0, 200]},
+      "counter": false
     },
     {
-      "id": "cutY", "name": "Мазок (жёлтый)",
-      "tell": { "frames": 30, "cue": { "color": "yellow", "sfx": "brush", "pose": "brush_up" } },
-      "active": [{ "from": 0, "to": 5, "hit": { "x": 4, "y": 8, "w": 92, "h": 62 }, "dmg": 1, "kind": "parry" }],
-      "recovery": { "frames": 42, "punishWindow": { "from": 8, "to": 36 } },
-      "requires": { "dist": [0, 150] }
+      "id": "cutY",
+      "name": "Мазок (жёлтый)",
+      "tell": {"frames": 30, "cue": {"color": "yellow", "sfx": "brush", "pose": "brush_up"}, "commitFrames": 10},
+      "active": [{"from": 0, "to": 5, "hit": {"x": 4, "y": 8, "w": 92, "h": 62}, "dmg": 1, "kind": "parry"}],
+      "recovery": {"frames": 42, "punishWindow": {"from": 8, "to": 36}},
+      "requires": {"dist": [0, 150]},
+      "counter": {"windowFrames": 9, "reach": 70, "grounded": true}
     },
     {
-      "id": "cutR", "name": "Мазок (красный)",
-      "tell": { "frames": 30, "cue": { "color": "red", "sfx": "brush", "pose": "brush_up" } },
-      "active": [{ "from": 0, "to": 5, "hit": { "x": 4, "y": 8, "w": 92, "h": 62 }, "dmg": 1, "kind": "dodge" }],
-      "recovery": { "frames": 42, "punishWindow": { "from": 8, "to": 36 } },
-      "requires": { "dist": [0, 150] }
+      "id": "cutR",
+      "name": "Мазок (красный)",
+      "tell": {"frames": 30, "cue": {"color": "red", "sfx": "brush", "pose": "brush_up"}, "commitFrames": 10},
+      "active": [{"from": 0, "to": 5, "hit": {"x": 4, "y": 8, "w": 92, "h": 62}, "dmg": 1, "kind": "dodge"}],
+      "recovery": {"frames": 42, "punishWindow": {"from": 8, "to": 36}},
+      "requires": {"dist": [0, 150]},
+      "counter": {"windowFrames": 9, "reach": 70, "grounded": true}
     },
     {
-      "id": "cutP", "name": "Мазок (печать)",
-      "tell": { "frames": 30, "cue": { "color": "purple", "sfx": "brush", "pose": "brush_up" } },
-      "active": [{ "from": 0, "to": 5, "hit": { "x": 4, "y": 8, "w": 92, "h": 62 }, "dmg": 1, "kind": "unblockable" }],
-      "recovery": { "frames": 42, "punishWindow": { "from": 8, "to": 36 } },
-      "requires": { "dist": [0, 150] }
+      "id": "cutP",
+      "name": "Мазок (печать)",
+      "tell": {"frames": 30, "cue": {"color": "purple", "sfx": "brush", "pose": "brush_up"}, "commitFrames": 10},
+      "active": [{"from": 0, "to": 5, "hit": {"x": 4, "y": 8, "w": 92, "h": 62}, "dmg": 1, "kind": "unblockable"}],
+      "recovery": {"frames": 42, "punishWindow": {"from": 8, "to": 36}},
+      "requires": {"dist": [0, 150]},
+      "counter": false
     },
     {
-      "id": "cardY", "name": "Бросок листка (жёлтый)",
-      "tell": { "frames": 30, "cue": { "color": "yellow", "sfx": "card", "pose": "card_throw" } },
-      "spawn": [{ "at": 0, "proj": { "kind": "note", "w": 14, "h": 14, "life": 150 }, "kind": "parry", "ox": 26, "oy": -10, "vx": 600, "vy": -140, "count": 2, "spread": 12 }],
-      "recovery": { "frames": 40, "punishWindow": { "from": 8, "to": 35 } }
+      "id": "cardY",
+      "name": "Бросок листка (жёлтый)",
+      "tell": {"frames": 30, "cue": {"color": "yellow", "sfx": "card", "pose": "card_throw"}, "commitFrames": 10},
+      "spawn": [{"at": 0, "proj": {"kind": "note", "w": 14, "h": 14, "life": 150}, "kind": "parry", "ox": 26, "oy": -10, "vx": 600, "vy": -140, "count": 2, "spread": 12}],
+      "recovery": {"frames": 40, "punishWindow": {"from": 8, "to": 35}},
+      "counter": {"windowFrames": 9, "reach": 70, "grounded": true}
     },
     {
-      "id": "cardP", "name": "Бросок листка (печать)",
-      "tell": { "frames": 30, "cue": { "color": "purple", "sfx": "card", "pose": "card_throw" } },
-      "spawn": [{ "at": 0, "proj": { "kind": "note", "w": 14, "h": 14, "life": 150 }, "kind": "unblockable", "ox": 26, "oy": -10, "vx": 600, "vy": -140, "count": 2, "spread": 12 }],
-      "recovery": { "frames": 40, "punishWindow": { "from": 8, "to": 35 } }
+      "id": "cardP",
+      "name": "Бросок листка (печать)",
+      "tell": {"frames": 30, "cue": {"color": "purple", "sfx": "card", "pose": "card_throw"}, "commitFrames": 10},
+      "spawn": [{"at": 0, "proj": {"kind": "note", "w": 14, "h": 14, "life": 150}, "kind": "unblockable", "ox": 26, "oy": -10, "vx": 600, "vy": -140, "count": 2, "spread": 12}],
+      "recovery": {"frames": 40, "punishWindow": {"from": 8, "to": 35}},
+      "counter": false
     },
     {
-      "id": "shove", "name": "Отталкивание ладонью",
-      "tell": { "frames": 30, "cue": { "color": "white", "sfx": "shove", "pose": "brace" } },
-      "active": [{ "from": 0, "to": 3, "hit": { "x": -70, "y": 30, "w": 140, "h": 52 }, "dmg": 1, "kind": "dodge", "knock": { "vx": 420, "vy": -320 } }],
-      "recovery": { "frames": 30, "punishWindow": { "from": 6, "to": 25 } }
+      "id": "shove",
+      "name": "Отталкивание ладонью",
+      "tell": {"frames": 30, "cue": {"color": "white", "sfx": "shove", "pose": "brace"}, "commitFrames": 10},
+      "active": [{"from": 0, "to": 3, "hit": {"x": -70, "y": 30, "w": 140, "h": 52}, "dmg": 1, "kind": "dodge", "knock": {"vx": 420, "vy": -320}}],
+      "recovery": {"frames": 30, "punishWindow": {"from": 6, "to": 25}},
+      "counter": false
     },
     {
-      "id": "leap", "name": "Перенос через героя",
-      "tell": { "frames": 32, "lockFace": true, "cue": { "color": "white", "sfx": "leap", "pose": "crouch_white" } },
-      "move": [{ "from": 0, "to": 44, "vx": 300, "vy": -560, "toward": "player" }],
-      "active": [{ "from": 44, "to": 48, "hit": { "x": -70, "y": 50, "w": 140, "h": 34 }, "dmg": 1, "kind": "dodge" }],
-      "recovery": { "frames": 40, "punishWindow": { "from": 8, "to": 35 } }
+      "id": "leap",
+      "name": "Перенос через героя",
+      "tell": {"frames": 32, "lockFace": true, "cue": {"color": "white", "sfx": "leap", "pose": "crouch_white"}, "commitFrames": 10},
+      "move": [{"from": 0, "to": 44, "vx": 300, "vy": -560, "toward": "facing"}],
+      "active": [{"from": 44, "to": 48, "hit": {"x": -70, "y": 50, "w": 140, "h": 34}, "dmg": 1, "kind": "dodge"}],
+      "recovery": {"frames": 40, "punishWindow": {"from": 8, "to": 35}},
+      "counter": false
+    },
+    {
+      "id": "reversal",
+      "name": "Стойка обратной печати",
+      "counter": false,
+      "tell": {"frames": 38, "commitFrames": 12, "cue": {"color": "red", "sfx": "sweep", "pose": "reversal"}},
+      "active": [{"from": 0, "to": 5, "hit": {"x": -18, "y": 54, "w": 124, "h": 30}, "dmg": 1, "kind": "dodge"}],
+      "recovery": {"frames": 44, "punishWindow": {"from": 8, "to": 39}},
+      "requires": {"dist": [0, 180], "phase": [2, 3]}
+    },
+    {
+      "id": "riposte",
+      "name": "Ответный оттиск",
+      "counter": false,
+      "tell": {"frames": 26, "commitFrames": 12, "cue": {"color": "yellow", "sfx": "stamp", "pose": "riposte"}},
+      "active": [{"from": 0, "to": 8, "hit": {"x": 4, "y": 18, "w": 88, "h": 52}, "dmg": 1, "kind": "parry"}],
+      "recovery": {"frames": 44, "punishWindow": {"from": 8, "to": 39}},
+      "move": [{"from": 0, "to": 8, "vx": 240, "toward": "facing"}]
+    },
+    {
+      "id": "skyWeave",
+      "name": "Нить над сводом",
+      "counter": false,
+      "tell": {"frames": 30, "commitFrames": 12, "cue": {"color": "yellow", "sfx": "stamp", "pose": "sky_weave"}},
+      "active": [{"from": 0, "to": 9, "hit": {"x": 2, "y": 26, "w": 72, "h": 50}, "dmg": 1, "kind": "parry"}, {"from": 40, "to": 47, "hit": {"x": -18, "y": 38, "w": 112, "h": 38}, "dmg": 1, "kind": "parry"}],
+      "recovery": {"frames": 44, "punishWindow": {"from": 8, "to": 39}},
+      "move": [{"from": 0, "to": 48, "vx": 190, "vy": -590, "toward": "facing"}],
+      "requires": {"phase": [2, 3], "dist": [60, 320]}
+    },
+    {
+      "id": "oath",
+      "name": "Разрыв клятвы",
+      "counter": false,
+      "tell": {"frames": 42, "commitFrames": 12, "cue": {"color": "purple", "sfx": "seal", "pose": "oath_open"}},
+      "active": [],
+      "recovery": {"frames": 44, "punishWindow": {"from": 8, "to": 39}},
+      "fire": [{"at": 0, "ent": "oathLeft"}, {"at": 0, "ent": "oathRight"}],
+      "fx": [{"at": 60, "name": "oathEnd"}]
     }
   ],
   "chains": [
-    { "id": "c_stamp", "steps": [{ "attack": "stamp" }], "weight": 3 },
-    { "id": "c_string", "steps": [{ "attack": "flick", "gapFrames": 14 }, { "attack": "flick", "gapFrames": 14 }, { "attack": "stamp" }], "weight": 3, "requires": { "dist": [0, 130] } },
-    { "id": "c_lunge", "steps": [{ "attack": "lunge", "gapFrames": 22 }, { "attack": "flick" }], "weight": 2 },
-    { "id": "c_sweep", "steps": [{ "attack": "sweep" }], "weight": 2 },
-    { "id": "c_slam_fan", "steps": [{ "attack": "slam", "gapFrames": 24 }, { "attack": "fan" }], "weight": 2 },
-    { "id": "c_slam", "steps": [{ "attack": "slam" }], "weight": 2 },
-    { "id": "c_fan", "steps": [{ "attack": "fan" }], "weight": 2 },
-    { "id": "c_rush", "steps": [{ "attack": "rush" }], "weight": 2 },
-    { "id": "c_twin", "steps": [{ "attack": "cutY", "gapFrames": 18 }, { "attack": "cutR" }], "weight": 3 },
-    { "id": "c_twin2", "steps": [{ "attack": "cutR", "gapFrames": 20 }, { "attack": "cutY", "gapFrames": 16 }, { "attack": "cutY" }], "weight": 3 },
-    { "id": "c_cards", "steps": [{ "attack": "cardY", "gapFrames": 26 }, { "attack": "cardP" }], "weight": 2 },
-    { "id": "c_bind", "steps": [{ "attack": "bind" }], "weight": 2, "cooldown": 300 },
-    { "id": "c_tri", "steps": [{ "attack": "cutY", "gapFrames": 20 }, { "attack": "cutP", "gapFrames": 20 }, { "attack": "cutR" }], "weight": 3 },
-    { "id": "c_tri2", "steps": [{ "attack": "cutR", "gapFrames": 18 }, { "attack": "cutR", "gapFrames": 22 }, { "attack": "cutY" }], "weight": 2 },
-    { "id": "c_mix_cards", "steps": [{ "attack": "cardP", "gapFrames": 24 }, { "attack": "cutY", "gapFrames": 18 }, { "attack": "cutP" }], "weight": 2, "requires": { "dist": [0, 200] } },
-    { "id": "c_enter2", "steps": [{ "attack": "slam" }], "weight": 1 },
-    { "id": "c_enter3", "steps": [{ "attack": "bind" }], "weight": 1 },
-    { "id": "c_shove", "steps": [{ "attack": "shove" }], "weight": 1, "cooldown": 180 },
-    { "id": "c_leap", "steps": [{ "attack": "leap" }], "weight": 1, "cooldown": 600 }
+    {"id": "c_stamp", "steps": [{"attack": "stamp"}], "weight": 3},
+    {"id": "c_string", "steps": [{"attack": "flick", "gapFrames": 14}, {"attack": "flick", "gapFrames": 14}, {"attack": "stamp"}], "weight": 3, "requires": {"dist": [0, 130]}},
+    {"id": "c_lunge", "steps": [{"attack": "lunge", "gapFrames": 22}, {"attack": "flick"}], "weight": 2},
+    {"id": "c_sweep", "steps": [{"attack": "sweep"}], "weight": 2},
+    {"id": "c_slam_fan", "steps": [{"attack": "slam", "gapFrames": 24}, {"attack": "fan"}], "weight": 2},
+    {"id": "c_slam", "steps": [{"attack": "slam"}], "weight": 2},
+    {"id": "c_fan", "steps": [{"attack": "fan"}], "weight": 2},
+    {"id": "c_rush", "steps": [{"attack": "rush"}], "weight": 2},
+    {"id": "c_twin", "steps": [{"attack": "cutY", "gapFrames": 18}, {"attack": "cutR"}], "weight": 3},
+    {"id": "c_twin2", "steps": [{"attack": "cutR", "gapFrames": 20}, {"attack": "cutY", "gapFrames": 16}, {"attack": "cutY"}], "weight": 3},
+    {"id": "c_cards", "steps": [{"attack": "cardY", "gapFrames": 26}, {"attack": "cardP"}], "weight": 2},
+    {"id": "c_bind", "steps": [{"attack": "bind"}], "weight": 2, "cooldown": 300},
+    {"id": "c_tri", "steps": [{"attack": "cutY", "gapFrames": 20}, {"attack": "cutP", "gapFrames": 20}, {"attack": "cutR"}], "weight": 3},
+    {"id": "c_tri2", "steps": [{"attack": "cutR", "gapFrames": 18}, {"attack": "cutR", "gapFrames": 22}, {"attack": "cutY"}], "weight": 2},
+    {"id": "c_mix_cards", "steps": [{"attack": "cardP", "gapFrames": 24}, {"attack": "cutY", "gapFrames": 18}, {"attack": "cutP"}], "weight": 2, "requires": {"dist": [0, 200]}},
+    {"id": "c_enter2", "steps": [{"attack": "slam"}], "weight": 1},
+    {"id": "c_enter3", "steps": [{"attack": "oath"}], "weight": 1, "requires": {"phase": [3]}, "cooldown": 600},
+    {"id": "c_shove", "steps": [{"attack": "shove"}], "weight": 1, "cooldown": 180},
+    {"id": "c_leap", "steps": [{"attack": "leap"}], "weight": 1, "cooldown": 600},
+    {"id": "c_reversal", "steps": [{"attack": "reversal"}], "weight": 2, "cooldown": 420, "requires": {"phase": [2, 3], "dist": [0, 180]}},
+    {"id": "c_riposte", "steps": [{"attack": "riposte", "gapFrames": 16}, {"attack": "sweep"}], "weight": 1, "requires": {"phase": [2, 3]}},
+    {"id": "c_sky", "steps": [{"attack": "skyWeave", "gapFrames": 20}, {"attack": "sweep"}], "weight": 3, "cooldown": 300, "requires": {"phase": [2, 3], "dist": [60, 320]}},
+    {"id": "c_final", "steps": [{"attack": "skyWeave", "gapFrames": 20}, {"attack": "cutR", "gapFrames": 18}, {"attack": "stamp"}], "weight": 3, "cooldown": 360, "requires": {"phase": [3], "dist": [60, 320]}}
   ],
   "phases": [
     {
       "fromHp": 1,
       "policy": {
-        "chains": ["c_stamp", "c_string", "c_lunge", "c_sweep", "c_slam", "c_fan", "c_rush"],
+        "chains": [
+          "c_stamp",
+          "c_string",
+          "c_lunge",
+          "c_sweep",
+          "c_slam",
+          "c_fan",
+          "c_rush"
+        ],
         "noRepeat": 1,
-        "fatigue": { "factor": 0.6, "decay": 600 },
-        "restFrames": [44, 66]
+        "fatigue": {
+          "factor": 0.6,
+          "decay": 600
+        },
+        "restFrames": [
+          44,
+          66
+        ]
       }
     },
     {
       "fromHp": 0.66,
       "rageFrames": 60,
       "scene": {
-        "frames": 90, "skippable": true, "say": "Теперь смотри на цвет.",
-        "events": [{ "at": 4, "shake": { "ms": 300, "i": 0.01 }, "sfx": "roar" }, { "at": 40, "flash": { "ms": 180, "r": 190, "g": 150, "b": 255 } }]
+        "frames": 90,
+        "skippable": true,
+        "say": "Коснись стойки — и получишь ответ.",
+        "events": [
+          {
+            "at": 4,
+            "shake": {
+              "ms": 300,
+              "i": 0.01
+            },
+            "sfx": "roar"
+          },
+          {
+            "at": 40,
+            "flash": {
+              "ms": 180,
+              "r": 190,
+              "g": 150,
+              "b": 255
+            }
+          }
+        ]
       },
       "enterChain": "c_enter2",
       "policy": {
-        "chains": ["c_string", "c_lunge", "c_slam_fan", "c_rush", "c_twin", "c_twin2", "c_cards", "c_bind"],
+        "chains": [
+          "c_string",
+          "c_lunge",
+          "c_slam_fan",
+          "c_rush",
+          "c_twin",
+          "c_twin2",
+          "c_cards",
+          "c_bind",
+          "c_reversal",
+          "c_sky",
+          "c_riposte"
+        ],
         "noRepeat": 2,
-        "fatigue": { "factor": 0.6, "decay": 600 },
-        "restFrames": [22, 44]
+        "fatigue": {
+          "factor": 0.6,
+          "decay": 600
+        },
+        "restFrames": [
+          22,
+          44
+        ]
       }
     },
     {
       "fromHp": 0.33,
       "rageFrames": 70,
       "scene": {
-        "frames": 100, "skippable": true, "say": "Печати — на волю.",
-        "events": [{ "at": 4, "shake": { "ms": 400, "i": 0.012 }, "sfx": "roar" }, { "at": 50, "flash": { "ms": 220, "r": 220, "g": 170, "b": 255 } }]
+        "frames": 100,
+        "skippable": true,
+        "say": "Между печатями остаётся путь.",
+        "events": [
+          {
+            "at": 4,
+            "shake": {
+              "ms": 400,
+              "i": 0.012
+            },
+            "sfx": "roar"
+          },
+          {
+            "at": 50,
+            "flash": {
+              "ms": 220,
+              "r": 220,
+              "g": 170,
+              "b": 255
+            }
+          }
+        ]
       },
       "enterChain": "c_enter3",
       "policy": {
-        "chains": ["c_twin", "c_twin2", "c_tri", "c_tri2", "c_mix_cards", "c_cards", "c_bind", "c_rush", "c_slam_fan"],
+        "chains": [
+          "c_twin",
+          "c_twin2",
+          "c_tri",
+          "c_tri2",
+          "c_mix_cards",
+          "c_cards",
+          "c_bind",
+          "c_rush",
+          "c_slam_fan",
+          "c_reversal",
+          "c_sky",
+          "c_final",
+          "c_enter3",
+          "c_riposte"
+        ],
         "noRepeat": 2,
-        "fatigue": { "factor": 0.6, "decay": 600 },
-        "restFrames": [16, 34]
+        "fatigue": {
+          "factor": 0.6,
+          "decay": 600
+        },
+        "restFrames": [
+          16,
+          34
+        ]
       }
     }
   ]

@@ -38,7 +38,7 @@ const plain = (x: unknown): unknown => JSON.parse(JSON.stringify(x));
 describe('уровни LDtk', () => {
   it('в проекте ровно те уровни, что в генераторе', () => {
     expect(ldtkLevelIds(tropa)).toEqual(projectLevels().map(([id]) => id));
-    expect(ldtkLevelIds(tropa)).toHaveLength(7);
+    expect(ldtkLevelIds(tropa)).toHaveLength(8);
   });
 
   for (const [id, code] of projectLevels()) {
@@ -47,7 +47,7 @@ describe('уровни LDtk', () => {
       it('совпадает с кодовым оракулом (строго, все поля)', () => {
         expect(L).toStrictEqual(code);
       });
-      it('совпадает с кодом v1.8 из legacy/: сетка тайл в тайл и все сущности', () => {
+      if (legacy[id]) it('совпадает с кодом v1.8 из legacy/: сетка тайл в тайл и все сущности', () => {
         const old = legacy[id]!() as { W: number; H: number; grid: number[][] };
         expect(L.W).toBe(old.W);
         expect(L.H).toBe(old.H);
@@ -66,7 +66,7 @@ describe('уровни LDtk', () => {
     for (const k of Object.keys(oracle.ARENAS)) { const L = buildArena(k); expect(L.arena).toBe(k); delete L.arena; expect(L).toStrictEqual(oracle.ARENAS[k]!()); }
     expect(buildLevel()).not.toBe(buildLevel());
     expect(buildLevel().grid).not.toBe(buildLevel().grid);
-    expect(arenaReg.ids()).toEqual(['misha', 'vladik', 'tima']);
+    expect(arenaReg.ids()).toEqual(['misha', 'vladik', 'tima', 'keeper']);
   });
 
   it('levels/tropa.ldtk совпадает с перегенерацией генератором (защита от ручной порчи)', () => {

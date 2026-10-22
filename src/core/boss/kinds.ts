@@ -10,6 +10,8 @@ import type { BossDef } from './schema';
 /** Всё, что хук видит: мир, босс, его состояние исполнителя, определение, индекс в sc.bosses и поток ГСЧ боссов (детерминизм: только он, без Math.random). */
 export interface KindApi { sc: World; b: Boss; d: DState; def: BossDef; i: number; rng: () => number }
 export interface BossKind {
+  /** Успешный урон: можно ответить связкой с полным замахом. Не вызывается при смерти, смене фазы и оглушении. */
+  onDamage?(k: KindApi, damage: number): string | void;
   /** каждый кадр исполнителя (после стандартного шага кадра) */
   frame?(k: KindApi): void;
   /** фаза сменилась (после рёва, сцены и применения тела) */

@@ -395,7 +395,7 @@ function runActive(sc: World, b: Boss, d: DState, def: BossDef, a: Attack, t: nu
     moving = true;
     if (d.mdir[mi] === undefined) {
       const [tp] = sc.nearestPlayer(cx, b.y + b.h / 2);
-      d.mdir[mi] = m.toward === 'fixed' ? 1 : m.toward === 'wall' ? (cx < (sc.L.W * T) / 2 ? -1 : 1) : tp ? (tp.x + 7 > cx ? 1 : -1) : b.face;
+      d.mdir[mi] = m.toward === 'facing' ? d.dir : m.toward === 'fixed' ? 1 : m.toward === 'wall' ? (cx < (sc.L.W * T) / 2 ? -1 : 1) : tp ? (tp.x + 7 > cx ? 1 : -1) : b.face;
       if (m.vy !== 0 && !e.fly) b.vy = m.vy;
     }
     b.vx = d.mdir[mi]! * m.vx;
@@ -549,8 +549,20 @@ export function rawData(sc: World, key: BossRef, p: Player, hit: BossHit = {}): 
     if (cd.pool) for (const o of sc.bosses) if (o !== b && o.state !== 'dead') o.hp = Math.min(o.hp, b.hp);
   }
   barSet(sc, def);
-  if (checkPhase(sc, b, def.name, !!def.phases[phaseOf(b) - 1]?.silent)) beginPhase(sc, b, d, def);
+  const changedPhase = checkPhase(sc, b, def.name, !!def.phases[phaseOf(b) - 1]?.silent);
+  if (changedPhase) beginPhase(sc, b, d, def);
   if (b.hp <= 0 && b.state !== 'dead') dataDie(sc, i);
+  if (!changedPhase && b.hp > 0 && b.stagger <= 0 && (d.mode === 'attack' || d.mode === 'idle')) {
+    const kh = kindHook(sc, b, d, def), reply = kh.k?.onDamage?.(kh.api, damage);
+    const chain = reply ? def.chains.find((c) => c.id === reply) : null;
+    const set = effForm(def, d.formPh).attacks;
+    if (chain && meets(chain.requires, ctxOf(sc, b, d, sc.nearestPlayer(centerX(b), b.y)[0], def), false)
+      && chain.steps.every((s) => (!set || set.has(s.attack)) && meets(attackOf(def, s.attack).requires, ctxOf(sc, b, d, null, def), false))) {
+      // Ответ отменяет старые опасности, но не отменяет нанесённый героем урон.
+      onStaggerWorld(sc, b);
+      startChain(sc, b, d, def, chain.id, true);
+    }
+  }
   return { outcome: 'damage', damage };
 }
 /** Фаза началась по урону: рёв (или без него, если silent), затем сцена и переходный приём */

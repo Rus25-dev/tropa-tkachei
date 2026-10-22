@@ -29,8 +29,8 @@ const Active = z.strictObject({
 });
 const Move = z.strictObject({
   from: frames, to: frames, vx: z.number(), vy: z.number().default(0),
-  /** player — знак vx относительно направления на героя; wall — к ближайшей к боссу стене; fixed — vx как есть (в мировых осях) */
-  toward: z.enum(['player', 'wall', 'fixed']).default('player'),
+  /** player — к герою в начале сегмента; facing — направление, зафиксированное замахом; wall — к ближайшей стене; fixed — мировые оси */
+  toward: z.enum(['player', 'wall', 'fixed', 'facing']).default('player'),
 });
 export const ProjSpec = z.strictObject({ kind: z.string().min(1) /* вид из src/content/projectiles с data: true (проверка — projKindErrs) */, w: z.number().positive(), h: z.number().positive(), life: pos });
 const Spawn = z.strictObject({
