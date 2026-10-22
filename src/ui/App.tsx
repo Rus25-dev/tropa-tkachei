@@ -127,7 +127,7 @@ export function App({ hub, version, build, start, stop, game, shared, online: ne
       {s && w && (<>
         {w.sr && <SrHud w={w} cd={races.cd} rival={races.rival(w)} />}
         {w.train && <TrainHud w={w} />}
-        {touch && <TouchPad hub={hub} tool={!!w.players[0]?.['toolId']} bombs={!!w.L.crates} kit={w.players[0] && !w.players[0].remote ? kitHud(w, w.players[0]).map((k) => k.id) : []} hidden={anyOverlay || padMode || !!w.won} padMode={padMode} showMap={!!w.mapV}
+        {touch && <TouchPad hub={hub} tool={!!w.players[0]?.['toolId']} bombs={!!w.L.crates} kit={w.players[0] && !w.players[0].remote ? kitHud(w, w.players[0]).map((k) => k.id).filter((k) => k !== 'counter') : []} hidden={anyOverlay || padMode || !!w.won} padMode={padMode} showMap={!!w.mapV}
           onPause={() => pauseKey()} onMap={() => mapKey()} />}
         {paused && <Pause ses={s} online={online} onRetry={retry} onExit={exit} openGear={() => setGear(true)} />}
         {w.benchMenuOpen && <Bench ses={s} />}

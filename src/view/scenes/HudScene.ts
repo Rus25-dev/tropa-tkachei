@@ -234,6 +234,7 @@ export class HudScene extends Phaser.Scene {
       g.lineStyle(2, c, a); g.fillStyle(c, a);
       if (ic.id === 'shadow') { g.strokeCircle(cx, cy, 6); g.fillStyle(0x140a2a, 1); g.fillCircle(cx + 1, cy, 4); g.lineStyle(1.5, c, 0.8); g.lineBetween(cx - 9, cy - 3, cx - 5, cy - 3); g.lineBetween(cx - 10, cy + 2, cx - 6, cy + 2); }
       else if (ic.id === 'flash') { for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [0.7, 0.7], [-0.7, 0.7], [0.7, -0.7], [-0.7, -0.7]] as const) g.lineBetween(cx + dx * 2.5, cy + dy * 2.5, cx + dx * 8, cy + dy * 8); g.fillCircle(cx, cy, 2); }
+      else if (ic.id === 'counter') { g.lineBetween(cx - 7, cy - 7, cx + 7, cy + 7); g.lineBetween(cx + 7, cy - 7, cx - 7, cy + 7); g.strokeCircle(cx, cy, 4); }
       else { g.beginPath(); g.moveTo(cx, cy - 8); g.lineTo(cx + 5, cy - 2); g.lineTo(cx + 3, cy + 7); g.lineTo(cx - 3, cy + 7); g.lineTo(cx - 5, cy - 2); g.closePath(); g.strokePath(); g.fillStyle(c, 0.35); g.fillTriangle(cx, cy - 8, cx + 5, cy - 2, cx - 5, cy - 2); }
       // откат (убывающий тёмный сектор) или заряд (растущая дуга)
       if (ic.id === 'crystal' && ic.active && !ic.ready) { g.lineStyle(2.5, 0xffffff, 0.9); g.beginPath(); g.arc(cx, cy, R + 2, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * ic.frac, false); g.strokePath(); }

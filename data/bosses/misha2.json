@@ -1,0 +1,236 @@
+{
+  "id": "misha2",
+  "name": "Миша Додик",
+  "about": "Печатные буквы, «детдом»-буквы с потолка и валик. Жёлтое отбивай, красное обходи; в последней четверти рюкзак застёгнут: бей, только пока Миша выдохся. Дымовуха в открытую молнию — бонус.",
+  "landmark": "Глава II · переработка",
+  "order": 20,
+  "arena": "misha",
+  "size": { "w": 56, "h": 74 },
+  "hp": [170,240],
+  "color": 5200760,
+  "intro": { "frames": 150, "say": "ЭЙ! ЭТО МОЙ РЮКЗАК!" },
+  "deathFrames": 160,
+  "idle": { "walkSpeed": 70, "keepDist": 170 },
+  "contact": { "dmg": 1, "kind": "dodge" },
+  "antiCheese": { "shoveChain": "c_shove", "relocateChain": "c_leap" },
+  "tips": [
+    "Жёлтые буквы и папку можно отбить; красное — только уворот.",
+    "Фиолетовая печать не отбивается: отойди.",
+    "После каждой связки Миша выдыхается — это твоё окно.",
+    "В последней четверти рюкзак застёгнут: бей только пока он отдувается."
+  ],
+  "attacks": [
+    {
+      "id": "word",
+      "name": "Слово!",
+      "tell": { "frames": 30, "cue": { "color": "yellow", "sfx": "letter", "pose": "arms_up" } },
+      "spawn": [
+        {
+          "at": 0,
+          "proj": { "kind": "spore", "w": 22, "h": 26, "life": 170 },
+          "kind": "parry",
+          "ox": 24,
+          "oy": -34,
+          "vx": 380,
+          "vy": -330,
+          "count": 3,
+          "spread": 14
+        }
+      ],
+      "recovery": { "frames": 38, "punishWindow": { "from": 8, "to": 33 } }
+    },
+    {
+      "id": "word5",
+      "name": "Длинное слово!",
+      "tell": { "frames": 32, "cue": { "color": "yellow", "sfx": "letter_long", "pose": "arms_up_wide" } },
+      "spawn": [
+        {
+          "at": 0,
+          "proj": { "kind": "spore", "w": 22, "h": 26, "life": 170 },
+          "kind": "parry",
+          "ox": 24,
+          "oy": -34,
+          "vx": 400,
+          "vy": -340,
+          "count": 5,
+          "spread": 11
+        }
+      ],
+      "recovery": { "frames": 40, "punishWindow": { "from": 8, "to": 35 } }
+    },
+    {
+      "id": "slap",
+      "name": "Папкой!",
+      "tell": { "frames": 24, "cue": { "color": "yellow", "sfx": "slap", "pose": "folder_up" } },
+      "active": [{ "from": 0, "to": 4, "hit": { "x": 8, "y": 8, "w": 78, "h": 62 }, "dmg": 1, "kind": "parry" }],
+      "recovery": { "frames": 38, "punishWindow": { "from": 8, "to": 33 } },
+      "requires": { "dist": [0,115] }
+    },
+    {
+      "id": "charge",
+      "name": "С дороги!",
+      "tell": { "frames": 32, "lockFace": true, "cue": { "color": "red", "sfx": "charge", "pose": "lean_back" } },
+      "move": [{ "from": 0, "to": 34, "vx": 470, "toward": "player" }],
+      "active": [{ "from": 0, "to": 34, "hit": { "x": -28, "y": 10, "w": 56, "h": 64 }, "dmg": 1, "kind": "dodge" }],
+      "recovery": { "frames": 54, "punishWindow": { "from": 12, "to": 49 } },
+      "requires": { "dist": [130,900] }
+    },
+    {
+      "id": "big",
+      "name": "ДЕТДОМ!",
+      "tell": { "frames": 40, "cue": { "color": "red", "sfx": "roar", "pose": "arms_up_big" } },
+      "spawn": [{ "at": 0, "proj": { "kind": "rock", "w": 56, "h": 60, "life": 120 }, "kind": "dodge", "from": "target", "oy": -330, "dmg": 1 }],
+      "recovery": { "frames": 50, "punishWindow": { "from": 10, "to": 45 } }
+    },
+    {
+      "id": "big3",
+      "name": "ДЕТДОМ, ДЕТДОМ, ДЕТДОМ!",
+      "tell": { "frames": 46, "cue": { "color": "red", "sfx": "roar_triple", "pose": "arms_up_triple" } },
+      "spawn": [
+        { "at": 0, "proj": { "kind": "rock", "w": 56, "h": 60, "life": 120 }, "kind": "dodge", "from": "target", "ox": -125, "oy": -330, "dmg": 2 },
+        { "at": 14, "proj": { "kind": "rock", "w": 56, "h": 60, "life": 120 }, "kind": "dodge", "from": "target", "ox": 0, "oy": -330, "dmg": 2 },
+        { "at": 28, "proj": { "kind": "rock", "w": 56, "h": 60, "life": 120 }, "kind": "dodge", "from": "target", "ox": 125, "oy": -330, "dmg": 2 }
+      ],
+      "recovery": { "frames": 54, "punishWindow": { "from": 12, "to": 49 } }
+    },
+    {
+      "id": "dict",
+      "name": "Диктант!",
+      "tell": { "frames": 46, "cue": { "color": "red", "sfx": "dictate", "pose": "dictate" } },
+      "spawn": [
+        { "at": 0, "proj": { "kind": "rock", "w": 22, "h": 26, "life": 110 }, "kind": "dodge", "from": "target", "ox": -450, "oy": -320 },
+        { "at": 0, "proj": { "kind": "rock", "w": 22, "h": 26, "life": 110 }, "kind": "dodge", "from": "target", "ox": -420, "oy": -320 },
+        { "at": 0, "proj": { "kind": "rock", "w": 22, "h": 26, "life": 110 }, "kind": "dodge", "from": "target", "ox": -390, "oy": -320 },
+        { "at": 0, "proj": { "kind": "rock", "w": 22, "h": 26, "life": 110 }, "kind": "dodge", "from": "target", "ox": -360, "oy": -320 },
+        { "at": 0, "proj": { "kind": "rock", "w": 22, "h": 26, "life": 110 }, "kind": "dodge", "from": "target", "ox": -330, "oy": -320 },
+        { "at": 0, "proj": { "kind": "rock", "w": 22, "h": 26, "life": 110 }, "kind": "dodge", "from": "target", "ox": -300, "oy": -320 },
+        { "at": 0, "proj": { "kind": "rock", "w": 22, "h": 26, "life": 110 }, "kind": "dodge", "from": "target", "ox": -270, "oy": -320 },
+        { "at": 0, "proj": { "kind": "rock", "w": 22, "h": 26, "life": 110 }, "kind": "dodge", "from": "target", "ox": -240, "oy": -320 },
+        { "at": 0, "proj": { "kind": "rock", "w": 22, "h": 26, "life": 110 }, "kind": "dodge", "from": "target", "ox": -210, "oy": -320 },
+        { "at": 0, "proj": { "kind": "rock", "w": 22, "h": 26, "life": 110 }, "kind": "dodge", "from": "target", "ox": -90, "oy": -320 },
+        { "at": 0, "proj": { "kind": "rock", "w": 22, "h": 26, "life": 110 }, "kind": "dodge", "from": "target", "ox": -60, "oy": -320 },
+        { "at": 0, "proj": { "kind": "rock", "w": 22, "h": 26, "life": 110 }, "kind": "dodge", "from": "target", "ox": -30, "oy": -320 },
+        { "at": 0, "proj": { "kind": "rock", "w": 22, "h": 26, "life": 110 }, "kind": "dodge", "from": "target", "ox": 0, "oy": -320 },
+        { "at": 0, "proj": { "kind": "rock", "w": 22, "h": 26, "life": 110 }, "kind": "dodge", "from": "target", "ox": 30, "oy": -320 },
+        { "at": 0, "proj": { "kind": "rock", "w": 22, "h": 26, "life": 110 }, "kind": "dodge", "from": "target", "ox": 60, "oy": -320 },
+        { "at": 0, "proj": { "kind": "rock", "w": 22, "h": 26, "life": 110 }, "kind": "dodge", "from": "target", "ox": 90, "oy": -320 },
+        { "at": 0, "proj": { "kind": "rock", "w": 22, "h": 26, "life": 110 }, "kind": "dodge", "from": "target", "ox": 210, "oy": -320 },
+        { "at": 0, "proj": { "kind": "rock", "w": 22, "h": 26, "life": 110 }, "kind": "dodge", "from": "target", "ox": 240, "oy": -320 },
+        { "at": 0, "proj": { "kind": "rock", "w": 22, "h": 26, "life": 110 }, "kind": "dodge", "from": "target", "ox": 270, "oy": -320 },
+        { "at": 0, "proj": { "kind": "rock", "w": 22, "h": 26, "life": 110 }, "kind": "dodge", "from": "target", "ox": 300, "oy": -320 },
+        { "at": 0, "proj": { "kind": "rock", "w": 22, "h": 26, "life": 110 }, "kind": "dodge", "from": "target", "ox": 330, "oy": -320 },
+        { "at": 0, "proj": { "kind": "rock", "w": 22, "h": 26, "life": 110 }, "kind": "dodge", "from": "target", "ox": 360, "oy": -320 },
+        { "at": 0, "proj": { "kind": "rock", "w": 22, "h": 26, "life": 110 }, "kind": "dodge", "from": "target", "ox": 390, "oy": -320 },
+        { "at": 0, "proj": { "kind": "rock", "w": 22, "h": 26, "life": 110 }, "kind": "dodge", "from": "target", "ox": 420, "oy": -320 },
+        { "at": 0, "proj": { "kind": "rock", "w": 22, "h": 26, "life": 110 }, "kind": "dodge", "from": "target", "ox": 450, "oy": -320 }
+      ],
+      "recovery": { "frames": 58, "punishWindow": { "from": 14, "to": 53 } }
+    },
+    {
+      "id": "roll",
+      "name": "Печатный валик!",
+      "tell": { "frames": 38, "cue": { "color": "red", "sfx": "press", "pose": "push_roller" } },
+      "spawn": [
+        { "at": 0, "proj": { "kind": "wave", "w": 46, "h": 52, "life": 260 }, "kind": "dodge", "ox": 34, "oy": 22, "vx": 330, "dmg": 2 },
+        { "at": 80, "proj": { "kind": "wave", "w": 46, "h": 52, "life": 260 }, "kind": "dodge", "ox": 34, "oy": 22, "vx": 330, "dmg": 2 }
+      ],
+      "recovery": { "frames": 60, "punishWindow": { "from": 14, "to": 55 } }
+    },
+    {
+      "id": "stamp",
+      "name": "Печать!",
+      "tell": { "frames": 44, "lockFace": true, "cue": { "color": "purple", "sfx": "stamp", "pose": "stamp_up" } },
+      "active": [{ "from": 0, "to": 5, "hit": { "x": 0, "y": 0, "w": 112, "h": 74 }, "dmg": 2, "kind": "unblockable", "knock": { "vx": 380, "vy": -300 } }],
+      "recovery": { "frames": 58, "punishWindow": { "from": 12, "to": 53 } },
+      "requires": { "dist": [0,200] }
+    },
+    {
+      "id": "shove",
+      "name": "Рюкзаком!",
+      "tell": { "frames": 30, "cue": { "color": "white", "sfx": "shove", "pose": "bag_swing" } },
+      "active": [{ "from": 0, "to": 3, "hit": { "x": -72, "y": 20, "w": 144, "h": 54 }, "dmg": 1, "kind": "dodge", "knock": { "vx": 420, "vy": -320 } }],
+      "recovery": { "frames": 36, "punishWindow": { "from": 6, "to": 31 } }
+    },
+    {
+      "id": "leap",
+      "name": "Через голову!",
+      "tell": { "frames": 32, "lockFace": true, "cue": { "color": "white", "sfx": "leap", "pose": "crouch" } },
+      "move": [{ "from": 0, "to": 44, "vx": 300, "vy": -560, "toward": "player" }],
+      "active": [{ "from": 44, "to": 48, "hit": { "x": -70, "y": 50, "w": 140, "h": 28 }, "dmg": 1, "kind": "dodge" }],
+      "recovery": { "frames": 40, "punishWindow": { "from": 8, "to": 35 } }
+    }
+  ],
+  "chains": [
+    { "id": "c_words", "steps": [{ "attack": "word", "gapFrames": 22 },{ "attack": "word" }], "weight": 3 },
+    {
+      "id": "c_slap_charge",
+      "steps": [{ "attack": "slap", "gapFrames": 14 },{ "attack": "charge" }],
+      "weight": 3,
+      "requires": { "dist": [0,115] }
+    },
+    { "id": "c_charge", "steps": [{ "attack": "charge" }], "weight": 2 },
+    { "id": "c_big", "steps": [{ "attack": "big" }], "weight": 2 },
+    { "id": "c_big_word", "steps": [{ "attack": "big", "gapFrames": 16 },{ "attack": "word" }], "weight": 2 },
+    { "id": "c_dict", "steps": [{ "attack": "dict" }], "weight": 3, "cooldown": 300 },
+    { "id": "c_roll", "steps": [{ "attack": "roll" }], "weight": 3, "cooldown": 300 },
+    { "id": "c_big3", "steps": [{ "attack": "big3" }], "weight": 2 },
+    { "id": "c_words5", "steps": [{ "attack": "word5", "gapFrames": 20 },{ "attack": "word" }], "weight": 3 },
+    { "id": "c_stamp", "steps": [{ "attack": "stamp" }], "weight": 3, "requires": { "dist": [0,200] }, "cooldown": 240 },
+    {
+      "id": "c_dict_slap",
+      "steps": [{ "attack": "dict", "gapFrames": 30 },{ "attack": "slap" }],
+      "weight": 2,
+      "cooldown": 420,
+      "requires": { "dist": [0,115] }
+    },
+    { "id": "c_shove", "steps": [{ "attack": "shove" }], "weight": 1, "cooldown": 180 },
+    { "id": "c_leap", "steps": [{ "attack": "leap" }], "weight": 1, "cooldown": 600 },
+    { "id": "c_enter2", "steps": [{ "attack": "big" }], "weight": 1 },
+    { "id": "c_enter3", "steps": [{ "attack": "big3" }], "weight": 1 }
+  ],
+  "phases": [
+    {
+      "fromHp": 1,
+      "policy": {
+        "chains": ["c_words", "c_slap_charge", "c_charge", "c_big", "c_big_word"],
+        "noRepeat": 1,
+        "fatigue": { "factor": 0.6, "decay": 600 },
+        "restFrames": [36,60]
+      }
+    },
+    {
+      "fromHp": 0.6,
+      "rageFrames": 60,
+      "scene": { "frames": 100, "skippable": true, "say": "ПИШЕМ ДИКТАНТ!", "events": [{ "at": 4, "shake": { "ms": 300, "i": 0.008 }, "sfx": "roar" }] },
+      "enterChain": "c_enter2",
+      "policy": {
+        "chains": ["c_words", "c_slap_charge", "c_big_word", "c_dict", "c_roll", "c_big3", "c_charge"],
+        "noRepeat": 2,
+        "fatigue": { "factor": 0.6, "decay": 600 },
+        "restFrames": [28,48]
+      }
+    },
+    {
+      "fromHp": 0.25,
+      "rageFrames": 60,
+      "scene": {
+        "frames": 110,
+        "skippable": true,
+        "say": "ЗАСТЁГИВАЮ НА ВСЕ ЗАМКИ!",
+        "events": [{ "at": 4, "shake": { "ms": 300, "i": 0.008 }, "sfx": "gate" },{ "at": 50, "morph": true, "flash": { "ms": 160 } }]
+      },
+      "enterChain": "c_enter3",
+      "form": {
+        "draw": "zipped",
+        "color": 6961722,
+        "weak": [{ "id": "bag", "box": { "x": 2, "y": 6, "w": 52, "h": 62 }, "open": [{ "on": "punish" },{ "on": "stagger" }] }]
+      },
+      "policy": {
+        "chains": ["c_words5", "c_stamp", "c_dict", "c_roll", "c_big3", "c_dict_slap", "c_slap_charge"],
+        "noRepeat": 2,
+        "fatigue": { "factor": 0.6, "decay": 600 },
+        "restFrames": [24,40]
+      }
+    }
+  ]
+}

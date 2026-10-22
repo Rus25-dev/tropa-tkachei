@@ -97,6 +97,7 @@ class SndImpl {
       case 'parryPerfect': this.tone('square', 2200, 1800, 0.06, 0.06); this.tone('triangle', 3520, 3520, 0.32, 0.08); this.tone('sine', 2637, 2637, 0.45, 0.07); this.later([70], () => this.tone('sine', 3951, 3951, 0.4, 0.05)); break;
       case 'parryFail': this.tone('square', 520, 380, 0.09, 0.06); this.hiss(0.06, 0.08, 1800, 1.5); break;
       case 'counter': this.tone('sawtooth', 880, 1760, 0.12, 0.09); this.tone('triangle', 1320, 2640, 0.2, 0.07); break;
+      case 'counterStrike': this.hiss(0.1, 0.22, 3000, 1.4); this.tone('square', 1500, 600, 0.09, 0.08); this.tone('triangle', 2093, 3136, 0.3, 0.09); this.later([60], () => this.tone('sine', 3136, 3136, 0.35, 0.06)); break;
       case 'win': this.later([0, 140, 280, 420], (i) => this.tone('triangle', [523, 659, 784, 1047][i]!, [523, 659, 784, 1047][i]!, 0.5, 0.12)); break;
       // оружие (weapons.js)
       case 'chargeFull': this.tone('sine', 880, 1760, 0.18, 0.12); this.tone('triangle', 1320, 1320, 0.3, 0.07); this.hiss(0.1, 0.1, 3600, 2); break;

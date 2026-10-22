@@ -1,0 +1,173 @@
+{
+  "id": "vladik2",
+  "name": "Владик Скрипка (2.0)",
+  "about": "Скрипач, который «не скрипка». Читай цвет замаха: жёлтое отбивай, красное обходи, а после каждой связки бей в окне. Во второй фазе добавляются нотный стан и эхо.",
+  "landmark": "Кабинет музыки: связки и нотный стан",
+  "order": 10,
+  "tips": [
+    "Жёлтый замах — отбей смычок или ключ. Красный — только уворот: рывок, прыжок или отход.",
+    "Нотный стан: четыре красные линии. Смотри, какие загорелись, и встань на свободной высоте (на полу или на платформе).",
+    "Эхо приходит от стены за спиной, а сам Владик делает выпад: пережди призрака прыжком или рывком.",
+    "После каждой связки у Владика есть окно: зелёное кольцо у ног — бей."
+  ],
+  "arena": {
+    "level": "vladik",
+    "ents": [
+      { "id": "desk", "kind": "platform", "area": { "x": 544, "y": 64, "w": 256, "h": 32 }, "timeline": [{ "at": 0, "op": "show", "warn": 0 }, { "at": 90, "op": "hide", "warn": 30 }] },
+      { "id": "line_lo", "kind": "beam", "hit": "dodge", "area": { "x": 0, "y": 0, "w": 1344, "h": 16 }, "timeline": [{ "at": 0, "tell": 44, "active": 20 }] },
+      { "id": "line_mid", "kind": "beam", "hit": "dodge", "area": { "x": 0, "y": 96, "w": 1344, "h": 16 }, "timeline": [{ "at": 0, "tell": 44, "active": 20 }] },
+      { "id": "line_hi", "kind": "beam", "hit": "dodge", "area": { "x": 0, "y": 180, "w": 1344, "h": 16 }, "timeline": [{ "at": 0, "tell": 44, "active": 20 }] },
+      { "id": "crescendo_a", "kind": "spawner", "pos": { "x": 300, "y": 400 }, "bind": { "phase": [3] }, "loop": 240, "timeline": [{ "at": 0, "tell": 40, "proj": { "kind": "note", "w": 14, "h": 18, "life": 150 }, "kind": "dodge", "vy": 60 }] },
+      { "id": "crescendo_b", "kind": "spawner", "pos": { "x": 700, "y": 400 }, "bind": { "phase": [3] }, "loop": 240, "timeline": [{ "at": 80, "tell": 40, "proj": { "kind": "note", "w": 14, "h": 18, "life": 150 }, "kind": "dodge", "vy": 60 }] },
+      { "id": "crescendo_c", "kind": "spawner", "pos": { "x": 1080, "y": 400 }, "bind": { "phase": [3] }, "loop": 240, "timeline": [{ "at": 160, "tell": 40, "proj": { "kind": "note", "w": 14, "h": 18, "life": 150 }, "kind": "dodge", "vy": 60 }] }
+    ]
+  },
+  "size": { "w": 44, "h": 84 },
+  "hp": [200, 280],
+  "color": 10112799,
+  "music": "vladik",
+  "intro": { "frames": 192, "say": "Я НЕ СКРИПКА!" },
+  "deathFrames": 156,
+  "idle": { "walkSpeed": 90, "keepDist": 150 },
+  "contact": { "dmg": 1, "kind": "dodge" },
+  "antiCheese": { "shoveChain": "c_shove", "relocateChain": "c_hop" },
+  "attacks": [
+    {
+      "id": "bow", "name": "Взмах смычком",
+      "tell": { "frames": 24, "cue": { "color": "yellow", "sfx": "whirl", "pose": "raise_bow" } },
+      "active": [{ "from": 0, "to": 5, "hit": { "x": 4, "y": 14, "w": 84, "h": 52 }, "dmg": 1, "kind": "parry" }],
+      "recovery": { "frames": 34, "punishWindow": { "from": 6, "to": 28 } },
+      "requires": { "dist": [0, 150] }
+    },
+    {
+      "id": "bow_over", "name": "Удар грифом сверху",
+      "tell": { "frames": 30, "cue": { "color": "red", "sfx": "whirl", "pose": "overhead" } },
+      "active": [{ "from": 0, "to": 4, "hit": { "x": 6, "y": 0, "w": 92, "h": 82 }, "dmg": 1, "kind": "dodge" }],
+      "recovery": { "frames": 40, "punishWindow": { "from": 8, "to": 34 } }
+    },
+    {
+      "id": "thrust", "name": "Выпад",
+      "tell": { "frames": 26, "lockFace": true, "cue": { "color": "yellow", "sfx": "dash", "pose": "crouch_thrust" } },
+      "move": [{ "from": 0, "to": 11, "vx": 560, "toward": "player" }],
+      "active": [{ "from": 0, "to": 11, "hit": { "x": -4, "y": 24, "w": 60, "h": 44 }, "dmg": 1, "kind": "parry" }],
+      "recovery": { "frames": 42, "punishWindow": { "from": 10, "to": 36 } },
+      "requires": { "dist": [90, 440] }
+    },
+    {
+      "id": "clef1", "name": "Скрипичный ключ",
+      "tell": { "frames": 28, "cue": { "color": "yellow", "sfx": "violin", "pose": "clef_up" } },
+      "fx": [{ "at": 0, "name": "clef", "args": { "n": 1, "hk": "parry", "v": 460, "back": 640 } }],
+      "recovery": { "frames": 52, "punishWindow": { "from": 10, "to": 46 } },
+      "requires": { "dist": [90, 900] }
+    },
+    {
+      "id": "clef3", "name": "Три ключа",
+      "tell": { "frames": 32, "cue": { "color": "red", "sfx": "violin", "pose": "clef_up3" } },
+      "fx": [{ "at": 0, "name": "clef", "args": { "n": 3, "hk": "dodge", "v": 420, "dv": 60, "back": 640, "dy": 24, "step": 10 } }],
+      "recovery": { "frames": 60, "punishWindow": { "from": 14, "to": 54 } },
+      "requires": { "dist": [90, 900] }
+    },
+    {
+      "id": "leapfall", "name": "Прыжок и ноты",
+      "tell": { "frames": 32, "lockFace": true, "cue": { "color": "red", "sfx": "slam", "pose": "crouch" } },
+      "move": [{ "from": 0, "to": 44, "vx": 300, "vy": -560, "toward": "player" }],
+      "active": [{ "from": 44, "to": 48, "hit": { "x": -70, "y": 50, "w": 140, "h": 28 }, "dmg": 1, "kind": "dodge" }],
+      "spawn": [{ "at": 56, "proj": { "kind": "note", "w": 14, "h": 18, "life": 150 }, "kind": "dodge", "ox": 0, "oy": 0, "vx": 0, "vy": -520, "count": 5, "spread": 20 }],
+      "recovery": { "frames": 46, "punishWindow": { "from": 10, "to": 40 } },
+      "requires": { "dist": [80, 700] }
+    },
+    {
+      "id": "slime", "name": "Слизь со штор",
+      "tell": { "frames": 34, "cue": { "color": "red", "sfx": "squish", "pose": "smear" } },
+      "spawn": [
+        { "at": 0, "proj": { "kind": "glob", "w": 14, "h": 14, "life": 150 }, "kind": "dodge", "from": "target", "ox": 0, "oy": -300 },
+        { "at": 30, "proj": { "kind": "glob", "w": 14, "h": 14, "life": 150 }, "kind": "dodge", "from": "target", "ox": -90, "oy": -300 },
+        { "at": 60, "proj": { "kind": "glob", "w": 14, "h": 14, "life": 150 }, "kind": "dodge", "from": "target", "ox": 90, "oy": -300 }
+      ],
+      "recovery": { "frames": 50, "punishWindow": { "from": 14, "to": 44 } }
+    },
+    {
+      "id": "staff_a", "name": "Нотный стан: пол и верх",
+      "tell": { "frames": 32, "cue": { "color": "red", "sfx": "violin", "pose": "staff_low" } },
+      "fire": [{ "at": 0, "ent": "desk" }, { "at": 0, "ent": "line_lo" }, { "at": 0, "ent": "line_hi" }],
+      "recovery": { "frames": 100, "punishWindow": { "from": 70, "to": 96 } }
+    },
+    {
+      "id": "staff_b", "name": "Нотный стан: платформа и верх",
+      "tell": { "frames": 32, "cue": { "color": "red", "sfx": "violin", "pose": "staff_high" } },
+      "fire": [{ "at": 0, "ent": "line_mid" }, { "at": 0, "ent": "line_hi" }],
+      "recovery": { "frames": 100, "punishWindow": { "from": 70, "to": 96 } }
+    },
+    {
+      "id": "echo", "name": "Эхо",
+      "tell": { "frames": 40, "cue": { "color": "red", "sfx": "violin", "pose": "echo_wind" } },
+      "fx": [{ "at": 0, "name": "echo", "args": { "v": 560, "warn": 40 } }],
+      "recovery": { "frames": 30, "punishWindow": { "from": 8, "to": 26 } }
+    },
+    {
+      "id": "shove", "name": "Отталкивание смычком",
+      "tell": { "frames": 30, "cue": { "color": "white", "sfx": "roar", "pose": "brace" } },
+      "active": [{ "from": 0, "to": 3, "hit": { "x": -70, "y": 30, "w": 140, "h": 48 }, "dmg": 1, "kind": "dodge", "knock": { "vx": 420, "vy": -320 } }],
+      "recovery": { "frames": 30, "punishWindow": { "from": 6, "to": 25 } }
+    },
+    {
+      "id": "hop", "name": "Прыжок через героя",
+      "tell": { "frames": 32, "lockFace": true, "cue": { "color": "white", "sfx": "slam", "pose": "crouch" } },
+      "move": [{ "from": 0, "to": 44, "vx": 300, "vy": -560, "toward": "player" }],
+      "active": [{ "from": 44, "to": 48, "hit": { "x": -70, "y": 50, "w": 140, "h": 28 }, "dmg": 1, "kind": "dodge" }],
+      "recovery": { "frames": 40, "punishWindow": { "from": 8, "to": 35 } }
+    }
+  ],
+  "chains": [
+    { "id": "c_bow", "steps": [{ "attack": "bow", "gapFrames": 16 }, { "attack": "bow_over" }], "weight": 3, "requires": { "dist": [0, 150] } },
+    { "id": "c_lunge", "steps": [{ "attack": "thrust" }], "weight": 3 },
+    { "id": "c_clef", "steps": [{ "attack": "clef1" }], "weight": 3 },
+    { "id": "c_clef_lunge", "steps": [{ "attack": "clef1", "gapFrames": 30 }, { "attack": "thrust" }], "weight": 2 },
+    { "id": "c_leap", "steps": [{ "attack": "leapfall" }], "weight": 2 },
+    { "id": "c_slime", "steps": [{ "attack": "slime" }], "weight": 1 },
+    { "id": "c_lunge_bow", "steps": [{ "attack": "thrust", "gapFrames": 20 }, { "attack": "bow" }], "weight": 3 },
+    { "id": "c_clef3", "steps": [{ "attack": "clef3" }], "weight": 2 },
+    { "id": "c_clef3_leap", "steps": [{ "attack": "clef3", "gapFrames": 30 }, { "attack": "leapfall" }], "weight": 2 },
+    { "id": "c_staff_a", "steps": [{ "attack": "staff_a" }], "weight": 3 },
+    { "id": "c_staff_b", "steps": [{ "attack": "staff_b" }], "weight": 3 },
+    { "id": "c_echo", "steps": [{ "attack": "echo", "gapFrames": 12 }, { "attack": "thrust" }], "weight": 3 },
+    { "id": "c_fury", "steps": [{ "attack": "thrust", "gapFrames": 16 }, { "attack": "bow", "gapFrames": 14 }, { "attack": "bow_over" }], "weight": 3 },
+    { "id": "c_shove", "steps": [{ "attack": "shove" }], "weight": 1, "cooldown": 180 },
+    { "id": "c_hop", "steps": [{ "attack": "hop" }], "weight": 1, "cooldown": 600 }
+  ],
+  "phases": [
+    {
+      "fromHp": 1,
+      "policy": {
+        "chains": ["c_bow", "c_lunge", "c_clef", "c_clef_lunge", "c_leap", "c_slime"],
+        "noRepeat": 1,
+        "fatigue": { "factor": 0.6, "decay": 600 },
+        "restFrames": [30, 54]
+      }
+    },
+    {
+      "fromHp": 0.65,
+      "rageFrames": 60,
+      "scene": { "frames": 60, "skippable": true, "say": "НОТНЫЙ СТАН! ПО ЛИНЕЕЧКАМ!", "events": [{ "at": 4, "shake": { "ms": 300, "i": 0.008 }, "sfx": "violin" }] },
+      "enterChain": "c_staff_b",
+      "policy": {
+        "chains": ["c_lunge_bow", "c_clef3", "c_clef3_leap", "c_staff_a", "c_staff_b", "c_echo", "c_slime", "c_clef_lunge"],
+        "noRepeat": 2,
+        "fatigue": { "factor": 0.6, "decay": 600 },
+        "restFrames": [22, 44]
+      }
+    },
+    {
+      "fromHp": 0.3,
+      "rageFrames": 60,
+      "scene": { "frames": 60, "skippable": true, "say": "КРЕЩЕНДО!!! Я НЕ СКРИПКА!", "events": [{ "at": 4, "shake": { "ms": 400, "i": 0.01 }, "sfx": "violin" }] },
+      "enterChain": "c_leap",
+      "policy": {
+        "chains": ["c_fury", "c_echo", "c_staff_a", "c_staff_b", "c_clef3_leap", "c_lunge_bow", "c_slime"],
+        "noRepeat": 2,
+        "fatigue": { "factor": 0.6, "decay": 600 },
+        "restFrames": [16, 34]
+      }
+    }
+  ]
+}

@@ -1,0 +1,189 @@
+{
+  "id": "tima2",
+  "name": "Тима Пиво 2.0",
+  "about": "Пиво, банкротство, приставка и волшебная пыль — теперь по связкам. Жёлтое отбивай, красное обходи, фиолетовое перепрыгивай; после каждой связки бей в зелёное кольцо.",
+  "landmark": "Глава IV, по связкам",
+  "tips": [
+    "Бутылки летят дугой: вплотную к Тиме они пролетают над головой, зато в дальнем углу ты на их пути. Жёлтые бутылки отбиваются, а разлитое пиво замедляет.",
+    "Красное кольцо и «лаг» — красные: ударные волны перепрыгивай, место падения Тимы видно на полу.",
+    "Фиолетовое банкротство не отбить и не прорваться рывком: прыгай через печать. Задела — нить пополам.",
+    "Тима чертит круг для пыли: подбеги и ударь его три раза, пока он не закончил — иначе он «разгонится» и паузы между связками станут вдвое короче.",
+    "Со второй фазы выходят коллекторы (бей их, пока не добежали), а в ярости связки идут без передышки."
+  ],
+  "arena": "tima",
+  "size": { "w": 48, "h": 80 },
+  "hp": [170, 240],
+  "color": 7274326,
+  "intro": { "frames": 150, "say": "ПИВКА ДЛЯ РЫВКА!" },
+  "deathFrames": 160,
+  "idle": { "walkSpeed": 80, "keepDist": 150 },
+  "contact": { "dmg": 1, "kind": "dodge" },
+  "antiCheese": { "shoveChain": "c_shove", "relocateChain": "c_leap" },
+  "creatures": [
+    {
+      "id": "collector", "name": "Коллектор",
+      "size": { "w": 22, "h": 22 }, "hp": 2, "speed": 95, "life": 600, "fade": 45, "max": 2,
+      "contact": { "dmg": 1, "kind": "dodge" }, "color": 4674921,
+      "vanishOn": ["bossDeath", "phase", "stagger"]
+    }
+  ],
+  "attacks": [
+    {
+      "id": "swing", "name": "Бутылкой с размаху",
+      "tell": { "frames": 26, "cue": { "color": "yellow", "sfx": "swing", "pose": "raise" } },
+      "active": [{ "from": 0, "to": 5, "hit": { "x": 8, "y": 10, "w": 84, "h": 62 }, "dmg": 1, "kind": "parry" }],
+      "recovery": { "frames": 36, "punishWindow": { "from": 6, "to": 31 } },
+      "requires": { "dist": [0, 150] }
+    },
+    {
+      "id": "lob", "name": "Залп бутылок",
+      "tell": { "frames": 30, "cue": { "color": "yellow", "sfx": "throw", "pose": "bottle_up" } },
+      "spawn": [{ "at": 0, "proj": { "kind": "spore", "w": 12, "h": 12, "life": 150 }, "kind": "parry", "ox": 20, "oy": -20, "vx": 330, "vy": -420, "count": 3, "spread": 12 }],
+      "recovery": { "frames": 40, "punishWindow": { "from": 8, "to": 35 } },
+      "requires": { "dist": [120, 700] }
+    },
+    {
+      "id": "ring", "name": "Красное кольцо",
+      "tell": { "frames": 36, "cue": { "color": "red", "sfx": "buzz", "pose": "pad_up" } },
+      "active": [{ "from": 0, "to": 3, "hit": { "x": -36, "y": 56, "w": 72, "h": 24 }, "dmg": 1, "kind": "dodge" }],
+      "spawn": [
+        { "at": 0, "proj": { "kind": "wave", "w": 24, "h": 18, "life": 150 }, "kind": "dodge", "ox": 30, "oy": 31, "vx": 400, "dmg": 1 },
+        { "at": 0, "proj": { "kind": "wave", "w": 24, "h": 18, "life": 150 }, "kind": "dodge", "ox": -30, "oy": 31, "vx": -400, "dmg": 1 }
+      ],
+      "recovery": { "frames": 40, "punishWindow": { "from": 8, "to": 35 } }
+    },
+    {
+      "id": "pad", "name": "Вертушка джойстика",
+      "tell": { "frames": 34, "cue": { "color": "red", "sfx": "whirl", "pose": "spin" } },
+      "active": [
+        { "from": 0, "to": 4, "hit": { "x": -8, "y": 12, "w": 100, "h": 58 }, "dmg": 1, "kind": "dodge" },
+        { "from": 16, "to": 20, "hit": { "x": -108, "y": 12, "w": 100, "h": 58 }, "dmg": 1, "kind": "dodge" }
+      ],
+      "recovery": { "frames": 42, "punishWindow": { "from": 10, "to": 37 } },
+      "requires": { "dist": [0, 170] }
+    },
+    {
+      "id": "box", "name": "Приставкой!",
+      "tell": { "frames": 38, "cue": { "color": "red", "sfx": "throw", "pose": "console_up" } },
+      "spawn": [{ "at": 0, "proj": { "kind": "spore", "w": 36, "h": 22, "life": 170 }, "kind": "dodge", "ox": 20, "oy": -22, "vx": 380, "vy": -520, "dmg": 1 }],
+      "recovery": { "frames": 44, "punishWindow": { "from": 10, "to": 39 } },
+      "requires": { "dist": [200, 700] }
+    },
+    {
+      "id": "bank", "name": "Банкротство",
+      "tell": { "frames": 46, "lockFace": true, "cue": { "color": "purple", "sfx": "coin", "pose": "stamp_up" } },
+      "active": [{ "from": 0, "to": 3, "hit": { "x": -90, "y": 44, "w": 180, "h": 36 }, "dmg": 1, "kind": "unblockable" }],
+      "spawn": [
+        { "at": 18, "proj": { "kind": "rock", "w": 40, "h": 24, "life": 150 }, "kind": "dodge", "from": "target", "ox": -80, "oy": -300 },
+        { "at": 34, "proj": { "kind": "rock", "w": 40, "h": 24, "life": 150 }, "kind": "dodge", "from": "target", "ox": 80, "oy": -300 }
+      ],
+      "fx": [{ "at": 1, "name": "bankrupt", "args": {} }],
+      "recovery": { "frames": 54, "punishWindow": { "from": 10, "to": 49 } },
+      "requires": { "dist": [0, 300] }
+    },
+    {
+      "id": "dust", "name": "Волшебная пыль",
+      "tell": { "frames": 64, "cue": { "color": "white", "sfx": "sparkle", "pose": "draw" } },
+      "fx": [{ "at": 50, "name": "hyper", "args": {} }],
+      "recovery": { "frames": 40, "punishWindow": { "from": 6, "to": 35 } }
+    },
+    {
+      "id": "collect", "name": "Коллекторы, фас!",
+      "tell": { "frames": 40, "cue": { "color": "white", "sfx": "whistle", "pose": "call" } },
+      "summon": [
+        { "at": 0, "creature": "collector", "ox": 300, "oy": 28 },
+        { "at": 0, "creature": "collector", "ox": -300, "oy": 28 }
+      ],
+      "recovery": { "frames": 50, "punishWindow": { "from": 10, "to": 45 } }
+    },
+    {
+      "id": "lag", "name": "Лаг",
+      "tell": { "frames": 44, "lockFace": true, "cue": { "color": "red", "sfx": "glitch", "pose": "lag" } },
+      "active": [{ "from": 40, "to": 56, "hit": { "at": "target", "x": -46, "y": -30, "w": 92, "h": 70 }, "dmg": 1, "kind": "dodge" }],
+      "fx": [{ "at": 0, "name": "blink", "args": {} }],
+      "recovery": { "frames": 52, "punishWindow": { "from": 8, "to": 47 } }
+    },
+    {
+      "id": "trophy", "name": "Ачивка разблокирована",
+      "tell": { "frames": 40, "cue": { "color": "red", "sfx": "sparkle", "pose": "trophy_up" } },
+      "spawn": [
+        { "at": 0, "proj": { "kind": "rock", "w": 30, "h": 30, "life": 150 }, "kind": "dodge", "from": "target", "oy": -300 },
+        { "at": 12, "proj": { "kind": "rock", "w": 30, "h": 30, "life": 150 }, "kind": "dodge", "from": "target", "ox": -90, "oy": -300 },
+        { "at": 24, "proj": { "kind": "rock", "w": 30, "h": 30, "life": 150 }, "kind": "dodge", "from": "target", "ox": 90, "oy": -300 },
+        { "at": 36, "proj": { "kind": "rock", "w": 30, "h": 30, "life": 150 }, "kind": "dodge", "from": "target", "ox": -170, "oy": -300 },
+        { "at": 48, "proj": { "kind": "rock", "w": 30, "h": 30, "life": 150 }, "kind": "dodge", "from": "target", "ox": 170, "oy": -300 }
+      ],
+      "recovery": { "frames": 54, "punishWindow": { "from": 14, "to": 49 } }
+    },
+    {
+      "id": "shove", "name": "Отталкивание",
+      "tell": { "frames": 30, "cue": { "color": "white", "sfx": "shove", "pose": "brace" } },
+      "active": [{ "from": 0, "to": 3, "hit": { "x": -80, "y": 30, "w": 160, "h": 50 }, "dmg": 1, "kind": "dodge", "knock": { "vx": 420, "vy": -320 } }],
+      "recovery": { "frames": 30, "punishWindow": { "from": 6, "to": 25 } }
+    },
+    {
+      "id": "leap", "name": "Прыжок через героя",
+      "tell": { "frames": 32, "lockFace": true, "cue": { "color": "white", "sfx": "leap", "pose": "crouch" } },
+      "move": [{ "from": 0, "to": 44, "vx": 300, "vy": -560, "toward": "player" }],
+      "active": [{ "from": 44, "to": 48, "hit": { "x": -80, "y": 50, "w": 160, "h": 30 }, "dmg": 1, "kind": "dodge" }],
+      "recovery": { "frames": 40, "punishWindow": { "from": 8, "to": 35 } }
+    }
+  ],
+  "chains": [
+    { "id": "c_swing", "steps": [{ "attack": "swing" }], "weight": 3, "requires": { "dist": [0, 150] } },
+    { "id": "c_swing_ring", "steps": [{ "attack": "swing", "gapFrames": 22 }, { "attack": "ring" }], "weight": 3, "requires": { "dist": [0, 150] } },
+    { "id": "c_lob", "steps": [{ "attack": "lob" }], "weight": 3 },
+    { "id": "c_lob_box", "steps": [{ "attack": "lob", "gapFrames": 30 }, { "attack": "box" }], "weight": 2, "requires": { "dist": [200, 700] } },
+    { "id": "c_ring", "steps": [{ "attack": "ring" }], "weight": 2 },
+    { "id": "c_ring2", "steps": [{ "attack": "ring", "gapFrames": 26 }, { "attack": "ring" }], "weight": 3, "requires": { "phase": [2, 3] } },
+    { "id": "c_pad", "steps": [{ "attack": "pad" }], "weight": 3, "requires": { "dist": [0, 170] } },
+    { "id": "c_pad_lob", "steps": [{ "attack": "pad", "gapFrames": 24 }, { "attack": "lob" }], "weight": 2, "requires": { "phase": [2, 3], "dist": [0, 170] } },
+    { "id": "c_bank", "steps": [{ "attack": "bank" }], "weight": 2, "cooldown": 420 },
+    { "id": "c_dust", "steps": [{ "attack": "dust" }], "weight": 3, "cooldown": 1500, "requires": { "hpBelow": 0.9 } },
+    { "id": "c_coll", "steps": [{ "attack": "collect" }], "weight": 3, "cooldown": 720, "requires": { "phase": [2, 3] } },
+    { "id": "c_lag", "steps": [{ "attack": "lag" }], "weight": 3, "cooldown": 300, "requires": { "phase": [2, 3] } },
+    { "id": "c_lag_ring", "steps": [{ "attack": "lag", "gapFrames": 30 }, { "attack": "ring" }], "weight": 2, "cooldown": 420, "requires": { "phase": [3] } },
+    { "id": "c_trophy", "steps": [{ "attack": "trophy" }], "weight": 3, "cooldown": 360, "requires": { "phase": [2, 3] } },
+    { "id": "c_shove", "steps": [{ "attack": "shove" }], "weight": 1, "cooldown": 180 },
+    { "id": "c_leap", "steps": [{ "attack": "leap" }], "weight": 1, "cooldown": 600 }
+  ],
+  "phases": [
+    {
+      "fromHp": 1,
+      "policy": {
+        "chains": ["c_swing", "c_swing_ring", "c_lob", "c_lob_box", "c_ring", "c_pad", "c_bank", "c_dust"],
+        "noRepeat": 2,
+        "fatigue": { "factor": 0.6, "decay": 600 },
+        "restFrames": [30, 54]
+      }
+    },
+    {
+      "fromHp": 0.55,
+      "rageFrames": 70,
+      "scene": {
+        "frames": 80, "skippable": true, "say": "ТЫ ЧЁ, РЕАЛЬНО?!",
+        "events": [{ "at": 4, "shake": { "ms": 300, "i": 0.01 }, "sfx": "roar" }, { "at": 20, "say": "Коллекторы выходят на охоту." }]
+      },
+      "form": { "draw": "angry" },
+      "enterChain": "c_coll",
+      "policy": {
+        "chains": ["c_swing_ring", "c_lob", "c_lob_box", "c_ring2", "c_pad", "c_pad_lob", "c_bank", "c_dust", "c_coll", "c_lag", "c_trophy"],
+        "noRepeat": 2,
+        "fatigue": { "factor": 0.6, "decay": 600 },
+        "restFrames": [24, 44]
+      }
+    },
+    {
+      "fromHp": 0.22,
+      "silent": true,
+      "form": { "draw": "fury" },
+      "enterChain": "c_trophy",
+      "policy": {
+        "chains": ["c_swing_ring", "c_lob_box", "c_ring2", "c_pad_lob", "c_bank", "c_coll", "c_lag", "c_lag_ring", "c_trophy", "c_dust"],
+        "noRepeat": 2,
+        "fatigue": { "factor": 0.6, "decay": 600 },
+        "restFrames": [18, 34]
+      }
+    }
+  ]
+}

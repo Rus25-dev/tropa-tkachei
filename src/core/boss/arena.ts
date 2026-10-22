@@ -165,7 +165,7 @@ export function arenaStep(sc: World, clk: Clk, own: number): void {
     if (!e.on) continue;
     e.t++;
     if (d.loop !== undefined && e.t >= d.loop) { e.t = 0; e.next = 0; }
-    else if (e.next >= d.timeline.length && !busy(e)) e.on = false;
+    else if (d.loop === undefined && e.next >= d.timeline.length && !busy(e)) e.on = false; // зацикленное расписание не гаснет после последней записи (иначе одна запись в цикле стреляет один раз)
   }
 }
 const busy = (e: EntRt): boolean => e.strikes.length > 0 || e.q.length > 0 || e.warnShow > 0 || e.warnHide > 0 || e.pend || !!e.mv;

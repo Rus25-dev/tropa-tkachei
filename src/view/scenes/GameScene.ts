@@ -308,6 +308,11 @@ export class GameScene extends Phaser.Scene {
           this.tweens.add({ targets: t, y: t.y - 26, alpha: 0, duration: 650, ease: 'Cubic.easeOut', onComplete: () => t.destroy() });
           break;
         }
+        case 'counterStrike': { // «КОНТРУДАР!» над героем (приём Контрудар)
+          const t = this.add.text(e['x'] as number, e['y'] as number, 'КОНТРУДАР!', { fontFamily: DISPLAY, fontSize: '15px', fontStyle: '700', color: '#bfe9ff', stroke: '#101a24', strokeThickness: 4 }).setOrigin(0.5).setDepth(8.8);
+          this.tweens.add({ targets: t, y: t.y - 26, alpha: 0, duration: 650, ease: 'Cubic.easeOut', onComplete: () => t.destroy() });
+          break;
+        }
         case 'buzz': // отдача: вибрация телефона и геймпада (настройка «Вибрация»)
           if (gfx.vibro) {
             if (navigator.vibrate && e['ms']) { try { navigator.vibrate(e['ms'] as number); } catch { /* не поддерживается */ } }
