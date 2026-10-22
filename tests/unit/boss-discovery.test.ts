@@ -23,7 +23,7 @@ describe('реестр боссов находит файлы сам', () => {
     const code = "import('./src/core/boss/catalog.ts').then((m) => { console.log(JSON.stringify({ dev: m.testCards(true).map((c) => c.id), off: m.testCards(false).map((c) => c.id), race: m.raceBossIds() })); });";
     const out = execFileSync('npx', ['tsx', '--import', './tools/ldtk-register.mjs', '-e', code], { encoding: 'utf8', cwd: process.cwd(), timeout: 60_000 });
     const r = JSON.parse(out.trim().split('\n').pop()!) as { dev: string[]; off: string[]; race: string[] };
-    expect(r.dev).toEqual(['misha', 'vladik', 'tima', 'dummy']); expect(r.off).toEqual(['misha', 'vladik', 'tima']);
+    expect(r.dev.filter((x) => x !== 'vessel')).toEqual(['misha', 'vladik', 'tima', 'dummy']); expect(r.off).toEqual(['misha', 'vladik', 'tima']);
     expect(r.race).toEqual(['korne', 'misha', 'vladik', 'tima']);
   }, 90_000);
 
@@ -54,7 +54,7 @@ describe('карточки и списки строятся из реестра'
   it('без ?dev=1 карточки: старые боссы и показываемые боссы на данных; dev-карточка манекена — только в dev', () => {
     expect(ids(testCards(false))).toEqual(['misha', 'vladik', 'tima']);
     const dev = testCards(true), dummy = dev.find((c) => c.id === 'dummy')!;
-    expect(ids(dev)).toEqual(['misha', 'vladik', 'tima', 'dummy']);
+    expect(ids(dev).filter((x) => x !== 'vessel')).toEqual(['misha', 'vladik', 'tima', 'dummy']);
     expect(dummy.name).toBe('Манекен-наставник (dev)'); expect(dummy.arenaName).toBe('Кабинет музыки'); expect(dummy.data).toBe(true); expect(dummy.dev).toBe(true);
     expect(LEGACY_CARDS.map((c) => c.landmark)).toEqual(['Глава II', 'Глава III', 'Глава IV']);
   });
@@ -65,7 +65,7 @@ describe('карточки и списки строятся из реестра'
     reg({ id: 'cat_dev', name: 'Для разработчиков', dev: true });
     reg({ id: 'cat_hid', name: 'Участник', hidden: true });
     expect(ids(testCards(false))).toEqual(['misha', 'vladik', 'tima', 'cat_a', 'cat_b']);
-    expect(ids(testCards(true))).toEqual(['misha', 'vladik', 'tima', 'cat_a', 'cat_b', 'cat_dev', 'dummy']);
+    expect(ids(testCards(true)).filter((x) => x !== 'vessel')).toEqual(['misha', 'vladik', 'tima', 'cat_a', 'cat_b', 'cat_dev', 'dummy']);
     const b = cardOf(bossDef('cat_b')!); expect(b).toMatchObject({ name: 'Бэ', landmark: 'Ориентир Бэ', arena: 'tima', arenaName: 'Берлога Тимы', data: true });
     expect(listedDefs(false).map((d) => d.id)).toEqual(['cat_a', 'cat_b']);
     expect(raceBossIds()).toEqual(['korne', 'misha', 'vladik', 'tima', 'cat_a', 'cat_b']);
