@@ -1,6 +1,8 @@
 // Снаряды и вещи на карте: споры, волны, камни, плевки, дымовые бомбы, инструменты, бусины, предметы, шкала стойкости, статусы.
 // Снаряды Владика (ключи, ноты, эхо) рисует его тело (draw/boss/vladik2.ts). Свои снаряды любого босса можно нарисовать в его файле draw/boss/<id>.ts.
-import { KIT, POISE_MAX, STAGGER_T, STATUS_KINDS, T } from '../../core/balance';
+import { POISE_MAX, STAGGER_T, STATUS_KINDS, T } from '../../core/balance';
+import '../content';
+import { tfxView, toolEntView, toolViewReg } from '../content/regs';
 import type { World } from '../../core/world';
 import { type G, PI } from './common';
 
@@ -47,86 +49,16 @@ function drawExtraProjs(w: World, fx: G, now: number): void {
 }
 
 function drawToolEntities(w: World, fx: G, now: number): void {
-  for (const q of w.tl as Q[]) {
-    const x = q['x'] + q['w'] / 2, y = q['y'] + q['h'] / 2;
-    if (q['kind'] === 'tneedle') {
-      const st = q['st'], ang = q['ang'];
-      const ux = Math.cos(ang), uy = Math.sin(ang), L = 13, vib = st === 2 ? Math.sin(now * 60) * 1.2 : 0;
-      if (st === 1 || st === 4) { fx.fillStyle(0xffe3a3, 0.12 + Math.sin(now * 5) * 0.06); fx.fillCircle(x, y, 15); }
-      if (st === 0) { fx.lineStyle(1.5, 0xffe3a3, 0.45); fx.lineBetween(x - ux * L, y - uy * L, x - ux * (L + 14), y - uy * (L + 14)); }
-      fx.lineStyle(2.5, 0xf6f3e8, 1); fx.lineBetween(x - ux * L + vib, y - uy * L, x + ux * L + vib, y + uy * L);
-      fx.fillStyle(0xffffff, 1); fx.fillCircle(x + ux * L + vib, y + uy * L, 2);
-      fx.fillStyle(0xffd47a, 1); fx.fillCircle(x - ux * L, y - uy * L, 2);
-    } else if (q['kind'] === 'ttrap') {
-      const life = q['life'], arming = q['arm'] > 0;
-      if (life < 2 && Math.floor(now * 10) % 2) continue;
-      const bx = q['x'], by = q['y'] + q['h'];
-      fx.fillStyle(0x000000, 0.3); fx.fillEllipse(x, by, q['w'] + 6, 6);
-      fx.fillStyle(0x59483a, 1); fx.fillRect(bx, by - 4, q['w'], 4);
-      fx.fillStyle(0xd9d4c3, 1);
-      for (let i = 0; i < 5; i++) { const tx = bx + 2 + i * 5; fx.fillTriangle(tx, by - 4, tx + 5, by - 4, tx + 2.5, by - 12); }
-      const blink = arming ? 0.3 : 0.5 + Math.sin(now * 8) * 0.5;
-      fx.fillStyle(0xff6a4a, 0.25 + blink * 0.6); fx.fillCircle(x, by - 2, 2.2);
-      fx.lineStyle(1, 0xffe3a3, 0.35); fx.strokeCircle(x, by - 4, 18 + Math.sin(now * 4) * 2);
-    } else if (q['kind'] === 'tspirit') { // нитяной снаряд: светящийся клубок с хвостом
-      const f = q['f'] as number, pul = 1 + Math.sin(now * 30) * 0.1;
-      for (let i = 1; i <= 4; i++) { fx.fillStyle(0xcfe8ff, 0.32 - i * 0.06); fx.fillEllipse(x - f * i * 11, y, 22 - i * 3, 12 - i * 1.6); }
-      fx.fillStyle(0x9fd0ff, 0.28); fx.fillCircle(x, y, 17 * pul);
-      fx.fillStyle(0xffffff, 1); fx.fillCircle(x, y, 7 * pul);
-      fx.lineStyle(1.6, 0xcfe8ff, 0.9); fx.beginPath(); fx.arc(x, y, 11, now * 9, now * 9 + 4, false); fx.strokePath();
-    } else if (q['kind'] === 'twraith') { // вопль: столб нити вверх, вспыхивает на каждом ударе
-      const k = Math.max(0, q['life'] / (q['T'] || 1)), hit = (q['gap'] as number) > 0.06 ? 1 : 0.5;
-      const cx = q['x'] + q['w'] / 2, top = q['y'], bot = q['y'] + q['h'];
-      fx.fillStyle(0x9fd0ff, 0.14 * k * hit); fx.fillRect(q['x'], top, q['w'], q['h']);
-      for (let i = -2; i <= 2; i++) { fx.lineStyle(i ? 1.5 : 3, i ? 0xcfe8ff : 0xffffff, 0.75 * k * hit); fx.lineBetween(cx + i * 9, bot, cx + i * 9 + Math.sin(now * 12 + i) * 5, top + (i % 2 ? 30 : 0)); }
-      fx.lineStyle(2, 0xffffff, 0.8 * k); fx.strokeEllipse(cx, bot - 4, q['w'] * (1.3 - k * 0.3), 12);
-    } else if (q['kind'] === 'tbomb') {
-      const fuse = q['fuse'], pul = 1 + Math.sin(now * (14 + (0.9 - fuse) * 30)) * 0.12;
-      fx.fillStyle(0xffd47a, 0.2); fx.fillCircle(x, y, 11 * pul);
-      fx.fillStyle(0xe9e2cf, 1); fx.fillCircle(x, y, 6.5 * pul);
-      fx.lineStyle(1.5, 0x8a7a55, 1); fx.beginPath(); fx.arc(x, y, 5, 0.3, 2.6, false); fx.strokePath(); fx.beginPath(); fx.arc(x, y, 5, 3.4, 5.7, false); fx.strokePath();
-      fx.fillStyle(0xff9a3c, 1); fx.fillCircle(x + 3, y - 8, 2 + Math.sin(now * 30) * 0.6);
-    }
-  }
+  // сущности инструментов: отрисовка по виду из src/view/content/tools/<id>.ts
+  for (const q of w.tl as Q[]) toolEntView.get(q['kind'])?.(fx, q, now, q['x'] + q['w'] / 2, q['y'] + q['h'] / 2);
   // замёрзшие враги: нитяная сеть
   for (const e of w.enemies) if (!e.dead && e['frozenT'] > 0) {
     const ex = e.x + e.w / 2, ey = e.y + e.h / 2, rx = e.w / 2 + 4, ry = e.h / 2 + 4;
     fx.lineStyle(1.5, 0xe8f6ff, 0.8); fx.strokeEllipse(ex, ey, rx * 2, ry * 2);
     fx.lineBetween(ex - rx, ey - ry * 0.5, ex + rx, ey + ry * 0.5); fx.lineBetween(ex - rx, ey + ry * 0.5, ex + rx, ey - ry * 0.5); fx.lineBetween(ex, ey - ry, ex, ey + ry);
   }
-  // тяга крюка: нить от героя до точки зацепа
-  for (const p of w.players) if (p['hk']) {
-    fx.lineStyle(2, p.pal.accent, 0.9); fx.lineBetween(p.x + 7, p.y + 13, p['hk'].ax, p['hk'].ay);
-    fx.fillStyle(0xffffff, 1); fx.fillCircle(p['hk'].ax, p['hk'].ay, 3);
-  }
-  for (const f of w.tfx as Q[]) {
-    const k = Math.max(0, f['t'] / (f['T'] || 0.3));
-    if (f['f'] === 'hook') {
-      const pl = w.players[f['i']], col = pl && pl.pal ? pl.pal.accent : 0xffe3a3;
-      fx.lineStyle(2.5, col, k); fx.lineBetween(f['x'], f['y'], f['x1'], f['y1']);
-      fx.lineStyle(1.2, 0xffffff, k); fx.lineBetween(f['x'], f['y'], f['x1'], f['y1']);
-      const ang = Math.atan2(f['y1'] - f['y'], f['x1'] - f['x']);
-      fx.lineStyle(2.5, 0xffffff, k);
-      for (const s of [-0.7, 0.7]) fx.lineBetween(f['x1'], f['y1'], f['x1'] - Math.cos(ang + s) * 9, f['y1'] - Math.sin(ang + s) * 9);
-    } else if (f['f'] === 'boom') {
-      const r = 90 * (1 - k * k);
-      fx.fillStyle(0xffe3a3, 0.22 * k); fx.fillCircle(f['x'], f['y'], r);
-      fx.lineStyle(4, 0xffffff, k); fx.strokeCircle(f['x'], f['y'], r);
-      fx.lineStyle(2, 0xffd47a, k); fx.strokeCircle(f['x'], f['y'], r * 0.7);
-    } else if (f['f'] === 'shock') { // волна нырка: две стороны по земле
-      const R = KIT.DIVE.R * (1 - k * k * 0.6), fy = f['y'];
-      for (const s of [-1, 1]) {
-        const x = f['x'] + s * R;
-        fx.fillStyle(0xcfe8ff, 0.8 * k); fx.fillTriangle(x, fy, x - s * 30, fy - 6, x - s * 18, fy - 36 * (0.4 + 0.6 * k));
-        fx.fillStyle(0xffffff, 0.6 * k); fx.fillTriangle(x - s * 34, fy, x - s * 56, fy - 5, x - s * 46, fy - 20 * k);
-      }
-      fx.lineStyle(3, 0xffffff, 0.8 * k); fx.lineBetween(f['x'] - R, fy - 1, f['x'] + R, fy - 1);
-      fx.fillStyle(0xcfe8ff, 0.25 * k); fx.fillEllipse(f['x'], fy - 4, R * 2, 24);
-    } else if (f['f'] === 'snap') {
-      fx.lineStyle(3, 0xffffff, k);
-      for (let s = -2; s <= 2; s++) fx.lineBetween(f['x'] + s * 6, f['y'], f['x'] + s * 9, f['y'] - 26 * (1 - k * 0.3));
-    }
-  }
+  for (const v of toolViewReg.list()) v.world?.(fx, w, now); // общие слои инструментов (нить крюка)
+  for (const f of w.tfx as Q[]) tfxView.get(f['f'])?.(fx, f, Math.max(0, f['t'] / (f['T'] || 0.3)), w);
 }
 
 /** цвет контура по виду удара: жёлтый — отбить, красный — уйти рывком, фиолетовый — не отбить и не проскочить */

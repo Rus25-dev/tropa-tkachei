@@ -17,14 +17,15 @@ import { freezeEnemy, isToolKind, toolHurtBoss, toolSpawn, type ToolMsg } from '
 import { mkSw, wdef } from './weapons';
 import { inset, overlap, type World } from './world';
 import { kitChargeFrac, kitCode, kitFromNet } from './kit/moves';
-import { SPIRIT_SIZE, WRAITH_SIZE } from './kit/spells';
+import { netKindReg, toolEntReg } from './plugin/regs';
 
 export type NetMsg = Record<string, any>;
 
-/** виды снарядов в снимке: индекс в этом списке уходит гостю (порядок общий для хоста и гостя — одна и та же сборка) */
-export const NET_KINDS = ['spore', 'wave', 'rock', 'bomb', 'clef', 'note', 'echo', 'glob', 'tneedle', 'ttrap', 'tbomb', 'tspirit', 'twraith'];
-export const NET_SIZES: [number, number][] = [[12, 12], [24, 18], [16, 16], [12, 12], [28, 40], [14, 18], [40, 84], [12, 12],
-  [12, 12], [26, 10], [12, 12], SPIRIT_SIZE, WRAITH_SIZE]; // tneedle, ttrap, tbomb (= tools.TOOL_KIND), tspirit, twraith (kit/spells.ts)
+/** виды на проводе в снимке гостя: снаряды (здесь) и сущности инструментов (src/content/tools, поле entities).
+ *  Код netId общий для хоста и гостя (одна сборка) и только добавляется: 0–7 снаряды, 8–12 инструменты. */
+const PROJ_NET: [string, number, number][] = [['spore', 12, 12], ['wave', 24, 18], ['rock', 16, 16], ['bomb', 12, 12], ['clef', 28, 40], ['note', 14, 18], ['echo', 40, 84], ['glob', 12, 12]];
+PROJ_NET.forEach(([id, w, h], netId) => { if (!netKindReg.has(id)) netKindReg.define({ id, netId, size: [w, h] }); });
+const netIdOf = (kind: string): number => netKindReg.get(kind)?.netId ?? -1;
 const r10 = (x: number): number => Math.round(x * 10) / 10;
 const r100 = (x: number): number => Math.round(x * 100) / 100;
 
@@ -75,7 +76,7 @@ export function packSnap(w: World): NetMsg {
   const st = (e: Enemy): number => (e['state'] === 'wind' || e['state'] === 'charge') ? 1 : e['state'] === 'stun' ? 2 : 0;
   const s: NetMsg = { t: 's',
     e: w.enemies.map((e) => [r(e.x), r(e.y), e.face, e.dead ? 1 : 0, e.flash > 0 ? 1 : 0, st(e), packEnemy2(e)]),
-    pr: w.projs.map((q) => [NET_KINDS.indexOf(q.kind), r(q.x), r(q.y), r(q.vx), r(q.vy), (q.delay ?? 0) > 0 ? 1 : 0, q['ch'] || '']),
+    pr: w.projs.map((q) => [netIdOf(q.kind), r(q.x), r(q.y), r(q.vx), r(q.vy), (q.delay ?? 0) > 0 ? 1 : 0, q['ch'] || '']),
     bd: w.beadsArr.map((d) => [r(d.x), r(d.y)]), bc: w.beads,
     g: w.gates.map((gt) => (gt.closed ? 1 : 0)), bD: w.bossDead ? 1 : 0, rs: [r(w.respawn.x), r(w.respawn.y)] };
   // статусы (status.js): маски только если что-то горит
@@ -84,8 +85,8 @@ export function packSnap(w: World): NetMsg {
   void any;
   // инструменты (tools.js): снаряды хоста уходят строками снарядов, замёрзшие враги — списком
   for (const q of w.tl as Record<string, any>[]) {
-    const ch = q['kind'] === 'tneedle' ? [q['st'], r100(q['ang']), q['st'] === 2 ? r10(q['stuckT']) : 0] : q['kind'] === 'ttrap' ? [r10(q['life']), q['arm'] > 0 ? 1 : 0] : q['kind'] === 'twraith' ? [r100(q['life']), q['n'] | 0] : q['kind'] === 'tspirit' ? [q['f'], r100(q['age'])] : [r100(q['fuse'])];
-    (s['pr'] as unknown[]).push([NET_KINDS.indexOf(q['kind']), r(q['x']), r(q['y']), r(q['vx']), r(q['vy']), 0, ch]);
+    const d = toolEntReg.get(q['kind']), ch = d?.netCh ? d.netCh(q) : [r100(q['fuse'])];
+    (s['pr'] as unknown[]).push([netIdOf(q['kind']), r(q['x']), r(q['y']), r(q['vx']), r(q['vy']), 0, ch]);
   }
   const fz: number[] = []; w.enemies.forEach((e, i) => { if (!e.dead && e['frozenT'] > 0) fz.push(i); });
   if (fz.length) s['tf'] = fz;
@@ -106,7 +107,7 @@ export function applySnap(w: World, m: NetMsg): void {
   });
   const old = w.projs;
   w.projs = (m['pr'] as unknown[][]).map((a, i) => {
-    const kind = NET_KINDS[a[0] as number]!, sz = NET_SIZES[a[0] as number]!;
+    const nk = netKindReg.byNetId(a[0] as number)!, kind = nk.id, sz = nk.size;
     const q: Proj = { kind, x: a[1] as number, y: a[2] as number, vx: a[3] as number, vy: a[4] as number, delay: a[5] ? 1 : 0, ch: a[6], w: sz[0], h: sz[1], life: 1 };
     q['rot'] = old[i] && old[i]!.kind === q.kind ? old[i]!['rot'] || 0 : 0;
     return q;

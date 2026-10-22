@@ -3,11 +3,12 @@
 // (tsx: бот, фаззер, sim, boss:*) — чтением папки. Порядок вещей задаёт поле order описания, а не имя файла.
 // Подключается последним импортом src/core/world.ts (и в настройке Vitest), поэтому к созданию мира реестры уже заполнены.
 import { collectDefaults, type Def, type Registry } from '../core/plugin/registry';
-import { weaponReg } from '../core/plugin/regs';
+import { toolReg, weaponReg } from '../core/plugin/regs';
 
 /** вид содержимого: папка и реестр */
 const KINDS: { dir: string; reg: Registry<Def> }[] = [
   { dir: 'weapons', reg: weaponReg as unknown as Registry<Def> },
+  { dir: 'tools', reg: toolReg as unknown as Registry<Def> },
 ];
 
 let loaded = false;

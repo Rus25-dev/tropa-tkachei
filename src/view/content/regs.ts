@@ -35,3 +35,24 @@ export interface WeaponView {
 }
 export const defineWeaponView = (v: WeaponView): WeaponView => v;
 export const weaponViewReg = new Registry<WeaponView>('отрисовка оружия');
+
+/* eslint-disable @typescript-eslint/no-explicit-any -- сущности инструментов: мешок полей ядра */
+type Q = Record<string, any>;
+/* eslint-enable @typescript-eslint/no-explicit-any */
+/** отрисовка инструмента: значок под катушкой нити, сущности (по виду q.kind), эффекты (по имени f в w.tfx), общий слой мира */
+export interface ToolView {
+  id: string;
+  /** значок 26×26 вокруг (cx, cy) цветом col (линия и заливка уже выставлены этим цветом) */
+  icon?: (g: G, cx: number, cy: number, col: number) => void;
+  /** сущность в w.tl: x, y — центр */
+  ents?: Record<string, (fx: G, q: Q, now: number, x: number, y: number) => void>;
+  /** кратковременный эффект из w.tfx: k — 1 → 0 */
+  fx?: Record<string, (fx: G, f: Q, k: number, w: World) => void>;
+  /** слой поверх мира (например, нить крюка от героя к точке зацепа) */
+  world?: (fx: G, w: World, now: number) => void;
+}
+export const defineToolView = (v: ToolView): ToolView => v;
+export const toolViewReg = new Registry<ToolView>('отрисовка инструментов');
+export const toolEntView = new Map<string, NonNullable<ToolView['ents']>[string]>();
+export const tfxView = new Map<string, NonNullable<ToolView['fx']>[string]>();
+toolViewReg.onDefine((v) => { for (const [k, f] of Object.entries(v.ents ?? {})) toolEntView.set(k, f); for (const [k, f] of Object.entries(v.fx ?? {})) tfxView.set(k, f); });

@@ -1,5 +1,6 @@
 // Подключаемое содержимое (src/content, src/view/content): автообнаружение, порядок и полнота описаний.
 import { describe, expect, it } from 'vitest';
+import '../../src/content';
 import { WEAPONS, weaponReg } from '../../src/core/weapons';
 import { Registry } from '../../src/core/plugin/registry';
 import '../../src/view/content';
@@ -23,5 +24,22 @@ describe('оружие', () => {
   });
   it('у каждого оружия есть отрисовка и высота тона заряда', () => {
     for (const id of weaponReg.ids()) { const v = weaponViewReg.get(id); expect(v, id).toBeTruthy(); expect(v!.chargePitch, id).toBeGreaterThan(0); }
+  });
+});
+
+describe('инструменты и навыки нити', () => {
+  it('найдены сами, порядок прежний; сущности со своими кодами на проводе', async () => {
+    const { TOOLS } = await import('../../src/core/tools');
+    const { toolEntReg, netKindReg } = await import('../../src/core/plugin/regs');
+    await import('../../src/core/netplay');
+    expect(Object.keys(TOOLS)).toEqual(['throwneedle', 'trap', 'threadbomb', 'spirit', 'dive', 'wraith', 'hook']);
+    expect(toolEntReg.ids().map((k) => netKindReg.get(k)!.netId).sort((a, b) => a - b)).toEqual([8, 9, 10, 11, 12]);
+    expect(netKindReg.byNetId(3)!.id).toBe('bomb');
+  });
+  it('у каждого инструмента есть значок, у каждой сущности — отрисовка', async () => {
+    const { toolReg, toolEntReg } = await import('../../src/core/plugin/regs');
+    const { toolViewReg, toolEntView } = await import('../../src/view/content/regs');
+    for (const id of toolReg.ids()) expect(toolViewReg.get(id)?.icon, id).toBeTruthy();
+    for (const k of toolEntReg.ids()) expect(toolEntView.get(k), k).toBeTruthy();
   });
 });

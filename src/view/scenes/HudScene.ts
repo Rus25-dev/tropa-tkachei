@@ -7,6 +7,8 @@ import { sceneOn } from '../../core/boss/exec';
 import type { World } from '../../core/world';
 import { INK, MASK, type G } from '../draw/common';
 import { TOOLS } from '../../core/loadout';
+import '../content';
+import { toolViewReg } from '../content/regs';
 import { currentFit, fitCamera, type Fit } from '../fit';
 import { ABILS } from '../../core/kit/abilities';
 import { kitHud } from '../../core/kit/moves';
@@ -192,14 +194,7 @@ export class HudScene extends Phaser.Scene {
     g.fillStyle(0x0b1714, 0.85); g.fillCircle(cx, cy, R + 2);
     const col = frac > 0 ? 0x6f8f83 : can ? 0xf4efe0 : 0x8a4a42;
     g.lineStyle(2, col, 1); g.fillStyle(col, 1);
-    if (toolId === 'throwneedle') { g.lineBetween(cx - 7, cy + 7, cx + 7, cy - 7); g.fillTriangle(cx + 8, cy - 8, cx + 3, cy - 6, cx + 6, cy - 3); g.lineStyle(1, col, 0.6); g.lineBetween(cx - 7, cy + 7, cx - 11, cy + 11); }
-    else if (toolId === 'trap') { g.fillRect(cx - 8, cy + 3, 16, 3); for (let k = 0; k < 4; k++) g.fillTriangle(cx - 8 + k * 4, cy + 3, cx - 4 + k * 4, cy + 3, cx - 6 + k * 4, cy - 5); }
-    else if (toolId === 'threadbomb') { g.strokeCircle(cx, cy + 2, 6); g.lineBetween(cx + 3, cy - 3, cx + 6, cy - 8); g.fillCircle(cx + 7, cy - 9, 1.6); }
-    else if (toolId === 'hook') { g.beginPath(); g.moveTo(cx - 8, cy + 8); g.lineTo(cx - 1, cy - 4); g.strokePath(); g.beginPath(); g.arc(cx + 3, cy - 5, 5, Math.PI * 0.9, Math.PI * 2.2, false); g.strokePath(); }
-    else if (toolId === 'spirit') { g.fillCircle(cx + 3, cy, 4); g.lineStyle(2, col, 0.7); g.lineBetween(cx - 8, cy - 3, cx - 2, cy - 1); g.lineBetween(cx - 8, cy + 3, cx - 2, cy + 1); }
-    else if (toolId === 'dive') { g.lineBetween(cx, cy - 8, cx, cy + 3); g.fillTriangle(cx - 6, cy + 1, cx + 6, cy + 1, cx, cy + 9); }
-    else if (toolId === 'wraith') { g.lineBetween(cx, cy + 8, cx, cy - 7); g.lineStyle(1.5, col, 0.8); g.lineBetween(cx - 5, cy + 7, cx - 3, cy - 4); g.lineBetween(cx + 5, cy + 7, cx + 3, cy - 4); g.fillTriangle(cx - 4, cy - 5, cx + 4, cy - 5, cx, cy - 10); }
-    else g.fillCircle(cx, cy, 4);
+    const v = toolViewReg.get(toolId); if (v?.icon) v.icon(g, cx, cy, col); else g.fillCircle(cx, cy, 4);
     // перезарядка: тёмный сектор убывает по часовой, снаружи — дуга готовности
     if (frac > 0) {
       g.fillStyle(0x000000, 0.62); g.beginPath(); g.moveTo(cx, cy); g.arc(cx, cy, R, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac, false); g.closePath(); g.fillPath();
