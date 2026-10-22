@@ -10,7 +10,7 @@ import type { Enemy, Player, Proj } from './types';
 import { applyUp, buy, freshUp, go as campaignGo } from './campaign';
 import { knockFrom, deathFxLocal, bossOf, execBoss } from './bosses2';
 import { parryPoise, silkBurstHit, respawnLocal } from './combat';
-import { e2Parry, E2_STATES } from './enemies';
+import { e2Parry, e2States } from './enemies';
 import { hurtPlayer } from './damage';
 import { statusMask } from './status';
 import { freezeEnemy, isToolKind, toolHurtBoss, toolSpawn, type ToolMsg } from './tools';
@@ -64,11 +64,11 @@ export function applyPlayer(w: World, m: NetMsg): void {
 // ---------- упаковка: враги ----------
 const packEnemy2 = (e: Enemy): unknown => {
   if (!e['e2']) return 0;
-  return [Math.max(0, E2_STATES[e.type]!.indexOf(e['state'])), r100(Math.max(0, e['st'])), e['armorT'] > 0 ? 1 : 0, e['blockT'] > 0 ? 1 : 0];
+  return [Math.max(0, e2States(e.type).indexOf(e['state'])), r100(Math.max(0, e['st'])), e['armorT'] > 0 ? 1 : 0, e['blockT'] > 0 ? 1 : 0];
 };
 const applyEnemy2 = (e: Enemy, a: number[]): void => {
   if (!e['e2'] || !a) return;
-  const L = E2_STATES[e.type]!; e['state'] = L[a[0]!] || L[0]!; e['st'] = a[1]; e['armorT'] = a[2] ? 1 : 0; if (a[3]) e['blockT'] = 0.15;
+  const L = e2States(e.type); e['state'] = L[a[0]!] || L[0]!; e['st'] = a[1]; e['armorT'] = a[2] ? 1 : 0; if (a[3]) e['blockT'] = 0.15;
 };
 /** снимок мира для гостя: 20 раз в секунду */
 export function packSnap(w: World): NetMsg {

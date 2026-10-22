@@ -3,6 +3,7 @@
 import type { BossRef } from '../../core/balance';
 import { PLAT, SOLID, T, TOOL } from '../../core/balance';
 import { bossRefs } from '../../core/bosses2';
+import { enemyDef } from '../../core/enemies';
 import { defineTool, toolAim } from '../../core/tool-kit';
 import { freezeEnemy, liveBoss, tfxAdd, toolHurtBoss } from '../../core/tools';
 import type { Boss, Enemy, Player } from '../../core/types';
@@ -27,7 +28,7 @@ function hookCast(sc: World, p: Player, a: { dx: number; dy: number; f: number }
     sc.snd('clink');
     pull = hit.plat ? { x: hit.x, y: hit.ty * T - 14 } : { x: hit.x - a.dx * 16, y: hit.y - a.dy * 16 };
   } else if (hit && hit.k === 'enemy') {
-    const e = hit.e, small = e.hp <= 3 && e.type !== 'shell' && e.type !== 'beetle';
+    const e = hit.e, small = e.hp <= 3 && !enemyDef(e)?.heavy;
     sc.snd('clink');
     if (sc.auth()) freezeEnemy(sc, e, small ? TOOL.HOOK_STUN : 0.2); else sc.sendEv({ k: 'thook', i: p.i, t: 'e', idx: sc.enemies.indexOf(e), s: small ? 1 : 0 });
     if (small) { const ecx = e.x + e.w / 2, ecy = e.y + e.h / 2, k = e.w / 2 + 14; pull = { x: ecx - a.dx * k, y: ecy - a.dy * k }; }

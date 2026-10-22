@@ -6,7 +6,7 @@ import type { World } from './world';
 import { inset, overlap } from './world';
 import { atkBox, wdef, type WeaponDef } from './weapons';
 import { damageBoss, damageEnemy, hurtPlayer } from './damage';
-import { e2Blocked, spawnEnemies, e2Parry } from './enemies';
+import { e2Blocked, enemyHitReact, spawnEnemies, e2Parry } from './enemies';
 import { resetFight } from './boss/exec';
 import { bossRefs } from './bosses2';
 import { campaignSave, campaignSaveName } from './campaign';
@@ -67,8 +67,7 @@ export function damageEnemyBase(sc: World, e: Enemy, p: Player): void {
   e.hp -= 1 + sc.up.dmg; e.flash = 0.1; gainSilkLayered(sc, p, false); if (!p.remote) sc.hitstop = 0.045; sc.sfx('hit');
   sc.burst(8, e.x + e.w / 2, e.y + e.h / 2, 0xf4f1e6);
   const dx = p.atkDir === 'f' ? p.face : Math.sign(e.x + e.w / 2 - (p.x + 7)) || 1;
-  e.kbT = 0.14; e.kbx = dx * (e.type === 'beetle' ? 120 : 220); e.kby = p.atkDir === 'u' ? -220 : p.atkDir === 'd' ? 160 : -60;
-  if (e.type === 'beetle' && e['state'] === 'charge') { e['state'] = 'stun'; e['st'] = 0.6; }
+  e.kbT = 0.14; e.kby = p.atkDir === 'u' ? -220 : p.atkDir === 'd' ? 160 : -60; enemyHitReact(e, dx, false);
   if (e.hp <= 0) killEnemy(sc, e);
 }
 // (gainSilk вызывается из слоёв: см. damage.ts; здесь — через динамический вход, чтобы не плодить циклы)

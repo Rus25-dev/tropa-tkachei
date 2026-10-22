@@ -44,7 +44,6 @@ export const E2_UNDER = ['hidden', 'track', 'warn', 'dig']; // в этих со�
 
 // ----- инструменты (tools.js) -----
 export const TOOL = J.TOOL;
-export const FLY_TYPES = new Set(['gnat', 'bat', 'lurker']);
 
 // ----- оружие (weapons.js) -----
 /** сколько держать удар до заряженного */

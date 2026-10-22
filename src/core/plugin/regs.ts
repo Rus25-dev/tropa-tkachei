@@ -4,6 +4,7 @@ import type { WeaponDef } from '../weapon-kit';
 import type { ToolDef, ToolEntDef, ToolMsg } from '../tool-kit';
 import type { CharmDef } from '../charm-kit';
 import type { AbilityDef } from '../ability-kit';
+import type { EnemyDef } from '../enemy-kit';
 import type { World } from '../world';
 import { Registry } from './registry';
 
@@ -42,3 +43,8 @@ export const moveReg = new Registry<AbilityDef>('приёмы (обработч�
 /** открываемые приёмы набора игрока (снаряжение, HUD, сохранение) */
 export const abilReg = new Registry<AbilityDef>('приёмы');
 moveReg.onDefine((d) => { if (d.listed !== false && !abilReg.has(d.id)) abilReg.define(d); });
+
+/** враги по виду (e.type) */
+export const enemyReg = new Registry<EnemyDef>('враги', (d) => {
+  if (d.e2 && !d.states?.length) throw new Error(`враг «${d.id}»: у «врага 2» нужен список states (уходит в снимок гостю)`);
+});

@@ -1,11 +1,11 @@
 // Инструменты: метательная игла, капкан, нитяная бомба, нитяной крюк (legacy/src/tools.js).
 // Снаряды-инструменты живут в w.tl (не в projs: иначе их сбивали бы отбив/всполох и они ранили бы героев).
-import { FLY_TYPES, P, TOOL } from './balance';
+import { P, TOOL } from './balance';
 import type { BossRef } from './balance';
 import { bossOf, bossRefs } from './bosses2';
 import type { Boss, Enemy, Player } from './types';
 import type { World } from './world';
-import { e2Blocked } from './enemies';
+import { e2Blocked, enemyFlies, enemyHitReact } from './enemies';
 import { killEnemy } from './combat';
 import { damageBoss } from './damage';
 
@@ -43,8 +43,7 @@ export function toolHurtEnemy(sc: World, e: Enemy, n: number, kdir: number, pier
   if (blocked) return false;
   e.hp -= n; e.flash = 0.1; sc.sfx('hit');
   sc.burst(8, e.x + e.w / 2, e.y + e.h / 2, 0xf4f1e6);
-  e.kbT = 0.2; e.kbx = kdir * (e.type === 'beetle' ? 140 : 280); e.kby = -150;
-  if (e.type === 'beetle' && e['state'] === 'charge') { e['state'] = 'stun'; e['st'] = 0.6; }
+  e.kbT = 0.2; e.kby = -150; enemyHitReact(e, kdir, true);
   if (e.hp <= 0) killEnemy(sc, e);
   return true;
 }
@@ -119,6 +118,6 @@ export function hookStep(sc: World, p: Player, dt: number, inner: (sc: World, p:
 export function stepFrozen(sc: World, e: Enemy, dt: number): boolean {
   if (!((e['frozenT'] as number) > 0)) return false;
   (e['frozenT'] as number) -= dt; e.flash -= dt; e.kbT = 0; e.vx = 0;
-  if (FLY_TYPES.has(e.type)) e.vy = 0; else { e.vy = Math.min(e.vy + P.G * dt, P.MAXFALL); sc.moveBody(e, dt); }
+  if (enemyFlies(e)) e.vy = 0; else { e.vy = Math.min(e.vy + P.G * dt, P.MAXFALL); sc.moveBody(e, dt); }
   return true;
 }

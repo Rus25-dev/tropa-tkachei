@@ -70,3 +70,13 @@ describe('приёмы', () => {
     for (const c of moveReg.list().flatMap((m) => m.codes ?? [])) expect(kitFxView.get(c), String(c)).toBeTruthy();
   });
 });
+
+describe('враги', () => {
+  it('все виды из уровней найдены, у «врагов 2» есть состояния для сети, у каждого вида — отрисовка', async () => {
+    const { enemyReg } = await import('../../src/core/plugin/regs');
+    const { enemyViewReg } = await import('../../src/view/content/regs');
+    expect(enemyReg.ids()).toEqual(['crawler', 'gnat', 'beetle', 'spitter', 'shell', 'bat', 'lurker']);
+    expect(enemyReg.list().map((d) => d.levelType ?? d.id)).toEqual(['crawler', 'gnat', 'beetle', 'spitter', 'shell', 'bats', 'lurker']);
+    for (const d of enemyReg.list()) { if (d.e2) expect(d.states?.length, d.id).toBeGreaterThan(0); expect(enemyViewReg.get(d.id), d.id).toBeTruthy(); }
+  });
+});

@@ -1,6 +1,7 @@
 // Капкан: ставится у ног, замораживает наступившего врага; босс копит стойку.
 import { TOOL } from '../../core/balance';
 import { poiseAdd } from '../../core/bosses2';
+import { enemyDef } from '../../core/enemies';
 import { defineTool, type Q } from '../../core/tool-kit';
 import { freezeEnemy, liveBoss, tfxAdd } from '../../core/tools';
 import type { World } from '../../core/world';
@@ -32,7 +33,7 @@ export default defineTool({
       const cx = q['x'] + q['w'] / 2, cy = q['y'] + q['h'] / 2;
       let near = false;
       for (const e of sc.enemies) {
-        if (e.dead || e.type === 'lurker') continue;
+        if (e.dead || enemyDef(e)?.trapImmune) continue;
         if (Math.abs(e.x + e.w / 2 - cx) < 200 && Math.abs(e.y + e.h / 2 - cy) < 100) near = true;
         if (overlap(q as never, { x: e.x + 2, y: e.y + 2, w: e.w - 4, h: e.h - 2 }) && !((e['frozenT'] as number) > 0)) {
           freezeEnemy(sc, e, TOOL.TRAP_FREEZE); return trapSnap(sc, q);

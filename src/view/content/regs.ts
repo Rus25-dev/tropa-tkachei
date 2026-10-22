@@ -1,7 +1,7 @@
 // Реестры отрисовки и звука содержимого (вид): по файлу на вещь в src/view/content/<вид>/<id>.ts, файлы находит index.ts.
 // Лист без зависимостей, кроме типов: отрисовка импортирует реестры отсюда без циклов.
 import { Registry } from '../../core/plugin/registry';
-import type { Player, Rect } from '../../core/types';
+import type { Enemy, Player, Rect } from '../../core/types';
 import type { Swing } from '../../core/weapon-kit';
 import type { World } from '../../core/world';
 import type { G } from '../draw/common';
@@ -76,3 +76,8 @@ export const abilityViewReg = new Registry<AbilityView>('отрисовка пр
 export const kitFxView = new Map<number, NonNullable<AbilityView['fx']>[number]>();
 export const trailView = new Map<number, NonNullable<AbilityView['trails']>[number]>();
 abilityViewReg.onDefine((v) => { for (const [k, f] of Object.entries(v.fx ?? {})) kitFxView.set(+k, f); for (const [k, t] of Object.entries(v.trails ?? {})) trailView.set(+k, t); });
+
+/** отрисовка врага по виду (e.type); g уже очищен */
+export interface EnemyView { id: string; draw: (g: G, e: Enemy, now: number) => void }
+export const defineEnemyView = (v: EnemyView): EnemyView => v;
+export const enemyViewReg = new Registry<EnemyView>('отрисовка врагов');
