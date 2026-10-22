@@ -41,7 +41,9 @@ function ready(sc: World, i: number): boolean {
 }
 function order(sc: World, i: number, chain: string): boolean {
   const b = sc.bosses[i]; if (!b) return false;
-  if (!bossDef(dstate(b).id)!.chains.some((c) => c.id === chain)) return false;
+  const c = bossDef(dstate(b).id)!.chains.find((x) => x.id === chain);
+  if (!c) return false;
+  if (c.requires?.phase && !c.requires.phase.includes(b.phase || 1)) return false; // приказ уважает requires.phase: так в ранних фазах часть бойцов молчит
   return ready(sc, i) && forceChain(sc, i, chain);
 }
 
