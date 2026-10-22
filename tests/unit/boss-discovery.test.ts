@@ -1,7 +1,7 @@
 // Волна 0, автообнаружение: босс = один файл data/bosses/<id>.json; карточки Босс-теста, списки гонок и дуэли строятся из реестра.
 // Проверяется и путь Vite/Vitest (import.meta.glob), и путь Node-инструментов (tsx читает папки).
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -12,7 +12,10 @@ import { base, type Raw } from '../fixtures/bosses';
 
 const tmp: string[] = [];
 afterAll(() => { for (const d of tmp) rmSync(d, { recursive: true, force: true }); });
-const ids = (xs: { id: string }[]): string[] => xs.map((x) => x.id);
+// настоящие боссы из data/bosses (кроме манекена) тест не интересуют: добавление босса не должно ломать списки-образцы ниже
+const REAL = new Set(readdirSync(join(process.cwd(), 'data/bosses')).filter((f) => f.endsWith('.json') && f !== 'rules.json' && f !== 'dummy.json').map((f) => f.replace(/\.json$/, '')));
+const notReal = (a: string[]): string[] => a.filter((x) => !REAL.has(x));
+const ids = (xs: { id: string }[]): string[] => notReal(xs.map((x) => x.id));
 
 describe('реестр боссов находит файлы сам', () => {
   it('Vitest (Vite): манекен из data/bosses/dummy.json найден без регистрации; rules.json боссом не считается', () => {
@@ -23,8 +26,8 @@ describe('реестр боссов находит файлы сам', () => {
     const code = "import('./src/core/boss/catalog.ts').then((m) => { console.log(JSON.stringify({ dev: m.testCards(true).map((c) => c.id), off: m.testCards(false).map((c) => c.id), race: m.raceBossIds() })); });";
     const out = execFileSync('npx', ['tsx', '--import', './tools/ldtk-register.mjs', '-e', code], { encoding: 'utf8', cwd: process.cwd(), timeout: 60_000 });
     const r = JSON.parse(out.trim().split('\n').pop()!) as { dev: string[]; off: string[]; race: string[] };
-    expect(r.dev).toEqual(['misha', 'vladik', 'tima', 'dummy']); expect(r.off).toEqual(['misha', 'vladik', 'tima']);
-    expect(r.race).toEqual(['korne', 'misha', 'vladik', 'tima']);
+    expect(notReal(r.dev)).toEqual(['misha', 'vladik', 'tima', 'dummy']); expect(notReal(r.off)).toEqual(['misha', 'vladik', 'tima']);
+    expect(notReal(r.race)).toEqual(['korne', 'misha', 'vladik', 'tima']);
   }, 90_000);
 
   it('чтение папки: боссы по именам файлов, rules.json пропускается, чужие файлы не мешают', () => {
@@ -67,11 +70,11 @@ describe('карточки и списки строятся из реестра'
     expect(ids(testCards(false))).toEqual(['misha', 'vladik', 'tima', 'cat_a', 'cat_b']);
     expect(ids(testCards(true))).toEqual(['misha', 'vladik', 'tima', 'cat_a', 'cat_b', 'cat_dev', 'dummy']);
     const b = cardOf(bossDef('cat_b')!); expect(b).toMatchObject({ name: 'Бэ', landmark: 'Ориентир Бэ', arena: 'tima', arenaName: 'Берлога Тимы', data: true });
-    expect(listedDefs(false).map((d) => d.id)).toEqual(['cat_a', 'cat_b']);
-    expect(raceBossIds()).toEqual(['korne', 'misha', 'vladik', 'tima', 'cat_a', 'cat_b']);
-    expect(duelBossIds()).toEqual(['korne', 'misha', 'vladik', 'tima']); // duel по умолчанию выключен
+    expect(notReal(listedDefs(false).map((d) => d.id))).toEqual(['cat_a', 'cat_b']);
+    expect(notReal(raceBossIds())).toEqual(['korne', 'misha', 'vladik', 'tima', 'cat_a', 'cat_b']);
+    expect(notReal(duelBossIds())).toEqual(['korne', 'misha', 'vladik', 'tima']); // duel по умолчанию выключен
     reg({ id: 'cat_duel', name: 'Дуэльный', duel: true });
-    expect(duelBossIds()).toEqual(['korne', 'misha', 'vladik', 'tima', 'cat_duel']);
+    expect(notReal(duelBossIds())).toEqual(['korne', 'misha', 'vladik', 'tima', 'cat_duel']);
   });
 
   it('арена с сущностями (раздел arena = { level, ents }) даёт ту же карточку', () => {
