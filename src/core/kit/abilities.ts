@@ -10,13 +10,13 @@ export type KitId = 'shadow' | 'flash' | 'crystal' | 'counter';
 export interface AbilDef { id: KitId; name: string; desc: string; unlock: string; col: number }
 
 export const ABILS: Record<KitId, AbilDef> = {
-  shadow: { id: 'shadow', name: 'Теневой рывок', col: 0x8a7ad8, unlock: 'locked',
+  shadow: { id: 'shadow', name: 'Теневой рывок', col: 0x8a7ad8, unlock: 'boss:vessel',
     desc: 'Рывок становится теневым: на время рывка вы неуязвимы к касаниям и ударам, которые можно отбить или от которых можно увернуться (фиолетовые не пройти). Перезарядка дольше обычной, 1,1 с. Заменяет обычный рывок.' },
-  flash: { id: 'flash', name: 'Воздушная вспышка', col: 0x7fd8ff, unlock: 'locked',
+  flash: { id: 'flash', name: 'Воздушная вспышка', col: 0x7fd8ff, unlock: 'boss:raven',
     desc: 'В воздухе нажмите рывок со стрелкой (в том числе вверх или вниз): короткий рывок на 100 px в одну из 8 сторон, в начале миг неуязвимости. Один раз до приземления, хвата за уступ или стены. Если воздушный рывок уже потрачен, вспышка срабатывает и без стрелок.' },
-  crystal: { id: 'crystal', name: 'Кристальный рывок', col: 0xff8ae0, unlock: 'locked',
+  crystal: { id: 'crystal', name: 'Кристальный рывок', col: 0xff8ae0, unlock: 'boss:radiant',
     desc: 'На земле удерживайте рывок около полсекунды: герой замедляется, вокруг искры. Отпустите: суперрывок вперёд до стены или края (около 1100 px/с), в начале неуязвимость. Прыжок, удар или урон отменяют заряд.' },
-  counter: { id: 'counter', name: 'Контрудар', col: 0xbfe9ff, unlock: 'locked',
+  counter: { id: 'counter', name: 'Контрудар', col: 0xbfe9ff, unlock: 'boss:keeper',
     desc: 'Ударьте вплотную к боссу в последние 0,15 с его жёлтого или красного замаха: удар сорвёт атаку, босс оглушён, а ваш удар станет усиленной контратакой. Фиолетовые и белые замахи не берутся. Откат 1,5 с.' },
 };
 export const KIT_IDS = Object.keys(ABILS) as KitId[];
