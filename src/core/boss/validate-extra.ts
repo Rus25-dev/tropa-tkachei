@@ -239,7 +239,8 @@ function safeSpot(name: string, list: { off: number; e: ArenaEnt }[], arena: Are
 }
 
 // ---------- дирижёр ----------
-function conductor(def: BossDef, rules: Rules, add: Add, resolve: (id: string) => BossDef | undefined): void {
+function conductor(def: BossDef, rules: Rules, add0: Add, resolve: (id: string) => BossDef | undefined): void {
+  let add: Add = add0;
   const cd = def.conductor; if (!cd) return;
   const F = rules.fairness, RC = rules.conductor;
   const defs: (BossDef | undefined)[] = [def, ...cd.members.map((m) => resolve(m.boss))];
@@ -248,59 +249,66 @@ function conductor(def: BossDef, rules: Rules, add: Add, resolve: (id: string) =
   const ds = defs as BossDef[];
   if (cd.pool && new Set(ds.map((d) => d.hp.join('/'))).size > 1) add('warn', 'cond-pool-hp', 'общий пул здоровья берётся у ведущего; hp участников в их файлах игнорируется', {});
   if (!cd.schedule.length && !cd.relay.length) add('warn', 'cond-idle', 'дирижёр без расписания и эстафеты: участники с policy: conductor будут стоять', {});
-  const beatF = cd.beat, cycleF = cd.beat * cd.cycle;
-  interface Danger1 { boss: number; a: number; b: number }
-  const hits: HitEvent[] = [], dang: Danger1[] = [], punish: { boss: number; a: number; b: number }[] = [];
-  const busyUntil: number[] = ds.map(() => -1);
-  const place = (boss: number, chainId: string, t0: number, via: string, depth: number): void => {
-    const d = ds[boss]!, c = d.chains.find((x) => x.id === chainId);
-    if (!c) { add('error', 'cond-chain', `дирижёр: у босса «${d.id}» нет связки «${chainId}» (${via})`, { chain: chainId }); return; }
-    if (t0 < busyUntil[boss]! && depth === 0) add('warn', 'cond-overlap', `дирижёр: босс «${d.id}» получает связку «${chainId}» на кадре ${t0}, когда ещё занят (до ${busyUntil[boss]}) — приказ будет пропущен`, { chain: chainId, frame: t0 });
-    let t = t0;
-    c.steps.forEach((st, i) => {
-      const a = d.attacks.find((x) => x.id === st.attack); if (!a) return;
-      const sp = stepSpan(a, c, i);
-      dang.push({ boss, a: t, b: t + sp.tell + sp.end + 1 });
-      for (const e of attackEvents(a)) hits.push({ ...e, t: t + e.t, what: `${d.id}: ${e.what}` });
-      if (i === c.steps.length - 1) { const pw = a.recovery.punishWindow; punish.push({ boss, a: t + sp.tell + sp.end + 1 + pw.from, b: t + sp.tell + sp.end + 1 + pw.to }); }
-      t += sp.total;
-    });
-    busyUntil[boss] = Math.max(busyUntil[boss]!, t);
-    if (depth < 3) for (const r of cd.relay) if (r.from === boss && r.chain === chainId) place(r.to, r.next, t + Math.max(1, r.after), `эстафета ${r.from} → ${r.to}`, depth + 1);
-  };
-  for (let rep = 0; rep < 2; rep++) for (const e of cd.schedule) {
-    const t0 = rep * cycleF + e.beat * beatF;
-    for (const i of e.boss === 'all' ? ds.map((_, k) => k) : [e.boss]) if (ds[i]) place(i, e.chain, t0, `такт ${e.beat}`, 0);
-  }
-  if (!hits.length) return;
-  hits.sort((a, b) => a.t - b.t);
-  // поток урона по всем боссам вместе
-  if (F) {
-    const limit = F.maxDamage3s[0]!, b = bestInWindow(hits, fr(3), fr(P.INV));
-    if (b.dmg > limit) add('error', 'cond-flux', `дирижёр: за 3 секунды можно получить до ${b.dmg} урона от всех боссов вместе (с кадра ${b.from}); предел ${limit}`, { frame: b.from });
-    const ub = hits.filter((h) => h.kind === 'unblockable');
-    for (let i = 1; i < ub.length; i++) if (ub[i]!.t - ub[i - 1]!.t < F.minGapAfterUnblockable) add('error', 'cond-unblock', `дирижёр: два неотбиваемых удара разных боссов с промежутком ${ub[i]!.t - ub[i - 1]!.t} кадров (кадры ${ub[i - 1]!.t} и ${ub[i]!.t}), нужно не меньше ${F.minGapAfterUnblockable}`, { frame: ub[i]!.t });
-  }
-  // безопасные окна считаются по всем: пока бьёт один, другой не должен стоять у героя за спиной
-  const merged: [number, number][] = [];
-  for (const d of dang.slice().sort((a, b) => a.a - b.a)) { const l = merged[merged.length - 1]; if (l && d.a <= l[1]) l[1] = Math.max(l[1], d.b); else merged.push([d.a, d.b]); }
-  let widest = 0, at = 0;
-  for (let i = 0; i < merged.length; i++) {
-    const nextStart = i + 1 < merged.length ? merged[i + 1]![0] : merged[0]![0] + cycleF;
-    if (nextStart - merged[i]![1] > widest) { widest = nextStart - merged[i]![1]; at = merged[i]![1]; }
-  }
-  const need = Math.max(F?.minChainPunishFrames ?? 0, RC?.minSafeGapFrames ?? 0);
-  if (widest < need) add('error', 'cond-no-window', `дирижёр: самое долгое окно без атак любого из боссов ${Math.round(widest)} кадров (после кадра ${at}), нужно не меньше ${need} — герою негде перевести дух и ударить`, { frame: at });
-  // окна наказания каждого босса, не перекрытые чужими атаками
-  const minPun = rules.minPunishFrames;
-  for (const p of punish) {
-    let free = p.b - p.a + 1;
-    const others = dang.filter((d) => d.boss !== p.boss && d.b > p.a && d.a < p.b);
-    if (others.length) {
-      const cover = new Set<number>();
-      for (const o of others) for (let t = Math.max(p.a, o.a); t <= Math.min(p.b, o.b); t++) cover.add(t);
-      free -= cover.size;
+  // связки с requires.phase (приказ в чужой фазе молчит): каждая фаза проверяется как отдельное расписание; без них — одно общее
+  const gated = ds.some((d) => d.chains.some((c) => c.requires?.phase));
+  const run = (ph: number): void => {
+    add = ph ? (l, c, m, w) => add0(l, c, `фаза ${ph}: ${m}`, w) : add0;
+    const beatF = cd.beat, cycleF = cd.beat * cd.cycle;
+    interface Danger1 { boss: number; a: number; b: number }
+    const hits: HitEvent[] = [], dang: Danger1[] = [], punish: { boss: number; a: number; b: number }[] = [];
+    const busyUntil: number[] = ds.map(() => -1);
+    const place = (boss: number, chainId: string, t0: number, via: string, depth: number): void => {
+      const d = ds[boss]!, c = d.chains.find((x) => x.id === chainId);
+      if (!c) { add('error', 'cond-chain', `дирижёр: у босса «${d.id}» нет связки «${chainId}» (${via})`, { chain: chainId }); return; }
+      if (ph && c.requires?.phase && !c.requires.phase.includes(ph)) return; // в этой фазе приказ молчит
+      if (t0 < busyUntil[boss]! && depth === 0) add('warn', 'cond-overlap', `дирижёр: босс «${d.id}» получает связку «${chainId}» на кадре ${t0}, когда ещё занят (до ${busyUntil[boss]}) — приказ будет пропущен`, { chain: chainId, frame: t0 });
+      let t = t0;
+      c.steps.forEach((st, i) => {
+        const a = d.attacks.find((x) => x.id === st.attack); if (!a) return;
+        const sp = stepSpan(a, c, i);
+        dang.push({ boss, a: t, b: t + sp.tell + sp.end + 1 });
+        for (const e of attackEvents(a)) hits.push({ ...e, t: t + e.t, what: `${d.id}: ${e.what}` });
+        if (i === c.steps.length - 1) { const pw = a.recovery.punishWindow; punish.push({ boss, a: t + sp.tell + sp.end + 1 + pw.from, b: t + sp.tell + sp.end + 1 + pw.to }); }
+        t += sp.total;
+      });
+      busyUntil[boss] = Math.max(busyUntil[boss]!, t);
+      if (depth < 3) for (const r of cd.relay) if (r.from === boss && r.chain === chainId) place(r.to, r.next, t + Math.max(1, r.after), `эстафета ${r.from} → ${r.to}`, depth + 1);
+    };
+    for (let rep = 0; rep < 2; rep++) for (const e of cd.schedule) {
+      const t0 = rep * cycleF + e.beat * beatF;
+      for (const i of e.boss === 'all' ? ds.map((_, k) => k) : [e.boss]) if (ds[i]) place(i, e.chain, t0, `такт ${e.beat}`, 0);
     }
-    if (free < minPun) add('warn', 'cond-punish-covered', `дирижёр: окно наказания босса «${ds[p.boss]!.id}» (кадры ${p.a}–${p.b}) почти целиком перекрыто атаками другого босса: свободно ${Math.max(0, free)} кадров из ${minPun} нужных`, { frame: p.a });
-  }
+    if (!hits.length) return;
+    hits.sort((a, b) => a.t - b.t);
+    // поток урона по всем боссам вместе
+    if (F) {
+      const limit = F.maxDamage3s[0]!, b = bestInWindow(hits, fr(3), fr(P.INV));
+      if (b.dmg > limit) add('error', 'cond-flux', `дирижёр: за 3 секунды можно получить до ${b.dmg} урона от всех боссов вместе (с кадра ${b.from}); предел ${limit}`, { frame: b.from });
+      const ub = hits.filter((h) => h.kind === 'unblockable');
+      for (let i = 1; i < ub.length; i++) if (ub[i]!.t - ub[i - 1]!.t < F.minGapAfterUnblockable) add('error', 'cond-unblock', `дирижёр: два неотбиваемых удара разных боссов с промежутком ${ub[i]!.t - ub[i - 1]!.t} кадров (кадры ${ub[i - 1]!.t} и ${ub[i]!.t}), нужно не меньше ${F.minGapAfterUnblockable}`, { frame: ub[i]!.t });
+    }
+    // безопасные окна считаются по всем: пока бьёт один, другой не должен стоять у героя за спиной
+    const merged: [number, number][] = [];
+    for (const d of dang.slice().sort((a, b) => a.a - b.a)) { const l = merged[merged.length - 1]; if (l && d.a <= l[1]) l[1] = Math.max(l[1], d.b); else merged.push([d.a, d.b]); }
+    let widest = 0, at = 0;
+    for (let i = 0; i < merged.length; i++) {
+      const nextStart = i + 1 < merged.length ? merged[i + 1]![0] : merged[0]![0] + cycleF;
+      if (nextStart - merged[i]![1] > widest) { widest = nextStart - merged[i]![1]; at = merged[i]![1]; }
+    }
+    const need = Math.max(F?.minChainPunishFrames ?? 0, RC?.minSafeGapFrames ?? 0);
+    if (widest < need) add('error', 'cond-no-window', `дирижёр: самое долгое окно без атак любого из боссов ${Math.round(widest)} кадров (после кадра ${at}), нужно не меньше ${need} — герою негде перевести дух и ударить`, { frame: at });
+    // окна наказания каждого босса, не перекрытые чужими атаками
+    const minPun = rules.minPunishFrames;
+    for (const p of punish) {
+      let free = p.b - p.a + 1;
+      const others = dang.filter((d) => d.boss !== p.boss && d.b > p.a && d.a < p.b);
+      if (others.length) {
+        const cover = new Set<number>();
+        for (const o of others) for (let t = Math.max(p.a, o.a); t <= Math.min(p.b, o.b); t++) cover.add(t);
+        free -= cover.size;
+      }
+      if (free < minPun) add('warn', 'cond-punish-covered', `дирижёр: окно наказания босса «${ds[p.boss]!.id}» (кадры ${p.a}–${p.b}) почти целиком перекрыто атаками другого босса: свободно ${Math.max(0, free)} кадров из ${minPun} нужных`, { frame: p.a });
+    }
+  };
+  if (gated) for (let ph = 1; ph <= Math.max(...ds.map((d) => d.phases.length)); ph++) run(ph); else run(0);
 }

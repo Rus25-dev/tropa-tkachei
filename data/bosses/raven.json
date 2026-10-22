@@ -1,0 +1,226 @@
+{
+  "id": "raven",
+  "name": "Ворон-тиран",
+  "about": "Финал в три действия: на земле Ворон бьёт когтями и рывками (жёлтое отбивай, красное обходи), на полпути расправляет крылья и кружит над ареной, а когда падает на землю в третий раз — собирает все приёмы воедино. Белый замах — шар нити: разбей его и восстановишь силы.",
+  "dev": true,
+  "order": 7,
+  "landmark": "Финал: земля, крылья, ярость",
+  "tips": [
+    "Жёлтый замах отбивай — перья и когти гасятся отбивом, а идеальный отбив даёт контрудар.",
+    "Красное — только уворот: прыгай через волны, рывком уходи от налёта.",
+    "В воздухе Ворон снижается после пике и падения — тогда его можно достать.",
+    "Белый замах — шар нити: ударь по нему, чтобы вернуть нить и немного здоровья."
+  ],
+  "arena": "vladik",
+  "size": { "w": 56, "h": 108 },
+  "hp": [110, 150],
+  "color": 3355472,
+  "intro": { "frames": 140, "say": "Ты дошёл до конца тропы. Дальше — только я.", "skippable": true },
+  "deathFrames": 180,
+  "idle": { "walkSpeed": 70, "keepDist": 100 },
+  "contact": { "dmg": 1, "kind": "dodge" },
+  "antiCheese": { "shoveChain": "c_shove", "relocateChain": "c_hail" },
+  "creatures": [
+    {
+      "id": "silkorb", "name": "Шар нити", "size": { "w": 22, "h": 22 }, "hp": 1, "speed": 0,
+      "fly": { "hover": 22, "speed": 80, "bob": 3 }, "life": 480, "fade": 60, "max": 1,
+      "beads": 0, "color": 10545151, "vanishOn": ["bossDeath", "phase"],
+      "attacks": [], "chains": [], "rest": [60, 90]
+    }
+  ],
+  "attacks": [
+    {
+      "id": "claw", "name": "Коготь",
+      "tell": { "frames": 24, "cue": { "color": "yellow", "sfx": "claw", "pose": "raise" } },
+      "active": [{ "from": 0, "to": 5, "hit": { "x": 6, "y": 20, "w": 96, "h": 78 }, "dmg": 1, "kind": "parry" }],
+      "recovery": { "frames": 40, "punishWindow": { "from": 6, "to": 34 } },
+      "requires": { "dist": [0, 150] }
+    },
+    {
+      "id": "backhand", "name": "Обратный взмах",
+      "tell": { "frames": 22, "cue": { "color": "yellow", "sfx": "claw2", "pose": "cross" } },
+      "active": [{ "from": 0, "to": 5, "hit": { "x": -50, "y": 20, "w": 150, "h": 78 }, "dmg": 1, "kind": "parry" }],
+      "recovery": { "frames": 44, "punishWindow": { "from": 8, "to": 38 } },
+      "requires": { "dist": [0, 150] }
+    },
+    {
+      "id": "lunge", "name": "Налёт",
+      "tell": { "frames": 30, "lockFace": true, "cue": { "color": "red", "sfx": "dash", "pose": "lean" } },
+      "move": [{ "from": 0, "to": 16, "vx": 720, "toward": "player" }],
+      "active": [{ "from": 0, "to": 16, "hit": { "x": -28, "y": 24, "w": 60, "h": 84 }, "dmg": 1, "kind": "dodge" }],
+      "recovery": { "frames": 46, "punishWindow": { "from": 10, "to": 40 } },
+      "requires": { "dist": [170, 900] }
+    },
+    {
+      "id": "shock", "name": "Ударная волна",
+      "tell": { "frames": 36, "cue": { "color": "red", "sfx": "slam", "pose": "overhead" } },
+      "active": [{ "from": 0, "to": 3, "hit": { "x": -64, "y": 84, "w": 128, "h": 24 }, "dmg": 1, "kind": "dodge" }],
+      "spawn": [
+        { "at": 0, "proj": { "kind": "wave", "w": 26, "h": 20, "life": 140 }, "kind": "dodge", "ox": 34, "oy": 44, "vx": 300, "dmg": 1 },
+        { "at": 0, "proj": { "kind": "wave", "w": 26, "h": 20, "life": 140 }, "kind": "dodge", "ox": -34, "oy": 44, "vx": -300, "dmg": 1 }
+      ],
+      "recovery": { "frames": 42, "punishWindow": { "from": 8, "to": 36 } }
+    },
+    {
+      "id": "volley", "name": "Три пера",
+      "tell": { "frames": 28, "cue": { "color": "yellow", "sfx": "whoosh", "pose": "wind_up" } },
+      "spawn": [{ "at": 0, "proj": { "kind": "spore", "w": 12, "h": 12, "life": 180 }, "kind": "parry", "ox": 30, "oy": -20, "vx": 380, "vy": -260, "count": 3, "spread": 14, "dmg": 1 }],
+      "recovery": { "frames": 38, "punishWindow": { "from": 8, "to": 32 } },
+      "requires": { "dist": [100, 900] }
+    },
+    {
+      "id": "ringg", "name": "Круг перьев",
+      "tell": { "frames": 30, "cue": { "color": "yellow", "sfx": "screech", "pose": "spread" } },
+      "spawn": [{ "at": 0, "proj": { "kind": "spore", "w": 12, "h": 12, "life": 170 }, "kind": "parry", "oy": -10, "vx": 300, "count": 10, "spread": 36, "dmg": 1 }],
+      "recovery": { "frames": 48, "punishWindow": { "from": 8, "to": 42 } }
+    },
+    {
+      "id": "skyring", "name": "Взлёт и круг",
+      "tell": { "frames": 34, "lockFace": true, "cue": { "color": "yellow", "sfx": "jump", "pose": "crouch" } },
+      "move": [{ "from": 0, "to": 0, "vx": 0, "vy": -640, "toward": "fixed" }],
+      "spawn": [{ "at": 26, "proj": { "kind": "spore", "w": 12, "h": 12, "life": 170 }, "kind": "parry", "vx": 280, "count": 8, "spread": 45, "dmg": 1 }],
+      "recovery": { "frames": 64, "punishWindow": { "from": 28, "to": 58 } }
+    },
+    {
+      "id": "swoop", "name": "Пике",
+      "tell": { "frames": 32, "lockFace": true, "cue": { "color": "red", "sfx": "swoop", "pose": "dive" } },
+      "move": [{ "from": 0, "to": 14, "vx": 440, "vy": 300, "toward": "player" }],
+      "active": [{ "from": 0, "to": 16, "hit": { "x": -56, "y": 0, "w": 112, "h": 70 }, "dmg": 1, "kind": "dodge" }],
+      "recovery": { "frames": 52, "punishWindow": { "from": 2, "to": 44 } }
+    },
+    {
+      "id": "ring", "name": "Кольцо перьев",
+      "tell": { "frames": 30, "cue": { "color": "yellow", "sfx": "screech_air", "pose": "spread_air" } },
+      "move": [{ "from": 4, "to": 14, "vx": 0, "vy": 240, "toward": "fixed" }],
+      "spawn": [{ "at": 0, "proj": { "kind": "spore", "w": 12, "h": 12, "life": 170 }, "kind": "parry", "vx": 300, "count": 10, "spread": 36, "dmg": 1 }],
+      "recovery": { "frames": 52, "punishWindow": { "from": 12, "to": 46 } }
+    },
+    {
+      "id": "fan", "name": "Веер перьев",
+      "tell": { "frames": 28, "cue": { "color": "yellow", "sfx": "whoosh2", "pose": "point" } },
+      "spawn": [{ "at": 0, "proj": { "kind": "spore", "w": 12, "h": 12, "life": 170 }, "kind": "parry", "vx": 440, "aim": true, "count": 5, "spread": 11, "dmg": 1 }],
+      "move": [{ "from": 4, "to": 12, "vx": 0, "vy": 200, "toward": "fixed" }],
+      "recovery": { "frames": 48, "punishWindow": { "from": 10, "to": 42 } }
+    },
+    {
+      "id": "crash", "name": "Падение",
+      "tell": { "frames": 36, "lockFace": true, "cue": { "color": "red", "sfx": "plunge", "pose": "plunge" } },
+      "move": [{ "from": 0, "to": 14, "vx": 160, "vy": 520, "toward": "player" }],
+      "active": [{ "from": 12, "to": 16, "hit": { "x": -100, "y": 0, "w": 200, "h": 60 }, "dmg": 1, "kind": "dodge" }],
+      "spawn": [
+        { "at": 14, "proj": { "kind": "wave", "w": 26, "h": 20, "life": 140 }, "kind": "dodge", "ox": 50, "oy": 18, "vx": 300, "dmg": 1 },
+        { "at": 14, "proj": { "kind": "wave", "w": 26, "h": 20, "life": 140 }, "kind": "dodge", "ox": -50, "oy": 18, "vx": -300, "dmg": 1 }
+      ],
+      "recovery": { "frames": 64, "punishWindow": { "from": 8, "to": 58 } }
+    },
+    {
+      "id": "orb", "name": "Шар нити",
+      "tell": { "frames": 30, "cue": { "color": "white", "sfx": "chime", "pose": "offer" } },
+      "summon": [{ "at": 0, "creature": "silkorb", "ox": 90, "oy": 20, "count": 1 }],
+      "recovery": { "frames": 56, "punishWindow": { "from": 6, "to": 50 } }
+    },
+    {
+      "id": "hail", "name": "Град перьев",
+      "tell": { "frames": 36, "cue": { "color": "red", "sfx": "rumble", "pose": "look_up" } },
+      "spawn": [
+        { "at": 0, "proj": { "kind": "rock", "w": 16, "h": 16, "life": 120 }, "kind": "dodge", "from": "target", "oy": -300 },
+        { "at": 14, "proj": { "kind": "rock", "w": 16, "h": 16, "life": 120 }, "kind": "dodge", "from": "target", "ox": -70, "oy": -300 },
+        { "at": 28, "proj": { "kind": "rock", "w": 16, "h": 16, "life": 120 }, "kind": "dodge", "from": "target", "ox": 70, "oy": -300 }
+      ],
+      "recovery": { "frames": 44, "punishWindow": { "from": 16, "to": 39 } }
+    },
+    {
+      "id": "shove", "name": "Взмах крыльев",
+      "tell": { "frames": 30, "cue": { "color": "white", "sfx": "shove", "pose": "brace" } },
+      "active": [{ "from": 0, "to": 3, "hit": { "x": -100, "y": 0, "w": 200, "h": 112 }, "dmg": 1, "kind": "dodge", "knock": { "vx": 420, "vy": -320 } }],
+      "recovery": { "frames": 30, "punishWindow": { "from": 6, "to": 25 } }
+    }
+  ],
+  "chains": [
+    { "id": "c_claws", "steps": [{ "attack": "claw", "gapFrames": 16 }, { "attack": "backhand" }], "weight": 3, "requires": { "dist": [0, 150] } },
+    { "id": "c_claw_lunge", "steps": [{ "attack": "claw", "gapFrames": 18 }, { "attack": "lunge" }], "weight": 2, "requires": { "dist": [0, 150] } },
+    { "id": "c_lunge", "steps": [{ "attack": "lunge" }], "weight": 2 },
+    { "id": "c_shock", "steps": [{ "attack": "shock", "gapFrames": 24 }, { "attack": "volley" }], "weight": 2 },
+    { "id": "c_volley", "steps": [{ "attack": "volley" }], "weight": 2 },
+    { "id": "c_orb", "steps": [{ "attack": "orb" }], "weight": 2, "cooldown": 1500 },
+    { "id": "c_hail", "steps": [{ "attack": "hail" }], "weight": 1, "cooldown": 480 },
+    { "id": "c_shove", "steps": [{ "attack": "shove" }], "weight": 1, "cooldown": 180 },
+    { "id": "c_swoop", "steps": [{ "attack": "swoop" }], "weight": 3 },
+    { "id": "c_ring_crash", "steps": [{ "attack": "ring", "gapFrames": 22 }, { "attack": "crash" }], "weight": 3 },
+    { "id": "c_ring", "steps": [{ "attack": "ring" }], "weight": 2 },
+    { "id": "c_fan_swoop", "steps": [{ "attack": "fan", "gapFrames": 24 }, { "attack": "swoop" }], "weight": 2 },
+    { "id": "c_crash", "steps": [{ "attack": "crash" }], "weight": 2 },
+    { "id": "c3_claws_shock", "steps": [{ "attack": "claw", "gapFrames": 16 }, { "attack": "backhand", "gapFrames": 18 }, { "attack": "shock" }], "weight": 3, "requires": { "dist": [0, 150] } },
+    { "id": "c3_lunge_ring", "steps": [{ "attack": "lunge", "gapFrames": 28 }, { "attack": "ringg" }], "weight": 3 },
+    { "id": "c3_volley_lunge", "steps": [{ "attack": "volley", "gapFrames": 22 }, { "attack": "lunge" }], "weight": 2, "requires": { "dist": [100, 600] } },
+    { "id": "c3_skyring", "steps": [{ "attack": "skyring" }], "weight": 2 },
+    { "id": "c3_shock_ring", "steps": [{ "attack": "shock", "gapFrames": 26 }, { "attack": "ringg" }], "weight": 2 },
+    { "id": "c3_enter", "steps": [{ "attack": "shock" }], "weight": 1 }
+  ],
+  "phases": [
+    {
+      "fromHp": 1,
+      "policy": {
+        "chains": ["c_claws", "c_claw_lunge", "c_lunge", "c_shock", "c_volley", "c_orb", "c_hail"],
+        "noRepeat": 1,
+        "fatigue": { "factor": 0.6, "decay": 600 },
+        "restFrames": [30, 54]
+      }
+    },
+    {
+      "fromHp": 0.64,
+      "rageFrames": 40,
+      "scene": {
+        "frames": 150, "skippable": true, "say": "Тиран расправляет крылья.",
+        "events": [
+          { "at": 0, "shake": { "ms": 500, "i": 0.01 }, "sfx": "roar" },
+          { "at": 30, "zoom": { "k": 1.3, "frames": 40 } },
+          { "at": 70, "morph": true, "flash": { "ms": 260 }, "sfx": "wings", "shake": { "ms": 300, "i": 0.012 } },
+          { "at": 110, "zoom": { "k": 1, "frames": 30 }, "say": "Он в воздухе! Жди, когда он спустится." }
+        ]
+      },
+      "form": {
+        "size": { "w": 96, "h": 56 },
+        "fly": { "hover": 56, "speed": 150, "bob": 4 },
+        "draw": "wings", "color": 5592405,
+        "attacks": ["swoop", "ring", "fan", "crash", "orb", "hail", "shove"],
+        "idle": { "walkSpeed": 60, "keepDist": 120 },
+        "contact": false
+      },
+      "enterChain": "c_ring",
+      "policy": {
+        "chains": ["c_swoop", "c_ring_crash", "c_ring", "c_fan_swoop", "c_crash", "c_orb", "c_hail"],
+        "noRepeat": 1,
+        "fatigue": { "factor": 0.6, "decay": 600 },
+        "restFrames": [26, 46]
+      }
+    },
+    {
+      "fromHp": 0.3,
+      "rageFrames": 50,
+      "scene": {
+        "frames": 110, "skippable": true, "say": "Ворон падает на землю. Ярость.",
+        "events": [
+          { "at": 0, "shake": { "ms": 400, "i": 0.01 }, "sfx": "roar" },
+          { "at": 40, "morph": true, "flash": { "ms": 220, "r": 255, "g": 80, "b": 60 }, "shake": { "ms": 500, "i": 0.014 }, "sfx": "slam" },
+          { "at": 80, "say": "Теперь — всё сразу." }
+        ]
+      },
+      "form": {
+        "size": { "w": 64, "h": 108 },
+        "fly": false,
+        "draw": "fury", "color": 11153440,
+        "attacks": ["claw", "backhand", "lunge", "shock", "volley", "ringg", "skyring", "orb", "hail", "shove"],
+        "idle": { "walkSpeed": 90, "keepDist": 90 },
+        "contact": { "dmg": 1, "kind": "dodge" }
+      },
+      "enterChain": "c3_enter",
+      "policy": {
+        "chains": ["c3_claws_shock", "c3_lunge_ring", "c3_volley_lunge", "c3_skyring", "c3_shock_ring", "c_claws", "c_orb", "c_hail"],
+        "noRepeat": 2,
+        "fatigue": { "factor": 0.6, "decay": 600 },
+        "restFrames": [16, 32]
+      }
+    }
+  ]
+}
