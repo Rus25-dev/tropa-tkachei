@@ -1,5 +1,22 @@
 {
   "minTellFrames": { "parry": 20, "dodge": 24, "unblockable": 30 },
   "minRecoveryFrames": 18,
-  "minPunishFrames": 16
+  "minPunishFrames": 16,
+  "fairness": {
+    "minChainPunishFrames": 20,
+    "minChainGapFrames": 8,
+    "minReactionFrames": 32,
+    "minRestFrames": 12,
+    "minChainPauseFrames": 40,
+    "minGapAfterUnblockable": 30,
+    "maxDamage3s": [3, 4]
+  },
+  "antiCheese": {
+    "enabled": true,
+    "shove": { "sec": 2.5, "cornerSec": 2.0, "dist": 70, "cornerMargin": 56 },
+    "stagger": { "windowSec": 25, "durMul": [1, 0.75, 0.5], "poiseMul": [1, 1.25, 1.5], "dmgCapFrac": 0.18, "dmgCapMin": 4 },
+    "spam": { "maxUses": 3, "windowSec": 10 },
+    "wallStun": { "sec": 1.0, "cooldownSec": 25, "minSpeed": 300 },
+    "relocate": { "sec": 12, "dist": 260 }
+  }
 }

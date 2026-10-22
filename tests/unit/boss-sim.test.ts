@@ -22,7 +22,7 @@ function sim(seed: number, frames: number, o: { players?: number; train?: boolea
     feedInput(w, w.players.map((p) => fz(p.i)));
     // чтобы за один прогон побывать во всех фазах, периодически «подтачиваем» здоровье босса
     const b = w.bosses[0];
-    if (o.pump && b && b.state !== 'dead' && i % 1500 === 1499) b.hp = Math.max(2, b.hp - Math.ceil(b.maxHp * 0.2));
+    if (o.pump && b && b.state !== 'dead' && i % 600 === 599) b.hp = Math.max(2, b.hp - Math.ceil(b.maxHp * 0.2));
     w.tick();
     if (b) { phases.add(b.phase || 1); for (const c of dstate(b).mem.hist) chains.add(c); }
     if (i % 600 === 0) {

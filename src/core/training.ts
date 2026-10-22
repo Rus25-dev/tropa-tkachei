@@ -6,7 +6,8 @@ import { makeTima, setRepo } from './tima';
 import { makeVladik } from './vladik';
 import type { Boss } from './types';
 import { phaseOf, type World } from './world';
-import { currentAttackName, makeDataBoss } from './boss/exec';
+import { currentAttackName, forceChain, frameInfo, makeDataBoss } from './boss/exec';
+import { bossDef } from './boss/registry';
 
 export interface TrainState {
   t: number; log: [number, number][]; total: number; first: number | null; tele: { name: string; win: number; at: number } | null;
@@ -71,4 +72,22 @@ export function dps(tr: TrainState): number {
 export function teleText(tr: TrainState): string {
   if (!tr.tele) return 'Последний телеграф: пока не было';
   return `Последний телеграф: ${tr.tele.name} (окно ${tr.tele.win.toFixed(1)} с, ${Math.max(0, tr.t - tr.tele.at).toFixed(0)} с назад)`;
+}
+
+// ---------- тренировка боссов на данных: запуск связки и кадровые данные ----------
+const KIND_NAME: Record<string, string> = { parry: 'можно отбить', dodge: 'только уворот', unblockable: 'не отбивается' };
+const PART_NAME: Record<string, string> = { tell: 'замах', active: 'удар', recover: 'восстановление' };
+/** Запустить связку босса на данных по номеру (с нуля, по порядку в файле) прямо сейчас; false — не тот босс или не время. */
+export function trainChain(sc: World, n: number): boolean {
+  const b = sc.bosses[0]; if (!sc.train || !b || !b['d']) return false;
+  const def = bossDef((b['d'] as { id: string }).id); if (!def) return false;
+  const c = def.chains[((n % def.chains.length) + def.chains.length) % def.chains.length]!;
+  sc.toast(`Связка ${c.id}`, 1.2);
+  return forceChain(sc, 0, c.id);
+}
+/** Строка кадровых данных для оверлея тренировки: «Взмах · замах 12/26 · можно отбить, до удара 14 кадров». */
+export function frameLine(sc: World): string | null {
+  const b = sc.bosses[0]; const f = b ? frameInfo(b) : null; if (!f) return null;
+  const kind = f.kind ? KIND_NAME[f.kind] : 'без урона';
+  return `${f.attack} · ${PART_NAME[f.part]} ${f.frame}/${f.total} · ${kind}${f.hitIn !== null && f.hitIn > 0 ? `, до удара ${f.hitIn} кадр.` : ''}${f.punish ? ' · ОКНО НАКАЗАНИЯ' : ''}`;
 }

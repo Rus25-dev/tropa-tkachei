@@ -84,7 +84,7 @@ export const PolicySchema = z.strictObject({
   /** пауза между связками: [мин, макс] кадров */
   restFrames: z.tuple([frames, frames]),
   /** приоритеты («отогнать»): если герой ближе closeDist подряд closeFrames кадров, выбирается chain, минуя веса */
-  priority: z.array(z.strictObject({ chain: z.string().min(1), closeDist: z.number().positive(), closeFrames: pos })).default([]),
+  priority: z.array(z.strictObject({ chain: z.string().min(1), closeDist: z.number().positive(), closeFrames: pos, cornerFrames: pos.optional() })).default([]),
 });
 
 export const PhaseSchema = z.strictObject({
@@ -97,6 +97,59 @@ export const PhaseSchema = z.strictObject({
   /** переходный приём с телеграфом — id связки */
   enterChain: z.string().min(1).optional(),
   policy: PolicySchema,
+});
+
+
+// ---------- защита от читов (2.5, часть В): общие правила исполнителя; числа — в rules.json, у босса можно переопределить ----------
+const AntiShove = z.strictObject({
+  /** сколько секунд герой может стоять вплотную к телу босса, прежде чем тот «отгонит» его связкой-отгоном */
+  sec: z.number().positive(),
+  /** то же, если герой прижат к стене/углу арены */
+  cornerSec: z.number().positive(),
+  /** «вплотную»: горизонтальная дистанция от центра босса до героя, px */
+  dist: z.number().positive(),
+  /** «у стены»: расстояние от героя до боковой стены арены, px */
+  cornerMargin: z.number().min(0),
+});
+const AntiStagger = z.strictObject({
+  /** окно, в котором считаются предыдущие оглушения босса, с */
+  windowSec: z.number().positive(),
+  /** множитель длительности оглушения по номеру оглушения в окне (первое, второе, …; последний повторяется) */
+  durMul: z.array(z.number().gt(0).lte(1)).min(1),
+  /** множитель порога стойки по номеру оглушения в окне */
+  poiseMul: z.array(z.number().gte(1)).min(1),
+  /** потолок урона за одно окно оглушения — доля здоровья босса */
+  dmgCapFrac: z.number().gt(0).lte(1),
+  /** … но не меньше стольких единиц (чтобы одна казнь всегда проходила) */
+  dmgCapMin: pos,
+});
+const AntiSpam = z.strictObject({
+  /** одну и ту же атаку нельзя начинать чаще maxUses раз за windowSec секунд */
+  maxUses: pos, windowSec: z.number().positive(),
+});
+const AntiWallStun = z.strictObject({
+  /** самооглушение от удара о стену на рывке: на сколько секунд босс оглушается */
+  sec: z.number().positive(),
+  /** откат: следующее такое оглушение не раньше, чем через cooldownSec секунд */
+  cooldownSec: z.number().positive(),
+  /** минимальная скорость босса при ударе о стену, px/с */
+  minSpeed: z.number().positive(),
+});
+const AntiRelocate = z.strictObject({
+  /** если герой не получал урона и не отходил дальше dist от босса sec секунд подряд — босс берёт перемещающую связку */
+  sec: z.number().positive(), dist: z.number().positive(),
+});
+/** полный набор правил (rules.json) */
+export const AntiCheeseRulesSchema = z.strictObject({
+  enabled: z.boolean(), shove: AntiShove, stagger: AntiStagger, spam: AntiSpam, wallStun: AntiWallStun, relocate: AntiRelocate,
+});
+/** у босса: флаги и частичные переопределения; связки-«отгон» и «перемещение» назначает босс */
+export const AntiCheeseBossSchema = z.strictObject({
+  enabled: z.boolean().optional(),
+  shoveChain: z.string().min(1).optional(),
+  relocateChain: z.string().min(1).optional(),
+  shove: AntiShove.partial().optional(), stagger: AntiStagger.partial().optional(), spam: AntiSpam.partial().optional(),
+  wallStun: AntiWallStun.partial().optional().or(z.literal(false)), relocate: AntiRelocate.partial().optional(),
 });
 
 export const BossDefSchema = z.strictObject({
@@ -116,6 +169,27 @@ export const BossDefSchema = z.strictObject({
   attacks: z.array(AttackSchema).min(1),
   chains: z.array(ChainSchema).min(1),
   phases: z.array(PhaseSchema).min(1).max(3),
+  /** защита от читов; по умолчанию для боссов на данных включена по правилам rules.json */
+  antiCheese: AntiCheeseBossSchema.optional(),
+});
+
+
+/** пороги честности связок и потока урона (validate.ts); время — в кадрах */
+export const FairnessSchema = z.strictObject({
+  /** окно наказания после последнего приёма связки — не короче */
+  minChainPunishFrames: pos,
+  /** пауза между шагами связки (gapFrames) — не короче */
+  minChainGapFrames: frames,
+  /** от конца ударов шага до первого удара следующего (пауза + замах) — не короче: время на реакцию */
+  minReactionFrames: pos,
+  /** пауза между связками (restFrames[0]) — не короче */
+  minRestFrames: frames,
+  /** от конца ударов последней атаки до замаха следующей связки (восстановление + пауза) — не короче */
+  minChainPauseFrames: pos,
+  /** два неотбиваемых удара подряд: между ними должно быть окно не короче */
+  minGapAfterUnblockable: pos,
+  /** максимум урона по герою в любые 3 с по фазам (с учётом неуязвимости после удара) */
+  maxDamage3s: z.array(pos).min(1).max(3),
 });
 
 /** правила честности (data/bosses/rules.json) */
@@ -124,6 +198,10 @@ export const RulesSchema = z.strictObject({
   minTellFrames: z.strictObject({ parry: pos, dodge: pos, unblockable: pos }),
   minRecoveryFrames: pos,
   minPunishFrames: pos,
+  /** честность связок и боя (validate.ts): нет — проверки пропускаются */
+  fairness: FairnessSchema.optional(),
+  /** защита от читов: общие значения для боссов на данных */
+  antiCheese: AntiCheeseRulesSchema.optional(),
 });
 
 export type Attack = z.output<typeof AttackSchema>;
@@ -133,6 +211,9 @@ export type Phase = z.output<typeof PhaseSchema>;
 export type BossDef = z.output<typeof BossDefSchema>;
 export type Requires = z.output<typeof RequiresSchema>;
 export type Rules = z.output<typeof RulesSchema>;
+export type Fairness = z.output<typeof FairnessSchema>;
+export type AntiCheeseRules = z.output<typeof AntiCheeseRulesSchema>;
+export type AntiCheeseBoss = z.output<typeof AntiCheeseBossSchema>;
 export type BoxDef = z.output<typeof Box>;
 
 /** Конец «рабочей» части атаки (последний кадр удара/движения/выстрела, считая от конца замаха); −1, если нет ничего */

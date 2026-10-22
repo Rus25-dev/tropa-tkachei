@@ -17,10 +17,10 @@ describe('схема данных боссов', () => {
     expect(bossDef('dummy')).toBeTruthy();
     expect(dataBossIds()).toContain('dummy');
   });
-  it('манекен: 2 фазы, 6–8 атак, 5+ обычных связок, все три типа удара и все цвета замаха разумно представлены', () => {
+  it('манекен: 2 фазы, 6–9 атак, 5+ обычных связок, все три типа удара и все цвета замаха разумно представлены', () => {
     const d = bossDef('dummy')!;
     expect(d.phases).toHaveLength(2);
-    expect(d.attacks.length).toBeGreaterThanOrEqual(6); expect(d.attacks.length).toBeLessThanOrEqual(8);
+    expect(d.attacks.length).toBeGreaterThanOrEqual(6); expect(d.attacks.length).toBeLessThanOrEqual(9);
     expect(d.phases[0]!.policy.chains.length).toBeGreaterThanOrEqual(5);
     const kinds = new Set(d.attacks.flatMap((a) => [...a.active.map((x) => x.kind), ...a.spawn.map((x) => x.kind)]));
     expect([...kinds].sort()).toEqual(['dodge', 'parry', 'unblockable']);
