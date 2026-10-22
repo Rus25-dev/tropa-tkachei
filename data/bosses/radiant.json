@@ -1,0 +1,199 @@
+{
+  "id": "radiant",
+  "name": "Сияющая",
+  "about": "Экзамен на реакцию: столбы и полосы света, звёздопад, мигающие платформы. Каждая зона заранее мигает цветом удара; бей, пока свет гаснет.",
+  "landmark": "Экзамен после финала (необязательный)",
+  "tips": [
+    "Столб или полоса света мигает цветом удара за ~1 секунду: найди щель шире героя и стой в ней.",
+    "Жёлтые шары отбиваются; красное — прыжок или рывок; фиолетовая полоса не гасится рывком — только прыжок.",
+    "Платформы мигают белым перед исчезновением; ближе к боссу всегда есть узкий безопасный карман."
+  ],
+  "hidden": true,
+  "order": 9000,
+  "arena": {
+    "level": "vladik",
+    "ents": [
+      { "id": "cols_a", "kind": "beam", "hit": "dodge", "area": { "x": 96, "y": 0, "w": 96, "h": 448 },
+        "timeline": [
+          { "at": 0, "tell": 44, "active": 12, "area": { "x": 96, "y": 0, "w": 96, "h": 448 } },
+          { "at": 0, "tell": 44, "active": 12, "area": { "x": 480, "y": 0, "w": 96, "h": 448 } },
+          { "at": 0, "tell": 44, "active": 12, "area": { "x": 864, "y": 0, "w": 96, "h": 448 } },
+          { "at": 0, "tell": 44, "active": 12, "area": { "x": 1248, "y": 0, "w": 96, "h": 448 } }
+        ] },
+      { "id": "cols_b", "kind": "beam", "hit": "dodge", "area": { "x": 288, "y": 0, "w": 96, "h": 448 },
+        "timeline": [
+          { "at": 0, "tell": 44, "active": 12, "area": { "x": 288, "y": 0, "w": 96, "h": 448 } },
+          { "at": 0, "tell": 44, "active": 12, "area": { "x": 624, "y": 0, "w": 96, "h": 448 } },
+          { "at": 0, "tell": 44, "active": 12, "area": { "x": 960, "y": 0, "w": 96, "h": 448 } }
+        ] },
+      { "id": "cols_run", "kind": "beam", "hit": "dodge", "area": { "x": 32, "y": 0, "w": 96, "h": 448 },
+        "timeline": [
+          { "at": 0, "tell": 44, "active": 12, "area": { "x": 32, "y": 0, "w": 96, "h": 448 } },
+          { "at": 14, "tell": 44, "active": 12, "area": { "x": 256, "y": 0, "w": 96, "h": 448 } },
+          { "at": 28, "tell": 44, "active": 12, "area": { "x": 480, "y": 0, "w": 96, "h": 448 } },
+          { "at": 42, "tell": 44, "active": 12, "area": { "x": 704, "y": 0, "w": 96, "h": 448 } },
+          { "at": 56, "tell": 44, "active": 12, "area": { "x": 928, "y": 0, "w": 96, "h": 448 } },
+          { "at": 70, "tell": 44, "active": 12, "area": { "x": 1152, "y": 0, "w": 96, "h": 448 } }
+        ] },
+      { "id": "bar_l", "kind": "beam", "hit": "dodge", "area": { "x": 0, "y": 0, "w": 640, "h": 40 },
+        "timeline": [{ "at": 0, "tell": 50, "active": 20 }] },
+      { "id": "bar_r", "kind": "beam", "hit": "dodge", "area": { "x": 704, "y": 0, "w": 640, "h": 40 },
+        "timeline": [{ "at": 0, "tell": 50, "active": 20 }] },
+      { "id": "hot", "kind": "beam", "hit": "dodge", "area": { "x": 0, "y": 0, "w": 560, "h": 48 },
+        "timeline": [
+          { "at": 0, "tell": 54, "active": 22, "area": { "x": 0, "y": 0, "w": 560, "h": 48 } },
+          { "at": 0, "tell": 54, "active": 22, "area": { "x": 784, "y": 0, "w": 560, "h": 48 } }
+        ] },
+      { "id": "hot_p", "kind": "beam", "hit": "unblockable", "area": { "x": 0, "y": 0, "w": 560, "h": 48 },
+        "timeline": [
+          { "at": 0, "tell": 62, "active": 22, "area": { "x": 0, "y": 0, "w": 560, "h": 48 } },
+          { "at": 0, "tell": 62, "active": 22, "area": { "x": 784, "y": 0, "w": 560, "h": 48 } }
+        ] },
+      { "id": "storm_1", "kind": "spawner", "pos": { "x": 160, "y": 440 },
+        "timeline": [{ "at": 0, "tell": 36, "proj": { "kind": "rock", "w": 16, "h": 16, "life": 160 }, "kind": "dodge", "vy": 200 }, { "at": 56, "tell": 36, "proj": { "kind": "rock", "w": 16, "h": 16, "life": 160 }, "kind": "dodge", "vy": 200 }] },
+      { "id": "storm_2", "kind": "spawner", "pos": { "x": 400, "y": 440 },
+        "timeline": [{ "at": 10, "tell": 36, "proj": { "kind": "rock", "w": 16, "h": 16, "life": 160 }, "kind": "dodge", "vy": 200 }, { "at": 66, "tell": 36, "proj": { "kind": "rock", "w": 16, "h": 16, "life": 160 }, "kind": "dodge", "vy": 200 }] },
+      { "id": "storm_3", "kind": "spawner", "pos": { "x": 560, "y": 440 },
+        "timeline": [{ "at": 20, "tell": 36, "proj": { "kind": "rock", "w": 16, "h": 16, "life": 160 }, "kind": "dodge", "vy": 200 }, { "at": 76, "tell": 36, "proj": { "kind": "rock", "w": 16, "h": 16, "life": 160 }, "kind": "dodge", "vy": 200 }] },
+      { "id": "storm_4", "kind": "spawner", "pos": { "x": 784, "y": 440 },
+        "timeline": [{ "at": 30, "tell": 36, "proj": { "kind": "rock", "w": 16, "h": 16, "life": 160 }, "kind": "dodge", "vy": 200 }, { "at": 86, "tell": 36, "proj": { "kind": "rock", "w": 16, "h": 16, "life": 160 }, "kind": "dodge", "vy": 200 }] },
+      { "id": "storm_5", "kind": "spawner", "pos": { "x": 944, "y": 440 },
+        "timeline": [{ "at": 40, "tell": 36, "proj": { "kind": "rock", "w": 16, "h": 16, "life": 160 }, "kind": "dodge", "vy": 200 }, { "at": 96, "tell": 36, "proj": { "kind": "rock", "w": 16, "h": 16, "life": 160 }, "kind": "dodge", "vy": 200 }] },
+      { "id": "storm_6", "kind": "spawner", "pos": { "x": 1184, "y": 440 },
+        "timeline": [{ "at": 50, "tell": 36, "proj": { "kind": "rock", "w": 16, "h": 16, "life": 160 }, "kind": "dodge", "vy": 200 }, { "at": 106, "tell": 36, "proj": { "kind": "rock", "w": 16, "h": 16, "life": 160 }, "kind": "dodge", "vy": 200 }] },
+      { "id": "plat_l", "kind": "platform", "area": { "x": 32, "y": 96, "w": 128, "h": 32 }, "bind": { "phase": [2, 3] }, "loop": 480,
+        "timeline": [{ "at": 0, "op": "show", "warn": 30 }, { "at": 240, "op": "hide", "warn": 40 }, { "at": 400, "op": "show", "warn": 30 }] },
+      { "id": "plat_r", "kind": "platform", "area": { "x": 1184, "y": 96, "w": 128, "h": 32 }, "bind": { "phase": [2, 3] }, "loop": 480,
+        "timeline": [{ "at": 0, "op": "show", "warn": 30 }, { "at": 120, "op": "hide", "warn": 40 }, { "at": 300, "op": "show", "warn": 30 }] }
+    ]
+  },
+  "size": { "w": 96, "h": 112 },
+  "still": true,
+  "place": { "x": 0.5, "y": 0 },
+  "hp": [230, 320],
+  "color": 16774304,
+  "intro": { "frames": 120, "say": "Смотри на свет." },
+  "deathFrames": 180,
+  "idle": { "walkSpeed": 0, "keepDist": 90 },
+  "contact": { "dmg": 1, "kind": "dodge" },
+  "antiCheese": { "shoveChain": "c_flare", "relocateChain": "c_star" },
+  "attacks": [
+    {
+      "id": "spears_a", "name": "Копья света",
+      "tell": { "frames": 24, "cue": { "color": "red", "sfx": "beam", "pose": "raise" } },
+      "fire": [{ "at": 0, "ent": "cols_a" }],
+      "recovery": { "frames": 92, "punishWindow": { "from": 58, "to": 86 } }
+    },
+    {
+      "id": "spears_b", "name": "Копья света (сдвиг)",
+      "tell": { "frames": 24, "cue": { "color": "red", "sfx": "beam", "pose": "raise_side" } },
+      "fire": [{ "at": 0, "ent": "cols_b" }],
+      "recovery": { "frames": 92, "punishWindow": { "from": 58, "to": 86 } }
+    },
+    {
+      "id": "run", "name": "Бегущие столбы",
+      "tell": { "frames": 28, "cue": { "color": "red", "sfx": "beam", "pose": "sweep" } },
+      "fire": [{ "at": 0, "ent": "cols_run" }],
+      "recovery": { "frames": 152, "punishWindow": { "from": 128, "to": 148 } }
+    },
+    {
+      "id": "bars_l", "name": "Полоса слева",
+      "tell": { "frames": 24, "cue": { "color": "red", "sfx": "beam", "pose": "low_left" } },
+      "fire": [{ "at": 0, "ent": "bar_l" }],
+      "recovery": { "frames": 98, "punishWindow": { "from": 74, "to": 96 } }
+    },
+    {
+      "id": "bars_r", "name": "Полоса справа",
+      "tell": { "frames": 24, "cue": { "color": "red", "sfx": "beam", "pose": "low_right" } },
+      "fire": [{ "at": 0, "ent": "bar_r" }],
+      "recovery": { "frames": 98, "punishWindow": { "from": 74, "to": 96 } }
+    },
+    {
+      "id": "hot", "name": "Горячий пол",
+      "tell": { "frames": 26, "cue": { "color": "red", "sfx": "beam", "pose": "low_both" } },
+      "fire": [{ "at": 0, "ent": "hot" }],
+      "recovery": { "frames": 104, "punishWindow": { "from": 80, "to": 102 } }
+    },
+    {
+      "id": "hot_p", "name": "Сияние без пощады",
+      "tell": { "frames": 34, "cue": { "color": "purple", "sfx": "crush", "pose": "low_both_big" } },
+      "fire": [{ "at": 0, "ent": "hot_p" }],
+      "recovery": { "frames": 112, "punishWindow": { "from": 88, "to": 108 } }
+    },
+    {
+      "id": "storm", "name": "Звёздопад",
+      "tell": { "frames": 30, "cue": { "color": "red", "sfx": "rumble", "pose": "look_up" } },
+      "fire": [
+        { "at": 0, "ent": "storm_1" }, { "at": 0, "ent": "storm_2" }, { "at": 0, "ent": "storm_3" },
+        { "at": 0, "ent": "storm_4" }, { "at": 0, "ent": "storm_5" }, { "at": 0, "ent": "storm_6" }
+      ],
+      "recovery": { "frames": 220, "punishWindow": { "from": 190, "to": 214 } }
+    },
+    {
+      "id": "orbs", "name": "Шары света",
+      "tell": { "frames": 28, "cue": { "color": "yellow", "sfx": "whoosh", "pose": "wind_up" } },
+      "spawn": [{ "at": 0, "proj": { "kind": "spore", "w": 12, "h": 12, "life": 180 }, "kind": "parry", "ox": 24, "oy": -10, "vx": 360, "vy": -320, "count": 5, "spread": 14 }],
+      "recovery": { "frames": 44, "punishWindow": { "from": 8, "to": 38 } }
+    },
+    {
+      "id": "waves", "name": "Круги света",
+      "tell": { "frames": 34, "cue": { "color": "red", "sfx": "slam", "pose": "overhead" } },
+      "active": [{ "from": 0, "to": 3, "hit": { "x": -70, "y": 60, "w": 140, "h": 52 }, "dmg": 1, "kind": "dodge" }],
+      "spawn": [
+        { "at": 0, "proj": { "kind": "wave", "w": 24, "h": 18, "life": 170 }, "kind": "dodge", "ox": 40, "oy": 40, "vx": 300 },
+        { "at": 0, "proj": { "kind": "wave", "w": 24, "h": 18, "life": 170 }, "kind": "dodge", "ox": -40, "oy": 40, "vx": -300 }
+      ],
+      "recovery": { "frames": 44, "punishWindow": { "from": 8, "to": 38 } }
+    },
+    {
+      "id": "star", "name": "Падающая звезда",
+      "tell": { "frames": 34, "cue": { "color": "white", "sfx": "leap", "pose": "look_up" } },
+      "spawn": [
+        { "at": 0, "proj": { "kind": "rock", "w": 18, "h": 18, "life": 130 }, "kind": "dodge", "from": "target", "oy": -300 },
+        { "at": 28, "proj": { "kind": "rock", "w": 18, "h": 18, "life": 130 }, "kind": "dodge", "from": "target", "ox": -80, "oy": -300 },
+        { "at": 56, "proj": { "kind": "rock", "w": 18, "h": 18, "life": 130 }, "kind": "dodge", "from": "target", "ox": 80, "oy": -300 }
+      ],
+      "recovery": { "frames": 100, "punishWindow": { "from": 74, "to": 96 } }
+    },
+    {
+      "id": "flare", "name": "Вспышка",
+      "tell": { "frames": 30, "cue": { "color": "white", "sfx": "shove", "pose": "brace" } },
+      "active": [{ "from": 0, "to": 3, "hit": { "x": -90, "y": 10, "w": 180, "h": 100 }, "dmg": 1, "kind": "dodge", "knock": { "vx": 420, "vy": -320 } }],
+      "recovery": { "frames": 32, "punishWindow": { "from": 6, "to": 27 } }
+    }
+  ],
+  "chains": [
+    { "id": "c_spears", "steps": [{ "attack": "spears_a", "gapFrames": 64 }, { "attack": "spears_b" }], "weight": 3 },
+    { "id": "c_run", "steps": [{ "attack": "run" }], "weight": 2 },
+    { "id": "c_bars", "steps": [{ "attack": "bars_l", "gapFrames": 80 }, { "attack": "bars_r" }], "weight": 2 },
+    { "id": "c_orbs", "steps": [{ "attack": "orbs" }], "weight": 3 },
+    { "id": "c_waves", "steps": [{ "attack": "waves" }], "weight": 2 },
+    { "id": "c_mix", "steps": [{ "attack": "orbs", "gapFrames": 20 }, { "attack": "waves" }], "weight": 2 },
+    { "id": "c_storm", "steps": [{ "attack": "storm" }], "weight": 2, "cooldown": 300 },
+    { "id": "c_hot", "steps": [{ "attack": "hot" }], "weight": 2 },
+    { "id": "c_hot_p", "steps": [{ "attack": "hot_p" }], "weight": 2, "cooldown": 360 },
+    { "id": "c_cross", "steps": [{ "attack": "spears_b", "gapFrames": 64 }, { "attack": "hot" }], "weight": 2, "cooldown": 300 },
+    { "id": "c_star", "steps": [{ "attack": "star" }], "weight": 1, "cooldown": 600 },
+    { "id": "c_flare", "steps": [{ "attack": "flare" }], "weight": 1, "cooldown": 180 }
+  ],
+  "phases": [
+    {
+      "fromHp": 1,
+      "policy": { "chains": ["c_spears", "c_run", "c_bars", "c_orbs", "c_waves"], "noRepeat": 1, "fatigue": { "factor": 0.6, "decay": 600 }, "restFrames": [36, 60] }
+    },
+    {
+      "fromHp": 0.62,
+      "rageFrames": 50,
+      "scene": { "frames": 70, "skippable": true, "say": "Пол горит." },
+      "enterChain": "c_storm",
+      "policy": { "chains": ["c_spears", "c_run", "c_bars", "c_orbs", "c_mix", "c_storm", "c_hot"], "noRepeat": 2, "fatigue": { "factor": 0.6, "decay": 600 }, "restFrames": [30, 50] }
+    },
+    {
+      "fromHp": 0.3,
+      "rageFrames": 50,
+      "scene": { "frames": 80, "skippable": true, "say": "Последний свет." },
+      "enterChain": "c_hot_p",
+      "policy": { "chains": ["c_spears", "c_run", "c_bars", "c_mix", "c_storm", "c_hot", "c_hot_p", "c_cross"], "noRepeat": 2, "fatigue": { "factor": 0.6, "decay": 600 }, "restFrames": [24, 42] }
+    }
+  ]
+}
