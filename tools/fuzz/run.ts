@@ -149,7 +149,9 @@ export function runFuzz(spec: FuzzSpec, opt: { replayCheck?: boolean; trace?: nu
           else if (!w.players[0]!.downed && !w.wiping && w.exitR) { exitCheat(ses); stage = 'leave'; stageAt = sceneTick; }
         } else if (stage === 'fight' && sceneTick >= budget) { cheat(ses, 1); stage = 'dying'; stageAt = sceneTick; }
         else if (stage === 'dying' && w.bossDead && sceneTick >= stageAt + 90 && !w.players[0]!.downed && !w.wiping) { if (w.exitR) { exitCheat(ses); stage = 'leave'; stageAt = sceneTick; } else stage = 'done'; }
-        else if (stage === 'dying' && sceneTick - stageAt > 3000 && !w.bossDead) {
+        else if (stage === 'dying' && !w.bossDead && w.L.boss && w.camp?.st === 'level' && !w.leaving && !w.players[0]!.downed && !w.wiping && sceneTick > stageAt && (sceneTick - stageAt) % 120 === 60) {
+          arenaCheat(ses); // босс главы I стоит в отдельной арене: если герой погиб на пороге и вернулся к началу уровня, переносим его на порог снова
+        } else if (stage === 'dying' && sceneTick - stageAt > 3000 && !w.bossDead) {
           return finish({ invariant: 'transition', message: 'босс не умирает после последнего удара (3000 тиков)', tick: t });
         } else if (stage === 'leave' && !w.leaving && !w.won && sceneTick > stageAt && (sceneTick - stageAt) % 90 === 0 && sceneTick - stageAt <= 1350 && !w.players[0]!.downed && !w.wiping) {
           exitCheat(ses); // герой мог быть в хвате за уступ: хват возвращает его на место, поэтому перенос повторяется
