@@ -2,8 +2,10 @@
 import { E2_UNDER, clamp } from '../../core/balance';
 import type { Enemy } from '../../core/types';
 import type { G } from './common';
+import { drawMinion } from './minion';
 
 export function drawEnemy(e: Enemy, g: G, now: number): void {
+  if (e['m']) { drawMinion(e, g, now); return; } // существо босса на данных
   g.clear();
   if (e['e2']) { drawEnemy2(e, g, now); return; }
   const fl = e.flash > 0;

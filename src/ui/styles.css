@@ -82,8 +82,9 @@
 .card { min-height: 92px; padding: 10px 8px; border-radius: 6px; border: 1px solid #24433a; background: rgba(14, 31, 27, .9); color: #cfe8dc; cursor: pointer; display: grid; gap: 4px; align-content: space-between; text-align: center; font-family: var(--body); }
 .card .cn { font: 700 clamp(17px, 3vh, 21px) var(--display); }
 .card .cr { font-size: 14px; color: var(--dim); }
+.card .cl { font-size: 13px; color: #9cc3b3; }
 .card.sel { border: 2px solid var(--ember); background: rgba(21, 51, 41, .95); }
-.card.sel .cn { color: var(--ember); } .card.sel .cr { color: #ffe3a3; }
+.card.sel .cn { color: var(--ember); } .card.sel .cr { color: #ffe3a3; } .card.sel .cl { color: #cfe8dc; }
 .card:focus-visible { background: rgba(28, 74, 61, .95); }
 
 /* ----- настройки ----- */

@@ -4,6 +4,7 @@ import Phaser from 'phaser';
 import { P, clamp } from '../../core/balance';
 import { VH } from '../../core/constants';
 import { tdGeo } from '../../core/misha';
+import { sceneOn } from '../../core/boss/exec';
 import type { World } from '../../core/world';
 import { INK, MASK, type G } from '../draw/common';
 import { TOOLS } from '../../core/loadout';
@@ -21,7 +22,7 @@ export class HudScene extends Phaser.Scene {
   private tdLayer!: Phaser.GameObjects.Container;
   private bossOn = false; private bossFrac = 1; private bossShown = 1;
   private toastQ: { msg: string; hold?: number }[] = []; private toastBusy = false; private toastCur = '';
-  private t = 0;
+  private t = 0; private sceneK = 0; private sceneHint!: Phaser.GameObjects.Text;
   private fit: Fit = currentFit();
   private worldKey = -1;
   constructor() { super('hud'); }
@@ -33,6 +34,7 @@ export class HudScene extends Phaser.Scene {
     this.area = this.add.text(0, 92, '', { fontFamily: DISPLAY, fontSize: '40px', color: '#e8e2cf', fontStyle: '700' }).setOrigin(0.5).setAlpha(0).setShadow(0, 0, '#000', 12, false, true);
     this.areaSub = this.add.text(0, 128, '', { fontFamily: FONT, fontSize: '13px', color: '#8fb8a8' }).setOrigin(0.5).setAlpha(0);
     this.toastTxt = this.add.text(0, VH - 92, '', { fontFamily: FONT, fontSize: '16px', color: '#e8e2cf', backgroundColor: 'rgba(6,14,12,0.8)', padding: { x: 14, y: 8 } }).setOrigin(0.5).setAlpha(0);
+    this.sceneHint = this.add.text(0, VH - 22, '', { fontFamily: FONT, fontSize: '14px', color: '#cfd8d4' }).setOrigin(0.5).setAlpha(0);
     this.bossName = this.add.text(0, VH - 58, '', { fontFamily: DISPLAY, fontSize: '22px', color: '#e8e2cf', fontStyle: '700' }).setOrigin(0.5).setAlpha(0);
     // «вид сверху» для фазы Миши
     this.tdG = this.add.graphics();
@@ -51,7 +53,7 @@ export class HudScene extends Phaser.Scene {
     this.fit = f; fitCamera(this, f);
     const cx = f.vw / 2;
     this.vignette.setDisplaySize(f.vw, VH);
-    for (const o of [this.area, this.areaSub, this.toastTxt, this.bossName, this.tdInfo, this.tdTitle]) o.setX(cx);
+    for (const o of [this.area, this.areaSub, this.toastTxt, this.bossName, this.tdInfo, this.tdTitle, this.sceneHint]) o.setX(cx);
   }
 
   // ----- события интерфейса от сцены игры -----
@@ -197,6 +199,14 @@ export class HudScene extends Phaser.Scene {
     // бусины
     g.fillStyle(0xffd47a, 0.25); g.fillCircle(26, VH - 24, 10); g.fillStyle(0xffe3a3, 1); g.fillCircle(26, VH - 24, 5);
     this.beadTxt.setVisible(true).setText(String(gs.beads));
+    // сцена босса (превращение, вступление): чёрные полосы сверху и снизу и подсказка «пропустить»
+    const sc = sceneOn(gs);
+    this.sceneK += ((sc ? 1 : 0) - this.sceneK) * Math.min(1, delta / 140);
+    if (this.sceneK > 0.01) {
+      const bh = 56 * this.sceneK;
+      g.fillStyle(0x000000, 0.92); g.fillRect(0, 0, VW, bh); g.fillRect(0, VH - bh, VW, bh);
+    }
+    this.sceneHint.setAlpha(sc?.skippable ? Math.min(1, this.sceneK * 1.2) * 0.85 : 0).setText('Прыжок или удар — пропустить');
     // полоса босса
     if (this.bossOn) {
       this.bossShown += (this.bossFrac - this.bossShown) * Math.min(1, delta / 120);
