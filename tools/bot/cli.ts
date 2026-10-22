@@ -1,6 +1,7 @@
 // ИИ-тестер боссов на ядре v2.
 //   npm run bot -- table --fights 200 [--boss misha|vladik|tima|korne] [--skill 0.6] [--players 1] [--max 240] [--seed 1]
-//                          [--workers N] [--balance файл.json] [--json] [--verbose]
+//                          [--workers N] [--balance файл.json] [--json] [--verbose] [--kit]
+//   --kit: открыть приёмы набора игрока (теневой рывок…) в Босс-тесте; бот пользуется ими при мастерстве ≥ 0,9. По умолчанию выключено, таблицы баланса не меняются
 //   npm run bot -- record --boss misha [--skill 0.9] [--seed 5] [--out бой.ttrec]    один бой с записью
 //   npm run bot -- watch бой.ttrec          смотреть запись в браузере (движок игры воспроизводит её по ?watch=)
 //   npm run bot -- watch --boss tima --skill 0.6 --seed 3    записать бой и сразу открыть (--speed 2 — скорость, --no-open — не открывать браузер сам)
@@ -43,7 +44,7 @@ async function table(): Promise<void> {
   if (bal) applyBalanceOverride(bal);
   const skills = (opt('skill') ?? opt('levels') ?? DEFAULT_SKILLS.join(',')).split(',').map(Number);
   if (skills.some((s) => !(s >= 0 && s <= 1))) throw new Error('--skill: число от 0 до 1 (или список через запятую)');
-  const spec = { bosses: parseBosses(), skills, fights: +(opt('fights', '20')!), players: +(opt('players', '1')!), maxSec: +(opt('max', '240')!), seed: +(opt('seed', '1')!), ver: pkg.version };
+  const spec = { bosses: parseBosses(), skills, fights: +(opt('fights', '20')!), players: +(opt('players', '1')!), maxSec: +(opt('max', '240')!), seed: +(opt('seed', '1')!), ver: pkg.version, kit: flag('kit') };
   const jobs = tableJobs(spec), workers = +(opt('workers') ?? defaultWorkers());
   const json = flag('json'), verbose = flag('verbose') || flag('v');
   log(`Бой: ${jobs.length}, воркеров: ${workers}${bal ? ', баланс переопределён' : ''}`);
@@ -69,7 +70,7 @@ function recordOne(defaultDir = ''): ReturnType<typeof runFight> & { path: strin
   if (bal) applyBalanceOverride(bal);
   const boss = (opt('boss', 'misha')) as BossId;
   if (!BOSSES.includes(boss)) throw new Error(`Неизвестный босс «${boss}»`);
-  const r = runFight({ boss, skill: +(opt('skill', '0.9')!), players: +(opt('players', '1')!), seed: +(opt('seed', '1')!), maxSec: +(opt('max', '240')!), record: true, ver: pkg.version });
+  const r = runFight({ boss, skill: +(opt('skill', '0.9')!), players: +(opt('players', '1')!), seed: +(opt('seed', '1')!), maxSec: +(opt('max', '240')!), record: true, ver: pkg.version, kit: flag('kit') });
   if (r.error) throw new Error(r.error);
   if (bal) r.ttrec!.setup.balance = bal;
   const path = resolve(opt('out') ?? join(defaultDir, `${boss}-${opt('seed', '1')}.ttrec`));

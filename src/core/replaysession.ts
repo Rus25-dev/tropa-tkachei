@@ -30,7 +30,7 @@ export class ReplaySession extends Session {
     let data: SceneData, run: { cat: 'trail' | 'boss' } | undefined;
     if (J.cat) { const d0 = runStartData(J.cat, first.seed); data = { ...d0, camp: (first.data.camp as CampState | null) || d0.camp }; run = { cat: J.cat }; }
     else data = { players: first.data.players || 1, mode: first.data.mode, boss: first.data.boss ?? undefined, camp: first.data.camp as CampState | null, seed: first.seed };
-    super(cfg, data, run);
+    super({ ...cfg, kit: !!first.data.kit }, data, run); // приёмы набора игрока — как при записи
     this.rec = null;
     this.journal = J;
     if (this.sr) this.sr.replay = { splits: J.splits, mem: !!J.mem };

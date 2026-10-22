@@ -10,6 +10,14 @@ import { spellCd, spellDamage } from '../../src/core/kit/spells';
 import { TOOLS, applyLoadout, defaultLoadout, equipped, normalizeSave, owned } from '../../src/core/loadout';
 import type { Boss, Inp, Player } from '../../src/core/types';
 import { World } from '../../src/core/world';
+import { applyPlayer, packPlayer } from '../../src/core/netplay';
+import { Recorder } from '../../src/core/session';
+import { runFight } from '../../tools/bot/fight';
+import { emptyFrame } from '../../src/core/input';
+import { outcome } from '../../src/core/journal';
+import { replayJournal } from '../../src/core/replay';
+import { SessionRecorder } from '../../src/core/recording';
+import { Session } from '../../src/core/session';
 
 interface MkOpts { kit?: boolean; abil?: Record<string, boolean>; boss?: string; seed?: number }
 /** Арена Владика 44×22 (пол — ряд 18, внутри — клетки 1…42), босс спит; герой стоит на земле, неуязвимость снята */
@@ -366,4 +374,45 @@ describe('детерминизм и старые записи', () => {
     script(a.w); script(b.w);
     expect(hashFor(a.w, 2)).not.toBe(hashFor(b.w, 2));
   });
+});
+
+describe('сеть, журнал и бот', () => {
+  it('поза приёма уходит напарнику: вспышка, неуязвимость и заряд видны, хост учитывает неуязвимость гостя', () => {
+    const a = mk(), b = mk({ kit: false });
+    const q = b.w.players[0]!; q.remote = true;
+    air(a.p, 20 * T, 8 * T); a.p.canDash = false;
+    step(a.w, { right: true, dash: true }, { dashP: true });
+    const m = packPlayer(a.w, a.p); expect(m['ks']).toBe(2); expect(m['kg']).toBeGreaterThan(0);
+    applyPlayer(b.w, { ...m, i: 0 });
+    expect(q['fl']).toBeTruthy(); expect(kitGhost(q)).toBe(true);
+    q.inv = 0; const hp = q.hp; hurtPlayer(b.w, q, 1, q.x + 20); expect(q.hp).toBe(hp);
+    const idle = mk({ kit: false }); expect(packPlayer(idle.w, idle.p)['ks']).toBeUndefined(); // без приёмов поле не отправляется
+  });
+  it('журнал помнит флаг kit; без флага записи не меняются', () => {
+    const on = mk(), off = mk({ kit: false });
+    const r1 = Recorder.start({ cat: null, seed: 1, ver: 't', mem: true }), r2 = Recorder.start({ cat: null, seed: 1, ver: 't', mem: true });
+    r1.begin(on.w); r2.begin(off.w);
+    expect(r1.seg!.data.kit).toBe(true); expect('kit' in r2.seg!.data).toBe(false);
+  });
+  it('партия с открытыми приёмами воспроизводится по журналу в тот же исход (флаг kit лежит в записи)', () => {
+    const ses = new Session({ easy: false, loadoutSave: normalizeSave(null), progress: null, ver: 't', clock: () => 0, fx: false, kit: true }, { seed: 9, mode: 'bosstest', boss: 'vladik', players: 1, camp: null });
+    const rec = new SessionRecorder(ses, { ver: 't', easy: false });
+    for (let i = 0; i < 600; i++) {
+      const f = emptyFrame();
+      f.buttons.right = i % 200 < 120; f.buttons.dash = i % 90 < 50; f.buttons.jump = i % 61 < 20;
+      if (i % 90 === 0) f.edges.dashP = true; if (i % 61 === 0) f.edges.jumpP = true;
+      ses.frame(1000 / 60, [f]);
+    }
+    expect(rec.journal.segs[0]!.data.kit).toBe(true);
+    const r = replayJournal(rec.journal, { loadoutSave: ses.cfg.loadoutSave, progress: null });
+    if (!r.ok) throw new Error(r.why);
+    expect(JSON.parse(JSON.stringify(outcome(r.world)))).toEqual(JSON.parse(JSON.stringify(outcome(ses.world))));
+    expect(kitHas(r.world, r.world.players[0]!, 'shadow')).toBe(true);
+  });
+  it('бот играет без ошибок с приёмами и без; без kit результат прежний', () => {
+    const base = { boss: 'vladik' as const, skill: 0.95, players: 1, seed: 3, maxSec: 6 };
+    const a = runFight({ ...base }), c = runFight({ ...base, kit: true });
+    expect(a.error).toBeUndefined(); expect(c.error).toBeUndefined();
+    expect(a.ticks).toBeGreaterThan(0); expect(c.ticks).toBeGreaterThan(0);
+  }, 60_000);
 });

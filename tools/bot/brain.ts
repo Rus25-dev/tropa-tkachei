@@ -10,6 +10,8 @@ import { tdGeo } from '../../src/core/misha';
 import { mulberry32 } from '../../src/core/rng';
 import type { Inp } from '../../src/core/types';
 import type { World } from '../../src/core/world';
+import { kitHas } from '../../src/core/kit/abilities';
+import { KIT } from '../../src/core/balance';
 
 const DT = 1 / 30, BLOCK = 3, NS = 36, DEPTH = 12;
 // скорости и тайминги мозга зашиты как в v1.8: бот моделирует игру по своей модели, а не читает баланс (иначе правка баланса «чинила» бы бота сама)
@@ -35,6 +37,8 @@ export class Brain {
   readonly react: number; readonly missP: number; readonly lapseRate: number; readonly errRate: number;
   readonly canPerfect: boolean; readonly canDash: boolean; readonly canParry: boolean; readonly canBurst: boolean; readonly canExec: boolean;
   readonly beamW: number; readonly depth: number;
+  /** модель рывка бота: шаги планирования (1/30 с), откат в шагах и скорость; теневой рывок (мастерство ≥ 0,9, приём открыт) — дольше и быстрее */
+  readonly dashSteps: number; readonly dashCdSteps: number; readonly dashV: number;
   seen = new WeakMap<object, { f: number; k: number }>();
   frame = 0; lapse = 0; prev: Record<string, boolean> = {}; planAt = -99;
   e: any = { x: 0, y: 0, w: 14, h: 26, vx: 0, vy: 0, onGround: false, noPlat: false };
@@ -57,6 +61,8 @@ export class Brain {
     this.canDash = s >= 0.35; this.canParry = s >= 0.7; this.canBurst = s >= 0.7; this.canExec = s >= 0.45;
     this.beamW = s >= 0.8 ? 40 : s >= 0.5 ? 28 : 16;
     this.depth = s >= 0.8 ? DEPTH : s >= 0.5 ? 10 : 8;
+    const shade = s >= 0.9 && !!sc.players[idx] && kitHas(sc, sc.players[idx]!, 'shadow');
+    this.dashSteps = shade ? Math.round(KIT.SHADOW.T / DT) : 4; this.dashCdSteps = shade ? Math.ceil(KIT.SHADOW.CD / DT) : 14; this.dashV = shade ? KIT.SHADOW.SPD : DASHV;
   }
 
   // ---------- восприятие ----------
@@ -201,7 +207,7 @@ export class Brain {
     const dir = a.dir;
     let dashing = false;
     if (n.dT > 0) {
-      dashing = true; n.dT--; n.vx = n.face * DASHV; n.vy = 0;
+      dashing = true; n.dT--; n.vx = n.face * this.dashV; n.vy = 0;
       if (n.dT <= 0) n.vx = dir * RUN;
     } else {
       n.vx = dir * RUN; if (dir) n.face = dir;
@@ -212,7 +218,7 @@ export class Brain {
       n.jh = !!a.jump;
       if (!a.jump && n.vy < 0 && !n.cut) { n.vy *= CUT; n.cut = true; }
       n.vy += GR * DT * ((a.jump && Math.abs(n.vy) < 90 && !n.og) ? 0.55 : 1); if (n.vy > 720) n.vy = 720;
-      if (first && a.dash && this.canDash && n.dcd <= 0 && (n.og || n.cd)) { dashing = true; n.dT = 4; n.dcd = 14; if (!n.og) n.cd = false; if (dir) n.face = dir; n.vy = 0; n.vx = n.face * DASHV; }
+      if (first && a.dash && this.canDash && n.dcd <= 0 && (n.og || n.cd)) { dashing = true; n.dT = this.dashSteps; n.dcd = this.dashCdSteps; if (!n.og) n.cd = false; if (dir) n.face = dir; n.vy = 0; n.vx = n.face * this.dashV; }
     }
     const x0 = n.x, y0 = n.y;
     e.x = n.x; e.y = n.y; e.vx = n.vx; e.vy = n.vy; sc.moveBody(e, DT);

@@ -8,6 +8,8 @@ import type { World } from '../../core/world';
 import { INK, MASK, type G } from '../draw/common';
 import { TOOLS } from '../../core/loadout';
 import { currentFit, fitCamera, type Fit } from '../fit';
+import { ABILS } from '../../core/kit/abilities';
+import { kitHud } from '../../core/kit/moves';
 
 const FONT = '"Fira Sans", sans-serif', DISPLAY = '"Cormorant SC", Georgia, serif';
 interface UiEvent { k: string; [key: string]: unknown }
@@ -187,6 +189,7 @@ export class HudScene extends Phaser.Scene {
         else { g.lineStyle(1.5, 0x4a5a52, 1); g.strokeCircle(bx, by, 6); }
       }
       this.drawToolBadge(g, gs, p, sx, i);
+      this.drawKitIcons(g, gs, p, i);
     });
     // последний бутон — края экрана пульсируют красным
     const me = gs.players[0];
@@ -209,6 +212,26 @@ export class HudScene extends Phaser.Scene {
     void P;
   }
 
+  /** значки приёмов набора игрока (теневой рывок, вспышка, кристальный рывок): готовность, откат и заряд */
+  private drawKitIcons(g: G, gs: World, p: World['players'][number], i: number): void {
+    if (p.remote) return;
+    const list = kitHud(gs, p); if (!list.length) return;
+    const dir = i === 0 ? 1 : -1, x0 = (i === 0 ? 40 : this.fit.vw - 40) + dir * (p['toolId'] ? 36 : 0), cy = 94, R = 10;
+    list.forEach((ic, k) => {
+      const cx = x0 + dir * k * 27, col = ABILS[ic.id].col;
+      g.fillStyle(0x0b1714, 0.85); g.fillCircle(cx, cy, R + 2);
+      const c = ic.ready || ic.active ? col : 0x6f8f83, a = ic.ready ? 1 : 0.8;
+      g.lineStyle(2, c, a); g.fillStyle(c, a);
+      if (ic.id === 'shadow') { g.strokeCircle(cx, cy, 6); g.fillStyle(0x140a2a, 1); g.fillCircle(cx + 1, cy, 4); g.lineStyle(1.5, c, 0.8); g.lineBetween(cx - 9, cy - 3, cx - 5, cy - 3); g.lineBetween(cx - 10, cy + 2, cx - 6, cy + 2); }
+      else if (ic.id === 'flash') { for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [0.7, 0.7], [-0.7, 0.7], [0.7, -0.7], [-0.7, -0.7]] as const) g.lineBetween(cx + dx * 2.5, cy + dy * 2.5, cx + dx * 8, cy + dy * 8); g.fillCircle(cx, cy, 2); }
+      else { g.beginPath(); g.moveTo(cx, cy - 8); g.lineTo(cx + 5, cy - 2); g.lineTo(cx + 3, cy + 7); g.lineTo(cx - 3, cy + 7); g.lineTo(cx - 5, cy - 2); g.closePath(); g.strokePath(); g.fillStyle(c, 0.35); g.fillTriangle(cx, cy - 8, cx + 5, cy - 2, cx - 5, cy - 2); }
+      // откат (убывающий тёмный сектор) или заряд (растущая дуга)
+      if (ic.id === 'crystal' && ic.active && !ic.ready) { g.lineStyle(2.5, 0xffffff, 0.9); g.beginPath(); g.arc(cx, cy, R + 2, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * ic.frac, false); g.strokePath(); }
+      else if (ic.frac > 0 && !ic.ready) { g.fillStyle(0x000000, 0.6); g.beginPath(); g.moveTo(cx, cy); g.arc(cx, cy, R, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * ic.frac, false); g.closePath(); g.fillPath(); }
+      else if (ic.ready) { g.lineStyle(1.5, col, 0.9); g.strokeCircle(cx, cy, R + 2); }
+    });
+  }
+
   /** значок инструмента под катушкой нити (tools.js) */
   private drawToolBadge(g: G, gs: World, p: World['players'][number], sx: number, i: number): void {
     const toolId = p['toolId'] as string | undefined; if (!toolId) return;
@@ -223,6 +246,9 @@ export class HudScene extends Phaser.Scene {
     else if (toolId === 'trap') { g.fillRect(cx - 8, cy + 3, 16, 3); for (let k = 0; k < 4; k++) g.fillTriangle(cx - 8 + k * 4, cy + 3, cx - 4 + k * 4, cy + 3, cx - 6 + k * 4, cy - 5); }
     else if (toolId === 'threadbomb') { g.strokeCircle(cx, cy + 2, 6); g.lineBetween(cx + 3, cy - 3, cx + 6, cy - 8); g.fillCircle(cx + 7, cy - 9, 1.6); }
     else if (toolId === 'hook') { g.beginPath(); g.moveTo(cx - 8, cy + 8); g.lineTo(cx - 1, cy - 4); g.strokePath(); g.beginPath(); g.arc(cx + 3, cy - 5, 5, Math.PI * 0.9, Math.PI * 2.2, false); g.strokePath(); }
+    else if (toolId === 'spirit') { g.fillCircle(cx + 3, cy, 4); g.lineStyle(2, col, 0.7); g.lineBetween(cx - 8, cy - 3, cx - 2, cy - 1); g.lineBetween(cx - 8, cy + 3, cx - 2, cy + 1); }
+    else if (toolId === 'dive') { g.lineBetween(cx, cy - 8, cx, cy + 3); g.fillTriangle(cx - 6, cy + 1, cx + 6, cy + 1, cx, cy + 9); }
+    else if (toolId === 'wraith') { g.lineBetween(cx, cy + 8, cx, cy - 7); g.lineStyle(1.5, col, 0.8); g.lineBetween(cx - 5, cy + 7, cx - 3, cy - 4); g.lineBetween(cx + 5, cy + 7, cx + 3, cy - 4); g.fillTriangle(cx - 4, cy - 5, cx + 4, cy - 5, cx, cy - 10); }
     else g.fillCircle(cx, cy, 4);
     // перезарядка: тёмный сектор убывает по часовой, снаружи — дуга готовности
     if (frac > 0) {

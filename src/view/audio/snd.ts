@@ -106,6 +106,16 @@ class SndImpl {
       case 'hammer': this.hiss(0.14, 0.2, 600, 0.7); this.tone('triangle', 170, 70, 0.18, 0.14); break;
       case 'quake': this.hiss(0.45, 0.32, 130, 0.6); this.tone('sine', 75, 28, 0.6, 0.4); this.tone('square', 220, 60, 0.15, 0.06); break;
       case 'lunge': this.hiss(0.18, 0.24, 2600, 1.5); this.tone('square', 950, 220, 0.16, 0.06); break;
+      // набор приёмов игрока (v2.5): теневой рывок, вспышка, кристальный рывок, нитяные заклинания
+      case 'shadow': this.hiss(0.2, 0.12, 500, 0.5); this.tone('sawtooth', 300, 90, 0.2, 0.07); this.tone('sine', 150, 60, 0.22, 0.1); break;
+      case 'flash': this.tone('square', 1100, 2400, 0.07, 0.06); this.hiss(0.1, 0.12, 3200, 1.2); this.tone('sine', 1800, 900, 0.12, 0.05); break;
+      case 'crystalCharge': this.tone('sine', 360, 1200, 0.5, 0.07); this.tone('triangle', 540, 1800, 0.5, 0.04); break;
+      case 'crystalReady': this.tone('sine', 1760, 1760, 0.3, 0.1); this.tone('triangle', 2637, 2637, 0.4, 0.07); this.later([80], () => this.tone('sine', 3520, 3520, 0.3, 0.05)); break;
+      case 'crystalGo': this.hiss(0.3, 0.26, 2200, 0.8); this.tone('sawtooth', 220, 1400, 0.22, 0.1); this.tone('sine', 90, 40, 0.3, 0.2); break;
+      case 'spirit': this.tone('sine', 520, 1040, 0.22, 0.12); this.hiss(0.2, 0.1, 1700, 1); this.tone('triangle', 780, 1560, 0.18, 0.05); break;
+      case 'wraith': this.tone('sawtooth', 200, 900, 0.4, 0.09); this.hiss(0.4, 0.18, 1100, 0.7); this.tone('sine', 400, 1200, 0.4, 0.08); break;
+      case 'diveGo': this.tone('sawtooth', 700, 120, 0.3, 0.1); this.hiss(0.3, 0.12, 1400, 0.8); break;
+      case 'diveLand': this.hiss(0.4, 0.34, 150, 0.6); this.tone('sine', 110, 32, 0.5, 0.4); this.tone('triangle', 1400, 500, 0.18, 0.08); break;
       // движение (movement2.js)
       case 'ledge': this.hiss(0.07, 0.07, 700, 1); break;
       case 'glide': this.hiss(0.18, 0.06, 900, 0.7); break;

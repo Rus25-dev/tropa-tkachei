@@ -284,14 +284,14 @@ export function Gear({ ses, onClose }: { ses: Session; onClose: () => void }) {
                 onFocus={() => setSel(i)} onPointerDown={() => { wasSel.current = i === sel; }} onClick={(e) => { if (e.detail === 0 || wasSel.current) doAct(); else setSel(i); }}>
                 {kind === 'charms' && x.owned && <i class="dot" style={{ background: '#' + (CHARMS[x.id]?.col ?? 0xcfe8dc).toString(16).padStart(6, '0') }} />}
                 <span class="gn">{x.e.name}</span>
-                <span class={`gs ${!x.owned ? (pr && w.beads >= pr ? 'afford' : 'no') : 'yes'}`}>{!x.owned ? (pr ? `${pr} бусин` : 'закрыто') : eq ? 'надето' : ''}</span>
+                <span class={`gs ${!x.owned ? (pr && w.beads >= pr ? 'afford' : 'no') : 'yes'}`}>{!x.owned ? (pr ? `${pr} бусин` : 'закрыто') : eq ? (kind === 'abils' ? 'открыт' : 'надето') : ''}</span>
               </button>);
             })}
           </div>
           <div class="gear-det">
             {it && st ? (<>
               <h3 class="gd-n">{it.e.name}</h3>
-              <div class="gd-s">{!it.owned ? lockText(it.e) : st.eq ? 'Надето' : it.none ? '' : 'Есть у вас'}</div>
+              <div class="gd-s">{!it.owned ? lockText(it.e) : st.eq ? (kind === 'abils' ? 'Открыт' : 'Надето') : it.none ? '' : 'Есть у вас'}</div>
               <p class="gd-d">{it.e.desc}</p>
               {!it.none && <pre class="gd-st">{statsOf(kind, it.e).join('\n')}</pre>}
               <button type="button" class={`btn gact ${st.ok ? 'ok' : 'off'}`} id="gear-act" onClick={doAct}>{st.label}</button>
