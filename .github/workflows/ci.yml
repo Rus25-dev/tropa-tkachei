@@ -13,8 +13,9 @@ concurrency:
 
 jobs:
   check:
+    # линт, типы, Vitest, сборка. e2e вынесены в отдельную задачу: вместе они перестали укладываться в 20 минут (боссов стало больше)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -25,6 +26,18 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
+      - run: npm run build
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
