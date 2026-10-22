@@ -19,13 +19,12 @@ const bomb = (w: World): void => {
 };
 
 describe('Миша Додик на данных', () => {
-  it('загружен и виден в Босс-тесте по ?dev=1; обычные карточки и списки ботов/дуэли не тронуты', () => {
+  it('загружен, виден в Босс-тесте и среди ботов; старые карточки и их порядок на месте', () => {
     const d = bossDef(ID)!;
-    expect(d).toBeTruthy(); expect(d.dev).toBe(true); expect(d.arena).toBe('misha');
-    expect(testCards(true).map((c) => c.id)).toContain(ID);
-    expect(testCards(false).map((c) => c.id)).not.toContain(ID); // пока dev: общие тесты boss-discovery ждут только старых боссов
-    expect(testCards(true).slice(0, 3).map((c) => c.id)).toEqual(LEGACY_CARDS.map((c) => c.id));
-    expect(raceBossIds()).toContain('misha');
+    expect(d).toBeTruthy(); expect(d.dev).toBe(false); expect(d.arena).toBe('misha');
+    expect(testCards(false).map((c) => c.id)).toEqual(expect.arrayContaining(['misha', ID]));
+    expect(testCards(false).slice(0, 3).map((c) => c.id)).toEqual(LEGACY_CARDS.map((c) => c.id));
+    expect(raceBossIds()).toEqual(expect.arrayContaining(['misha', ID]));
     expect(duelBossIds()).not.toContain(ID); // дуэль для боссов на данных ещё не подключена
   });
 
