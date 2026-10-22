@@ -10,6 +10,7 @@ import { enemyReg } from '../src/core/plugin/regs';
 import { T } from '../src/core/balance';
 import type { Level } from '../src/core/types';
 import { ARENAS, buildLevel, buildRoad } from '../tests/oracle/levels-code';
+import { buildKeeperArena } from './keeper-level';
 
 // ---------- детерминированные идентификаторы ----------
 function iid(name: string): string {
@@ -209,6 +210,7 @@ export function projectLevels(): [string, Level][] {
   return [
     ['Ch1', buildLevel()], ['Road2', buildRoad(2)], ['Road3', buildRoad(3)], ['Road4', buildRoad(4)],
     ['ArenaMisha', ARENAS['misha']!()], ['ArenaVladik', ARENAS['vladik']!()], ['ArenaTima', ARENAS['tima']!()],
+    ['ArenaKeeper', buildKeeperArena()],
   ];
 }
 
