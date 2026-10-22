@@ -56,3 +56,23 @@ export const toolViewReg = new Registry<ToolView>('отрисовка инстр
 export const toolEntView = new Map<string, NonNullable<ToolView['ents']>[string]>();
 export const tfxView = new Map<string, NonNullable<ToolView['fx']>[string]>();
 toolViewReg.onDefine((v) => { for (const [k, f] of Object.entries(v.ents ?? {})) toolEntView.set(k, f); for (const [k, f] of Object.entries(v.fx ?? {})) tfxView.set(k, f); });
+
+/** отрисовка приёма героя: значок HUD, эффекты по коду состояния (kitCode), следы по коду s, поза поверх героя */
+export interface AbilityView {
+  id: string;
+  /** значок HUD радиусом ~10 вокруг (cx, cy) цветом c (линия и заливка уже этим цветом) */
+  icon?: (g: G, cx: number, cy: number, c: number, ic: { frac: number; ready: boolean; active: boolean }) => void;
+  /** HUD: вместо тёмного сектора отката — растущая дуга заряда (пока приём активен и не готов) */
+  chargeArc?: boolean;
+  /** эффект вокруг героя по коду состояния (система координат героя: 0,0 — ноги по центру) */
+  fx?: Record<number, (g: G, p: Player, now: number, code: number) => void>;
+  /** вид следа по коду s: цвет, прозрачность (множитель), размер */
+  trails?: Record<number, { col: number; a: number; w?: number; h?: number }>;
+  /** поза поверх героя каждый кадр (например, кольцо контрудара) */
+  pose?: (g: G, p: Player, w: World) => void;
+}
+export const defineAbilityView = (v: AbilityView): AbilityView => v;
+export const abilityViewReg = new Registry<AbilityView>('отрисовка приёмов');
+export const kitFxView = new Map<number, NonNullable<AbilityView['fx']>[number]>();
+export const trailView = new Map<number, NonNullable<AbilityView['trails']>[number]>();
+abilityViewReg.onDefine((v) => { for (const [k, f] of Object.entries(v.fx ?? {})) kitFxView.set(+k, f); for (const [k, t] of Object.entries(v.trails ?? {})) trailView.set(+k, t); });

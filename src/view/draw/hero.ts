@@ -1,13 +1,13 @@
 // Герои: фигура, эффекты поз, дуги ударов и клинки (legacy/src/game.js drawPlayer, combat2/qol/movement2 drawPlayerFx, weapons.js drawSwing/drawWeaponBody).
 import { CH_SHOW, CH_T, P, PARRY2 } from '../../core/balance';
-import { kitChargeFrac, kitCode } from '../../core/kit/moves';
+import { kitCode } from '../../core/kit/moves';
 import type { Player } from '../../core/types';
 import type { Swing } from '../../core/weapons';
 import { atkBox, wdef } from '../../core/weapons';
 import type { World } from '../../core/world';
 import { type G, MASK, PI, drawWeaver, pts } from './common';
 import '../content'; // отрисовка содержимого (src/view/content) регистрируется сама
-import { type SwingCtx, weaponViewReg } from '../content/regs';
+import { abilityViewReg, kitFxView, type SwingCtx, trailView, weaponViewReg } from '../content/regs';
 
 /** Поза героя и сжатие/растяжение; возвращает масштаб и позу для тега */
 export function drawPlayer(w: World, p: Player, g: G, now: number): { sx: number; sy: number; blink: boolean; a: { leg: number; bob: number; sway: number; lift: number }; cx: number; fy: number } {
@@ -62,11 +62,7 @@ function drawPlayerFx(w: World, p: Player, g: G, now: number): void {
     g.lineStyle(gold ? 3.5 : 2.5, gold ? 0xffd96a : 0xffffff, 0.9); g.strokeCircle(0, -14, 20 + (P.PARRY_T - p['parryT']) * 50);
   }
   if ((p['perfFx'] as number) > 0) { const k = p['perfFx'] / 0.45; g.lineStyle(4, 0xffd96a, k); g.strokeCircle(0, -14, 20 + (1 - k) * 46); g.lineStyle(2, 0xffffff, k); g.strokeCircle(0, -14, 14 + (1 - k) * 30); }
-  if ((p['cxFx'] as number) > 0) { // Контрудар: кольцо и перекрестье у руки
-    const k = (p['cxFx'] as number) / 0.4, r = 30 + (1 - k) * 24;
-    g.lineStyle(4, 0xbfe9ff, k); g.strokeCircle(p.face * 18, -14, 12 + (1 - k) * 40);
-    g.lineStyle(2, 0xffffff, k); g.lineBetween(p.face * 6, -22, p.face * r, -6); g.lineBetween(p.face * 6, -6, p.face * r, -22);
-  }
+  for (const v of abilityViewReg.list()) v.pose?.(g, p, w); // позы приёмов (кольцо контрудара и т. п.)
   if ((p['counterT'] as number) > 0) { const k = p['counterT'] / PARRY2.COUNTER_T; g.lineStyle(2, 0xffd96a, 0.4 + 0.4 * Math.sin(w.animT * 30)); g.strokeCircle(p.face * 12, -14, 7 + 5 * k); } // контратака готова: золотая искра у руки
   if ((p['execT'] as number) > 0) { // казнь: огромный росчерк вверх или вниз
     const k = p['execT'] / 0.42, up = p['execDir'] === 'u', dy = up ? -1 : 1, f = p.face;
@@ -158,35 +154,12 @@ function drawWeaponSwing(w: World, p: Player, fx: G): boolean {
 }
 
 // ---------- приёмы набора игрока (v2.5): теневой рывок, вспышка, кристальный рывок, нырок ----------
-/** цвета следа по виду: 0 плащ, 1 тень, 2 вспышка, 3 кристальный рывок, 4 нырок */
-const TRAIL_COL: Record<number, number> = { 1: 0x5a4aa8, 2: 0x7fd8ff, 3: 0xff8ae0, 4: 0xcfe8ff };
+/** вид следа по коду s (0 — плащ; остальные задают приёмы в src/view/content/abilities) */
 export function trailStyle(p: Player, tr: { s?: number; a: number }): { col: number; a: number; w: number; h: number } {
-  const s = tr.s ?? 0;
-  return { col: s ? TRAIL_COL[s]! : p.pal.cloak, a: tr.a * (s === 1 ? 0.5 : s === 3 ? 0.55 : 0.35), w: s === 3 ? 26 : 18, h: s === 4 ? 30 : 22 };
+  const s = tr.s ?? 0, t = s ? trailView.get(s) : undefined;
+  return { col: t ? t.col : p.pal.cloak, a: tr.a * (t ? t.a : 0.35), w: t?.w ?? 18, h: t?.h ?? 22 };
 }
 function drawKitFx(p: Player, g: G, now: number): void {
   const kc = kitCode(p);
-  if (!kc) return;
-  const fl = p['fl'] as { dx: number; dy: number } | null, pulse = 0.6 + 0.4 * Math.sin(now * 40);
-  if (kc === 1) { // теневой рывок: тёмный силуэт с фиолетовой каймой и клочьями за спиной
-    g.fillStyle(0x140a2a, 0.55); g.fillEllipse(0, -14, 22, 32);
-    g.lineStyle(2, 0xa28cff, 0.8); g.strokeEllipse(0, -14, 24, 34);
-    for (let i = 0; i < 3; i++) { g.lineStyle(2, 0x6a5ac8, 0.5 - i * 0.12); g.lineBetween(-p.face * (14 + i * 9), -22 + i * 7, -p.face * (30 + i * 12), -20 + i * 8); }
-  } else if (kc === 2 && fl) { // вспышка: полосы против направления и кольцо
-    const ux = fl.dx, uy = fl.dy;
-    for (let i = -1; i <= 1; i++) { g.lineStyle(2.4, i ? 0x7fd8ff : 0xffffff, 0.8); g.lineBetween(-ux * 6 - uy * i * 7, -14 - uy * 6 + ux * i * 7, -ux * 34 - uy * i * 7, -14 - uy * 34 + ux * i * 7); }
-    g.lineStyle(2, 0xffffff, 0.7); g.strokeCircle(0, -14, 15 + pulse * 3);
-  } else if (kc === 3 || kc === 4) { // заряд: свечение растёт, искры сходятся, в конце — белое кольцо
-    const k = kitChargeFrac(p), full = kc === 4;
-    g.fillStyle(0xff8ae0, (0.1 + 0.22 * k) * (full ? pulse + 0.4 : 1)); g.fillCircle(0, -14, 12 + 18 * k);
-    g.lineStyle(2, full ? 0xffffff : 0xff8ae0, 0.4 + 0.5 * k); g.strokeCircle(0, -14, full ? 32 + Math.sin(now * 40) * 3 : 46 - 26 * k);
-    for (let i = 0; i < 6; i++) { const an = now * 7 + i * PI / 3, r = full ? 28 : 46 - 24 * k; g.fillStyle(full ? 0xffffff : 0xffc6f2, 0.9); g.fillCircle(Math.cos(an) * r, -14 + Math.sin(an) * r, 2); }
-    g.lineStyle(2, 0xff8ae0, 0.7); g.lineBetween(-10, 1, 10, 1);
-  } else if (kc === 5) { // суперрывок: длинный розовый росчерк
-    for (let i = 0; i < 4; i++) { g.lineStyle(3 - i * 0.5, i ? 0xff8ae0 : 0xffffff, 0.8 - i * 0.15); g.lineBetween(-p.face * 10, -22 + i * 5, -p.face * (60 + i * 24), -22 + i * 5); }
-    g.fillStyle(0xff8ae0, 0.25); g.fillEllipse(-p.face * 14, -14, 40, 30);
-  } else if (kc === 6) { // нырок: голубой шлейф вверх и остриё вниз
-    g.lineStyle(3, 0xcfe8ff, 0.8); g.lineBetween(0, -34, 0, -80); g.lineStyle(2, 0xffffff, 0.7); g.lineBetween(-5, -34, -5, -62); g.lineBetween(5, -34, 5, -62);
-    g.fillStyle(0xcfe8ff, 0.7); g.fillTriangle(-6, 0, 6, 0, 0, 12);
-  }
+  if (kc) kitFxView.get(kc)?.(g, p, now, kc);
 }

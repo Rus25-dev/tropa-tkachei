@@ -3,6 +3,7 @@
 import type { WeaponDef } from '../weapon-kit';
 import type { ToolDef, ToolEntDef, ToolMsg } from '../tool-kit';
 import type { CharmDef } from '../charm-kit';
+import type { AbilityDef } from '../ability-kit';
 import type { World } from '../world';
 import { Registry } from './registry';
 
@@ -33,3 +34,11 @@ export const charmReg = new Registry<CharmDef>('обереги', (d) => {
   if (!(d.slots >= 1)) throw new Error(`оберег «${d.id}»: slots ≥ 1`);
   if (!d.unlock) throw new Error(`оберег «${d.id}»: нет unlock`);
 });
+
+/** все приёмы, включая внутренние (движение нырка): обработчики шага героя */
+export const moveReg = new Registry<AbilityDef>('приёмы (обработчики)', (d) => {
+  for (const c of d.codes ?? []) for (const o of moveReg.list()) if (o.id !== d.id && o.codes?.includes(c)) throw new Error(`приём «${d.id}»: код ${c} занят «${o.id}»`);
+});
+/** открываемые приёмы набора игрока (снаряжение, HUD, сохранение) */
+export const abilReg = new Registry<AbilityDef>('приёмы');
+moveReg.onDefine((d) => { if (d.listed !== false && !abilReg.has(d.id)) abilReg.define(d); });

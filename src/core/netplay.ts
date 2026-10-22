@@ -16,7 +16,7 @@ import { statusMask } from './status';
 import { freezeEnemy, isToolKind, toolHurtBoss, toolSpawn, type ToolMsg } from './tools';
 import { mkSw, wdef } from './weapons';
 import { inset, overlap, type World } from './world';
-import { kitChargeFrac, kitCode, kitFromNet } from './kit/moves';
+import { kitChargeFrac, kitCode, kitFromNet, kitTrail } from './kit/moves';
 import { netKindReg, toolEntReg } from './plugin/regs';
 
 export type NetMsg = Record<string, any>;
@@ -39,7 +39,7 @@ export function packPlayer(_w: World, p: Player): NetMsg {
   if (p['charms'] && p['charms'].length) m['cm'] = p['charms'].join(',');
   m['wk'] = p['swk'] || 'g'; if ((p['chg'] || 0) > CH_SHOW) m['cg'] = r100(p['chg']);
   m['lg'] = p['ledge'] ? p['ledge'].side : 0; m['gl'] = p['gliding'] ? 1 : 0;
-  const ks = kitCode(p); if (ks || p['kgF'] > 0) { m['ks'] = ks; m['kg'] = p['kgF'] | 0; if (ks === 3 || ks === 4) m['kc'] = r100(kitChargeFrac(p)); } // приёмы набора игрока (v2.5): только если что-то идёт
+  const ks = kitCode(p); if (ks || p['kgF'] > 0) { m['ks'] = ks; m['kg'] = p['kgF'] | 0; const kc = kitChargeFrac(p); if (kc > 0) m['kc'] = r100(kc); } // приёмы набора игрока (v2.5): только если что-то идёт
   return m;
 }
 /** поза напарника (у хоста — гостя, у гостя — хоста) */
@@ -200,8 +200,8 @@ export function netSmooth(w: World, dt: number): void {
     p['netT'] = (p['netT'] || 0) + dt;
     const ex = Math.min(p['netT'], 0.12), tx = p['tx'] + p.vx * ex, ty = p['ty'] + (p.onGround ? 0 : p.vy * ex);
     if (Math.abs(tx - p.x) > 160 || Math.abs(ty - p.y) > 160) { p.x = tx; p.y = ty; } else { p.x += (tx - p.x) * k; p.y += (ty - p.y) * k; }
-    if (p.dashT > 0) { p.dashT -= dt; (p.trail as unknown[]).push({ x: p.x + 7, y: p.y + 26, a: 1, f: p.face, s: p['shade'] ? 1 : 0 }); }
-    else if (p['fl'] || p['cr'] || p['dv']) (p.trail as unknown[]).push({ x: p.x + 7, y: p.y + 26, a: 1, f: p.face, s: p['fl'] ? 2 : p['cr'] ? 3 : 4 });
+    if (p.dashT > 0) { p.dashT -= dt; (p.trail as unknown[]).push({ x: p.x + 7, y: p.y + 26, a: 1, f: p.face, s: kitTrail(p, true) }); }
+    else { const s = kitTrail(p, false); if (s) (p.trail as unknown[]).push({ x: p.x + 7, y: p.y + 26, a: 1, f: p.face, s }); }
     p.inv -= dt; p.healT -= dt; p.landT -= dt; p['execT'] = (p['execT'] || 0) - dt;
     for (const tr of p.trail as { a: number }[]) tr.a -= dt * 5;
     p.trail = (p.trail as { a: number }[]).filter((tr) => tr.a > 0);

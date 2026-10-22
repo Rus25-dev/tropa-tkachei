@@ -52,3 +52,21 @@ describe('обереги', () => {
     expect(charmsOn({ charms: ['hunter', 'sting'] } as never).map((c) => c.id)).toEqual(['sting', 'hunter']);
   });
 });
+
+describe('приёмы', () => {
+  it('открываемые приёмы в прежнем порядке, движение нырка — внутренний приём; коды состояний не пересекаются', async () => {
+    const { ABILS, KIT_IDS } = await import('../../src/core/kit/abilities');
+    const { moveReg } = await import('../../src/core/plugin/regs');
+    expect(Object.keys(ABILS)).toEqual(['shadow', 'flash', 'crystal', 'counter']);
+    expect(KIT_IDS).toEqual(['shadow', 'flash', 'crystal', 'counter']);
+    expect(moveReg.ids()).toEqual(['shadow', 'flash', 'dive', 'crystal', 'counter']);
+    const codes = moveReg.list().flatMap((m) => m.codes ?? []);
+    expect(new Set(codes).size).toBe(codes.length);
+  });
+  it('у открываемых приёмов есть значок, у каждого кода состояния — эффект', async () => {
+    const { abilReg, moveReg } = await import('../../src/core/plugin/regs');
+    const { abilityViewReg, kitFxView } = await import('../../src/view/content/regs');
+    for (const id of abilReg.ids()) expect(abilityViewReg.get(id)?.icon, id).toBeTruthy();
+    for (const c of moveReg.list().flatMap((m) => m.codes ?? [])) expect(kitFxView.get(c), String(c)).toBeTruthy();
+  });
+});

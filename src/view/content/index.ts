@@ -1,11 +1,12 @@
 // Автозагрузка отрисовки и звуков содержимого: src/view/content/<вид>/<id>.ts (default-экспорт описания).
 // Вид работает только в Vite/Vitest, поэтому достаточно import.meta.glob (eager).
 import { collectDefaults, type Def, type Registry } from '../../core/plugin/registry';
-import { toolViewReg, weaponViewReg } from './regs';
+import { abilityViewReg, toolViewReg, weaponViewReg } from './regs';
 
 const KINDS: { dir: string; reg: Registry<Def> }[] = [
   { dir: 'weapons', reg: weaponViewReg as unknown as Registry<Def> },
   { dir: 'tools', reg: toolViewReg as unknown as Registry<Def> },
+  { dir: 'abilities', reg: abilityViewReg as unknown as Registry<Def> },
 ];
 const all = import.meta.glob(['./*/*.ts', '!./**/*.test.ts', '!./**/_*.ts'], { eager: true });
 const by: Record<string, Record<string, unknown>> = {};

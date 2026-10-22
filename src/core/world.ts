@@ -31,7 +31,8 @@ import { effForm } from './boss/form';
 import { makeFight, stepDataBoss } from './boss/exec';
 import { arenaStep, type ArenaRt } from './boss/arena';
 import { stepCond, type CondRt } from './boss/conductor';
-import '../content'; // содержимое (оружие и др.) регистрируется до создания мира
+import '../content'; // содержимое (оружие и др.) регистрируется до создания мира (в Node — ключом --import, см. src/content/node.ts)
+import { contentLoaded } from '../content/load';
 
 
 export type Mode = 'story' | 'bosstest';
@@ -112,6 +113,7 @@ export class World {
   fxOn: boolean; fxq: FxEvent[] = [];
 
   constructor(opts: WorldOpts) {
+    if (!contentLoaded()) throw new Error('Содержимое игры не загружено: в Node запускайте через tsx --import ./tools/ldtk-register.mjs (см. src/content/node.ts)');
     this.startData = opts;
     this.seed = opts.seed >>> 0;
     this.mode = opts.mode ?? 'story';

@@ -1,7 +1,7 @@
 // Нырок (навык нити, Desolate Dive): в воздухе — камнем вниз, удар оземь волной. Падение ведёт ядро (kit/moves.ts),
 // удары — kit/spells.ts; гость шлёт удары хосту сообщениями 'tool' с id 'divestrike' и 'diveland'.
 import { KIT } from '../../core/balance';
-import { diveBegin } from '../../core/kit/moves';
+import { diveBegin } from '../abilities/dive';
 import { diveLand, diveLandHit, diveStrikeHit } from '../../core/kit/spells';
 import { defineTool } from '../../core/tool-kit';
 import { toolOwner } from '../../core/tools';
