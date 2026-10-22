@@ -3,7 +3,7 @@
 // Порядок «обёрток» GameScene.prototype из v1.8 (qol → training → maptravel → tools → status и т. п.) сохранён явными вызовами.
 import { CHAPTERS, EMPTY, P, PAL, PLAT, SOLID, T, clamp } from './balance';
 import type { Boss, Enemy, FxEvent, Gate, Inp, Level, Player, Proj, Rect } from './types';
-import { buildLevel, ARENAS } from './levels';
+import { buildArena, buildLevel } from './levels';
 import { mulberry32, rngSeedFor, type Rng } from './rng';
 import { STEP } from './constants';
 import { campaignInit, campaignLevel, campaignSetup, applyUp, levelBossStep, type CampState, type Progress } from './campaign';
@@ -159,7 +159,7 @@ export class World {
     this.enemies = [];
     const dd = this.mode === 'bosstest' ? bossDef(this.bossKind) : undefined; // босс на данных: арена берётся из его описания
     if (this.mode === 'bosstest' && !dd) throw new Error(`нет босса на данных «${this.bossKind}»`);
-    this.L = campaignLevel(this) ?? (dd ? ARENAS[arenaLevel(dd)]!() : buildLevel());
+    this.L = campaignLevel(this) ?? (dd ? buildArena(arenaLevel(dd)) : buildLevel());
     this.bosses = [];
     this.crates = null; this.puddles = null;
     const L = this.L;

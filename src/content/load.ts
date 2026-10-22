@@ -1,6 +1,6 @@
 // Регистрация найденных файлов содержимого по папкам (общая для загрузки в Vite и в Node).
 import { collectDefaults, type Def, type Registry } from '../core/plugin/registry';
-import { charmReg, enemyReg, moveReg, projReg, toolReg, weaponReg } from '../core/plugin/regs';
+import { arenaReg, charmReg, enemyReg, moveReg, projReg, toolReg, weaponReg } from '../core/plugin/regs';
 
 /** вид содержимого: папка src/content/<dir> и реестр */
 export const KINDS: { dir: string; reg: Registry<Def> }[] = [
@@ -10,6 +10,7 @@ export const KINDS: { dir: string; reg: Registry<Def> }[] = [
   { dir: 'abilities', reg: moveReg as unknown as Registry<Def> },
   { dir: 'enemies', reg: enemyReg as unknown as Registry<Def> },
   { dir: 'projectiles', reg: projReg as unknown as Registry<Def> },
+  { dir: 'arenas', reg: arenaReg as unknown as Registry<Def> },
 ];
 let loaded = false;
 /** уже загружено (вторая загрузка — ничего не делает) */

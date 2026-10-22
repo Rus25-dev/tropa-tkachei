@@ -1,4 +1,5 @@
 import { h, render } from 'preact';
+import './content'; // всё содержимое игры (src/content) регистрируется до интерфейса и мира
 import { createSession, type LaunchParams } from './app/launch';
 import type { Session } from './core/session';
 import { applySettings, initLayout } from './app/apply';

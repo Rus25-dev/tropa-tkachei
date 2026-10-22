@@ -1,5 +1,6 @@
 // Реестры отрисовки и звука содержимого (вид): по файлу на вещь в src/view/content/<вид>/<id>.ts, файлы находит index.ts.
 // Лист без зависимостей, кроме типов: отрисовка импортирует реестры отсюда без циклов.
+import type Phaser from 'phaser';
 import { Registry } from '../../core/plugin/registry';
 import type { Enemy, Player, Proj, Rect } from '../../core/types';
 import type { Swing } from '../../core/weapon-kit';
@@ -107,3 +108,22 @@ export interface SoundDef { id: string; order?: number; play: (s: Synth, R: () =
 /** несколько звуков одним файлом src/view/content/sounds/<группа>.ts: { имя: (s, R) => … } */
 export const defineSounds = (m: Record<string, SoundDef['play']>): SoundDef[] => Object.entries(m).map(([id, play]) => ({ id, play }));
 export const soundReg = new Registry<SoundDef>('звуки');
+
+/** что получает убранство арены при постройке сцены мира */
+export interface ArenaDecorCtx {
+  scene: Phaser.Scene; w: World;
+  /** запомнить объект убранства: он уничтожается при смене мира */
+  keep<O extends Phaser.GameObjects.GameObject>(o: O): O;
+  /** шрифты сцены: обычный и заголовочный */
+  font: string; display: string;
+}
+type EmitterCfg = Phaser.Types.GameObjects.Particles.ParticleEmitterConfig;
+/** убранство арены (src/view/content/arenas/<id>.ts): надписи, ящики, мебель, частицы по событиям ядра */
+export interface ArenaView {
+  id: string; order?: number;
+  decor?: (c: ArenaDecorCtx) => void;
+  /** частицы по событию ядра с этим именем ({ n, x, y }): текстура, настройка излучателя, глубина */
+  bursts?: Record<string, { key: string; cfg: EmitterCfg; depth: number }>;
+}
+export const defineArenaView = (v: ArenaView): ArenaView => v;
+export const arenaViewReg = new Registry<ArenaView>('убранство арен');

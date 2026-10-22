@@ -1,7 +1,7 @@
 // Кампания: главы I–IV, коридоры перед аренами, лавка, сохранение (legacy/src/campaign.js + обёртки maptravel.js и charms.js).
 // Сохранение хранит сессия (tt_save): мир получает прогресс при создании и сообщает о записи событием 'save'.
 import { CHAPTERS, LAST_CHAPTER, SHOP, P, T } from './balance';
-import { ARENAS, buildRoad } from './levels';
+import { buildArena, buildRoad } from './levels';
 import { bossDef } from './boss/registry';
 import { arenaLevel } from './boss/schema';
 import { rngSeedFor } from './rng';
@@ -45,7 +45,7 @@ export function campaignLevel(sc: World): Level | null {
   // арена главы — арена её босса на данных (data/bosses/<id>.json, поле arena → уровень в levels/tropa.ldtk)
   const def = bossDef(CHAPTERS[c.ch]!.boss);
   if (!def) throw new Error(`нет босса главы ${c.ch}: «${CHAPTERS[c.ch]!.boss}»`);
-  const L = ARENAS[arenaLevel(def)]!();
+  const L = buildArena(arenaLevel(def));
   L.region = `Глава ${CHAPTERS[c.ch]!.roman}`;
   return L;
 }

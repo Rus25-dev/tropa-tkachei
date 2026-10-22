@@ -49,6 +49,8 @@ export interface Level {
   exit: { x: number; y: number } | null;
   areas: { x: number; name: string }[];
   region?: string; road?: number; theme?: string;
+  /** id арены босса (src/content/arenas), если уровень — арена */
+  arena?: string;
   crates?: { x: number; y: number }[];
   misha?: { x: number; y: number }; ceilY?: number;
   vladik?: { x: number; y: number }; tima?: { x: number; y: number }; floorY?: number;

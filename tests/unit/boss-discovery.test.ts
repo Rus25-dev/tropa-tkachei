@@ -5,6 +5,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
+import '../../src/content'; // названия арен для карточек (src/content/arenas)
 import { CHAPTER_BOSSES } from '../../src/core/balance';
 import { cardOf, duelBossIds, listedDefs, raceBossIds, testCards } from '../../src/core/boss/catalog';
 import { kindIds, kindOf, loadKindsFromDir, registerKind, unregisterKind } from '../../src/core/boss/kinds';

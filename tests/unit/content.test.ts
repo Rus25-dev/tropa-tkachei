@@ -112,3 +112,25 @@ describe('звуки', () => {
     for (const n of ['jump', 'hit', 'violin', 'parryPerfect', 'chargeFull', 'crystalGo', 'slide']) expect(typeof soundReg.get(n)?.play, n).toBe('function');
   });
 });
+
+describe('арены', () => {
+  it('арены найдены, у каждой есть уровень с точкой босса, названия для карточек прежние', async () => {
+    const { arenaReg } = await import('../../src/core/plugin/regs');
+    const { buildArena } = await import('../../src/core/levels');
+    const { arenaSpot } = await import('../../src/core/arena-kit');
+    expect(arenaReg.list().map((d) => [d.id, d.name])).toEqual([['misha', 'Старая типография'], ['vladik', 'Кабинет музыки'], ['tima', 'Берлога Тимы']]);
+    for (const id of arenaReg.ids()) { const L = buildArena(id); expect(L.arena).toBe(id); expect(arenaSpot(L, id), id).toBeTruthy(); }
+  });
+  it('арены всех боссов заведены; неизвестная арена — понятная ошибка', async () => {
+    const { arenaErrs } = await import('../../src/core/boss/schema');
+    const { dataBossIds, bossDef } = await import('../../src/core/boss/registry');
+    for (const id of dataBossIds()) expect(arenaErrs(bossDef(id)!), id).toEqual([]);
+    expect(arenaErrs({ arena: 'moon' })[0]).toMatch(/moon/);
+    expect(arenaErrs({ arena: { level: 'moon' } })[0]).toMatch(/moon/);
+  });
+  it('у убранства арен частицы с разными именами событий', async () => {
+    const { arenaViewReg } = await import('../../src/view/content/regs');
+    const names = arenaViewReg.list().flatMap((v) => Object.keys(v.bursts ?? {}));
+    expect(names.sort()).toEqual(['dustFx', 'foam', 'paper', 'smoke']);
+  });
+});

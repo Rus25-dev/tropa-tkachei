@@ -6,6 +6,7 @@ import type { CharmDef } from '../charm-kit';
 import type { AbilityDef } from '../ability-kit';
 import type { EnemyDef } from '../enemy-kit';
 import type { ProjDef } from '../proj-kit';
+import type { ArenaDef } from '../arena-kit';
 import type { World } from '../world';
 import { Registry } from './registry';
 
@@ -56,3 +57,8 @@ export const projReg = new Registry<ProjDef>('снаряды', (d) => {
   if (typeof d.netId !== 'number') throw new Error(`снаряд «${d.id}»: нужен netId`);
 });
 projReg.onDefine((d) => { if (!netKindReg.has(d.id)) netKindReg.define({ id: d.id, netId: d.netId, size: d.size }); });
+
+/** арены боссов по id (поле arena в данных босса) */
+export const arenaReg = new Registry<ArenaDef>('арены', (d) => {
+  if (!d.ldtk || typeof d.spot !== 'function') throw new Error(`арена «${d.id}»: нужны ldtk (уровень) и spot (точка босса)`);
+});
