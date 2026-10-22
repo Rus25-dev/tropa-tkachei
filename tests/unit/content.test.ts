@@ -43,3 +43,12 @@ describe('инструменты и навыки нити', () => {
     for (const k of toolEntReg.ids()) expect(toolEntView.get(k), k).toBeTruthy();
   });
 });
+
+describe('обереги', () => {
+  it('найдены сами, порядок прежний (в нём срабатывают хуки)', async () => {
+    const { CHARMS, charmsOn } = await import('../../src/core/loadout');
+    expect(Object.keys(CHARMS)).toEqual(['sting', 'ember', 'heart', 'swift', 'stride', 'window', 'thorns', 'call', 'hunter']);
+    // порядок срабатывания не зависит от того, в каком порядке надеты
+    expect(charmsOn({ charms: ['hunter', 'sting'] } as never).map((c) => c.id)).toEqual(['sting', 'hunter']);
+  });
+});

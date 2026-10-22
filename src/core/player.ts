@@ -4,7 +4,7 @@ import { MV2, P, SPIKE, EMPTY, PLAT, SOLID, T } from './balance';
 import type { Player } from './types';
 import type { World } from './world';
 import { inset, overlap } from './world';
-import { hasCharm, useTool } from './loadout';
+import { charmsOn, useTool } from './loadout';
 import { beginSwing, speedMul, weaponsPre, wdef } from './weapons';
 import { openShop } from './campaign';
 import { tryExecute } from './bosses2';
@@ -140,10 +140,11 @@ function mv2Step(sc: World, p: Player, dt: number): void {
 
 // ---------- обереги: «Тихий шаг» и «Широкое окно» ----------
 function charmsStep(sc: World, p: Player, dt: number): void {
-  if (p.dashCd > 0 && hasCharm(p, 'stride')) p.dashCd -= dt * 0.25;
+  const cs = charmsOn(p);
+  for (const c of cs) c.stepPre?.(sc, p, dt);
   const before = (p['parryT'] as number) || 0;
   hookStep(sc, p, dt, kitInner);
-  if ((p['parryT'] as number) > before && (p['parryT'] as number) >= P.PARRY_T - 1e-6 && hasCharm(p, 'window')) p['parryT'] = P.PARRY_T * 1.5;
+  for (const c of cs) c.stepPost?.(sc, p, dt, { parryBefore: before });
 }
 
 const kitInner = (sc: World, p: Player, dt: number): void => kitStep(sc, p, dt, weaponsStep);

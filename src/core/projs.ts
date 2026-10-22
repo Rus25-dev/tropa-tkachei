@@ -6,7 +6,7 @@ import { inset, overlap } from './world';
 import { hurtPlayer } from './damage';
 import { stepExtraProj } from './bosses2';
 import { stepBomb } from './bombs';
-import { hasCharm } from './loadout';
+import { charmsOn } from './loadout';
 
 export function stepProjs(sc: World, dt: number): void {
   for (const pr of sc.projs) {
@@ -52,7 +52,7 @@ type BeadObj = { x: number; y: number; w: number; h: number; vx: number; vy: num
 export function stepBeads(sc: World, dt: number): void {
   const beads = sc.beadsArr as unknown as BeadObj[];
   // «Зов нити»: бусины притягиваются издалека
-  const callers = sc.players.filter((p) => !p.remote && !p.downed && hasCharm(p, 'call'));
+  const callers = sc.players.filter((p) => !p.remote && !p.downed && charmsOn(p).some((c) => c.beadPull));
   if (callers.length) for (const bd of beads) {
     if (bd.dead || bd.t <= 0.35) continue;
     let best = null as (typeof callers)[number] | null, bd2 = 220;

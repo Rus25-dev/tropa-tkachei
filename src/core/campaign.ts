@@ -5,7 +5,7 @@ import { ARENAS, buildRoad } from './levels';
 import { bossDef } from './boss/registry';
 import { arenaLevel } from './boss/schema';
 import { rngSeedFor } from './rng';
-import { hasCharm } from './loadout';
+import { charmsOn } from './loadout';
 import { mapExport } from './maptravel';
 import { statBegin } from './racestats';
 import type { Level, Player } from './types';
@@ -79,7 +79,7 @@ export function applyUp(sc: World): void {
   }
   sc.players.forEach((p: Player, i) => {
     if (p.remote || !prev[i]) return;
-    const [pm, ph] = prev[i]!, target = p.maxHp + (hasCharm(p, 'heart') ? 1 : 0);
+    const [pm, ph] = prev[i]!, target = p.maxHp + charmsOn(p).reduce((s, c) => s + (c.maxHp ?? 0), 0);
     p.maxHp = target; p.hp = Math.min(target, ph + Math.max(0, target - pm));
     p.silk = Math.min(p.silk, sc.silkMax);
   });

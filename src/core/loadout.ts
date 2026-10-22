@@ -3,29 +3,22 @@
 import type { Player } from './types';
 import type { World } from './world';
 import { TOOLS, useToolDef } from './tools';
+import { charmReg } from './plugin/regs';
+import type { CharmDef } from './charm-kit';
 import { applyUp } from './campaign';
 import { WEAPONS } from './weapons';
 import { ABILS } from './kit/abilities';
 
 export { TOOLS };
 export type { ToolDef } from './tool-kit';
+export type { CharmDef } from './charm-kit';
 export const CHARM_SLOTS = 3;
 
 export interface LoadoutState { weapon: string; tool: string; charms: string[]; /** полученные приёмы набора игрока (kit/abilities.ts) */ abils: string[] }
 export const defaultLoadout = (): LoadoutState => ({ weapon: 'needle', tool: '', charms: [], abils: [] });
 
-export interface CharmDef { id: string; name: string; desc: string; unlock: string; slots: number; col: number }
-export const CHARMS: Record<string, CharmDef> = {
-  sting: { id: 'sting', name: 'Жало', desc: 'Удары иглы отравляют: 1 урона раз в 1.2 с, 4 раза. Боссов яд берёт вдвое слабее.', unlock: 'boss:misha2', slots: 1, col: 0x86e05a },
-  ember: { id: 'ember', name: 'Угольная нить', desc: 'Тяжёлый удар (третий в комбо) поджигает врага: 3 тика ожога, огонь перекидывается на соседей.', unlock: 'shop:45', slots: 1, col: 0xff8a3c },
-  heart: { id: 'heart', name: 'Паучье сердце', desc: '+1 бутон здоровья. Тяжёлый оберег: занимает два слота.', unlock: 'shop:60', slots: 2, col: 0xff6a7a },
-  swift: { id: 'swift', name: 'Быстрая нить', desc: 'Нить копится на 50 % быстрее: каждый второй набор даёт лишнюю единицу.', unlock: 'boss:penitent', slots: 1, col: 0x9ff0c8 },
-  stride: { id: 'stride', name: 'Тихий шаг', desc: 'Рывок перезаряжается на 25 % быстрее.', unlock: 'shop:40', slots: 1, col: 0xb9d4c8 },
-  window: { id: 'window', name: 'Широкое окно', desc: 'Окно отбива шире на 50 % (0.2 → 0.3 с).', unlock: 'boss:vladik2', slots: 1, col: 0xffffff },
-  thorns: { id: 'thorns', name: 'Колючий плащ', desc: 'Когда враг ранит вас касанием, он получает 1 урона в ответ.', unlock: 'shop:55', slots: 1, col: 0xd9a35a },
-  call: { id: 'call', name: 'Зов нити', desc: 'Бусины тянутся к вам издалека (в ~2.5 раза дальше).', unlock: 'shop:30', slots: 1, col: 0xffd47a },
-  hunter: { id: 'hunter', name: 'Охотник', desc: '+15 % урона по оглушённым врагам и боссам; казнь даёт вдвое больше нити.', unlock: 'boss:tima2', slots: 1, col: 0xe8e2cf },
-};
+/** все обереги в порядке order (живой объект; описания — src/content/charms/<id>.ts) */
+export const CHARMS: Record<string, CharmDef> = charmReg.record;
 
 export const slotsOf = (id: string): number => { const c = CHARMS[id]; return c ? (c.slots | 0) || 1 : 1; };
 export const slotsUsed = (list: string[]): number => list.reduce((s, id) => s + slotsOf(id), 0);
@@ -59,6 +52,11 @@ export function equipped(d: LoadoutSave, all: boolean, inRun: boolean): LoadoutS
 }
 
 export const hasCharm = (p: Player | null | undefined, id: string): boolean => !!(p && p['charms'] && (p['charms'] as string[]).includes(id));
+/** надетые обереги героя в порядке order (в нём срабатывают их хуки) */
+export function charmsOn(p: Player | null | undefined): CharmDef[] {
+  const list = p && (p['charms'] as string[] | undefined); if (!list || !list.length) return [];
+  return charmReg.list().filter((c) => list.includes(c.id));
+}
 
 /** надеть сохранённое снаряжение на локальных героев */
 export function applyLoadout(sc: World, eq: LoadoutState): void {

@@ -4,7 +4,7 @@ import type { BossRef } from './balance';
 import type { Boss, Player, Proj } from './types';
 import type { World } from './world';
 import { phaseOf } from './world';
-import { hasCharm } from './loadout';
+import { charmsOn } from './loadout';
 import { poiseMul } from './weapons';
 import { rawBossDamage } from './damage';
 import { slowDt } from './status';
@@ -122,7 +122,7 @@ export function execBoss(sc: World, p: Player, kit: { key: BossRef }, dir: strin
   const wasS = S && cur0 ? !!cur0['executed'] : false;
   const b = bossOf(sc, kit.key), was = b && b['executed'];
   execBossBase(sc, p, kit, dir);
-  if (b && b['executed'] && !was && hasCharm(p, 'hunter')) { if (p.remote) { for (let i = 0; i < 3; i++) sc.sendEv({ k: 'silk', i: p.i }); } else p.silk = Math.min(sc.silkMax, p.silk + 3); }
+  if (b && b['executed'] && !was) for (const c of charmsOn(p)) c.exec?.(sc, p, b);
   if (S && !wasS) { const b2 = sc.testBoss(); if (b2 && b2['executed']) S.execs++; }
 }
 function execBossBase(sc: World, p: Player, kit: { key: BossRef }, dir: string): void {

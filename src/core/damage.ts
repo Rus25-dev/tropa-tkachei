@@ -1,15 +1,15 @@
 // Слои урона. В v1.8 функции урона обёрнуты друг в друга по порядку загрузки модулей (база → оружие → оберегов → статистика);
 // здесь порядок вызовов записан явно. Внешний слой — статистика забега, внутренний — исходная функция (RAW).
-import { BAL, PARRY2 } from './balance';
+import { PARRY2 } from './balance';
 import type { BossRef } from './balance';
 import type { Enemy, HitKind, Player } from './types';
 import type { World } from './world';
 import { damageBossWeapons, damageEnemyWeapons, gainSilkWeapons } from './weapons';
 import { gainSilkBase, hurtPlayerBase } from './combat';
-import { hasCharm } from './loadout';
-import { applyStatus, bossDamage, bossKey, bossLive } from './status';
+import { charmsOn } from './loadout';
+import { bossDamage, bossKey } from './status';
 import { killEnemy } from './combat';
-import { bossOf, bossRefs, nameOf, poiseWrapDamage } from './bosses2';
+import { bossOf, nameOf, poiseWrapDamage } from './bosses2';
 import { rawData } from './boss/exec';
 import { statBegin, statEndBoss, statEndEnemy, statHurt } from './racestats';
 
@@ -20,11 +20,8 @@ export function rawBossDamage(sc: World, key: BossRef, p: Player): void { rawDat
 /** gainSilk: оберег «Быстрая нить» (внешний) → оружие (по урону) → база */
 export function gainSilk(sc: World, p: Player, boss?: boolean): void {
   gainSilkWeapons(sc, p, boss);
-  if (p['noSilkGain'] || !hasCharm(p, 'swift')) return;
-  const gained = !boss || ((p['bossHits'] as number) | 0) % BAL.silkEvery === 0;
-  if (!gained) return;
-  p['_sf'] = ((p['_sf'] as number) || 0) + 0.5;
-  if ((p['_sf'] as number) >= 1) { (p['_sf'] as number) -= 1; if (p.remote) sc.sendEv({ k: 'silk', i: p.i }); else p.silk = Math.min(sc.silkMax, p.silk + 1); }
+  if (p['noSilkGain']) return;
+  for (const c of charmsOn(p)) c.silkGain?.(sc, p, boss);
 }
 export { gainSilkBase };
 
@@ -52,16 +49,7 @@ function damageEnemyCharms(sc: World, e: Enemy, p: Player): void {
     e.hp -= (hp0 - e.hp) * (PARRY2.COUNTER_DMG - 1); sc.burst(10, e.x + e.w / 2, e.y + e.h / 2, 0xffd96a);
     if (e.hp <= 0) killEnemy(sc, e);
   }
-  if (e.hp < hp0 && !e.dead && sc.auth()) {
-    if (!p['noSilkGain'] && p.atkT > 0 && !!p.atkHits) {
-      if (hasCharm(p, 'sting')) applyStatus(sc, e, 'poison', null, p);
-      if (hasCharm(p, 'ember') && p['heavy'] && p.atkDir === 'f') applyStatus(sc, e, 'burn', null, p);
-    }
-    if (stunned && hasCharm(p, 'hunter')) {
-      p['_hf'] = ((p['_hf'] as number) || 0) + 0.15;
-      if ((p['_hf'] as number) >= 1) { (p['_hf'] as number) -= 1; e.hp -= 1; if (e.hp <= 0) killEnemy(sc, e); }
-    }
-  }
+  if (e.hp < hp0 && !e.dead && sc.auth()) for (const c of charmsOn(p)) c.hitEnemy?.(sc, e, p, { stunned });
 }
 
 // ---------- боссы: статистика → обереги → оружие → стойкость → RAW ----------
@@ -81,16 +69,7 @@ function damageBossCharms(sc: World, key: BossRef, p: Player): void {
     if (b.hp - add > 0) { b.hp -= add; sc.bossBar(true, nameOf(key, b), Math.max(0, b.hp) / b.maxHp); } else bossDamage(sc, key, p, 1);
     sc.burst(12, b.x + b.w / 2, b.y + b.h / 2, 0xffd96a);
   }
-  if (b && b.hp < hp0! && b.hp > 0 && sc.auth()) {
-    if (!p['noSilkGain'] && p.atkT > 0 && !!p.atkHits) {
-      if (hasCharm(p, 'sting')) applyStatus(sc, b, 'poison', null, p);
-      if (hasCharm(p, 'ember') && p['heavy'] && p.atkDir === 'f') applyStatus(sc, b, 'burn', null, p);
-    }
-    if (stag && hasCharm(p, 'hunter') && !p['noSilkGain']) {
-      p['_hf'] = ((p['_hf'] as number) || 0) + 0.15;
-      if ((p['_hf'] as number) >= 1) { (p['_hf'] as number) -= 1; bossDamage(sc, key, p, 1); }
-    }
-  }
+  if (b && b.hp < hp0! && b.hp > 0 && sc.auth()) for (const c of charmsOn(p)) c.hitBoss?.(sc, key, b, p, { stag });
 }
 
 // ---------- урон героям: статистика → обереги (колючий плащ) → тренировка → база ----------
@@ -104,18 +83,7 @@ export function hurtPlayer(sc: World, p: Player, dmg: number, srcX: number | nul
 function hurtPlayerCharms(sc: World, p: Player, dmg: number, srcX: number | null, spike?: boolean, hk?: HitKind): void {
   const hp0 = p.hp;
   hurtPlayerTraining(sc, p, dmg, srcX, spike, hk);
-  if (!spike && srcX != null && p.hp < hp0 && sc.auth() && hasCharm(p, 'thorns')) {
-    const px = p.x + 7, py = p.y + 13, near = (o: { x: number; y: number; w: number; h: number }): boolean => Math.abs(o.x + o.w / 2 - srcX) < 1.5 && Math.abs(o.y + o.h / 2 - py) < 60 + o.h / 2 && Math.abs(o.x + o.w / 2 - px) < 60 + o.w / 2;
-    const e = sc.enemies.find((o) => !o.dead && near(o));
-    if (e) {
-      e.hp -= 1; e.flash = 0.1; sc.burst(8, e.x + e.w / 2, e.y + e.h / 2, 0xd9a35a); sc.sfx('clink');
-      e.kbT = 0.14; e.kbx = Math.sign(e.x + e.w / 2 - px) * 200; e.kby = -80;
-      if (e.hp <= 0) killEnemy(sc, e);
-    } else {
-      const key = bossRefs(sc).map(([, k]) => k).find((k) => { const b = bossOf(sc, k); return b && bossLive(b) && near(b); });
-      if (key) { bossDamage(sc, key, p, 1); sc.burst(8, srcX, py, 0xd9a35a); }
-    }
-  }
+  for (const c of charmsOn(p)) c.hurt?.(sc, p, { srcX, spike, hp0 });
 }
 function hurtPlayerTraining(sc: World, p: Player, dmg: number, srcX: number | null, spike?: boolean, hk?: HitKind): void {
   if (!sc.train) return hurtPlayerBase(sc, p, dmg, srcX, spike, hk);

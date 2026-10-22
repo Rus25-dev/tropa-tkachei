@@ -2,6 +2,7 @@
 // не попадала в циклы импорта ядра: ядро и файлы содержимого импортируют реестры отсюда.
 import type { WeaponDef } from '../weapon-kit';
 import type { ToolDef, ToolEntDef, ToolMsg } from '../tool-kit';
+import type { CharmDef } from '../charm-kit';
 import type { World } from '../world';
 import { Registry } from './registry';
 
@@ -26,4 +27,9 @@ export const toolReg = new Registry<ToolDef>('инструменты', (d) => {
 toolReg.onDefine((d) => {
   for (const e of d.entities ?? []) { if (!toolEntReg.has(e.id)) toolEntReg.define(e); if (!netKindReg.has(e.id)) netKindReg.define({ id: e.id, netId: e.netId, size: e.size }); }
   for (const [k, f] of Object.entries(d.msgs ?? {})) toolMsgs.set(k, f);
+});
+
+export const charmReg = new Registry<CharmDef>('обереги', (d) => {
+  if (!(d.slots >= 1)) throw new Error(`оберег «${d.id}»: slots ≥ 1`);
+  if (!d.unlock) throw new Error(`оберег «${d.id}»: нет unlock`);
 });
