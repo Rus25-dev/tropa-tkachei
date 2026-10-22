@@ -26,11 +26,14 @@ async function boot(page: Page, opts: { pad?: boolean; settings?: object; save?:
 const menuId = (page: Page) => page.evaluate(() => document.documentElement.dataset['menu'] ?? '');
 // на CI кадры редкие: кнопка геймпада должна продержаться дольше кадра, иначе опрос её не увидит
 const HOLD = process.env.CI ? 350 : 120; // меньше 420 мс: до автоповтора направлений в меню
+// ввод геймпада читается раз за кадр отрисовки: под программным рендером кадр бывает длиннее HOLD, и нажатие целиком проскакивает между кадрами —
+// поэтому после нажатия и после отпускания ждём два настоящих кадра страницы, а не только время
+const frames2 = (page: Page) => page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))));
 const press = async (page: Page, b: number, ms = HOLD) => {
   await page.evaluate((i) => { const p = window.__pad!.buttons[i]!; p.pressed = true; p.value = 1; }, b);
-  await page.waitForTimeout(ms);
+  await page.waitForTimeout(ms); await frames2(page);
   await page.evaluate((i) => { const p = window.__pad!.buttons[i]!; p.pressed = false; p.value = 0; }, b);
-  await page.waitForTimeout(ms);
+  await page.waitForTimeout(ms); await frames2(page);
 };
 const sess = (page: Page) => page.evaluate(() => !!window.__tt!.shared.session);
 

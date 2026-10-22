@@ -1,0 +1,193 @@
+{
+  "id": "penitent",
+  "name": "Первый Кающийся",
+  "about": "Закованный в вериги дуэлянт. Первая половина боя учит языку цветов (жёлтое отбивай, красное обходи, фиолетовое не отбить, белое — твоё окно). Когда вериги спадают, он бьёт шире, метает, вращается и смешивает цвета в одной связке.",
+  "landmark": "Читай цвет замаха: вериги спадут на половине",
+  "tips": [
+    "Жёлтые удары отбивай, красные обходи прыжком или рывком, фиолетовый «Обет» не отбить вовсе: уходи.",
+    "Белый замах — безопасное окно: бей босса, пока он каялся.",
+    "Когда вериги упадут, одинаковая поза может нести разный цвет. Смотри на цвет, а не на движение."
+  ],
+  "dev": true,
+  "arena": "vladik",
+  "size": { "w": 52, "h": 96 },
+  "hp": [170, 235],
+  "color": 7230066,
+  "intro": { "frames": 120, "say": "Я нёс свою вину первым." },
+  "deathFrames": 160,
+  "idle": { "walkSpeed": 60, "keepDist": 100 },
+  "contact": { "dmg": 1, "kind": "dodge" },
+  "antiCheese": { "shoveChain": "c_shove", "relocateChain": "c_leap" },
+  "attacks": [
+    {
+      "id": "lash", "name": "Хлёст цепью",
+      "tell": { "frames": 26, "cue": { "color": "yellow", "sfx": "swing", "pose": "raise" } },
+      "active": [{ "from": 0, "to": 5, "hit": { "x": 8, "y": 18, "w": 92, "h": 64 }, "dmg": 1, "kind": "parry" }],
+      "recovery": { "frames": 34, "punishWindow": { "from": 6, "to": 29 } },
+      "requires": { "dist": [0, 140] }
+    },
+    {
+      "id": "scourge", "name": "Кровавый хлёст",
+      "tell": { "frames": 28, "cue": { "color": "red", "sfx": "swing", "pose": "raise" } },
+      "active": [{ "from": 0, "to": 5, "hit": { "x": 8, "y": 18, "w": 100, "h": 64 }, "dmg": 1, "kind": "dodge" }],
+      "recovery": { "frames": 36, "punishWindow": { "from": 6, "to": 31 } },
+      "requires": { "dist": [0, 150] }
+    },
+    {
+      "id": "thrust", "name": "Выпад вериг",
+      "tell": { "frames": 24, "lockFace": true, "cue": { "color": "yellow", "sfx": "thrust", "pose": "crouch" } },
+      "move": [{ "from": 0, "to": 11, "vx": 520, "toward": "player" }],
+      "active": [{ "from": 0, "to": 11, "hit": { "x": -4, "y": 34, "w": 62, "h": 46 }, "dmg": 1, "kind": "parry" }],
+      "recovery": { "frames": 40, "punishWindow": { "from": 10, "to": 35 } },
+      "requires": { "dist": [90, 360] }
+    },
+    {
+      "id": "slam", "name": "Поклон оземь",
+      "tell": { "frames": 34, "cue": { "color": "red", "sfx": "slam", "pose": "overhead" } },
+      "active": [{ "from": 0, "to": 3, "hit": { "x": -64, "y": 72, "w": 128, "h": 24 }, "dmg": 1, "kind": "dodge" }],
+      "spawn": [
+        { "at": 0, "proj": { "kind": "wave", "w": 24, "h": 18, "life": 150 }, "kind": "dodge", "dmg": 1, "ox": 32, "oy": 50, "vx": 320 },
+        { "at": 0, "proj": { "kind": "wave", "w": 24, "h": 18, "life": 150 }, "kind": "dodge", "dmg": 1, "ox": -32, "oy": 50, "vx": -320 }
+      ],
+      "recovery": { "frames": 38, "punishWindow": { "from": 8, "to": 33 } }
+    },
+    {
+      "id": "censer", "name": "Кадило",
+      "tell": { "frames": 28, "cue": { "color": "yellow", "sfx": "whoosh", "pose": "wind_up" } },
+      "spawn": [{ "at": 0, "proj": { "kind": "spore", "w": 12, "h": 12, "life": 180 }, "kind": "parry", "ox": 26, "oy": 0, "vx": 360, "vy": -300, "count": 3, "spread": 16 }],
+      "recovery": { "frames": 36, "punishWindow": { "from": 8, "to": 31 } }
+    },
+    {
+      "id": "hail", "name": "Град покаяния",
+      "tell": { "frames": 36, "cue": { "color": "red", "sfx": "rumble", "pose": "look_up" } },
+      "spawn": [
+        { "at": 0, "proj": { "kind": "rock", "w": 16, "h": 16, "life": 120 }, "kind": "dodge", "from": "target", "oy": -300 },
+        { "at": 16, "proj": { "kind": "rock", "w": 16, "h": 16, "life": 120 }, "kind": "dodge", "from": "target", "ox": -70, "oy": -300 },
+        { "at": 32, "proj": { "kind": "rock", "w": 16, "h": 16, "life": 120 }, "kind": "dodge", "from": "target", "ox": 70, "oy": -300 }
+      ],
+      "recovery": { "frames": 44, "punishWindow": { "from": 16, "to": 39 } },
+      "requires": { "dist": [60, 700] }
+    },
+    {
+      "id": "vow", "name": "Обет",
+      "tell": { "frames": 44, "lockFace": true, "cue": { "color": "purple", "sfx": "crush", "pose": "overhead_big" } },
+      "active": [{ "from": 0, "to": 7, "hit": { "x": 0, "y": 0, "w": 118, "h": 96 }, "dmg": 2, "kind": "unblockable", "knock": { "vx": 380, "vy": -300 } }],
+      "recovery": { "frames": 70, "punishWindow": { "from": 12, "to": 65 } }
+    },
+    {
+      "id": "kneel", "name": "Покаяние",
+      "tell": { "frames": 36, "cue": { "color": "white", "sfx": "chime", "pose": "kneel" } },
+      "move": [{ "from": 0, "to": 10, "vx": -140, "toward": "player" }],
+      "recovery": { "frames": 70, "punishWindow": { "from": 4, "to": 64 } }
+    },
+    {
+      "id": "shove", "name": "Отталкивание",
+      "tell": { "frames": 30, "cue": { "color": "white", "sfx": "shove", "pose": "brace" } },
+      "active": [{ "from": 0, "to": 3, "hit": { "x": -76, "y": 36, "w": 152, "h": 60 }, "dmg": 1, "kind": "dodge", "knock": { "vx": 420, "vy": -320 } }],
+      "recovery": { "frames": 30, "punishWindow": { "from": 6, "to": 25 } }
+    },
+    {
+      "id": "leap", "name": "Прыжок через героя",
+      "tell": { "frames": 32, "lockFace": true, "cue": { "color": "white", "sfx": "leap", "pose": "crouch" } },
+      "move": [{ "from": 0, "to": 44, "vx": 300, "vy": -560, "toward": "player" }],
+      "active": [{ "from": 44, "to": 48, "hit": { "x": -76, "y": 56, "w": 152, "h": 40 }, "dmg": 1, "kind": "dodge" }],
+      "recovery": { "frames": 40, "punishWindow": { "from": 8, "to": 35 } }
+    },
+    {
+      "id": "unchain", "name": "Срыв вериг",
+      "tell": { "frames": 46, "lockFace": true, "cue": { "color": "white", "sfx": "snap", "pose": "tear" } },
+      "active": [{ "from": 0, "to": 3, "hit": { "x": -70, "y": 66, "w": 140, "h": 30 }, "dmg": 1, "kind": "dodge" }],
+      "spawn": [
+        { "at": 0, "proj": { "kind": "wave", "w": 24, "h": 18, "life": 150 }, "kind": "dodge", "dmg": 1, "ox": 34, "oy": 56, "vx": 300 },
+        { "at": 0, "proj": { "kind": "wave", "w": 24, "h": 18, "life": 150 }, "kind": "dodge", "dmg": 1, "ox": -34, "oy": 56, "vx": -300 }
+      ],
+      "recovery": { "frames": 52, "punishWindow": { "from": 8, "to": 47 } }
+    },
+    {
+      "id": "sweep", "name": "Широкий замах",
+      "tell": { "frames": 38, "lockFace": true, "cue": { "color": "red", "sfx": "sweep", "pose": "wide_arms" } },
+      "active": [{ "from": 0, "to": 9, "hit": { "x": -175, "y": 52, "w": 350, "h": 44 }, "dmg": 1, "kind": "dodge" }],
+      "recovery": { "frames": 44, "punishWindow": { "from": 10, "to": 39 } }
+    },
+    {
+      "id": "hurl", "name": "Метание глыб",
+      "tell": { "frames": 30, "cue": { "color": "yellow", "sfx": "hurl", "pose": "throw" } },
+      "spawn": [
+        { "at": 0, "proj": { "kind": "glob", "w": 16, "h": 16, "life": 160 }, "kind": "parry", "ox": 30, "oy": 20, "vx": 420, "vy": -60, "aim": true },
+        { "at": 16, "proj": { "kind": "glob", "w": 16, "h": 16, "life": 160 }, "kind": "parry", "ox": 30, "oy": 20, "vx": 420, "vy": -60, "aim": true },
+        { "at": 32, "proj": { "kind": "glob", "w": 16, "h": 16, "life": 160 }, "kind": "parry", "ox": 30, "oy": 20, "vx": 420, "vy": -60, "aim": true }
+      ],
+      "recovery": { "frames": 38, "punishWindow": { "from": 8, "to": 33 } }
+    },
+    {
+      "id": "hurl_big", "name": "Тяжёлая глыба",
+      "tell": { "frames": 32, "cue": { "color": "red", "sfx": "hurl", "pose": "throw" } },
+      "spawn": [{ "at": 0, "proj": { "kind": "glob", "w": 26, "h": 26, "life": 180 }, "kind": "dodge", "ox": 30, "oy": 10, "vx": 320, "vy": -460, "count": 2, "spread": 20 }],
+      "recovery": { "frames": 40, "punishWindow": { "from": 8, "to": 35 } }
+    },
+    {
+      "id": "spin", "name": "Вращение",
+      "tell": { "frames": 30, "lockFace": true, "cue": { "color": "red", "sfx": "spin", "pose": "coil" } },
+      "move": [{ "from": 0, "to": 26, "vx": 200, "toward": "player" }],
+      "active": [
+        { "from": 0, "to": 8, "hit": { "x": -100, "y": 30, "w": 200, "h": 66 }, "dmg": 1, "kind": "dodge" },
+        { "from": 16, "to": 24, "hit": { "x": -100, "y": 30, "w": 200, "h": 66 }, "dmg": 1, "kind": "dodge" }
+      ],
+      "recovery": { "frames": 46, "punishWindow": { "from": 10, "to": 41 } },
+      "requires": { "dist": [0, 320] }
+    },
+    {
+      "id": "rend", "name": "Рывок вериг",
+      "tell": { "frames": 28, "lockFace": true, "cue": { "color": "yellow", "sfx": "rend", "pose": "lunge" } },
+      "move": [{ "from": 0, "to": 12, "vx": 560, "toward": "player" }],
+      "active": [{ "from": 0, "to": 12, "hit": { "x": -4, "y": 34, "w": 66, "h": 46 }, "dmg": 1, "kind": "parry" }],
+      "recovery": { "frames": 36, "punishWindow": { "from": 8, "to": 31 } },
+      "requires": { "dist": [100, 420] }
+    }
+  ],
+  "chains": [
+    { "id": "c_lash", "steps": [{ "attack": "lash" }], "weight": 3, "requires": { "dist": [0, 140] } },
+    { "id": "c_lunge", "steps": [{ "attack": "thrust" }], "weight": 3 },
+    { "id": "c_slam", "steps": [{ "attack": "slam" }], "weight": 2 },
+    { "id": "c_censer", "steps": [{ "attack": "censer" }], "weight": 2 },
+    { "id": "c_hail", "steps": [{ "attack": "hail" }], "weight": 2 },
+    { "id": "c_vow", "steps": [{ "attack": "vow" }], "weight": 2, "requires": { "dist": [0, 220] }, "cooldown": 360 },
+    { "id": "c_kneel", "steps": [{ "attack": "kneel" }], "weight": 1, "cooldown": 420 },
+    { "id": "c_shove", "steps": [{ "attack": "shove" }], "weight": 1, "cooldown": 180 },
+    { "id": "c_leap", "steps": [{ "attack": "leap" }], "weight": 1, "cooldown": 600 },
+    { "id": "c_enter", "steps": [{ "attack": "unchain" }], "weight": 1 },
+    { "id": "c_sweep", "steps": [{ "attack": "sweep" }], "weight": 3 },
+    { "id": "c_lash_scourge", "steps": [{ "attack": "lash", "gapFrames": 14 }, { "attack": "scourge" }], "weight": 3, "requires": { "dist": [0, 140] } },
+    { "id": "c_scourge_lash", "steps": [{ "attack": "scourge", "gapFrames": 14 }, { "attack": "lash" }], "weight": 2, "requires": { "dist": [0, 140] } },
+    { "id": "c_hurl", "steps": [{ "attack": "hurl" }], "weight": 2 },
+    { "id": "c_hurl_sweep", "steps": [{ "attack": "hurl", "gapFrames": 24 }, { "attack": "sweep" }], "weight": 2 },
+    { "id": "c_big_rend", "steps": [{ "attack": "hurl_big", "gapFrames": 26 }, { "attack": "rend" }], "weight": 2 },
+    { "id": "c_spin", "steps": [{ "attack": "spin" }], "weight": 3 },
+    { "id": "c_spin_slam", "steps": [{ "attack": "spin", "gapFrames": 24 }, { "attack": "slam" }], "weight": 2, "requires": { "dist": [0, 300] } },
+    { "id": "c_rend_spin", "steps": [{ "attack": "rend", "gapFrames": 20 }, { "attack": "spin" }], "weight": 2 },
+    { "id": "c_vow2", "steps": [{ "attack": "sweep", "gapFrames": 22 }, { "attack": "vow" }], "weight": 2, "requires": { "dist": [0, 200] }, "cooldown": 300 }
+  ],
+  "phases": [
+    {
+      "fromHp": 1,
+      "policy": {
+        "chains": ["c_lash", "c_lunge", "c_slam", "c_censer", "c_hail", "c_vow", "c_kneel"],
+        "noRepeat": 1,
+        "fatigue": { "factor": 0.6, "decay": 600 },
+        "restFrames": [40, 62]
+      }
+    },
+    {
+      "fromHp": 0.5,
+      "silent": true,
+      "enterChain": "c_enter",
+      "form": { "size": { "w": 58, "h": 104 }, "draw": "unchained", "color": 11358511, "idle": { "walkSpeed": 90, "keepDist": 110 } },
+      "policy": {
+        "chains": ["c_sweep", "c_lash_scourge", "c_scourge_lash", "c_hurl", "c_hurl_sweep", "c_spin", "c_spin_slam", "c_big_rend", "c_rend_spin", "c_vow2", "c_lunge", "c_hail"],
+        "noRepeat": 2,
+        "fatigue": { "factor": 0.6, "decay": 600 },
+        "restFrames": [22, 40]
+      }
+    }
+  ]
+}
