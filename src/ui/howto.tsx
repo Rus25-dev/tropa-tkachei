@@ -3,6 +3,7 @@ import type { ComponentChildren } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { keyName } from '../app/keys';
 import { records } from '../app/store';
+import { listedDefs } from '../core/boss/catalog';
 import { CHANGELOG } from '../data/changelog';
 import { listPads, padKind } from '../input/gamepad';
 import { Panel, Tabs, useDevice } from './kit';
@@ -101,10 +102,11 @@ const BOSS = [
   { id: 'tima', name: 'Тима Пиво', tips: ['Коллекторы режутся иглой за два удара. В пене от бутылок бегать трудно: не стойте в лужах.', 'Он пьёт пиво и лечится — прервите его ударом. «Банкротство!»: уходите из-под печатей, мебель на 6 секунд изымают.', 'В третьей фазе ачивки-кубки падают с отскоком, а после геймпада идёт красное кольцо.'] },
 ];
 function Bosses() {
+  const all = [...BOSS, ...listedDefs(false).filter((d) => d.tips.length).map((d) => ({ id: d.id, name: d.name, tips: d.tips }))]; // боссы на данных добавляют свои советы сами (поле tips в JSON)
   return (<>
     <p class="sub">Совет открывается после первой встречи с боссом.</p>
     <div class="hw-grid">
-      {BOSS.map((e) => {
+      {all.map((e) => {
         const r = records.get(e.id), seen = r.tries > 0;
         return (<div class={`hw-it ${seen ? '' : 'lock'}`} key={e.id}>
           <h3>{seen ? e.name : '???'}</h3>

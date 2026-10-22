@@ -3,7 +3,8 @@
 import type { ComponentChildren } from 'preact';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { CHAPTERS, SR_CATS } from '../core/balance';
-import { bossDef, DEV_BOSS_ID } from '../core/boss/registry';
+import { bossDef } from '../core/boss/registry';
+import { LEGACY_CARDS, testCards } from '../core/boss/catalog';
 import { freshCamp, freshUp, type CampState } from '../core/campaign';
 import { fixRules, fmt, violation, SR_ABOUT } from '../app/speedrun';
 import { menuPlayers, progress, records, setMenuPlayers, sr as srStore, training } from '../app/store';
@@ -16,14 +17,10 @@ import { Friends } from './speedrun';
 import { Settings } from './settings';
 import { padNames } from './nav';
 
-export const BOSSES = [
-  { id: 'misha', name: 'Миша Додик', about: 'Швыряется печатными буквами. Бей дымовыми бомбами в рюкзак.' },
-  { id: 'vladik', name: 'Владик Скрипка', about: 'Кидает скрипичные ключи и мажет шторы слизью. Бей иглой.' },
-  { id: 'tima', name: 'Тима Пиво', about: 'Пиво, банкротство, приставка и волшебная пыль. Бей иглой.' },
-];
-/** карточка разработчика (?dev=1): босс на данных «Манекен-наставник» (каркас 2.5); в обычной игре её нет */
-const DEV_BOSS = { id: DEV_BOSS_ID, name: 'Манекен-наставник (dev)', about: bossDef(DEV_BOSS_ID)?.about ?? '' };
-const devBosses = (): typeof BOSSES => (new URLSearchParams(location.search).get('dev') === '1' ? [...BOSSES, DEV_BOSS] : BOSSES);
+/** старые боссы (Миша, Владик, Тима): название и описание для кампании */
+export const BOSSES = LEGACY_CARDS.map(({ id, name, about }) => ({ id, name, about }));
+/** карточки Босс-теста строятся из реестра боссов (core/boss/catalog): новый босс = новый файл data/bosses/<id>.json; dev-карточки — при ?dev=1 */
+const devBosses = (): ReturnType<typeof testCards> => testCards(new URLSearchParams(location.search).get('dev') === '1');
 const fmtMin = (s: number): string => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
 const recLine = (id: string): string => {
   const r = records.get(id);
@@ -219,13 +216,13 @@ function BossTest({ ctl, go, back, crumbs }: P) {
           {list.map((x, k) => {
             const r = records.get(x.id);
             return (<button type="button" key={x.id} role="radio" aria-checked={k === sel} class={`card ${k === sel ? 'sel' : ''}`} data-testid={`boss-${x.id}`} data-lr="1" onFocus={() => pick(k)} onClick={() => pick(k)}>
-              <span class="cn">{x.name}</span><span class="cr">{r.best ? 'рекорд ' + fmtMin(r.best) : 'нет рекорда'}</span>
+              <span class="cn">{x.name}</span><span class="cl">{x.landmark ? x.landmark + ' · ' : ''}{x.arenaName}</span><span class="cr">{r.best ? 'рекорд ' + fmtMin(r.best) : 'нет рекорда'}</span>
             </button>);
           })}
         </div>
         <Item n={1} id="bt-one" label="Один ткач" sub="в бой сразу" onClick={() => play(1)} />
         <Item n={2} id="bt-two" label="Двое за одним компьютером" onClick={() => play(2)} />
-        <Item n={3} id="bt-net" label="Вдвоём по сети" sub={training.on ? 'в тренировке — только вдвоём у одного компьютера' : 'создать комнату или войти по коду'} disabled={training.on || b.id === DEV_BOSS_ID} onClick={() => go('net', { mode: 'bosstest', boss: b.id })} />
+        <Item n={3} id="bt-net" label="Вдвоём по сети" sub={training.on ? 'в тренировке — только вдвоём у одного компьютера' : 'создать комнату или войти по коду'} disabled={training.on || !!bossDef(b.id)} onClick={() => go('net', { mode: 'bosstest', boss: b.id })} />
         <Item n={4} id="bt-train" label="Тренировка" sub="здоровье бесконечное, счётчик урона" value={training.on ? 'вкл' : 'выкл'} onClick={toggleTrain} onLR={() => toggleTrain()} />
         <Item n={5} id="bt-phase" label="Старт с фазы" sub={training.on ? 'только в тренировке' : 'включит тренировку'} value={String(training.phase)} onClick={() => phase()} onLR={(d) => phase(d)} />
       </Screen>

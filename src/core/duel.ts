@@ -12,19 +12,27 @@
 //    у кого сняно больше здоровья босса. Ничья переигрывается новым зерном; третья ничья подряд решается жребием из зерна.
 //  * Серия кончается, когда у кого-то набралось нужное число побед (Bo1 — 1, Bo3 — 2, Bo5 — 3).
 import { cleanMods, DUEL_MODS, type DuelMod } from './duelmods';
+import { duelBossIds, LEGACY_DUEL } from './boss/catalog';
+import { bossDef } from './boss/registry';
 import { mulberry32, rngSeedFor } from './rng';
 
-export const DUEL_BOSSES = ['korne', 'misha', 'vladik', 'tima'] as const;
-export type DuelBoss = (typeof DUEL_BOSSES)[number];
-/** карточка босса: имя, глава, короткая подсказка для экрана бан/пик */
-export const BOSS_INFO: Record<DuelBoss, { name: string; short: string; ch: number; note: string }> = {
+/** Боссы дуэли: четыре старых по порядку глав + боссы на данных с duel: true (список строится из реестра боссов, этот файл при добавлении босса не меняется) */
+export const DUEL_BOSSES: readonly string[] = duelBossIds();
+export type DuelBoss = string;
+export interface BossInfo { name: string; short: string; ch: number; note: string }
+const LEGACY_INFO: Record<string, BossInfo> = {
   korne: { name: 'Корнематка', short: 'Корнематка', ch: 1, note: 'Прыжки, споры и три фазы' },
   misha: { name: 'Миша Додик', short: 'Миша', ch: 2, note: 'Рюкзак, буквы и диктовка' },
   vladik: { name: 'Владик Скрипка', short: 'Владик', ch: 3, note: 'Смычок, ноты и занавесы' },
   tima: { name: 'Тима Пиво', short: 'Тима', ch: 4, note: 'Пена, лужи и гипер-режим' },
 };
-export const bossOfCh = (ch: number): DuelBoss => DUEL_BOSSES[Math.max(0, Math.min(3, ch - 1))]!;
-export const isBossId = (x: unknown): x is DuelBoss => typeof x === 'string' && (DUEL_BOSSES as readonly string[]).includes(x);
+/** карточка босса: имя, глава (0 — босс на данных, у него нет главы), короткая подсказка для экрана бан/пик */
+export const BOSS_INFO: Record<DuelBoss, BossInfo> = Object.fromEntries(DUEL_BOSSES.map((id): [string, BossInfo] => {
+  const d = bossDef(id);
+  return [id, LEGACY_INFO[id] ?? { name: d?.name ?? id, short: d?.name ?? id, ch: 0, note: d?.landmark || d?.about || '' }];
+}));
+export const bossOfCh = (ch: number): DuelBoss => LEGACY_DUEL[Math.max(0, Math.min(3, ch - 1))]!;
+export const isBossId = (x: unknown): x is DuelBoss => typeof x === 'string' && DUEL_BOSSES.includes(x);
 
 export type SeriesFmt = 1 | 3 | 5;
 export const FORMATS: readonly SeriesFmt[] = [1, 3, 5];

@@ -2,6 +2,7 @@
 // «Сухое правило»: связка, чьи условия не выполнены, выбрана быть не может ни при каком r.
 import type { BossDef, Chain, Policy, Requires } from './schema';
 import { atkUses, framesOf, noteAtk, resolveAnti, shovePriority } from './anti';
+import { effForm } from './form';
 
 export type ArenaSide = 'left' | 'right' | 'center';
 export interface PickCtx {
@@ -47,6 +48,8 @@ export function meets(req: Requires | undefined, ctx: PickCtx, withDist = true):
 export function chainAllowed(def: BossDef, c: Chain, ctx: PickCtx, mem: PolicyMem): boolean {
   if ((mem.cd[c.id] ?? 0) > 0) return false;
   if (!meets(c.requires, ctx)) return false;
+  const set = effForm(def, ctx.phase).attacks; // набор приёмов тела (трансформация): связка вне набора недоступна
+  if (set && c.steps.some((st) => !set.has(st.attack))) return false;
   if (spamBlocked(def, c, mem)) return false;
   const first = def.attacks.find((a) => a.id === c.steps[0]!.attack);
   return !first || meets(first.requires, ctx);
@@ -63,7 +66,8 @@ function spamBlocked(def: BossDef, c: Chain, mem: PolicyMem): boolean {
 }
 
 export const phaseIdx = (def: BossDef, phase: number): number => Math.max(0, Math.min(def.phases.length - 1, phase - 1));
-export const policyOf = (def: BossDef, phase: number): Policy => def.phases[phaseIdx(def, phase)]!.policy;
+/** политика связок фазы; тело (form) фазы может подменить её своей */
+export const policyOf = (def: BossDef, phase: number): Policy => { const ph = def.phases[phaseIdx(def, phase)]!; return ph.form?.policy ?? ph.policy; };
 
 /** Приоритеты «отогнать» фазы: свои из политики и общий из защиты от читов (shoveChain). */
 export function priorities(def: BossDef, phase: number): { chain: string; closeDist: number; closeFrames: number; cornerFrames?: number }[] {

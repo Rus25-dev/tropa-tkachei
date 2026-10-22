@@ -7,10 +7,14 @@ import { makeTtrec, type Ttrec } from '../../src/core/ttrec';
 import type { Inp } from '../../src/core/types';
 import { World, inset, overlap, curtainHazard } from '../../src/core/world';
 import { Brain, type BrainStats } from './brain';
+import { raceBossIds } from '../../src/core/boss/catalog';
+import { bossDef } from '../../src/core/boss/registry';
 
-export const BOSSES = ['misha', 'vladik', 'tima', 'korne'] as const;
-export type BossId = (typeof BOSSES)[number];
-export const BOSS_NAMES: Record<BossId, string> = { misha: 'Миша', vladik: 'Владик', tima: 'Тима', korne: 'Корнематка' };
+/** Боссы таблицы баланса: четыре старых + все показываемые боссы на данных (список строится из реестра, при добавлении босса этот файл не меняется) */
+const LEGACY = ['misha', 'vladik', 'tima', 'korne'];
+export const BOSSES: readonly string[] = [...LEGACY, ...raceBossIds().filter((id) => !LEGACY.includes(id))];
+export type BossId = string;
+export const BOSS_NAMES: Record<BossId, string> = { misha: 'Миша', vladik: 'Владик', tima: 'Тима', korne: 'Корнематка', ...Object.fromEntries(BOSSES.filter((id) => !LEGACY.includes(id)).map((id) => [id, bossDef(id)?.name ?? id])) };
 
 export interface FightJob {
   boss: BossId; skill: number; players: number; seed: number;

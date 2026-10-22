@@ -10,6 +10,7 @@ import { drawLevelChunks } from '../art';
 import { drawCurtains, drawDataBoss, drawDataProjs, drawKorne, drawMisha, drawTima, drawVladik, type Say } from '../draw/bosses';
 import { bossDef } from '../../core/boss/registry';
 import { drawEnemy } from '../draw/enemies';
+import { drawArena } from '../draw/arena';
 import { drawPlayer, drawSwingArc, trailStyle } from '../draw/hero';
 import { drawBeads, drawHitKinds, drawItems, drawPoiseBars, drawProjectiles, drawStatus, type TextPool } from '../draw/projectiles';
 import { drawWeaver, type G } from '../draw/common';
@@ -51,7 +52,9 @@ export class GameScene extends Phaser.Scene {
   private gateG: G[] = []; private gateAnim: number[] = [];
   private entG = new Map<object, G>();
   private playerG: { g: G; tag: Phaser.GameObjects.Text }[] = [];
-  private dataG: G[] = [];
+  private dataG: G[] = []; private arenaG: G | null = null;
+  /** подсказка камере от сцены боссов (событие camZoom): множитель масштаба и сколько ещё секунд */
+  private zoomK = 1; private zoomT = 0;
   private bossG: G | null = null; private mishaG: G | null = null; private vladikG: G | null = null; private timaG: G | null = null;
   private say = { misha: null as Phaser.GameObjects.Text | null, vladik: null as Phaser.GameObjects.Text | null, tima: null as Phaser.GameObjects.Text | null };
   private letters!: Pool; private big!: Pool; private stamps!: Pool;
@@ -106,6 +109,7 @@ export class GameScene extends Phaser.Scene {
     for (const g of [this.bossG, this.mishaG, this.vladikG, this.timaG]) g?.destroy();
     this.bossG = this.mishaG = this.vladikG = this.timaG = null;
     for (const g of this.dataG) g.destroy(); this.dataG = [];
+    this.arenaG?.destroy(); this.arenaG = null; this.zoomK = 1; this.zoomT = 0;
     for (const t of Object.values(this.say)) t?.destroy(); this.say = { misha: null, vladik: null, tima: null };
     for (const e of [this.smoke, this.paper, this.foam, this.dustFx]) e?.destroy(); this.smoke = this.paper = this.foam = this.dustFx = null;
     for (const t of this.stampTexts) t.destroy(); this.stampTexts = []; this.furnG?.destroy(); this.furnG = null;
@@ -197,6 +201,7 @@ export class GameScene extends Phaser.Scene {
       this.foam = dust('dot', { lifespan: 500, speed: { min: 40, max: 180 }, scale: { start: 1.6, end: 0 }, tint: [0xfff6d8, 0xf2c14e], gravityY: 400 }, 7);
     }
     this.dataG = w.bosses.map(() => this.add.graphics().setDepth(4)); // боссы на данных (2.5)
+    if (w.arena) this.arenaG = this.add.graphics().setDepth(3.5); // сущности арены (платформы, лучи, точки появления): универсальный рисовальщик
     // камера: сразу на героев
     const pts = w.alivePlayers().length ? w.alivePlayers() : w.players;
     this.camX = pts[0]!.x; this.camY = pts[0]!.y - 80; this.zoom = 1.18;
@@ -297,6 +302,7 @@ export class GameScene extends Phaser.Scene {
         case 'repo': { const on = e['on'] as boolean; this.furnG?.setAlpha(on ? 0.18 : 1); this.stampTexts.forEach((t) => t.setVisible(on)); break; }
         case 'chargeSnd': if (e['on']) Snd.chargeStart(e['i'] as number, e['dur'] as number, e['id'] as string); else Snd.chargeStop(e['i'] as number); break;
         case 'enemyKill': break;
+        case 'camZoom': this.zoomK = e['zoom'] as number; this.zoomT = (e['frames'] as number) / 60; break;
         case 'perfectParry': { // «ОТБИВ!» над героем (идеальный отбив)
           const t = this.add.text(e['x'] as number, e['y'] as number, 'ОТБИВ!', { fontFamily: DISPLAY, fontSize: '15px', fontStyle: '700', color: '#ffe38a', stroke: '#1a1410', strokeThickness: 4 }).setOrigin(0.5).setDepth(8.8);
           this.tweens.add({ targets: t, y: t.y - 26, alpha: 0, duration: 650, ease: 'Cubic.easeOut', onComplete: () => t.destroy() });
@@ -365,6 +371,7 @@ export class GameScene extends Phaser.Scene {
     this.letters.begin(); this.big.begin(); this.stamps.begin();
     if (w.vladik && this.vladikG && this.say.vladik) { drawCurtains(w, this.curtainG, this.slimeG, now); drawVladik(w.vladik, this.vladikG, now, this.sayOf(this.say.vladik)); }
     if (w.tima && this.timaG && this.say.tima) drawTima(w.tima, this.timaG, now, this.sayOf(this.say.tima), (n, x, y) => this.dustFx?.explode(n, x, y));
+    if (this.arenaG) drawArena(w, this.arenaG, now);
     w.bosses.forEach((db, i) => { const dg = this.dataG[i]; if (dg) drawDataBoss(w, db, dg, now); });
     // удары
     for (const p of w.players) drawSwingArc(w, p, fx);
@@ -434,7 +441,8 @@ export class GameScene extends Phaser.Scene {
     if (pts.length === 1 && !withBoss) tx += pts[0]!.face * 50;
     const VW = this.fit.vw;
     const zmin = Math.max(0.66, VW / (w.L.W * T), VH / (w.L.H * T));
-    const zt = clamp(Math.min(VW / (x1 - x0 + 520), VH / (y1 - y0 + 300)), zmin, 1.18);
+    let zt = clamp(Math.min(VW / (x1 - x0 + 520), VH / (y1 - y0 + 300)), zmin, 1.18);
+    if (this.zoomT > 0) { this.zoomT -= dt; zt = clamp(zt * this.zoomK, zmin, 1.7); } // сцена боссов просит приблизить или отдалить камеру
     const k = 1 - Math.exp(-dt * 5);
     this.camX += (tx - this.camX) * k; this.camY += (ty - this.camY) * k;
     this.zoom += (zt - this.zoom) * (1 - Math.exp(-dt * 3));

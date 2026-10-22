@@ -16,9 +16,11 @@ export function loadBossFiles(only?: string): BossFile[] {
 }
 /** Правила честности (data/bosses/rules.json), прочитанные с диска. */
 export const readRulesRaw = (): unknown => JSON.parse(readFileSync(BOSS_DIR + 'rules.json', 'utf8'));
-/** Внутренний размер арены босса, px (без боковых стен и потолка/пола). */
-export function arenaInfo(arena: string | undefined): ArenaInfo | undefined {
-  const mk = arena ? ARENAS[arena] : undefined; if (!mk) return undefined;
-  const L = mk();
-  return { w: (L.W - 2) * T, h: (L.H - 2) * T };
+/** Внутренний размер арены босса, px (без боковых стен, потолка и пола): раздел arena — строка или { level, ents }. */
+export function arenaInfo(arena: string | { level: string } | undefined): ArenaInfo | undefined {
+  const level = typeof arena === 'string' ? arena : arena?.level;
+  const mk = level ? ARENAS[level] : undefined; if (!mk) return undefined;
+  const L = mk(), mid = Math.floor(L.W / 2);
+  let rows = 0; for (let y = 0; y < L.H; y++) if (L.grid[y]![mid] !== 1) rows++; // свободные клетки средней колонки: от потолка до пола
+  return { w: (L.W - 2) * T, h: rows * T };
 }

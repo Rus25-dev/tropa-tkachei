@@ -29,7 +29,11 @@ import { winGame } from './win';
 import { guestProjHits } from './netplay';
 import { applyPhase, newTrain, trainTick, type TrainState } from './training';
 import { bossDef } from './boss/registry';
-import { makeDataBoss, stepDataBoss } from './boss/exec';
+import { arenaLevel } from './boss/schema';
+import { effForm } from './boss/form';
+import { makeFight, stepDataBoss } from './boss/exec';
+import { arenaStep, type ArenaRt } from './boss/arena';
+import { stepCond, type CondRt } from './boss/conductor';
 
 
 export type Mode = 'story' | 'bosstest';
@@ -82,6 +86,12 @@ export class World {
   misha: Boss | null = null; vladik: Boss | null = null; tima: Boss | null = null;
   /** боссы на данных (data/bosses/*.json), 2.5; пока в босс-тесте, мульти-боссы — на будущее */
   bosses: Boss[] = [];
+  /** сущности арены боссов на данных по расписанию (platforms, лучи, точки появления), волна 0 */
+  arena: ArenaRt | null = null;
+  /** динамические тайлы арены (платформы и барьеры): ключ y * W + x → SOLID | PLAT; поверх карты, карту не меняют */
+  dyn: Map<number, number> | null = null;
+  /** дирижёр нескольких боссов (волна 0) */
+  cond: CondRt | null = null;
   projs: Proj[] = []; beadsArr: Rect[] & { vx?: number }[] = [] as never; benches: { x: number; y: number }[] = []; gates: Gate[] = [];
   curtains: { x: number; w: number; y: number; h: number; slime: number; wet: number; drip: number }[] | null = null;
   puddles: { x: number; w: number; y: number; t: number }[] | null = null;
@@ -152,7 +162,7 @@ export class World {
     this.initRng();
     this.enemies = []; this.boss = undefined as unknown as Boss;
     const dd = this.mode === 'bosstest' ? bossDef(this.bossKind) : undefined; // босс на данных: арена берётся из его описания
-    this.L = campaignLevel(this) ?? (this.mode === 'bosstest' ? (ARENAS[dd ? dd.arena : this.bossKind] ?? ARENAS['misha']!)() : buildLevel());
+    this.L = campaignLevel(this) ?? (this.mode === 'bosstest' ? (ARENAS[dd ? arenaLevel(dd) : this.bossKind] ?? ARENAS['misha']!)() : buildLevel());
     this.bosses = [];
     this.misha = null; this.crates = null; this.vladik = null; this.tima = null; this.curtains = null; this.puddles = null; this.repoT = 0;
     const L = this.L;
@@ -177,7 +187,7 @@ export class World {
     this.enemies = []; spawnEnemies(this);
     this.bossDead = this.mode === 'bosstest'; makeBoss(this);
     this.projs = []; this.beadsArr = [];
-    if (dd && !this.camp) makeDataBoss(this, dd.id, 0);
+    if (dd && !this.camp) makeFight(this, dd.id);
     else if (this.mode === 'bosstest') {
       if (this.bossKind === 'vladik') setupVladikArena(this);
       else if (this.bossKind === 'tima') setupTimaArena(this);
@@ -222,7 +232,12 @@ export class World {
   }
 
   // ----- сетка -----
-  tileAt(tx: number, ty: number): number { if (tx < 0 || tx >= this.L.W || ty < 0 || ty >= this.L.H) return SOLID; return this.grid[ty]![tx]!; }
+  tileAt(tx: number, ty: number): number {
+    if (tx < 0 || tx >= this.L.W || ty < 0 || ty >= this.L.H) return SOLID;
+    const g = this.grid[ty]![tx]!;
+    if (this.dyn !== null) { const d = this.dyn.get(ty * this.L.W + tx); if (d !== undefined && (g === EMPTY || d === SOLID)) return d; } // платформы и барьеры арены лежат поверх пустых клеток
+    return g;
+  }
   isSolid(tx: number, ty: number): boolean { return this.tileAt(tx, ty) === SOLID; }
   setGate(gt: Gate, closed: boolean): void {
     gt.closed = closed;
@@ -393,7 +408,9 @@ export class World {
       if (this.misha) stepMisha(this, dt);
       if (this.vladik) stepVladik(this, dt);
       if (this.tima) stepTima(this, dt);
+      stepCond(this);
       for (let i = 0; i < this.bosses.length; i++) stepDataBoss(this, i, dt);
+      if (this.arena) arenaStep(this, 'w', -1);
       stepProjs(this, dt);
       stepBeads(this, dt);
       stepItems(this);
@@ -404,7 +421,7 @@ export class World {
     for (const p of this.players) {
       if (p.remote || p.downed || p.inv > 0) continue;
       const pr = inset(p, 2);
-      for (const e of this.enemies) if (!e.dead && overlap(pr, inset(e, 2))) { hurtPlayer(this, p, 1, e.x + e.w / 2); break; }
+      for (const e of this.enemies) if (!e.dead && !e['m'] && overlap(pr, inset(e, 2))) { hurtPlayer(this, p, 1, e.x + e.w / 2); break; } // существа боссов бьют сами (minions.ts)
       const b = this.boss;
       if (p.inv <= 0 && !(b.stagger > 0) && (b.state !== 'sleep' && b.state !== 'dead' && b.state !== 'gone') && overlap(pr, inset(b, 8))) hurtPlayer(this, p, HEAVY_STATES.has(b.state) ? 2 : 1, b.x + b.w / 2);
       const m = this.misha;
@@ -412,7 +429,7 @@ export class World {
       const vb = this.vladik ?? this.tima;
       if (vb && p.inv <= 0 && !(vb.stagger > 0) && !['dead', 'intro'].includes(vb.state) && overlap(pr, inset(vb, 8))) hurtPlayer(this, p, HEAVY_STATES.has(vb.state) ? 2 : 1, vb.x + vb.w / 2);
       for (const db of this.bosses) {
-        const ct = bossDef((db['d'] as { id: string }).id)?.contact;
+        const dd = bossDef((db['d'] as { id: string; formPh: number }).id), ct = dd ? effForm(dd, (db['d'] as { formPh: number }).formPh).contact : null;
         if (ct && p.inv <= 0 && !(db.stagger > 0) && !['dead', 'intro', 'rage'].includes(db.state) && overlap(pr, inset(db, 8))) hurtPlayer(this, p, ct.dmg, db.x + db.w / 2, false, ct.kind);
       }
       if (this.curtains && p.inv <= 0) for (const c of this.curtains) if (c.slime > 0 && overlap(pr, curtainHazard(c))) { hurtPlayer(this, p, 1, c.x + c.w / 2); break; }

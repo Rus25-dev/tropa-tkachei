@@ -10,10 +10,10 @@ export const COL_A = '#8fe8d2', COL_B = '#ffc46e';
 const sideCol = (s: Side): string => (s === 0 ? COL_A : COL_B);
 
 /** палитра боссов — та же, что в картинке обсервера (view/scenes/WatchScene.ts) */
-const PAL: Record<DuelBoss, [string, string, string]> = { korne: ['#34482f', '#5d8a46', '#ffd47a'], misha: ['#4f5b78', '#c8463c', '#ffd47a'], vladik: ['#5a3f78', '#e0b84a', '#ff5a3c'], tima: ['#7a5a2a', '#f0d070', '#ff5a3c'] };
+const PAL: Record<string, [string, string, string]> = { korne: ['#34482f', '#5d8a46', '#ffd47a'], misha: ['#4f5b78', '#c8463c', '#ffd47a'], vladik: ['#5a3f78', '#e0b84a', '#ff5a3c'], tima: ['#7a5a2a', '#f0d070', '#ff5a3c'] };
 /** портрет босса: простая фигурка в цветах босса */
 export function BossFace({ boss, size = 64 }: { boss: DuelBoss; size?: number }) {
-  const [body, head, eye] = PAL[boss];
+  const [body, head, eye] = PAL[boss] ?? ['#4a5560', '#8a98a6', '#ffd47a']; // боссы на данных: нейтральные цвета
   return (
     <svg class="dl-face" width={size} height={size} viewBox="0 0 100 100" role="img" aria-label={BOSS_INFO[boss].name}>
       <ellipse cx="50" cy="90" rx="34" ry="6" fill="#000" opacity=".3" />

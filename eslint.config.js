@@ -25,6 +25,13 @@ export default tseslint.config(
   },
   { files: ['**/*.mjs', '**/*.js'], languageOptions: { globals: { console: 'readonly', process: 'readonly', fetch: 'readonly', setTimeout: 'readonly', URL: 'readonly', window: 'readonly' } }, rules: { 'no-undef': 'error', 'no-unused-vars': ['error', { argsIgnorePattern: '^_' }] } },
   {
+    // особая логика босса (kinds/<id>.ts) подключается автоматически и грузится раньше исполнителя: модули исполнителя, мира и урона — только типами (значения дали бы цикл)
+    files: ['src/core/boss/kinds/*.ts'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': ['error', { patterns: [{ group: ['../exec', '../arena', '../conductor', '../minions', '../../world', '../../damage', '../../bosses2', '../../combat', '../../korne', '../../win', '../../weapons'], allowTypeImports: true, message: 'В kinds/<id>.ts эти модули ядра можно только типами (import type): kinds грузятся раньше исполнителя, значение дало бы цикл. Нужное исполнитель передаёт через KindApi.' }] }],
+    },
+  },
+  {
     files: ['src/core/**/*.ts'],
     rules: {
       'no-restricted-syntax': ['error', ...coreBan],

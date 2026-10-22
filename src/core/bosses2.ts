@@ -9,7 +9,7 @@ import { poiseMul } from './weapons';
 import { rawBossDamage } from './damage';
 import { slowDt } from './status';
 import { statBegin } from './racestats';
-import { dataPoiseMul, dataStaggerBegin, dataStaggerRoom, onStagger } from './boss/exec';
+import { dataBody, dataPoiseMul, dataStaggerBegin, dataStaggerRoom, onStagger, onStaggerWorld } from './boss/exec';
 
 export const bossOf = (sc: World, key: BossRef): Boss | null => (key === 'boss' ? sc.boss : key === 'vladik' || key === 'tima' ? sc[key] : sc.bosses[dataIdx(key)] ?? null);
 const NAMES: Record<BossKey, string> = { boss: 'Корнематка', vladik: 'Владик Скрипка', tima: 'Тима Пиво' };
@@ -25,9 +25,13 @@ export const bossRefs = (sc: World): [Boss, BossRef][] => {
 
 // ----- фазы -----
 /** вызывается после урона: если перешли порог — рёв, неуязвимость, отталкивание */
-export function checkPhase(sc: World, b: Boss, name: string): boolean {
+export function checkPhase(sc: World, b: Boss, name: string, silent = false): boolean {
   const ph = phaseOf(b);
-  if (b.hp > 0 && ph > (b.phase || 1)) { b.phase = ph; phaseShift(sc, b, name, ph); return true; }
+  if (b.hp > 0 && ph > (b.phase || 1)) {
+    b.phase = ph;
+    if (silent) { sc.emit('phaseShift', { name, ph }); return true; } // фаза без рёва: переход — переходной приём босса на данных
+    phaseShift(sc, b, name, ph); return true;
+  }
   return false;
 }
 function phaseShift(sc: World, b: Boss, name: string, ph: number): void {
@@ -56,7 +60,7 @@ export function poiseAdd(sc: World, b: Boss | null, n0: number): void {
     sc.burst(24, b.x + b.w / 2, b.y + 10, 0xffd47a);
     sc.toastAll(sc._execHint ? 'Оглушён! Бей!' : 'Оглушён! Подойди и ударь вверх или вниз — казнь'); sc._execHint = true;
     for (const pr of sc.projs) if (pr.kind === 'spore' || pr.kind === 'letter') pr.dead = true;
-    if (b['d']) onStagger(b); // босс на данных: текущая атака обрывается
+    if (b['d']) { onStagger(b); onStaggerWorld(sc, b); } // босс на данных: текущая атака обрывается, связанные с ней сущности арены гаснут
   }
 }
 
@@ -66,7 +70,7 @@ export function stepBossLayered(sc: World, key: BossRef, dt0: number, base: (sc:
   const dt = slowDt(sc, b, dt0, true);
   if (b && b.stagger > 0) {
     b.stagger -= dt; b.vx = 0; b.flash = Math.floor(b.stagger * 16) % 2 ? 0.05 : 0;
-    b.vy = Math.min(b.vy + P.G * dt, P.MAXFALL); sc.moveBody(b, dt);
+    if (b['d']) dataBody(sc, b, dt); else { b.vy = Math.min(b.vy + P.G * dt, P.MAXFALL); sc.moveBody(b, dt); }
     if (b.stagger <= 0) { b.state = 'idle'; b.t = 0.45; b['poiseImmune'] = 5; }
     return;
   }

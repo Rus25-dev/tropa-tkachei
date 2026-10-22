@@ -6,8 +6,9 @@ import { makeTima, setRepo } from './tima';
 import { makeVladik } from './vladik';
 import type { Boss } from './types';
 import { phaseOf, type World } from './world';
-import { currentAttackName, forceChain, frameInfo, makeDataBoss } from './boss/exec';
+import { currentAttackName, forceChain, frameInfo, resetFight } from './boss/exec';
 import { bossDef } from './boss/registry';
+import { condOf } from './boss/conductor';
 
 export interface TrainState {
   t: number; log: [number, number][]; total: number; first: number | null; tele: { name: string; win: number; at: number } | null;
@@ -35,6 +36,11 @@ export function hpFor(b: Boss, kind: string, ph: number): number {
 export function applyPhase(sc: World): void {
   const b = sc.testBoss(), tr = sc.train; if (!b || !tr) return;
   b.hp = hpFor(b, sc.bossKind, tr.phase); b.phase = phaseOf(b);
+  for (const o of sc.bosses) { // несколько боссов (дирижёр): фаза старта у каждого; общий пул — одно здоровье
+    if (o === b) continue;
+    o.hp = condOf(sc)?.pool ? Math.min(o.maxHp, b.hp) : hpFor(o, sc.bossKind, tr.phase);
+    o.phase = phaseOf(o);
+  }
   if (b['tdMarks']) b['tdUsed'] = (b['tdMarks'] as number[]).filter((m) => b.hp <= m); // «вид сверху» у Миши считаем уже пройденным
   tr.boss = b; tr.lastHp = b.hp; tr.prev = b.state;
 }
@@ -45,7 +51,7 @@ export function resetBoss(sc: World): void {
   if (sc.misha) makeMisha(sc);
   if (sc.vladik) makeVladik(sc);
   if (sc.tima) { sc.repoT = 0; setRepo(sc, false); makeTima(sc); }
-  sc.bosses.forEach((b, i) => makeDataBoss(sc, (b['d'] as { id: string }).id, i));
+  if (sc.bosses.length) resetFight(sc);
   sc.bossBar(false); respawnLocal(sc);
   applyPhase(sc); tr.log = []; tr.total = 0; tr.first = null; tr.tele = null; tr.resets++;
   if (sc.paused) sc.togglePause();

@@ -18,5 +18,10 @@
     "spam": { "maxUses": 3, "windowSec": 10 },
     "wallStun": { "sec": 1.0, "cooldownSec": 25, "minSpeed": 300 },
     "relocate": { "sec": 12, "dist": 260 }
-  }
+  },
+  "scene": { "maxFrames": 480, "maxUnskippableFrames": 120 },
+  "arena": { "minWarnFrames": 30, "minStepFrames": 10, "maxEnts": 24, "minSafeWidth": 64 },
+  "weak": { "minOpenFrames": 24 },
+  "minions": { "maxTotal": 8 },
+  "conductor": { "maxBosses": 3, "minSafeGapFrames": 40 }
 }
