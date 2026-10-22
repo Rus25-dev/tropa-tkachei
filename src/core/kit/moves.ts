@@ -6,6 +6,7 @@ import { KIT, P } from '../balance';
 import type { HitKind, Inp, Player } from '../types';
 import type { World } from '../world';
 import { kitHas } from './abilities';
+import { COUNTER, counterStep } from './counter';
 import { diveLand, diveStrike } from './spells';
 
 /** секунды → кадры (шаг мира 1/60) */
@@ -36,12 +37,14 @@ export function kitDashStart(sc: World, p: Player): void {
 /** сбросить все приёмы (возрождение, телепорт) */
 export function kitClear(p: Player): void {
   p['fl'] = null; p['cr'] = null; p['dv'] = null; p['kcF'] = 0; p['kgF'] = 0; p['shade'] = false; p['kcLock'] = false; p['dhold'] = 0; p['flUsed'] = false;
+  p['cxCd'] = 0; p['cxFx'] = 0;
 }
 
 // ----- шаг -----
 /** обёртка шага героя. inner — следующий слой (оружие → база). Для героя без открытых приёмов и без активных состояний это один вызов inner. */
 export function kitStep(sc: World, p: Player, dt: number, inner: Inner): void {
   if (p.remote) return inner(sc, p, dt);
+  counterStep(sc, p, dt); // Контрудар (counter.ts): проверка нажатия удара в окне замаха босса; сам удар делает нижний слой
   const kgF = (p['kgF'] as number) | 0;
   if (kgF > 0) p['kgF'] = kgF - 1;
   if ((p['kcCd'] as number) > 0) p['kcCd']--;
@@ -173,7 +176,7 @@ function diveStep(sc: World, p: Player, dt: number, inner: Inner): void {
 }
 
 // ----- состояние для HUD и сети -----
-export interface KitIcon { id: 'shadow' | 'flash' | 'crystal'; /** 0..1: доля перезарядки или заряда */ frac: number; ready: boolean; active: boolean }
+export interface KitIcon { id: 'shadow' | 'flash' | 'crystal' | 'counter'; /** 0..1: доля перезарядки или заряда */ frac: number; ready: boolean; active: boolean }
 export function kitHud(sc: World, p: Player): KitIcon[] {
   const out: KitIcon[] = [];
   if (kitHas(sc, p, 'shadow')) out.push({ id: 'shadow', frac: Math.min(1, Math.max(0, p.dashCd) / KIT.SHADOW.CD), ready: p.dashCd <= 0, active: !!p['shade'] });
@@ -182,6 +185,7 @@ export function kitHud(sc: World, p: Player): KitIcon[] {
     const kc = (p['kcF'] as number) | 0, need = fr(KIT.CRYSTAL.CHARGE_T), cd = (p['kcCd'] as number) | 0;
     out.push({ id: 'crystal', frac: kc > 0 ? Math.min(1, kc / need) : cd > 0 ? cd / fr(KIT.CRYSTAL.CD) : 0, ready: cd <= 0 && !p['cr'], active: kc > 0 || !!p['cr'] });
   }
+  if (kitHas(sc, p, 'counter')) { const cd = (p['cxCd'] as number) | 0; out.push({ id: 'counter', frac: Math.min(1, cd / COUNTER.CD_F), ready: cd <= 0, active: (p['cxFx'] as number) > 0 }); }
   return out;
 }
 /** код состояния для сети и отрисовки: 0 нет, 1 теневой рывок, 2 вспышка, 3 заряд, 4 заряд готов, 5 суперрывок, 6 нырок */

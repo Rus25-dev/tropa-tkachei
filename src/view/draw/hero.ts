@@ -60,6 +60,11 @@ function drawPlayerFx(w: World, p: Player, g: G, now: number): void {
     g.lineStyle(gold ? 3.5 : 2.5, gold ? 0xffd96a : 0xffffff, 0.9); g.strokeCircle(0, -14, 20 + (P.PARRY_T - p['parryT']) * 50);
   }
   if ((p['perfFx'] as number) > 0) { const k = p['perfFx'] / 0.45; g.lineStyle(4, 0xffd96a, k); g.strokeCircle(0, -14, 20 + (1 - k) * 46); g.lineStyle(2, 0xffffff, k); g.strokeCircle(0, -14, 14 + (1 - k) * 30); }
+  if ((p['cxFx'] as number) > 0) { // Контрудар: кольцо и перекрестье у руки
+    const k = (p['cxFx'] as number) / 0.4, r = 30 + (1 - k) * 24;
+    g.lineStyle(4, 0xbfe9ff, k); g.strokeCircle(p.face * 18, -14, 12 + (1 - k) * 40);
+    g.lineStyle(2, 0xffffff, k); g.lineBetween(p.face * 6, -22, p.face * r, -6); g.lineBetween(p.face * 6, -6, p.face * r, -22);
+  }
   if ((p['counterT'] as number) > 0) { const k = p['counterT'] / PARRY2.COUNTER_T; g.lineStyle(2, 0xffd96a, 0.4 + 0.4 * Math.sin(w.animT * 30)); g.strokeCircle(p.face * 12, -14, 7 + 5 * k); } // контратака готова: золотая искра у руки
   if ((p['execT'] as number) > 0) { // казнь: огромный росчерк вверх или вниз
     const k = p['execT'] / 0.42, up = p['execDir'] === 'u', dy = up ? -1 : 1, f = p.face;
