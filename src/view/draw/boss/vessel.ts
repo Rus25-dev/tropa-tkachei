@@ -4,7 +4,7 @@ import { boxRect } from '../../../core/boss/exec';
 import type { Boss } from '../../../core/types';
 import type { World } from '../../../core/world';
 import type { BossDrawFn, BossDrawSet } from '../bossdraw';
-import type { G } from '../common';
+import { fillPolygon, strokePolygon, type G } from '../common';
 
 const SHELL = 0xd8d4e8, SHADE = 0x6a6682, VOID = 0x0c0a14, BLADE = 0xf4f1ff;
 
@@ -30,26 +30,31 @@ function bladePose(pose: string, k: number): { ang: number; crouch: number; reac
 }
 
 const base: BossDrawFn = (_w: World, b: Boss, g: G, now: number, c): void => {
+  if (c.d.atk === 'pillars' && c.tell) g.setAlpha(Math.min(1, c.d.af / 12));
   const f = b.face, cx = b.x + b.w / 2 + c.lean, fy = b.y + b.h, fl = b.flash > 0;
   const shell = fl ? 0xffffff : SHELL, shade = fl ? 0xffffff : SHADE;
   const idle = b.state === 'idle' || b.state === 'intro';
-  const pose = c.d.atk ? c.def.attacks.find((a) => a.id === c.d.atk)?.tell.cue.pose ?? '' : '';
+  let pose = c.d.atk ? c.def.attacks.find((a) => a.id === c.d.atk)?.tell.cue.pose ?? '' : '';
   const attack = c.def.attacks.find((a) => a.id === c.d.atk);
   const frame = c.d.af - 1 - (attack?.tell.frames ?? 0);
-  const swing = Math.min(1, Math.max(0, frame) / 4);
+  if (c.d.atk === 'triple' && frame >= 0) pose = frame >= 29 ? 'slash_x' : frame >= 16 ? 'slash_up' : 'slash_h';
+  const swingFrame = c.d.atk === 'triple' ? frame >= 29 ? frame - 29 : frame >= 16 ? frame - 16 : frame : frame;
+  const swing = Math.min(1, Math.max(0, swingFrame) / 4);
   const bp = c.tell ? bladePose(pose, c.k)
-    : b.state === 'active' && ['cut', 'cut2', 'cut3'].includes(c.d.atk ?? '') ? { ang: pose === 'slash_up' ? 1.2 - swing * 2.6 : -1.4 + swing * 2.8, crouch: 3, reach: 62 }
+    : b.state === 'active' && ['triple', 'cut3'].includes(c.d.atk ?? '') ? { ang: pose === 'slash_up' ? 1.2 - swing * 2.6 : -1.4 + swing * 2.8, crouch: 3, reach: 62 }
     : b.state === 'active' ? bladePose(pose, 1)
     : b.state === 'recover' ? { ang: 1.3, crouch: 6, reach: 30 } : { ang: 1.0, crouch: 0, reach: 28 };
   const bob = idle ? Math.sin(now * 3) * 1.5 : 0, cr = bp.crouch;
   // Эффекты привязаны к фактическим областям удара; прямоугольники отладки независимы.
   const special = ['pillars', 'focus', 'tendrils'].includes(c.d.atk ?? '');
   if (special && (c.tell || b.state === 'active')) for (const hit of attack?.active ?? []) {
-    if (!c.tell && (frame > hit.to || frame < hit.from - 20)) continue;
+    if (hit.previewFrom !== undefined ? frame < hit.previewFrom || frame > hit.to : !c.tell && (frame > hit.to || frame < hit.from - 20)) continue;
     const r = boxRect(b, c.d.dir, hit.hit, c.d.lock);
     const active = !c.tell && frame >= hit.from && frame <= hit.to;
     if (c.d.atk === 'pillars') {
+      if (c.spriteBody) continue;
       if (!active) { g.lineStyle(2, SHELL, 0.55); g.strokeEllipse(r.x + r.w / 2, r.y + r.h - 3, r.w + 8, 7); }
+      else if (hit.polygon) { const points = hit.polygon.map((v) => ({ x: r.x + v.x * r.w, y: r.y + v.y * r.h })); g.fillStyle(SHELL, 0.7); fillPolygon(g, points); g.lineStyle(2, BLADE, 0.9); strokePolygon(g, points); }
       else { g.fillStyle(SHELL, 0.18); g.fillRect(r.x, r.y, r.w, r.h); g.fillStyle(SHELL, 0.65); g.fillRect(r.x + 2, r.y + 12, r.w - 4, r.h - 12); g.fillTriangle(r.x + 2, r.y + 12, r.x + r.w - 2, r.y + 12, r.x + r.w / 2, r.y); g.lineStyle(3, BLADE, 0.95); g.lineBetween(r.x + r.w / 2, r.y + 12, r.x + r.w / 2, r.y + r.h); }
     } else if (c.d.atk === 'focus') {
       g.fillStyle(SHELL, active ? 0.32 : 0.06); g.fillCircle(r.x + r.w / 2, r.y + r.h / 2, r.w / 2);
@@ -77,6 +82,13 @@ const base: BossDrawFn = (_w: World, b: Boss, g: G, now: number, c): void => {
     g.fillStyle(BLADE, 0.4 + c.k * 0.5); g.fillCircle(sx, sy, 3 + c.k * 4);
   }
   if (pose === 'guard' && b.state === 'active') { g.lineStyle(2, BLADE, 0.9); g.strokeCircle(cx + f * 20, b.y + 25, 9); }
+  if (c.d.atk === 'triple' && b.state === 'active') for (const hit of attack?.active ?? []) {
+    if (!hit.polygon || frame < hit.from || frame > hit.to) continue;
+    const r = boxRect(b, c.d.dir, hit.hit, c.d.lock);
+    const points = hit.polygon.map((v) => ({ x: r.x + (c.d.dir < 0 ? 1 - v.x : v.x) * r.w, y: r.y + v.y * r.h }));
+    g.fillStyle(BLADE, 0.16); fillPolygon(g, points); g.lineStyle(3, BLADE, 0.7); strokePolygon(g, points);
+  }
+  if (c.spriteBody) return;
   // тень на полу
   g.fillStyle(0x000000, 0.3); g.fillEllipse(cx, fy - 2, b.w + 10, 7);
   // плащ-юбка (клин) и тонкие ноги

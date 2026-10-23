@@ -11,6 +11,8 @@ import type { BossDef } from './schema';
 /** Всё, что хук видит: мир, босс, его состояние исполнителя, определение, индекс в sc.bosses и поток ГСЧ боссов (детерминизм: только он, без Math.random). */
 export interface KindApi { sc: World; b: Boss; d: DState; def: BossDef; i: number; rng: () => number }
 export interface BossKind {
+  /** Авторская политика выбирает только из прошедших условия связок. */
+  select?(k: KindApi, available: readonly string[]): string | null;
   /** Перехват попадания до урона: вернуть связку ответа, чтобы блокировать удар. */
   guard?(k: KindApi, hit: BossHit): string | void;
   /** Успешный урон: можно ответить связкой с полным замахом. Не вызывается при смерти, смене фазы и оглушении. */

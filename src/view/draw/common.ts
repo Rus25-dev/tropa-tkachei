@@ -57,3 +57,11 @@ export function edge(fx: G, ox: number, oy: number, th: number, f: number, r0: n
   fx.lineStyle(lw, col, al); fx.beginPath(); fx.arc(ox, oy, R, a0, a1, false); fx.strokePath();
 }
 export const ease = (x: number): number => 1 - (1 - x) * (1 - x);
+
+/** Контур произвольного хитбокса без выделения Phaser.Vector2 на каждый кадр. */
+function polygonPath(g: G, points: readonly { x: number; y: number }[]): void {
+  g.beginPath();
+  if (points.length) { g.moveTo(points[0]!.x, points[0]!.y); for (let i = 1; i < points.length; i++) g.lineTo(points[i]!.x, points[i]!.y); g.closePath(); }
+}
+export function fillPolygon(g: G, points: readonly { x: number; y: number }[]): void { polygonPath(g, points); g.fillPath(); }
+export function strokePolygon(g: G, points: readonly { x: number; y: number }[]): void { polygonPath(g, points); g.strokePath(); }

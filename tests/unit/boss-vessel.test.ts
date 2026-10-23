@@ -55,7 +55,8 @@ describe('Пустой сосуд', () => {
       }
       return seen;
     };
-    expect(order(1)).toEqual(['cut', 'cut2', 'cut3']);
+    expect(order(1)).toEqual(['triple']);
+    expect(def.attacks.find((a) => a.id === 'triple')!.active.map((h) => [h.from, h.to])).toEqual([[0, 5], [16, 18], [29, 31]]);
     expect(order(77)).toEqual(order(1));
   });
 
@@ -112,7 +113,7 @@ describe('Пустой сосуд', () => {
     const x = b.x, floor = dstate(b).floor;
     for (let i = 0; i < 58; i++) { w.players[0]!.x = 400; w.hitstop = 0; w.tick(); }
     expect(b.x).toBeCloseTo(x); expect(b.y + b.h).toBeCloseTo(floor);
-    const pillars = def.attacks.find((a) => a.id === 'pillars')!.active.filter((h) => h.from === 40);
+    const pillars = def.attacks.find((a) => a.id === 'pillars')!.active.filter((h) => h.polygon).sort((a, b) => a.hit.x - b.hit.x);
     expect(pillars[1]!.hit.x - pillars[0]!.hit.x - pillars[0]!.hit.w).toBeGreaterThan(w.players[0]!.w);
   });
 
@@ -120,6 +121,20 @@ describe('Пустой сосуд', () => {
     const w = mk(); for (let i = 0; i < 150; i++) { hold(w); w.tick(); }
     forceChain(w, 0, 'c_guard'); hold(w); w.tick();
     expect(rawData(w, 'd0', w.players[0]!, { source: 'melee' }).outcome).toBe('damage');
+  });
+
+  it('длительность падения зависит от высоты, активные кадры ждут пола', () => {
+    const fall = (height: number): number => {
+      const w = mk(); for (let i = 0; i < 150; i++) { hold(w); w.tick(); }
+      forceChain(w, 0, 'c_pillars'); const b = w.bosses[0]!, d = dstate(b);
+      b['vesselDropHeight'] = height; b.y = d.floor - b.h - height;
+      let ticks = 0, waited = false;
+      while (d.af <= 28 && ticks < 100) { hold(w); w.tick(); ticks++; if (d.af === 28 && !b.onGround) waited = true; }
+      expect(waited).toBe(true); expect(ticks).toBeLessThan(100);
+      expect(b.y + b.h).toBeCloseTo(d.floor);
+      return ticks;
+    };
+    expect(fall(300)).toBeGreaterThan(fall(140));
   });
 
   it('детерминизм: то же зерно и ввод — то же состояние', () => {
