@@ -7,6 +7,7 @@ import { listPads, padKind } from '../input/gamepad';
 import { Snd } from '../view/audio/snd';
 import { Item, Panel, Screen, useSettings, useDevice } from './kit';
 import { navLock } from './nav';
+import { TouchLayoutEditor } from './TouchPad';
 
 export const SECS: [string, string, string][] = [['sound', 'Звук', 'громкость звуков и музыки'], ['screen', 'Экран', 'тряска, вспышки, контуры, качество, весь экран'],
   ['controls', 'Управление', 'клавиши, геймпад, кнопки на телефоне, левша'], ['game', 'Игра', 'лёгкий режим, скорость'], ['progress', 'Прогресс', 'сохранение, сброс']];
@@ -22,7 +23,7 @@ function Check({ id, label, sub, k, disabled }: { id: string; label: string; sub
     </label>
   );
 }
-function Range({ id, label, k, min, max, step, beep }: { id: string; label: string; k: 'vol' | 'mvol' | 'bop'; min: number; max: number; step: number; beep?: boolean }) {
+function Range({ id, label, k, min, max, step, beep }: { id: string; label: string; k: 'vol' | 'mvol' | 'bop' | 'tgap'; min: number; max: number; step: number; beep?: boolean }) {
   const s = useSettings();
   return (
     <label class="opt" for={id}>
@@ -32,7 +33,7 @@ function Range({ id, label, k, min, max, step, beep }: { id: string; label: stri
     </label>
   );
 }
-function Seg<K extends 'bsize' | 'speed' | 'gfx'>({ name, label, k, opts, disabled }: { name: string; label: string; k: K; opts: [SettingsData[K], string][]; disabled?: boolean }) {
+function Seg<K extends 'bsize' | 'speed' | 'gfx' | 'tlayout'>({ name, label, k, opts, disabled }: { name: string; label: string; k: K; opts: [SettingsData[K], string][]; disabled?: boolean }) {
   const s = useSettings();
   return (
     <div class="row">
@@ -62,6 +63,7 @@ function Section({ id, onKeys, locked }: { id: string; onKeys: () => void; locke
   const [fs, setFs] = useState(fsOn());
   const [armed, setArmed] = useState(false);
   const [done, setDone] = useState(false);
+  const [edit, setEdit] = useState(false);
   const [, bump] = useState(0);
   const touch = matchMedia('(pointer: coarse)').matches || new URLSearchParams(location.search).get('touch') === '1';
   useEffect(() => { const f = (): void => setFs(fsOn()); document.addEventListener('fullscreenchange', f); return () => document.removeEventListener('fullscreenchange', f); }, []);
@@ -84,6 +86,11 @@ function Section({ id, onKeys, locked }: { id: string; onKeys: () => void; locke
       {touch && <Check id="st-lefty" k="lefty" label="Для левши" sub="кнопки слева, стик справа" />}
       {touch && <Range id="st-bop" label="Видимость кнопок" k="bop" min={30} max={100} step={10} />}
       {touch && <Seg name="st-bsize" label="Размер кнопок на телефоне" k="bsize" opts={[['S', 'Меньше'], ['M', 'Обычные'], ['L', 'Крупнее']]} />}
+      {touch && <Seg name="st-tlayout" label="Кнопки нити" k="tlayout" opts={[['full', 'Отдельные'], ['simple', 'Одна «Нить»']]} />}
+      {touch && <span class="note">«Отдельные» — свои кнопки для отбива, лечения и всполоха, как отдельные клавиши. «Одна „Нить“» — как клавиша нити: лечит при полной нити, иначе отбивает, со стиком вверх — всполох.</span>}
+      {touch && <Range id="st-tgap" label="Расстояние между кнопками" k="tgap" min={80} max={140} step={10} />}
+      {touch && <button type="button" class="btn wide" id="st-tedit" onClick={() => setEdit(true)}>Расставить кнопки…</button>}
+      {edit && <TouchLayoutEditor onClose={() => setEdit(false)} />}
       <span class="lbl">Геймпад (раскладка только для просмотра)</span>
       <PadMap />
     </div>);
