@@ -83,6 +83,11 @@ describe('направленные инструменты', () => {
     const { w, p } = setup(), copy = cloneWorld(w);
     copy.players[0]!.toolSlots.up = 'hook'; expect(p.toolSlots.up).toBe('spirit');
   });
+  it('смена оружия прерывает старый удар и не обходит восстановление', () => {
+    const { w, p } = setup(); p.atkT = 0.2; p.atkCd = 0.1; p.chg = 1; p.atkBuf = 0.1;
+    applyLoadout(w, { ...defaultLoadout(), weapon: 'mace' });
+    expect(p.atkT).toBe(0); expect(p.chg).toBe(0); expect(p.atkBuf).toBe(0); expect(p.atkCd).toBeGreaterThan(0.1);
+  });
   it('сетевой снимок передаёт слоты и ввод вниз; старый снимок не оставляет их', () => {
     const { w, p } = setup(); p.raw = { down: true }; const m = packPlayer(w, p);
     const target = setup(); target.p.remote = true; applyPlayer(target.w, m);

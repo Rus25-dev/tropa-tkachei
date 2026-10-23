@@ -9,7 +9,7 @@ import { applyUp } from './campaign';
 import { WEAPONS } from './weapons';
 import { ABILS } from './kit/abilities';
 import { selectedTool, toolCost, type ToolSlots } from './tool-kit';
-import { canStartAction } from './player-actions';
+import { canStartAction, cancelPlayerActions } from './player-actions';
 import { toolAmmo, spendToolAmmo } from './tool-ammo';
 
 export { TOOLS };
@@ -69,6 +69,11 @@ export function charmsOn(p: Player | null | undefined): CharmDef[] {
 export function applyLoadout(sc: World, eq: LoadoutState): void {
   for (const p of sc.players) {
     if (p.remote) continue;
+    if (sc.gameplay >= 2 && p['weaponId'] && p['weaponId'] !== eq.weapon) {
+      cancelPlayerActions(sc, p);
+      p.atkCd = Math.max(p.atkCd, WEAPONS[eq.weapon]?.cd ?? 0);
+      p['atkBuf'] = 0;
+    }
     p['weaponId'] = eq.weapon; p['toolId'] = eq.tool; p['charms'] = eq.charms.slice(); p['kit'] = eq.abils.slice();
     if (p['gameplay'] === 1 || !Number.isFinite(p['toolCd'])) p['toolCd'] = 0;
     p['toolSlots'] = { ...eq.toolSlots };
