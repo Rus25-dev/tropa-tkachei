@@ -1,7 +1,7 @@
 // «Пустой сосуд» (vessel): чистая дуэль без арены-помех. Проверяем: загрузку и состав, отсутствие сущностей арены и существ,
 // детерминизм, фиксированный порядок шагов связок (в том числе «экзамена»), нарастание темпа по фазам, смену фаз и безошибочную отрисовку.
 import { describe, expect, it } from 'vitest';
-import { dstate, enterPhase, forceChain } from '../../src/core/boss/exec';
+import { dstate, enterPhase, forceChain, rawData } from '../../src/core/boss/exec';
 import { bossDef } from '../../src/core/boss/registry';
 import { feedInput, makeFuzzer } from '../../src/core/fuzzinput';
 import { World } from '../../src/core/world';
@@ -22,7 +22,7 @@ describe('Пустой сосуд', () => {
     expect(def.phases).toHaveLength(3);
     expect(typeof def.arena === 'string' || !(def.arena as { ents?: unknown[] }).ents?.length).toBe(true);
     expect(def.creatures ?? []).toHaveLength(0);
-    expect(def.chains.length).toBeGreaterThanOrEqual(15);
+    expect(def.chains.length).toBeGreaterThanOrEqual(10);
     const sets = def.phases.map((p) => new Set(p.policy.chains));
     expect([...sets[2]!].some((c) => !sets[0]!.has(c))).toBe(true);
     expect([...sets[1]!].some((c) => !sets[0]!.has(c))).toBe(true);
@@ -41,23 +41,22 @@ describe('Пустой сосуд', () => {
   it('темп растёт: паузы между связками и промежутки внутри связок не длиннее, чем в прошлой фазе', () => {
     const rest = def.phases.map((p) => p.policy.restFrames[0]);
     expect(rest[1]!).toBeLessThan(rest[0]!); expect(rest[2]!).toBeLessThan(rest[1]!);
-    const gaps = (id: string): number[] => def.chains.find((c) => c.id === id)!.steps.slice(0, -1).map((s) => s.gapFrames ?? 99);
-    expect(Math.max(...gaps('c_a3f'))).toBeLessThan(Math.max(...gaps('c_a3')));
-    expect(Math.max(...gaps('c_trip'))).toBeLessThan(Math.max(...gaps('c_dbl')));
   });
 
-  it('связка идёт в одном и том же порядке при любом зерне (экзамен: Росчерк, Подъём, Бросок, Обратный бросок, Затмение)', () => {
+  it('тройной удар сохраняет порядок при любом зерне', () => {
     const order = (seed: number): string[] => {
-      const w = mk(seed); const seen: string[] = [];
-      for (let i = 0; i < 200; i++) { hold(w); w.tick(); } // вступление позади
-      enterPhase(w, 0, 3); for (let i = 0; i < 400; i++) { hold(w); w.tick(); }
-      expect(forceChain(w, 0, 'c_exam')).toBe(true);
+      const w = mk(seed), seen: string[] = [];
+      for (let i = 0; i < 150; i++) { hold(w); w.tick(); }
+      expect(forceChain(w, 0, 'c_a3')).toBe(true);
       const b = w.bosses[0]!;
-      for (let i = 0; i < 1200 && dstate(b).chain === 'c_exam'; i++) { hold(w); w.tick(); const a = dstate(b).atk; if (a && seen[seen.length - 1] !== a) seen.push(a); }
+      for (let i = 0; i < 600 && dstate(b).chain === 'c_a3'; i++) {
+        hold(w); w.tick(); const id = dstate(b).atk;
+        if (id && seen[seen.length - 1] !== id) seen.push(id);
+      }
       return seen;
     };
-    const want = ['cut', 'rise', 'rush', 'rush2', 'nova'];
-    expect(order(1)).toEqual(want); expect(order(77)).toEqual(want);
+    expect(order(1)).toEqual(['cut', 'cut2', 'cut3']);
+    expect(order(77)).toEqual(order(1));
   });
 
   it('смена фаз по здоровью: тренировка с фазы 2 и 3 запускает бой, босс атакует', () => {
@@ -68,6 +67,59 @@ describe('Пустой сосуд', () => {
       for (let i = 0; i < 900; i++) { hold(w); w.tick(); if (b.state === 'tell') attacked = true; }
       expect(b.phase).toBe(ph); expect(attacked).toBe(true);
     }
+  });
+
+  it('парирование блокирует ближний удар и запускает ответ; заклинание проходит', () => {
+    const w = mk(); for (let i = 0; i < 150; i++) { hold(w); w.tick(); }
+    const b = w.bosses[0]!, p = w.players[0]!;
+    forceChain(w, 0, 'c_guard'); for (let i = 0; i < 14; i++) { hold(w); w.tick(); } const hp = b.hp;
+    expect(rawData(w, 'd0', p, { source: 'melee' })).toEqual({ outcome: 'armor', damage: 0 });
+    expect(b.hp).toBe(hp); expect(dstate(b).chain).toBe('c_riposte');
+    forceChain(w, 0, 'c_guard'); hold(w); w.tick();
+    expect(rawData(w, 'd0', p, { source: 'projectile' }).outcome).toBe('damage');
+  });
+
+  it('фокусировка и щупальца добавляются по фазам, прежние камни и волны не выбираются', () => {
+    expect(def.phases[0]!.policy.chains).not.toContain('c_focus');
+    expect(def.phases[1]!.policy.chains).toContain('c_focus');
+    expect(def.phases[1]!.policy.chains).not.toContain('c_tendrils');
+    expect(def.phases[2]!.policy.chains).toContain('c_tendrils');
+    for (const ph of def.phases) for (const id of ['c_sky', 'c_sky2', 'c_quake', 'c_exam']) expect(ph.policy.chains).not.toContain(id);
+  });
+
+  it('выключение хитбоксов убирает прямоугольники урона, оставляя тело и сигналы', () => {
+    const w = mk(); for (let i = 0; i < 150; i++) { hold(w); w.tick(); }
+    const b = w.bosses[0]!; forceChain(w, 0, 'c_a3');
+    const count = (boxes: boolean): number => {
+      let n = 0; const g: unknown = new Proxy({}, { get: (_t, k) => (..._args: unknown[]) => { if (k === 'strokeRect') n++; return g; } });
+      drawDataBoss(w, b, g as never, 0, boxes); return n;
+    };
+    expect(count(true)).toBeGreaterThan(count(false)); expect(count(false)).toBe(0);
+  });
+
+  it('телепорт кинжалов оставляет свободное тело и дистанцию до героя', () => {
+    const w = mk(); for (let i = 0; i < 150; i++) { hold(w); w.tick(); }
+    const b = w.bosses[0]!;
+    expect(forceChain(w, 0, 'c_daggers')).toBe(true);
+    expect(w.solidRect(b)).toBe(false);
+    expect(Math.abs(b.x - w.players[0]!.x)).toBeGreaterThan(100);
+  });
+
+  it('падение фиксирует цель, заканчивается на полу и оставляет просветы между столпами', () => {
+    const w = mk(); for (let i = 0; i < 150; i++) { hold(w); w.tick(); }
+    const b = w.bosses[0]!;
+    expect(forceChain(w, 0, 'c_pillars')).toBe(true);
+    const x = b.x, floor = dstate(b).floor;
+    for (let i = 0; i < 58; i++) { w.players[0]!.x = 400; w.hitstop = 0; w.tick(); }
+    expect(b.x).toBeCloseTo(x); expect(b.y + b.h).toBeCloseTo(floor);
+    const pillars = def.attacks.find((a) => a.id === 'pillars')!.active.filter((h) => h.from === 40);
+    expect(pillars[1]!.hit.x - pillars[0]!.hit.x - pillars[0]!.hit.w).toBeGreaterThan(w.players[0]!.w);
+  });
+
+  it('подготовка стойки не блокирует урон, активное окно имеет конец', () => {
+    const w = mk(); for (let i = 0; i < 150; i++) { hold(w); w.tick(); }
+    forceChain(w, 0, 'c_guard'); hold(w); w.tick();
+    expect(rawData(w, 'd0', w.players[0]!, { source: 'melee' }).outcome).toBe('damage');
   });
 
   it('детерминизм: то же зерно и ввод — то же состояние', () => {

@@ -1,5 +1,6 @@
 // Рисунок «Пустого сосуда»: тонкая бледная фигура в плаще с двумя рожками и клинком-рукой. Поза зависит от замаха (cue.pose из data/bosses/vessel.json).
 // Телеграф (контур, коробки ударов, окно наказания) рисует общий код поверх; здесь только тело.
+import { boxRect } from '../../../core/boss/exec';
 import type { Boss } from '../../../core/types';
 import type { World } from '../../../core/world';
 import type { BossDrawFn, BossDrawSet } from '../bossdraw';
@@ -20,6 +21,8 @@ function bladePose(pose: string, k: number): { ang: number; crouch: number; reac
     case 'wind_up': case 'wind_up_big': return { ang: -1.6 + k * 0.4, crouch: 0, reach: 36 };
     case 'look_up': case 'look_up_big': return { ang: -2.4, crouch: -4, reach: 36 };
     case 'overhead_big': return { ang: -2.5 + k * 0.2, crouch: -6, reach: 46 };
+    case 'guard': return { ang: -1.35, crouch: 2, reach: 48 };
+    case 'void': return { ang: 1.4, crouch: -3, reach: 22 };
     case 'brace': return { ang: 0, crouch: 8, reach: 18 };
     default: return { ang: -0.5, crouch: 0, reach: 34 };
   }
@@ -30,12 +33,53 @@ const base: BossDrawFn = (_w: World, b: Boss, g: G, now: number, c): void => {
   const shell = fl ? 0xffffff : SHELL, shade = fl ? 0xffffff : SHADE;
   const idle = b.state === 'idle' || b.state === 'intro';
   const pose = c.d.atk ? c.def.attacks.find((a) => a.id === c.d.atk)?.tell.cue.pose ?? '' : '';
-  const bp = c.tell ? bladePose(pose, c.k) : b.state === 'active' ? { ang: 0.05, crouch: 3, reach: 62 } : b.state === 'recover' ? { ang: 1.3, crouch: 6, reach: 30 } : { ang: 1.0, crouch: 0, reach: 28 };
+  const attack = c.def.attacks.find((a) => a.id === c.d.atk);
+  const frame = c.d.af - 1 - (attack?.tell.frames ?? 0);
+  const swing = Math.min(1, Math.max(0, frame) / 4);
+  const bp = c.tell ? bladePose(pose, c.k)
+    : b.state === 'active' && ['cut', 'cut2', 'cut3'].includes(c.d.atk ?? '') ? { ang: pose === 'slash_up' ? 1.2 - swing * 2.6 : -1.4 + swing * 2.8, crouch: 3, reach: 62 }
+    : b.state === 'active' ? bladePose(pose, 1)
+    : b.state === 'recover' ? { ang: 1.3, crouch: 6, reach: 30 } : { ang: 1.0, crouch: 0, reach: 28 };
   const bob = idle ? Math.sin(now * 3) * 1.5 : 0, cr = bp.crouch;
+  // Эффекты привязаны к фактическим областям удара; прямоугольники отладки независимы.
+  const special = ['pillars', 'focus', 'tendrils'].includes(c.d.atk ?? '');
+  if (special && (c.tell || b.state === 'active')) for (const hit of attack?.active ?? []) {
+    if (!c.tell && (frame > hit.to || frame < hit.from - 20)) continue;
+    const r = boxRect(b, c.d.dir, hit.hit, c.d.lock);
+    const active = !c.tell && frame >= hit.from && frame <= hit.to;
+    if (c.d.atk === 'pillars') {
+      if (!active) { g.lineStyle(2, SHELL, 0.55); g.strokeEllipse(r.x + r.w / 2, r.y + r.h - 3, r.w + 8, 7); }
+      else { g.fillStyle(SHELL, 0.65); g.fillTriangle(r.x, r.y + r.h, r.x + r.w, r.y + r.h, r.x + r.w / 2, r.y); g.lineStyle(3, BLADE, 0.95); g.lineBetween(r.x + r.w / 2, r.y + 12, r.x + r.w / 2, r.y + r.h); }
+    } else if (c.d.atk === 'focus') {
+      g.fillStyle(SHELL, active ? 0.32 : 0.06); g.fillCircle(r.x + r.w / 2, r.y + r.h / 2, r.w / 2);
+      g.lineStyle(active ? 5 : 2, BLADE, active ? 0.95 : 0.45); g.strokeCircle(r.x + r.w / 2, r.y + r.h / 2, r.w / 2);
+    } else {
+      g.lineStyle(active ? 16 : 2, active ? VOID : SHADE, active ? 1 : 0.55);
+      for (let i = 0; i < 3; i++) {
+        const yy = r.y + 8 + i * 12;
+        const mid = yy + Math.sin(now * 18 + i) * 5;
+        if (active) { g.lineStyle(19, SHADE, 0.9); g.lineBetween(r.x, yy, r.x + r.w * 0.55, mid); g.lineBetween(r.x + r.w * 0.55, mid, r.x + r.w, yy); }
+        g.lineStyle(active ? 12 : 2, active ? VOID : SHELL, active ? 1 : 0.55);
+        g.lineBetween(r.x, yy, r.x + r.w * 0.55, mid);
+        g.lineBetween(r.x + r.w * 0.55, mid, r.x + r.w, yy);
+      }
+    }
+  }
+  if (c.tell && c.d.atk === 'daggers') {
+    const sx = cx + f * 26, sy = b.y + b.h / 2 - 6;
+    const aim = Math.atan2(c.d.lock.y - sy, c.d.lock.x - sx);
+    g.lineStyle(1, BLADE, 0.15 + c.k * 0.3);
+    for (let i = -3; i <= 3; i++) {
+      const angle = aim + i * Math.PI / 12;
+      g.lineBetween(sx, sy, sx + Math.cos(angle) * 250, sy + Math.sin(angle) * 250);
+    }
+    g.fillStyle(BLADE, 0.4 + c.k * 0.5); g.fillCircle(sx, sy, 3 + c.k * 4);
+  }
+  if (pose === 'guard' && b.state === 'active') { g.lineStyle(2, BLADE, 0.9); g.strokeCircle(cx + f * 20, b.y + 25, 9); }
   // тень на полу
   g.fillStyle(0x000000, 0.3); g.fillEllipse(cx, fy - 2, b.w + 10, 7);
   // плащ-юбка (клин) и тонкие ноги
-  g.fillStyle(VOID, 1); g.fillTriangle(cx - 17, fy - 4, cx + 17, fy - 4, cx - f * 3, b.y + 34 + cr);
+  g.fillStyle(VOID, 1); g.fillTriangle(cx - 17, fy - 4, cx + 17, fy - 4, cx - f * (3 + Math.sin(now * 7) * 3), b.y + 34 + cr);
   g.lineStyle(4, shade, 1); g.lineBetween(cx - 5, fy - 24 + cr * 0.5, cx - 6, fy - 3); g.lineBetween(cx + 5, fy - 24 + cr * 0.5, cx + 6, fy - 3);
   // туловище
   g.fillStyle(shell, 1); g.fillRoundedRect(cx - 9, b.y + 30 + cr + bob, 18, 34 - cr * 0.5, 7);

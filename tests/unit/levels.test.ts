@@ -66,7 +66,7 @@ describe('уровни LDtk', () => {
     for (const k of Object.keys(oracle.ARENAS)) { const L = buildArena(k); expect(L.arena).toBe(k); delete L.arena; expect(L).toStrictEqual(oracle.ARENAS[k]!()); }
     expect(buildLevel()).not.toBe(buildLevel());
     expect(buildLevel().grid).not.toBe(buildLevel().grid);
-    expect(arenaReg.ids()).toEqual(['misha', 'vladik', 'tima', 'keeper']);
+    expect(arenaReg.ids()).toEqual(['misha', 'vladik', 'tima', 'keeper', 'vessel']);
   });
 
   it('levels/tropa.ldtk совпадает с перегенерацией генератором (защита от ручной порчи)', () => {

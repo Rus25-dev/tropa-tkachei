@@ -7,7 +7,7 @@ import { bossDef } from '../core/boss/registry';
 import { testCards } from '../core/boss/catalog';
 import { freshCamp, freshUp, type CampState } from '../core/campaign';
 import { fixRules, fmt, violation, SR_ABOUT } from '../app/speedrun';
-import { menuPlayers, progress, records, setMenuPlayers, sr as srStore, training } from '../app/store';
+import { menuPlayers, progress, records, setMenuPlayers, sr as srStore, training, settings } from '../app/store';
 import type { LaunchParams } from '../app/launch';
 import { HowTo, Changelog, type HowSection } from './howto';
 import type { Online } from '../app/online';
@@ -205,7 +205,7 @@ function BossTest({ ctl, go, back, crumbs }: P) {
     return false;
   };
   return (
-    <Panel crumbs={crumbs} onBack={back} onKey={onKey} hint={{ nums: 5, lr: 'менять', extra: { kb: 'T — тренировка, P — фаза' } }} label="Босс-тест">
+    <Panel crumbs={crumbs} onBack={back} onKey={onKey} hint={{ nums: 6, lr: 'менять', extra: { kb: 'T — тренировка, P — фаза' } }} label="Босс-тест">
       <Screen title="Босс-тест" info={<>
         <h3 class="boss-name">{b.name}</h3><p>{b.about}</p><p class="rec">{recLine(b.id)}</p>
         <Dim>{training.on ? `Тренировка: бесконечное здоровье, счётчик урона и DPS, сброс босса клавишей Y. Старт с фазы ${training.phase}. Рекорды не пишутся.` : 'Бой сразу с выбранным боссом.'}</Dim>
@@ -222,6 +222,7 @@ function BossTest({ ctl, go, back, crumbs }: P) {
         <Item n={2} id="bt-two" label="Двое за одним компьютером" onClick={() => play(2)} />
         <Item n={3} id="bt-net" label="Вдвоём по сети" sub={training.on ? 'в тренировке — только вдвоём у одного компьютера' : 'боссы пока не работают по сети'} disabled onClick={() => go('net', { mode: 'bosstest', boss: b.id })} />
         <Item n={4} id="bt-train" label="Тренировка" sub="здоровье бесконечное, счётчик урона" value={training.on ? 'вкл' : 'выкл'} onClick={toggleTrain} onLR={() => toggleTrain()} />
+        <Item n={6} id="bt-hitboxes" label="Показать хитбоксы" sub="Области попадания; только в босс-тесте" value={settings.s.hitboxes ? 'вкл' : 'выкл'} onClick={() => { settings.set('hitboxes', !settings.s.hitboxes); bump((n) => n + 1); }} />
         <Item n={5} id="bt-phase" label="Старт с фазы" sub={training.on ? 'только в тренировке' : 'включит тренировку'} value={String(training.phase)} onClick={() => phase()} onLR={(d) => phase(d)} />
       </Screen>
     </Panel>

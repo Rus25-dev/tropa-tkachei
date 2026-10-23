@@ -25,6 +25,8 @@ const RequiresSchema = z.strictObject({
 
 const Active = z.strictObject({
   from: frames, to: frames, hit: Box, dmg: pos, kind: z.enum(HIT_KINDS),
+  /** Круг вписан в квадрат hit; углы не наносят урон. */
+  shape: z.literal('circle').optional(),
   knock: z.strictObject({ vx: z.number(), vy: z.number() }).optional(),
 });
 const Move = z.strictObject({
