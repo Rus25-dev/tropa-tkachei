@@ -1,12 +1,13 @@
-// Метательная игла: летит по прямой, пробивает слабых врагов, втыкается в стену и в босса; подобрать — вернёт нить.
+// Метательная игла: ограниченный запас, подбор возвращает использованный заряд.
 import { T, TOOL } from '../../core/balance';
 import { defineTool } from '../../core/tool-kit';
 import { liveBoss, toolHurtBoss, toolHurtEnemy, toolOwner } from '../../core/tools';
 import { inset, overlap } from '../../core/world';
+import { gainToolAmmo } from '../../core/tool-ammo';
 
 export default defineTool({
-  id: 'throwneedle', order: 0, name: 'Метательная игла', desc: 'Летит по прямой (↑ или ↑+→ — вверх и по диагонали), пробивает слабых врагов, втыкается в стену и в босса на 3 с. Урон 2. Подбери — вернёт нить.',
-  cost: 1, cd: 0.5, unlock: 'boss:penitent',
+  id: 'throwneedle', order: 0, name: 'Метательная игла', desc: 'Бросок в выбранном направлении, включая вниз. Пробивает слабых врагов, втыкается в стену и в босса на 3 с. Урон 2. Запас 6; подбор возвращает заряд. Шёлк не расходуется.',
+  cost: 0, legacyCost: 1, charges: 6, cd: 0.5, unlock: 'boss:penitent',
   spawn: (sc, m) => {
     (sc.tl as Record<string, unknown>[]).push({ kind: 'tneedle', x: m.x + m.dx * 14 - 6, y: m.y + m.dy * 14 - 6, w: 12, h: 12, vx: m.dx * TOOL.NEEDLE_SPD, vy: m.dy * TOOL.NEEDLE_SPD, st: 0, ft: 0.65, life: 25, owner: m.i, hit: new Set(), ang: Math.atan2(m.dy, m.dx) });
   },
@@ -55,7 +56,8 @@ export default defineTool({
         const r = { x: q['x'] - 22, y: q['y'] - 22, w: 56, h: 56 };
         if (overlap(owner, r)) {
           q['dead'] = true; sc.snd('pickup');
-          if (owner.remote) sc.sendEv({ k: 'silk', i: owner.i }); else owner.silk = Math.min(sc.silkMax, owner.silk + 1);
+          if (sc.gameplay === 1) { if (owner.remote) sc.sendEv({ k: 'silk', i: owner.i }); else owner.silk = Math.min(sc.silkMax, owner.silk + 1); }
+          else if (owner.remote) sc.sendEv({ k: 'toolammo', i: owner.i, id: 'throwneedle' }); else gainToolAmmo(owner, 'throwneedle');
           sc.burst(6, q['x'] + 6, q['y'] + 6, owner.pal.accent);
         }
       }

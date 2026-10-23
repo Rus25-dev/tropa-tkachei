@@ -114,7 +114,7 @@
 .hw-ver { font: 400 13px var(--body); color: #6f9586; margin-left: 12px; }
 .tabs { display: flex; gap: 6px; flex: none; flex-wrap: wrap; }
 .tab { flex: 1 1 0; min-width: 0; padding: 6px 8px; background: #0c1815; color: #b9d4c8; border: 1px solid #3a6b5a; border-radius: 7px; font: 600 15px var(--body); cursor: pointer; }
-.tab[aria-selected=true] { background: var(--moss); border-color: var(--moss); color: #08130f; }
+.tab[aria-selected=true], .tab[aria-pressed=true] { background: var(--moss); border-color: var(--moss); color: #08130f; }
 .hw-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; background: var(--panel); border: 1px solid #24433a; border-radius: 10px; padding: 14px 18px 18px; font-size: 15px; line-height: 1.45; color: #cfe2d8; scrollbar-color: #3a6b5a #0c1815; }
 .hw-body:focus { outline: none; }
 .hw-body h3 { font: 700 21px var(--display); margin: 0 0 4px; color: var(--bone); }
@@ -182,7 +182,7 @@ td.x .del { min-width: 44px; background: none; border: 0; color: #c88; cursor: p
 /* ----- снаряжение ----- */
 .ov.gear { background: rgba(3, 8, 7, .97); }
 .ov.gear .ovbody { place-items: stretch center; }
-.gear-in { width: min(720px, 100%); display: flex; flex-direction: column; gap: 8px; background: #0b1714; border: 2px solid #3c5a50; border-radius: 10px; padding: 12px 16px; max-height: 100%; min-height: 0; }
+.gear-in { box-sizing: border-box; width: min(720px, 100%); display: flex; flex-direction: column; gap: 8px; background: #0b1714; border: 2px solid #3c5a50; border-radius: 10px; padding: 12px 16px; max-height: 100%; min-height: 0; }
 .gear-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .gear-top .pause-t { font-size: 32px; } .gear-top .beads { text-align: left; }
 .gear-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; min-height: 0; flex: 1 1 auto; }
@@ -200,6 +200,7 @@ td.x .del { min-width: 44px; background: none; border: 0; color: #c88; cursor: p
 .slots { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .slot { width: 104px; height: 32px; display: grid; place-items: center; font-size: 11px; border-radius: 5px; background: #0e1c18; border: 1.5px solid #2c4a41; text-align: center; } .slot.full { background: #1d3a31; }
 @media (max-width: 640px) { .gear-cols { grid-template-columns: 1fr; } .gear-list { border-right: 0; max-height: 34vh; } }
+@media (max-width: 440px) { .gear-top { flex-wrap: wrap; } .gear-top .pause-t { order: -1; flex: 1 0 100%; text-align: center; font-size: 28px; margin: 0; } .gear-in > .tabs[role=tablist] { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 /* ----- победа ----- */
 .ov.win { background: rgba(3, 8, 7, .9); animation: fadein .9s both; }

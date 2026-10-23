@@ -6,12 +6,12 @@ import { benchRest } from './combat';
 import { buy, go as campaignGo, openShop, snap as campSnap, type CampState } from './campaign';
 import { TickClock } from './clock';
 import type { Inp, FxEvent } from './types';
-import { CHK, enc, EBITS, BITS, hash1, hash2, type Act, type Journal, type JournalSeg, tickValue } from './journal';
+import { CHK, enc, EBITS, BITS, hashFor, type Act, type Journal, type JournalSeg, tickValue } from './journal';
 import { mapClose, mapGo, mapMove, mapShow } from './maptravel';
 import { newRun, runStartData, srRelease, srTechPause, type RunOpts, type SrRun } from './speedrun';
 import { World, type WorldOpts } from './world';
 import { resetBoss } from './training';
-import type { LoadoutSave } from './loadout';
+import { applyLoadout, equipped, normalizeSave, openAll, type LoadoutSave } from './loadout';
 import type { Progress } from './campaign';
 import { BUTTONS, emptyFrame, type InputFrame } from './input';
 import { duelInputs, duelSpeed } from './duelmods';
@@ -42,7 +42,7 @@ export interface NetPort {
   /** мир сменился (глава → арена): сбросить накопленное */
   sceneChanged?(): void;
 }
-export type SceneData = Pick<WorldOpts, 'seed' | 'mode' | 'boss' | 'players' | 'camp' | 'train' | 'trainPhase'>;
+export type SceneData = Pick<WorldOpts, 'seed' | 'mode' | 'boss' | 'players' | 'camp' | 'train' | 'trainPhase' | 'gameplay'>;
 
 /** Журнал забега: запись ввода по тикам и действий интерфейса (legacy/src/journal.js: rec, act, segBegin) */
 export class Recorder {
@@ -56,11 +56,14 @@ export class Recorder {
     const sd = w.startData;
     this.seg = { seed: w.seed, np: w.nPlayers, hv: this.J.mem ? 2 : 1, data: { players: w.nPlayers, mode: sd.mode || 'story', boss: sd.boss || null, camp: sd.camp ? JSON.parse(JSON.stringify(sd.camp)) : null, ...(sd.kit ? { kit: true } : {}) }, n: 0, rle: [], acts: [], chk: [] };
     this.J.segs.push(this.seg); this.dirty = true;
+    this.seg.data.gameplay = w.gameplay;
+    if (w.gameplay >= 2) this.seg.hv = 3;
+    this.seg.data.loadout = JSON.parse(JSON.stringify(normalizeSave(sd.loadoutSave))) as LoadoutSave;
   }
   /** вызывается перед тиком мира */
   tick(w: World): void {
     const seg = this.seg; if (!seg) return;
-    if (seg.n > 0 && seg.n % CHK === 0) seg.chk.push(seg.n, seg.hv === 2 ? hash2(w) : hash1(w));
+    if (seg.n > 0 && seg.n % CHK === 0) seg.chk.push(seg.n, hashFor(w, seg.hv));
     const v = tickValue(w.players), r = seg.rle, L = r.length;
     if (L && r[L - 2] === v) r[L - 1]!++; else r.push(v, 1);
     seg.n++; this.dirty = true;
@@ -103,6 +106,7 @@ export class Session {
   }
 
   private spawn(data: SceneData): void {
+    data = { ...data, gameplay: data.gameplay ?? this.world?.gameplay ?? 2 };
     this.world = new World({ ...data, easy: this.cfg.easy, loadoutSave: this.cfg.loadoutSave, progress: this.cfg.progress, sr: this.sr, fx: this.cfg.fx, online: this.cfg.online ?? null, kit: !!this.cfg.kit });
     this.scenes++;
     if (this.rec && this.world.nPlayers === 1) this.rec.begin(this.world);
@@ -157,7 +161,7 @@ export class Session {
     }
     if (w.next) {
       const data = w.next; w.next = null;
-      this.spawn({ seed: data.seed, mode: data.mode, boss: data.boss, players: data.players, camp: data.camp });
+      this.spawn({ seed: data.seed, mode: data.mode, boss: data.boss, players: data.players, camp: data.camp, gameplay: data.gameplay });
       this.dispatch({ k: 'scene' });
       this.net?.sceneChanged?.();
     }
@@ -182,6 +186,16 @@ export class Session {
     if (this.rec && this.sig() !== before) this.rec.act(name, ...args);
   }
   togglePause(): void { const w = this.world, was = w.paused && !w.benchMenuOpen && !w.mt.open; this.act('T', [0, 0, 0], () => w.togglePause()); if (was && !w.paused) this.menuLock(); }
+  /** Покупка/смена снаряжения — часть повтора, включая потраченные бусины. */
+  setLoadout(save: LoadoutSave): void {
+    const w = this.world, copy = JSON.parse(JSON.stringify(normalizeSave(save))) as LoadoutSave;
+    this.cfg.loadoutSave = copy;
+    if (this.rec?.seg) {
+      this.rec.seg.data.loadout ??= JSON.parse(JSON.stringify(normalizeSave(w.startData.loadoutSave))) as LoadoutSave;
+      const list = (this.rec.seg.loadouts ??= []); list.push(copy); this.rec.act('gear', list.length - 1, w.beads);
+    }
+    applyLoadout(w, equipped(copy, openAll(w.mode, !!w.camp, !!w.sr), !!w.sr));
+  }
   /** выбор пункта меню скамьи. Журнал v1.8 раскладывает его на действия (закрыть меню, отдых, лавка/карта): одно 'bc' потеряло бы отдых при воспроизведении */
   benchPick(entry: BenchEntry): void {
     const w = this.world, bm = w.benchMenuOpen;

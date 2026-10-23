@@ -3,11 +3,12 @@
 import { bossDef } from '../core/boss/registry';
 import { campaignSave } from '../core/campaign';
 import { ABILS, KIT_IDS, kitHas, type KitId } from '../core/kit/abilities';
-import { CHARMS, CHARM_SLOTS, TOOLS, applyLoadout, canFit, equipped, openAll, owned, slotsOf, type LoadoutState } from '../core/loadout';
+import { CHARMS, CHARM_SLOTS, TOOLS, canFit, equipped, openAll, owned, slotsOf, type LoadoutState } from '../core/loadout';
 import type { Session } from '../core/session';
 import { WEAPONS } from '../core/weapons';
 import type { World } from '../core/world';
 import { loadout } from './store';
+import { TOOL_SLOT_NAMES, type ToolSlot } from '../core/tool-kit';
 
 export type GKind = 'weapons' | 'tools' | 'charms' | 'abils';
 export const KINDS: GKind[] = ['weapons', 'tools', 'charms', 'abils'];
@@ -29,10 +30,10 @@ export function gearItems(w: World, kind: GKind): GItem[] {
   return out;
 }
 export function equippedNow(w: World): LoadoutState { return equipped(loadout.get(), all(w), !!w.sr); }
-export function equippedIds(w: World, kind: GKind): string[] {
+export function equippedIds(w: World, kind: GKind, slot: ToolSlot = 'neutral'): string[] {
   if (kind === 'abils') return KIT_IDS.filter((id) => abilOpen(w, id));
   const d = equippedNow(w);
-  return kind === 'weapons' ? [d.weapon] : kind === 'tools' ? [d.tool] : d.charms;
+  return kind === 'weapons' ? [d.weapon] : kind === 'tools' ? [slot === 'neutral' ? d.tool : d.toolSlots?.[slot] ?? ''] : d.charms;
 }
 export const priceOf = (e: GEntry): number => { const m = /^shop:(\d+)$/.exec(e.unlock || ''); return m ? Number(m[1]) : 0; };
 export function lockText(e: GEntry): string {
@@ -50,13 +51,14 @@ export function statsOf(kind: GKind, e: GEntry): string[] {
     if (e['cd']) L.push(`Пауза между ударами: ${e['cd']} с`);
     if (e['combo']) L.push(`Комбо: ${e['combo']} уд.${e['finisher'] ? ', последний — тяжёлый' : ''}`);
   } else if (kind === 'tools') {
+    if (e['charges'] != null) L.push(`Запас: ${e['charges']}. Пополнение на скамье`);
     if (e['cost'] != null) L.push(`Стоит нити: ${e['cost']}`);
     if (e['cd']) L.push(`Перезарядка: ${e['cd']} с`);
   } else if (kind === 'charms') L.push(`Занимает слотов: ${slotsOf(e.id)} из ${CHARM_SLOTS}`);
   return L;
 }
 export interface GState { act: 'buy' | 'equip' | 'none'; ok: boolean; eq?: boolean; label: string; price?: number }
-export function gearState(w: World, kind: GKind, it: GItem): GState {
+export function gearState(w: World, kind: GKind, it: GItem, slot: ToolSlot = 'neutral'): GState {
   const e = it.e;
   if (kind === 'abils' && it.owned) return { act: 'none', ok: false, eq: true, label: 'Открыт' };
   if (!it.owned) {
@@ -64,7 +66,7 @@ export function gearState(w: World, kind: GKind, it: GItem): GState {
     if (pr) return { act: 'buy', price: pr, ok: w.beads >= pr && w.auth(), label: w.auth() ? `Купить за ${pr} бусин` : 'Покупает хост' };
     return { act: 'none', ok: false, label: lockText(e) };
   }
-  const eq = equippedIds(w, kind).includes(it.id);
+  const eq = equippedIds(w, kind, slot).includes(it.id);
   if (kind === 'charms') {
     if (eq) return { act: 'equip', ok: true, eq, label: 'Снять' };
     const fit = canFit(loadout.get().charms, it.id);
@@ -74,8 +76,8 @@ export function gearState(w: World, kind: GKind, it: GItem): GState {
   return { act: 'equip', ok: true, eq, label: 'Надеть' };
 }
 /** действие над предметом; возвращает сообщение для строки состояния */
-export function gearAct(ses: Session, kind: GKind, it: GItem): { msg: string; snd?: string } {
-  const w = ses.world, st = gearState(w, kind, it), e = it.e;
+export function gearAct(ses: Session, kind: GKind, it: GItem, slot: ToolSlot = 'neutral'): { msg: string; snd?: string } {
+  const w = ses.world, st = gearState(w, kind, it, slot), e = it.e;
   if (st.act === 'none') return { msg: st.eq ? 'Уже надето' : st.label };
   if (st.act === 'buy') {
     if (!w.auth()) return { msg: 'Покупать в лавке может только хост' };
@@ -88,14 +90,12 @@ export function gearAct(ses: Session, kind: GKind, it: GItem): { msg: string; sn
     for (const p of w.players) if (!p.remote) w.parts(14, p.x + 7, p.y + 10, 0xffd47a);
     const pg = w.progress;
     if (w.camp) campaignSave(w, { bench: pg ? (pg.bench | 0) : 0 }); // бусины сохраняются, остальные поля прогресса остаются
-    ses.cfg.loadoutSave = loadout.get();
-    if (kind === 'abils') applyLoadout(w, equipped(ses.cfg.loadoutSave, all(w), !!w.sr));
+    ses.setLoadout(loadout.get());
     return { msg: `Куплено: ${e.name}. Нажмите ещё раз, чтобы надеть` };
   }
   if (!st.ok) return { msg: st.label, snd: 'hit' };
-  if (!loadout.equip(SINGLE[kind], it.id)) return { msg: 'Не хватает слотов' };
-  const save = loadout.get(); ses.cfg.loadoutSave = save;
-  applyLoadout(w, equipped(save, all(w), !!w.sr)); w.snd('bench');
-  return { msg: kind === 'charms' ? (st.eq ? `Снято: ${e.name}` : `Надето: ${e.name}`) : `Надето: ${e.name}`, snd: 'bench' };
+  if (!loadout.equip(SINGLE[kind], it.id, slot)) return { msg: 'Не хватает слотов' };
+  const save = loadout.get(); ses.setLoadout(save); w.snd('bench');
+  return { msg: kind === 'tools' ? `${TOOL_SLOT_NAMES[slot]}: ${it.none && slot !== 'neutral' ? 'основной инструмент' : e.name}` : kind === 'charms' ? (st.eq ? `Снято: ${e.name}` : `Надето: ${e.name}`) : `Надето: ${e.name}`, snd: 'bench' };
 }
 export { CHARMS, CHARM_SLOTS, slotsOf };

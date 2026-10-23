@@ -29,6 +29,9 @@ export interface ToolDef {
   id: string; name: string; desc: string;
   /** цена в нити и перезарядка, с */
   cost: number; cd: number;
+  /** Ограниченный запас; пополняется на скамье/после смерти. Без поля используется только шёлк. */
+  charges?: number;
+  legacyCost?: number;
   /** как получить: 'boss:<id>' | 'shop:<цена>' */
   unlock: string;
   /** место в списках (снаряжение, фаззер); у существующих не менять */
@@ -48,9 +51,28 @@ export interface ToolDef {
 }
 export function defineTool(d: ToolDef): ToolDef { return d; }
 
-/** направление броска / нити по вводу: ↑ — вверх, ↑ + сторона — диагональ, иначе вперёд */
+export type ToolSlot = 'neutral' | 'up' | 'down';
+export type ToolSlots = Partial<Record<'up' | 'down', string>>;
+export const hasTools = (p: Player | undefined): boolean => !!p && !!(p['toolId'] || p['toolSlots']?.up || p['toolSlots']?.down);
+export const TOOL_SLOTS: readonly ToolSlot[] = ['neutral', 'up', 'down'];
+export const TOOL_SLOT_NAMES: Record<ToolSlot, string> = { neutral: 'Прямо', up: 'Вверх', down: 'Вниз' };
+/** Одновременные ↑↓ считаются нейтральным вводом. Пустой направленный слот использует основной инструмент. */
+export function toolSlot(p: Player): ToolSlot {
+  const i = p.inp || {};
+  return !!i.up === !!i.down ? 'neutral' : i.up ? 'up' : 'down';
+}
+export function selectedTool(p: Player): string {
+  if (p['gameplay'] === 1) return p['toolId'] || '';
+  const slot = toolSlot(p), slots = p['toolSlots'] as ToolSlots | undefined;
+  return (slot !== 'neutral' && slots?.[slot]) || p['toolId'] || '';
+}
+
+/** Направление броска: вверх/вниз, диагонали или вперёд. */
 export function toolAim(p: Player): { dx: number; dy: number; f: number } {
   const i = p.inp || {}, dir = (i.right ? 1 : 0) - (i.left ? 1 : 0), f = dir || p.face || 1;
-  if (i.up) return dir ? { dx: f * 0.7071, dy: -0.7071, f } : { dx: 0, dy: -1, f };
+  if (p['gameplay'] === 1) return i.up ? dir ? { dx: f * 0.7071, dy: -0.7071, f } : { dx: 0, dy: -1, f } : { dx: f, dy: 0, f };
+  const vertical = !!i.up === !!i.down ? 0 : i.up ? -1 : 1;
+  if (vertical) return dir ? { dx: f * Math.SQRT1_2, dy: vertical * Math.SQRT1_2, f } : { dx: 0, dy: vertical, f };
   return { dx: f, dy: 0, f };
 }
+export const toolCost = (p: Player, tool: ToolDef): number => p['gameplay'] === 1 ? tool.legacyCost ?? tool.cost : tool.cost;

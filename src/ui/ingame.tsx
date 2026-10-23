@@ -15,6 +15,7 @@ import { Snd } from '../view/audio/snd';
 import { HowTo } from './howto';
 import { Item, Panel, useDevice } from './kit';
 import { Settings } from './settings';
+import { TOOL_SLOTS, TOOL_SLOT_NAMES, type ToolSlot } from '../core/tool-kit';
 
 export function useTick(ms = 100): number {
   const [n, setN] = useState(0);
@@ -229,16 +230,17 @@ export function Gear({ ses, onClose }: { ses: Session; onClose: () => void }) {
   const [ki, setKi] = useState(0);
   const [sel, setSel] = useState(0);
   const [say, setSay] = useState('');
+  const [toolSlot, setToolSlot] = useState<ToolSlot>('neutral');
   const [, bump] = useState(0);
   const wasSel = useRef(false);
   const kind: GKind = KINDS[ki]!;
   const list = gearItems(w, kind), it: GItem | undefined = list[Math.min(sel, list.length - 1)];
-  const st = it ? gearState(w, kind, it) : null;
-  const eqIds = equippedIds(w, kind);
+  const st = it ? gearState(w, kind, it, toolSlot) : null;
+  const eqIds = equippedIds(w, kind, toolSlot);
   const dev = useDevice();
   const doAct = (): void => {
     if (!it) return;
-    const r = gearAct(ses, kind, it); setSay(r.msg); if (r.snd) Snd.play(r.snd); bump((n) => n + 1);
+    const r = gearAct(ses, kind, it, toolSlot); setSay(r.msg); if (r.snd) Snd.play(r.snd); bump((n) => n + 1);
   };
   const tab = (d: number): void => { setKi((k) => (k + d + KINDS.length) % KINDS.length); setSel(0); };
   const rowsRef = useRef<HTMLDivElement>(null);
@@ -275,6 +277,7 @@ export function Gear({ ses, onClose }: { ses: Session; onClose: () => void }) {
       <div class="gear-in">
         <div class="gear-top"><span class="beads">Бусин: {w.beads}</span><h2 class="pause-t">Снаряжение</h2><button type="button" class="btn" id="gear-close" onClick={onClose}>Закрыть</button></div>
         <div class="tabs" role="tablist">{KINDS.map((k, i) => <button key={k} type="button" role="tab" aria-selected={i === ki} class="tab" tabIndex={i === ki ? 0 : -1} onClick={() => { setKi(i); setSel(0); }}>{KIND_NAMES[k]}</button>)}</div>
+        {kind === 'tools' && <><div class="tabs" role="group" aria-label="Направление инструмента">{TOOL_SLOTS.map((slot) => <button type="button" class="tab" aria-pressed={toolSlot === slot} data-testid={`tool-slot-${slot}`} onClick={() => { setToolSlot(slot); setSay(''); }}>{TOOL_SLOT_NAMES[slot]}</button>)}</div><p class="dim">{keyName('tool')} / RB + направление выбирает инструмент. Пустой слот вверх или вниз использует основной.</p></>}
         <div class="gear-cols">
           <div class="gear-list" ref={rowsRef} role="listbox">
             {!list.length && <p class="dim">Пока ничего нет</p>}
@@ -283,7 +286,7 @@ export function Gear({ ses, onClose }: { ses: Session; onClose: () => void }) {
               return (<button key={x.id || 'none'} type="button" role="option" aria-selected={i === sel} data-lr="1" data-testid={`gear-row-${x.id || 'none'}`} class={`grow ${i === sel ? 'sel' : ''} ${x.owned ? '' : 'lock'}`}
                 onFocus={() => setSel(i)} onPointerDown={() => { wasSel.current = i === sel; }} onClick={(e) => { if (e.detail === 0 || wasSel.current) doAct(); else setSel(i); }}>
                 {kind === 'charms' && x.owned && <i class="dot" style={{ background: '#' + (CHARMS[x.id]?.col ?? 0xcfe8dc).toString(16).padStart(6, '0') }} />}
-                <span class="gn">{x.e.name}</span>
+                <span class="gn">{x.none && kind === 'tools' && toolSlot !== 'neutral' ? 'Основной инструмент' : x.e.name}</span>
                 <span class={`gs ${!x.owned ? (pr && w.beads >= pr ? 'afford' : 'no') : 'yes'}`}>{!x.owned ? (pr ? `${pr} бусин` : 'закрыто') : eq ? (kind === 'abils' ? 'открыт' : 'надето') : ''}</span>
               </button>);
             })}
@@ -292,7 +295,7 @@ export function Gear({ ses, onClose }: { ses: Session; onClose: () => void }) {
             {it && st ? (<>
               <h3 class="gd-n">{it.e.name}</h3>
               <div class="gd-s">{!it.owned ? lockText(it.e) : st.eq ? (kind === 'abils' ? 'Открыт' : 'Надето') : it.none ? '' : 'Есть у вас'}</div>
-              <p class="gd-d">{it.e.desc}</p>
+              <p class="gd-d">{it.none && kind === 'tools' && toolSlot !== 'neutral' ? 'Использовать основной инструмент при этом направлении.' : it.e.desc}</p>
               {!it.none && <pre class="gd-st">{statsOf(kind, it.e).join('\n')}</pre>}
               <button type="button" class={`btn gact ${st.ok ? 'ok' : 'off'}`} id="gear-act" onClick={doAct}>{st.label}</button>
               <div class="gd-say" role="status">{say}</div>

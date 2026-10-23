@@ -60,9 +60,12 @@ function checkSeg(s: unknown, i: number): string | null {
   const at = `journal.segs[${i}]`;
   if (!isObj(s)) return `${at}: ожидался объект`;
   if (!isInt(s['seed']) || !isInt(s['np']) || (s['np'] as number) < 1 || (s['np'] as number) > 2) return `${at}: неверные seed/np`;
-  if (s['hv'] !== 1 && s['hv'] !== 2) return `${at}: hv должен быть 1 или 2`;
+  if (s['hv'] !== 1 && s['hv'] !== 2 && s['hv'] !== 3) return `${at}: hv должен быть 1, 2 или 3`;
   if (!isInt(s['n']) || (s['n'] as number) < 0 || (s['n'] as number) > TTREC_MAX_TICKS) return `${at}: неверная длина n`;
   if (!isObj(s['data'])) return `${at}: нет data`;
+  const gameplay = (s['data'] as Record<string, unknown>)['gameplay'];
+  if (gameplay !== undefined && gameplay !== 1 && gameplay !== 2) return `${at}: неизвестная версия правил игры`;
+  if (s['loadouts'] !== undefined && (!isArr(s['loadouts']) || s['loadouts'].some((v) => !isObj(v)))) return `${at}: неверные снимки снаряжения`;
   const mode = (s['data'] as Record<string, unknown>)['mode'];
   if (mode !== 'story' && mode !== 'bosstest') return `${at}: data.mode должен быть story или bosstest`;
   const rle = s['rle'];
@@ -71,6 +74,7 @@ function checkSeg(s: unknown, i: number): string | null {
   if (sum !== s['n']) return `${at}: сумма повторов rle (${sum}) не равна n (${String(s['n'])})`;
   const acts = s['acts'];
   if (!isArr(acts) || acts.some((a) => !isArr(a) || a.length !== 5 || !isInt(a[0]) || typeof a[1] !== 'string' || !isInt(a[2]) || !isInt(a[3]) || !isInt(a[4]))) return `${at}: acts — списки [тик, имя, a, b, c]`;
+  if (acts.some((a) => { const act = a as unknown[]; return act[1] === 'gear' && (!isArr(s['loadouts']) || !s['loadouts'][act[2] as number]); })) return `${at}: нет снимка снаряжения для действия gear`;
   const chk = s['chk'];
   if (!isArr(chk) || chk.length % 2 || chk.some((x) => !isInt(x))) return `${at}: chk — пары [тик, хэш]`;
   return null;

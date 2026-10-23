@@ -6,10 +6,10 @@ import { inset, overlap } from '../../core/world';
 
 export default defineTool({
   id: 'threadbomb', order: 2, name: 'Нитяная бомба', desc: 'Бросок дугой. Взрыв радиусом 90: урон 3 врагам и боссу, отброс, сбивает снаряды.',
-  cost: 3, cd: 2, unlock: 'shop:70',
+  cost: 0, legacyCost: 3, charges: 3, cd: 2, unlock: 'shop:70',
   spawn: (sc, m) => {
-    const up = m.dy < 0, diag = up && m.dx !== 0;
-    const vx = up ? (diag ? m.f * 240 : 0) : m.f * 340, vy = up ? (diag ? -520 : -680) : -330;
+    const up = m.dy < 0, down = m.dy > 0, diag = m.dx !== 0;
+    const vx = up || down ? (diag ? m.f * 240 : 0) : m.f * 340, vy = up ? (diag ? -520 : -680) : down ? 340 : -330;
     (sc.tl as Q[]).push({ kind: 'tbomb', x: m.x + m.f * 8 - 6, y: m.y - 8, w: 12, h: 12, vx, vy, fuse: TOOL.BOMB_FUSE, life: 5, owner: m.i });
   },
   entities: [{

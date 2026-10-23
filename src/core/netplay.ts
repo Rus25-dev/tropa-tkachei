@@ -19,6 +19,7 @@ import { inset, overlap, type World } from './world';
 import { kitChargeFrac, kitCode, kitFromNet, kitTrail } from './kit/moves';
 import { netKindReg, projReg, toolEntReg } from './plugin/regs';
 import { isHeroProj } from './proj-kit';
+import { gainToolAmmo } from './tool-ammo';
 
 export type NetMsg = Record<string, any>;
 
@@ -36,6 +37,9 @@ export function packPlayer(_w: World, p: Player): NetMsg {
     d: f2(p.dashT), s: p.sit ? 1 : 0, h: f2(p.healT), l: f2(p.landT), hp: p.hp, mh: p.maxHp, sk: p.silk, dn: p.downed ? 1 : 0,
     iv: f2(p.inv), u: p.raw && p.raw.up ? 1 : 0, rv: f2(p.reviveT), sq: p['seq'] || 0, ad: p.atkDir, bm: p.bombs, hv: p['heavy'] ? 1 : 0, wp: p['weaponId'] || 'needle', tl: p['toolId'] || '' };
   if (p['charms'] && p['charms'].length) m['cm'] = p['charms'].join(',');
+  if (p['toolSlots']) m['ts'] = { ...p['toolSlots'] };
+  if (p['toolAmmo']) m['ta'] = { ...p['toolAmmo'] };
+  m['di'] = p.raw?.down ? 1 : 0;
   m['wk'] = p['swk'] || 'g'; if ((p['chg'] || 0) > CH_SHOW) m['cg'] = r100(p['chg']);
   m['lg'] = p['ledge'] ? p['ledge'].side : 0; m['gl'] = p['gliding'] ? 1 : 0;
   const ks = kitCode(p); if (ks || p['kgF'] > 0) { m['ks'] = ks; m['kg'] = p['kgF'] | 0; const kc = kitChargeFrac(p); if (kc > 0) m['kc'] = r100(kc); } // приёмы набора игрока (v2.5): только если что-то идёт
@@ -47,7 +51,9 @@ export function applyPlayer(w: World, m: NetMsg): void {
   const l0 = p['lastSeq'];
   Object.assign(p, { tx: m['x'], ty: m['y'], vx: m['vx'], vy: m['vy'], face: m['f'], onGround: !!m['g'], dashT: m['d'], sit: !!m['s'], healT: m['h'], landT: m['l'],
     hp: m['hp'], maxHp: m['mh'], silk: m['sk'], downed: !!m['dn'], inv: m['iv'], netUp: !!m['u'], reviveT: m['rv'], netT: 0, bombs: m['bm'] || 0, heavy: !!m['hv'], weaponId: m['wp'] || 'needle', toolId: m['tl'] || '', charms: m['cm'] ? String(m['cm']).split(',') : [] });
-  p.inp = { up: p['netUp'] };
+  p['toolSlots'] = { up: typeof m['ts']?.up === 'string' ? m['ts'].up : '', down: typeof m['ts']?.down === 'string' ? m['ts'].down : '' };
+  p['toolAmmo'] = { ...m['ta'] };
+  p.inp = { up: p['netUp'], down: !!m['di'] };
   if (m['sq'] !== p['lastSeq']) { p['lastSeq'] = m['sq']; p.atkT = P.ATK_T; p.atkHits = new Set(); p.atkDir = m['ad']; p.pogoed = true; }
   p['chg'] = m['cg'] || 0;
   if (p['lastSeq'] !== l0) { // новый удар удалённого героя: восстанавливаем его по оружию и коду удара
@@ -160,6 +166,7 @@ export function onEv(w: World, m: NetMsg): void {
     case 'e2parry': if (auth) e2Parry(w, m['x'], m['y']); break;
     case 'kb': knockFrom(w, m['x']); break;
     case 'silk': { const p = w.players[m['i']]; if (p && !p.remote) p.silk = Math.min(w.silkMax, p.silk + 1); break; }
+    case 'toolammo': { const p = w.players[m['i']]; if (!auth && p && !p.remote && m['id'] === 'throwneedle') gainToolAmmo(p, 'throwneedle'); break; }
     case 'bench':
       w.respawn = { x: m['x'], y: m['y'] };
       for (const q of w.players) if (q.downed && !q.remote) { q.downed = false; q.hp = 2; q.inv = 1.5; q.x = m['x'] - 7 + 22; q.y = m['y'] - 26; w.snd('revive'); }

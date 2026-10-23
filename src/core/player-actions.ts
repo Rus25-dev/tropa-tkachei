@@ -3,7 +3,7 @@ import type { Player } from './types';
 import type { World } from './world';
 import { moveReg } from './plugin/regs';
 
-export type PlayerAction = 'attack' | 'parry' | 'heal' | 'burst';
+export type PlayerAction = 'attack' | 'parry' | 'heal' | 'burst' | 'tool';
 export type PlayerActionState = 'downed' | 'hurt' | 'heal' | 'execute' | 'move' | 'dash' | 'attack' | 'ready';
 export function actionState(p: Player): PlayerActionState {
   if (p.downed) return 'downed';
@@ -17,6 +17,7 @@ export function actionState(p: Player): PlayerActionState {
 export function canStartAction(p: Player, action: PlayerAction): boolean {
   const state = actionState(p);
   if (p.sit || !['ready', 'attack'].includes(state)) return false;
+  if (action === 'tool') return state === 'ready' && p.atkCd <= 0 && p.landT <= 0;
   return action !== 'attack' || p.atkCd <= 0;
 }
 /** Отмена от урона/смерти/возрождения: ни один модуль не продолжает старое действие. */

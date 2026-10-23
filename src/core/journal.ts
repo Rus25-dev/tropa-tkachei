@@ -4,6 +4,7 @@ import type { Inp, Player } from './types';
 import { BAL, T } from './balance';
 import type { World } from './world';
 import { ACTION_BUTTONS, ACTION_EDGES } from './input';
+import type { LoadoutSave } from './loadout';
 
 export const BITS = ['left', 'right', 'up', 'down', 'jump', 'atk', 'dash', 'heal', 'bomb', 'tool'] as const;
 export const EBITS = ['jumpP', 'atkP', 'dashP', 'healP', 'upP', 'bombP', 'toolP'] as const;
@@ -15,8 +16,9 @@ export const dec = (m: number, names: readonly string[]): Inp => { const o: Reco
 
 export type Act = [tick: number, name: string, a: number, b: number, c: number];
 export interface JournalSeg {
-  seed: number; np: number; hv: 1 | 2;
-  data: { players: number; mode: 'story' | 'bosstest'; boss: string | null; camp: unknown; /** набор приёмов был открыт (v2.5); у старых записей поля нет */ kit?: boolean };
+  loadouts?: LoadoutSave[];
+  seed: number; np: number; hv: 1 | 2 | 3;
+  data: { players: number; mode: 'story' | 'bosstest'; boss: string | null; camp: unknown; gameplay?: 1 | 2; loadout?: LoadoutSave; /** набор приёмов был открыт (v2.5); у старых записей поля нет */ kit?: boolean };
   n: number; rle: number[]; acts: Act[]; chk: number[];
 }
 export interface Journal {
@@ -83,7 +85,15 @@ export function hash1(gs: World): number {
   mix(gs.enemies.filter((e) => !e.dead).length); mix(gs.beadsArr.length); mix(gs.projs.length); mix(gs.bossDead ? 1 : 0);
   return h;
 }
-export const hashFor = (gs: World, hv: number): number => (hv === 2 ? hash2(gs) : hash1(gs));
+/** hv:3 добавляет инструменты: раньше запас/перезарядка/сущности не попадали в контроль. */
+export function hash3(gs: World): number {
+  let h = hash2(gs);
+  const primitiveFields = (o: Record<string, unknown>): unknown => Object.keys(o).sort().filter((k) => o[k] === null || ['string', 'number', 'boolean'].includes(typeof o[k])).map((k) => [k, o[k]]);
+  const state = JSON.stringify([gs.gameplay, gs.players.map((p) => [p['toolId'] ?? '', p['toolSlots']?.up ?? '', p['toolSlots']?.down ?? '', Object.entries(p['toolAmmo'] ?? {}).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0), p['toolCd'] ?? 0]), gs.tl.map((q) => primitiveFields(q))]);
+  for (let i = 0; i < state.length; i++) h = Math.imul(h ^ state.charCodeAt(i), 16777619) >>> 0;
+  return h;
+}
+export const hashFor = (gs: World, hv: number): number => hv === 3 ? hash3(gs) : hv === 2 ? hash2(gs) : hash1(gs);
 
 /** итог партии для золотых записей: всё, что должно совпасть в другой реализации ядра */
 export function outcome(gs: World): Record<string, unknown> {

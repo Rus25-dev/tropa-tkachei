@@ -4,6 +4,7 @@
 // Действия игрока (пауза, лавка, карта) отключены: состояние мира определяет только запись.
 import type { CampState } from './campaign';
 import type { Journal } from './journal';
+import { normalizeSave } from './loadout';
 import { applyTickValue } from './journal';
 import { runAct } from './replay';
 import { Session, type SceneData, type SessionCfg } from './session';
@@ -30,7 +31,7 @@ export class ReplaySession extends Session {
     let data: SceneData, run: { cat: 'trail' | 'boss' } | undefined;
     if (J.cat) { const d0 = runStartData(J.cat, first.seed); data = { ...d0, camp: (first.data.camp as CampState | null) || d0.camp }; run = { cat: J.cat }; }
     else data = { players: first.data.players || 1, mode: first.data.mode, boss: first.data.boss ?? undefined, camp: first.data.camp as CampState | null, seed: first.seed };
-    super({ ...cfg, kit: !!first.data.kit }, data, run); // приёмы набора игрока — как при записи
+    super({ ...cfg, loadoutSave: first.data.loadout ? normalizeSave(first.data.loadout) : cfg.loadoutSave, kit: !!first.data.kit }, { ...data, gameplay: first.data.gameplay ?? 1 }, run); // правила и приёмы — как при записи
     this.rec = null;
     this.journal = J;
     if (this.sr) this.sr.replay = { splits: J.splits, mem: !!J.mem };
@@ -47,11 +48,11 @@ export class ReplaySession extends Session {
     if (!seg) { this.ended = true; return; }
     const last = this.si === J.segs.length - 1;
     if (w.tickN >= seg.n) {
-      while (this.ai < seg.acts.length) runAct(w, seg.acts[this.ai++]!, this.sr); // действия после последнего тика
+      while (this.ai < seg.acts.length) runAct(w, seg.acts[this.ai++]!, this.sr, seg.loadouts); // действия после последнего тика
       if (last || !w.next) this.finish();
       return; // не последний отрезок: ждём смены сцены (w.next → afterTicks)
     }
-    while (this.ai < seg.acts.length && seg.acts[this.ai]![0] <= w.tickN) runAct(w, seg.acts[this.ai++]!, this.sr);
+    while (this.ai < seg.acts.length && seg.acts[this.ai]![0] <= w.tickN) runAct(w, seg.acts[this.ai++]!, this.sr, seg.loadouts);
     applyTickValue(w.players, seg.rle[this.ri]!);
     if (--this.left <= 0) { this.ri += 2; this.left = this.ri < seg.rle.length ? seg.rle[this.ri + 1]! : 0; }
     w.tick();
@@ -63,6 +64,7 @@ export class ReplaySession extends Session {
     if (this.hold || this.ended) { this.afterTicks(); return 0; }
     const n = this.clock.advance(deltaMs * this.playSpeed);
     for (let i = 0; i < n && !this.ended; i++) this.tickOnce();
+    if (this.world.next) { const next = this.journal.segs[this.si + 1]; if (next) { this.cfg.loadoutSave = next.data.loadout ? normalizeSave(next.data.loadout) : this.cfg.loadoutSave; this.world.next.gameplay = next.data.gameplay ?? 1; } }
     this.afterTicks();
     return n;
   }
@@ -84,5 +86,6 @@ export class ReplaySession extends Session {
   override techPause(): void { /* запись */ }
   override release(): void { /* запись */ }
   override retry(): void { this.onRestart?.(); }
+  override setLoadout(): void { /* снаряжение определяется записью */ }
   override step(): void { /* ввод не принимается */ }
 }
