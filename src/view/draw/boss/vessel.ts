@@ -21,7 +21,7 @@ function bladePose(pose: string, k: number): { ang: number; crouch: number; reac
     case 'wind_up': case 'wind_up_big': return { ang: -1.6 + k * 0.4, crouch: 0, reach: 36 };
     case 'look_up': case 'look_up_big': return { ang: -2.4, crouch: -4, reach: 36 };
     case 'overhead_big': return { ang: -2.5 + k * 0.2, crouch: -6, reach: 46 };
-    case 'dive': return { ang: Math.PI / 2, crouch: -2 + k * 5, reach: 46 + k * 14 };
+    case 'dive': return { ang: Math.PI / 2, crouch: -2 + k * 5, reach: 23 + k * 2 };
     case 'guard': return { ang: -1.35, crouch: 2, reach: 48 };
     case 'void': return { ang: 1.4, crouch: -3, reach: 22 };
     case 'brace': return { ang: 0, crouch: 8, reach: 18 };
