@@ -9,6 +9,7 @@ import { buy, openShop } from './campaign';
 import { SHOP } from './balance';
 import { damageBoss } from './damage';
 import { mapClose, mapGo, mapMove, mapShow } from './maptravel';
+import { applyLoadout, equipped, normalizeSave, openAll, type LoadoutSave } from './loadout';
 
 export interface ReplayOpts {
   /** вызывается после каждого тика (трасса состояния, фаззер) */
@@ -24,9 +25,10 @@ export interface ReplayOpts {
 export type ReplayResult = { ok: true; world: World; sr: SrRun | null; ticks: number } | { ok: false; why: string; tick: number; seg: number };
 
 /** действие интерфейса из журнала (Journal.runAct) */
-export function runAct(w: World, a: Act, sr: SrRun | null): void {
+export function runAct(w: World, a: Act, sr: SrRun | null, loadouts?: LoadoutSave[]): void {
   const [, name, x, y, z] = a, p0 = w.players[0]!;
   switch (name) {
+    case 'gear': if (loadouts?.[x]) { w.beads = y; applyLoadout(w, equipped(normalizeSave(loadouts[x]), openAll(w.mode, !!w.camp, !!w.sr), !!w.sr)); } break;
     case 'T': w.togglePause(); break;
     case 'bc': benchClose(w, !!x); break;
     case 'br': benchRest(w, w.players[x] ?? p0, w.benches[y]!, !!z); break;
@@ -61,19 +63,20 @@ export function* replaySteps(J: Journal, opt: ReplayOpts = {}, every = Infinity)
   let w!: World, total = 0;
   for (let si = 0; si < J.segs.length; si++) {
     const seg = J.segs[si]!;
+    if (seg.data.gameplay !== undefined && seg.data.gameplay !== 1 && seg.data.gameplay !== 2) return { ok: false, why: 'неизвестная версия правил игры', tick: 0, seg: si };
     if (si > 0) {
       const nx = w.next;
       if (!nx) return { ok: false, why: `сцена не сменилась перед отрезком ${si + 1}`, tick: w.tickN, seg: si };
       if (nx.seed !== seg.seed) return { ok: false, why: `зерно сцены не совпало (${seg.seed} ≠ ${nx.seed})`, tick: 0, seg: si };
       data = nx;
     }
-    w = new World({ ...data, kit: !!seg.data.kit, sr, easy: opt.easy, loadoutSave: opt.loadoutSave, progress: opt.progress, fx: false });
+    w = new World({ ...data, gameplay: seg.data.gameplay ?? 1, kit: !!seg.data.kit, sr, easy: opt.easy, loadoutSave: seg.data.loadout ? normalizeSave(seg.data.loadout) : opt.loadoutSave, progress: opt.progress, fx: false });
     const chk: Record<number, number> = {};
     for (let i = 0; i < seg.chk.length; i += 2) chk[seg.chk[i]!] = seg.chk[i + 1]!;
     let ai = 0, ri = 0, left = seg.rle.length ? seg.rle[1]! : 0;
     while (w.tickN < seg.n) {
       // действия интерфейса, случившиеся до этого тика
-      while (ai < seg.acts.length && seg.acts[ai]![0] <= w.tickN) runAct(w, seg.acts[ai++]!, sr);
+      while (ai < seg.acts.length && seg.acts[ai]![0] <= w.tickN) runAct(w, seg.acts[ai++]!, sr, seg.loadouts);
       if (w.tickN > 0 && w.tickN % CHK === 0 && chk[w.tickN] != null && chk[w.tickN] !== hashFor(w, seg.hv)) {
         return { ok: false, why: `состояние разошлось на тике ${w.tickN} (отрезок ${si + 1})`, tick: w.tickN, seg: si };
       }
@@ -83,7 +86,7 @@ export function* replaySteps(J: Journal, opt: ReplayOpts = {}, every = Infinity)
       if (opt.onTick) opt.onTick(w, si);
       if (total % every === 0) yield total;
     }
-    while (ai < seg.acts.length) runAct(w, seg.acts[ai++]!, sr); // действия после последнего тика (например, пауза перед падением)
+    while (ai < seg.acts.length) runAct(w, seg.acts[ai++]!, sr, seg.loadouts); // действия после последнего тика (например, пауза перед падением)
   }
   return { ok: true, world: w, sr, ticks: total };
 }

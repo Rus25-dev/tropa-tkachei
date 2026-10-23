@@ -8,13 +8,16 @@ import type { CharmDef } from './charm-kit';
 import { applyUp } from './campaign';
 import { WEAPONS } from './weapons';
 import { ABILS } from './kit/abilities';
+import { selectedTool, toolCost, type ToolSlots } from './tool-kit';
+import { canStartAction } from './player-actions';
+import { toolAmmo, spendToolAmmo } from './tool-ammo';
 
 export { TOOLS };
 export type { ToolDef } from './tool-kit';
 export type { CharmDef } from './charm-kit';
 export const CHARM_SLOTS = 3;
 
-export interface LoadoutState { weapon: string; tool: string; charms: string[]; /** полученные приёмы набора игрока (kit/abilities.ts) */ abils: string[] }
+export interface LoadoutState { weapon: string; tool: string; toolSlots?: ToolSlots; charms: string[]; /** полученные приёмы набора игрока (kit/abilities.ts) */ abils: string[] }
 export const defaultLoadout = (): LoadoutState => ({ weapon: 'needle', tool: '', charms: [], abils: [] });
 
 /** все обереги в порядке order (живой объект; описания — src/content/charms/<id>.ts) */
@@ -25,12 +28,14 @@ export const slotsUsed = (list: string[]): number => list.reduce((s, id) => s + 
 export const canFit = (list: string[], id: string): boolean => slotsUsed(list) + slotsOf(id) <= CHARM_SLOTS;
 
 // ----- хранилище снаряжения (данные tt_loadout), чистые функции: запись в localStorage делает слой выше -----
-export interface LoadoutSave { weapon: string; tool: string; charms: string[]; have: { weapons: string[]; tools: string[]; charms: string[]; /** приёмы набора игрока (kit); у старых сохранений поля нет */ abils?: string[] } }
+export interface LoadoutSave { weapon: string; tool: string; toolSlots?: ToolSlots; charms: string[]; have: { weapons: string[]; tools: string[]; charms: string[]; /** приёмы набора игрока (kit); у старых сохранений поля нет */ abils?: string[] } }
 export const normalizeSave = (raw: unknown): LoadoutSave => {
   const d = (raw && typeof raw === 'object' ? { ...(raw as Record<string, unknown>) } : {}) as Partial<LoadoutSave>;
   const have = (d.have && typeof d.have === 'object' ? d.have : { weapons: ['needle'], tools: [], charms: [], abils: [] }) as LoadoutSave['have'];
   for (const k of ['weapons', 'tools', 'charms', 'abils'] as const) if (!Array.isArray(have[k])) have[k] = [];
-  return { weapon: d.weapon || 'needle', tool: d.tool || '', charms: Array.isArray(d.charms) ? d.charms : [], have };
+  const toolSlots: ToolSlots = {};
+  for (const slot of ['up', 'down'] as const) if (typeof d.toolSlots?.[slot] === 'string') toolSlots[slot] = d.toolSlots[slot];
+  return { weapon: d.weapon || 'needle', tool: d.tool || '', ...(Object.keys(toolSlots).length ? { toolSlots } : {}), charms: Array.isArray(d.charms) ? d.charms : [], have };
 };
 type Kind = 'weapons' | 'tools' | 'charms' | 'abils';
 const reg = (kind: Kind): Record<string, { unlock: string }> => ({ weapons: WEAPONS, tools: TOOLS, charms: CHARMS, abils: ABILS })[kind];
@@ -48,7 +53,9 @@ export function equipped(d: LoadoutSave, all: boolean, inRun: boolean): LoadoutS
   const list = d.charms.filter((c) => owned('charms', c, d, all)).slice(0, CHARM_SLOTS);
   const keep: string[] = [];
   for (const c of list) if (canFit(keep, c)) keep.push(c);
-  return { weapon, tool, charms: keep, abils: Object.keys(ABILS).filter((id) => owned('abils', id, d, false)) };
+  const toolSlots: ToolSlots = {};
+  for (const slot of ['up', 'down'] as const) { const id = d.toolSlots?.[slot]; if (id && owned('tools', id, d, all)) toolSlots[slot] = id; }
+  return { weapon, tool, ...(Object.keys(toolSlots).length ? { toolSlots } : {}), charms: keep, abils: Object.keys(ABILS).filter((id) => owned('abils', id, d, false)) };
 }
 
 export const hasCharm = (p: Player | null | undefined, id: string): boolean => !!(p && p['charms'] && (p['charms'] as string[]).includes(id));
@@ -62,15 +69,21 @@ export function charmsOn(p: Player | null | undefined): CharmDef[] {
 export function applyLoadout(sc: World, eq: LoadoutState): void {
   for (const p of sc.players) {
     if (p.remote) continue;
-    p['weaponId'] = eq.weapon; p['toolId'] = eq.tool; p['charms'] = eq.charms.slice(); p['kit'] = eq.abils.slice(); p['toolCd'] = 0;
+    p['weaponId'] = eq.weapon; p['toolId'] = eq.tool; p['charms'] = eq.charms.slice(); p['kit'] = eq.abils.slice();
+    if (p['gameplay'] === 1 || !Number.isFinite(p['toolCd'])) p['toolCd'] = 0;
+    p['toolSlots'] = { ...eq.toolSlots };
   }
   // charms.js: пересчитать здоровье под обереги (при создании мира sc.up ещё нет: пересчёт делает campaignSetup)
   if (sc.up) applyUp(sc);
 }
 
 export function useTool(sc: World, p: Player): boolean {
-  const T_ = TOOLS[p['toolId'] as string]; if (!T_ || p.downed || (p['toolCd'] as number) > 0 || p.hurtT > 0 || p.sit) return false;
-  if (p.silk < (T_.cost || 0)) { if (!p.remote) sc.snd('clink'); return false; }
+  const T_ = TOOLS[selectedTool(p)];
+  const allowed = sc.gameplay === 1 ? !p.downed && p.hurtT <= 0 && !p.sit : canStartAction(p, 'tool');
+  if (!T_ || !allowed || (p['toolCd'] as number) > 0) return false;
+  if (toolAmmo(p, T_.id) === 0) { if (!p.remote) sc.snd('clink'); return false; }
+  const cost = toolCost(p, T_);
+  if (p.silk < cost) { if (!p.remote) sc.snd('clink'); return false; }
   if (!useToolDef(sc, T_, p)) return false;
-  p.silk -= T_.cost || 0; p['toolCd'] = T_.cd || 0.5; return true;
+  spendToolAmmo(p, T_.id); p.silk -= cost; p['toolCd'] = T_.cd || 0.5; return true;
 }

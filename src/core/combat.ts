@@ -20,6 +20,7 @@ import type { HitSource } from './hit';
 import { canClearProj } from './proj-kit';
 import { cancelPlayerActions, resetPlayerActions } from './player-actions';
 import { defenseRules } from './defense';
+import { refillToolAmmo } from './tool-ammo';
 
 // ---------- коробка удара (база) ----------
 export function atkBoxBase(_sc: World, p: Player, W: WeaponDef): Rect {
@@ -143,9 +144,11 @@ export function respawnAll(sc: World): void {
   respawnLocal(sc);
 }
 export function respawnLocal(sc: World): void {
+  if (sc.gameplay >= 2) { sc.tl = []; sc.tfx = []; }
   sc.players.forEach((p) => {
     if (p.remote) return;
     resetPlayerActions(sc, p);
+    refillToolAmmo(p);
     Object.assign(p, { x: sc.respawn.x - 7 + p.i * 24, y: sc.respawn.y - 26, vx: 0, vy: 0, kbx: 0, hp: p.maxHp, downed: false, inv: 1, hurtT: 0, dashT: 0, atkT: 0, sit: false, reviveT: 0, healCh: 0, healT: 0, bombs: sc.L.crates ? 3 : 0 });
     p.safeX = p.x; p.safeY = p.y; kitClear(p);
   });
@@ -155,6 +158,7 @@ export function respawnLocal(sc: World): void {
 
 // скамья: ↑ открывает меню (ingame), «Отдохнуть» — benchRest
 export function benchRest(sc: World, p: Player, b: { x: number; y: number }, quiet?: boolean): void {
+  refillToolAmmo(p);
   p.sit = true; p.x = b.x - 7; p.hp = p.maxHp; sc.respawn = { x: b.x, y: b.y }; sc.snd('bench');
   for (const q of sc.players) if (q.downed && !q.remote) { q.downed = false; q.hp = 2; q.inv = 1.5; q.x = b.x - 7 + 22; q.y = b.y - 26; }
   sc.sendEv({ k: 'bench', x: b.x, y: b.y });

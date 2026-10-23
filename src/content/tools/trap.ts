@@ -15,7 +15,7 @@ function trapSnap(sc: World, q: Q, boss?: boolean): void {
 
 export default defineTool({
   id: 'trap', order: 1, name: 'Капкан', desc: 'Ставится у ног на 8 с. Враг, наступивший на него, замирает на 2 с; босс копит стойку (+3), но не замирает. Не больше двух.',
-  cost: 2, cd: 1.5, unlock: 'shop:50', castY: 26, castSnd: 'pickup',
+  cost: 0, legacyCost: 2, charges: 3, cd: 1.5, unlock: 'shop:50', castY: 26, castSnd: 'pickup',
   spawn: (sc, m) => {
     const tl = sc.tl as Q[];
     const mine = tl.filter((q) => q['kind'] === 'ttrap' && q['owner'] === m.i);

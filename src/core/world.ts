@@ -38,6 +38,8 @@ import { contentLoaded } from '../content/load';
 export type Mode = 'story' | 'bosstest';
 
 export interface WorldOpts {
+  /** Версия правил инструментов/движения для воспроизведения архивных записей. */
+  gameplay?: 1 | 2;
   seed: number;
   mode: Mode;
   /** id босса на данных (data/bosses): Босс-тест и арена главы кампании */
@@ -73,6 +75,7 @@ export class World {
   /** по сети пауза — только окно (мир идёт) */
   uiPause = false;
   startData: WorldOpts; camp: CampState | null = null; sr: SrRun | null; kit: boolean;
+  gameplay: 1 | 2;
   progress: Progress | null;
   // ----- ГСЧ -----
   rng!: Rng; rBoss!: Rng; rLoot!: Rng; rEnemy!: Rng;
@@ -115,6 +118,7 @@ export class World {
   constructor(opts: WorldOpts) {
     if (!contentLoaded()) throw new Error('Содержимое игры не загружено: в Node запускайте через tsx --import ./tools/ldtk-register.mjs (см. src/content/node.ts)');
     this.startData = opts;
+    this.gameplay = opts.gameplay ?? 2;
     this.seed = opts.seed >>> 0;
     this.mode = opts.mode ?? 'story';
     this.bossKind = opts.boss ?? CHAPTERS[2]!.boss;
@@ -180,6 +184,7 @@ export class World {
     if (prog && this.benches[prog.bench]) { const b = this.benches[prog.bench]!; this.respawn = { x: b.x, y: b.y }; }
     this.players = [];
     for (let i = 0; i < this.nPlayers; i++) this.players.push(this.makePlayer(i, this.respawn.x + i * 26, this.respawn.y));
+    for (const p of this.players) p['gameplay'] = this.gameplay;
     if (this.online) for (const p of this.players) { p.remote = p.i !== this.localIdx; p['tx'] = p.x; p['ty'] = p.y; p['lastSeq'] = 0; p['netUp'] = false; }
 
     // враги, босс

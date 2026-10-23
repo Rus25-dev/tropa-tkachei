@@ -7,6 +7,9 @@ import { sceneOn } from '../../core/boss/exec';
 import type { World } from '../../core/world';
 import { INK, MASK, type G } from '../draw/common';
 import { TOOLS } from '../../core/loadout';
+import { selectedTool, toolSlot } from '../../core/tool-kit';
+import { canStartAction } from '../../core/player-actions';
+import { toolAmmo } from '../../core/tool-ammo';
 import '../content';
 import { abilityViewReg, toolViewReg } from '../content/regs';
 import { currentFit, fitCamera, type Fit } from '../fit';
@@ -167,7 +170,7 @@ export class HudScene extends Phaser.Scene {
   private drawKitIcons(g: G, gs: World, p: World['players'][number], i: number): void {
     if (p.remote) return;
     const list = kitHud(gs, p); if (!list.length) return;
-    const dir = i === 0 ? 1 : -1, x0 = (i === 0 ? 40 : this.fit.vw - 40) + dir * (p['toolId'] ? 36 : 0), cy = 94, R = 10;
+    const dir = i === 0 ? 1 : -1, x0 = (i === 0 ? 40 : this.fit.vw - 40) + dir * (selectedTool(p) ? 36 : 0), cy = 94, R = 10;
     list.forEach((ic, k) => {
       const cx = x0 + dir * k * 27, col = ABILS[ic.id].col;
       g.fillStyle(0x0b1714, 0.85); g.fillCircle(cx, cy, R + 2);
@@ -183,15 +186,17 @@ export class HudScene extends Phaser.Scene {
 
   /** значок инструмента под катушкой нити (tools.js) */
   private drawToolBadge(g: G, gs: World, p: World['players'][number], sx: number, i: number): void {
-    const toolId = p['toolId'] as string | undefined; if (!toolId) return;
+    const toolId = selectedTool(p); if (!toolId) return;
     const T_ = TOOLS[toolId]; if (!T_) return;
-    const cost = T_.cost, cdMax = T_.cd;
-    const cx = i === 0 ? 40 : this.fit.vw - 40, cy = 94, R = 13, can = p.silk >= cost, cd = Math.max(0, (p['toolCd'] as number) || 0), frac = cdMax ? Math.min(1, cd / cdMax) : 0;
+    const cost = T_.cost, cdMax = T_.cd, ammo = toolAmmo(p, toolId);
+    const cx = i === 0 ? 40 : this.fit.vw - 40, cy = 94, R = 13, can = p.silk >= cost && ammo !== 0 && canStartAction(p, 'tool'), cd = Math.max(0, (p['toolCd'] as number) || 0), frac = cdMax ? Math.min(1, cd / cdMax) : 0;
     void sx;
     g.fillStyle(0x0b1714, 0.85); g.fillCircle(cx, cy, R + 2);
     const col = frac > 0 ? 0x6f8f83 : can ? 0xf4efe0 : 0x8a4a42;
     g.lineStyle(2, col, 1); g.fillStyle(col, 1);
     const v = toolViewReg.get(toolId); if (v?.icon) v.icon(g, cx, cy, col); else g.fillCircle(cx, cy, 4);
+    const slot = toolSlot(p);
+    if (slot !== 'neutral') { const sign = slot === 'up' ? -1 : 1, x = cx - 23; g.lineStyle(2, col, 1); g.lineBetween(x, cy - 5, x, cy + 5); g.lineBetween(x, cy + sign * 5, x - 3, cy + sign * 2); g.lineBetween(x, cy + sign * 5, x + 3, cy + sign * 2); }
     // перезарядка: тёмный сектор убывает по часовой, снаружи — дуга готовности
     if (frac > 0) {
       g.fillStyle(0x000000, 0.62); g.beginPath(); g.moveTo(cx, cy); g.arc(cx, cy, R, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac, false); g.closePath(); g.fillPath();
@@ -199,6 +204,7 @@ export class HudScene extends Phaser.Scene {
     } else { g.lineStyle(2, can ? p.pal.accent : 0x8a4a42, can ? 0.9 : 0.7); g.strokeCircle(cx, cy, R + 2); }
     // стоимость: точки нити
     for (let k = 0; k < cost; k++) { const dx = cx + (k - (cost - 1) / 2) * 8, filled = p.silk > k; g.fillStyle(filled ? p.pal.cloak : 0x2b3b35, 1); g.fillCircle(dx, cy + R + 8, 2.8); }
+    if (ammo !== null) for (let k = 0; k < (T_.charges ?? 0); k++) { g.fillStyle(k < ammo ? p.pal.accent : 0x2b3b35, 1); g.fillCircle(cx + (k - ((T_.charges ?? 1) - 1) / 2) * 5, cy + R + 8, 1.7); }
     void gs;
   }
 }

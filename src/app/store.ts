@@ -4,6 +4,7 @@ import type { Progress } from '../core/campaign';
 import { normalizeSave, type LoadoutSave, CHARMS, TOOLS, CHARM_SLOTS, canFit } from '../core/loadout';
 import { ABILS } from '../core/kit/abilities';
 import { WEAPONS } from '../core/weapons';
+import type { ToolSlot } from '../core/tool-kit';
 import type { OrgStored, PlaySess, PlayStore, RaceResult, RaceStore } from '../net/racecommon';
 import { makeKey } from '../net/types';
 
@@ -49,9 +50,11 @@ export const loadout = {
     if (got.length) loadout.set(d);
     return got;
   },
-  equip(kind: 'weapon' | 'tool' | 'charm', id: string): boolean {
+  equip(kind: 'weapon' | 'tool' | 'charm', id: string, slot: ToolSlot = 'neutral'): boolean {
     const d = loadout.get();
-    if (kind === 'weapon') d.weapon = id; else if (kind === 'tool') d.tool = id;
+    if (kind === 'weapon') d.weapon = id; else if (kind === 'tool') {
+      if (slot === 'neutral') d.tool = id; else (d.toolSlots ??= {})[slot] = id;
+    }
     else {
       const i = d.charms.indexOf(id);
       if (i >= 0) d.charms.splice(i, 1);
