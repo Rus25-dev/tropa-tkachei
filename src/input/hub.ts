@@ -23,6 +23,8 @@ export class InputHub {
 
   /** Нажатие сенсорной кнопки: фиксируем фронт сразу. */
   touchSet(b: Button, on: boolean): void { if (on && !this.touch[b]) this.pendTouch.add(b); this.touch[b] = on; this.touchSeen = true; }
+  /** Отпустить всё касание сразу (потеря фокуса, сворачивание, поворот, выход из игры): удержания и ещё не отданные ядру нажатия. */
+  touchReset(): void { this.touch = {}; this.pendTouch.clear(); }
 
   /** Снимает состояние ввода на этот кадр отрисовки для nPlayers игроков. Вызывать ровно раз за кадр. */
   frames(nPlayers: number): InputFrame[] {

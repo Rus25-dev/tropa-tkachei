@@ -223,22 +223,32 @@ html.touch .fr input, html.touch .fr textarea { font-size: 16px; }
 #touch .t-hint.gone { opacity: 0; }
 #touch .t-base { position: fixed; width: 124px; height: 124px; margin: -62px 0 0 -62px; transform: scale(var(--ts)); border-radius: 50%; border: 2px solid rgba(159, 240, 200, .35); background: rgba(8, 20, 17, .35); }
 #touch .t-knob { position: absolute; left: 50%; top: 50%; width: 56px; height: 56px; margin: -28px 0 0 -28px; border-radius: 50%; background: rgba(159, 240, 200, .42); border: 2px solid rgba(232, 226, 207, .6); }
-#touch .t-btns { position: absolute; right: max(14px, var(--sr)); bottom: max(12px, var(--sb)); width: 236px; height: 214px; pointer-events: none; transform: scale(var(--ts)); transform-origin: right bottom; }
+#touch .t-btns { position: absolute; right: max(14px, var(--sr)); bottom: max(12px, var(--sb)); width: 310px; height: 220px; pointer-events: none; transform: scale(var(--ts)); transform-origin: right bottom; }
 #touch .t-btn { position: absolute; pointer-events: auto; touch-action: none; display: grid; place-items: center; align-content: center; gap: 1px; border-radius: 50%; border: 2px solid rgba(232, 226, 207, .4); background: rgba(10, 24, 21, .38); color: var(--bone); font: 600 10px var(--body); padding: 0; -webkit-tap-highlight-color: transparent; opacity: var(--bop, 1); transition: opacity .15s; }
-#touch .t-btn b { font-size: 22px; line-height: 1; font-weight: 700; } #touch .t-btn i { font-style: normal; opacity: .8; }
+/* область касания не меньше 48 px на экране при любом размере кнопок (кнопки масштабируются через --ts) */
+#touch .t-btn::before { content: ''; position: absolute; inset: calc(min(0px, (100% - 48px / var(--ts)) / 2)); border-radius: 50%; }
+#touch .t-btn b { font-size: 22px; line-height: 1; font-weight: 700; } #touch .t-btn i { font-style: normal; opacity: .8; max-width: 92%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#touch .t-btn b small { font-size: 15px; margin-left: 1px; color: var(--glow); }
 #touch .t-btn.on { background: rgba(159, 240, 200, .4); border-color: var(--glow); transform: scale(.94); }
-#touch .t-jump { right: 0; bottom: 0; width: 88px; height: 88px; border-color: rgba(159, 240, 200, .65); }
-#touch .t-atk { right: 100px; bottom: 10px; width: 76px; height: 76px; border-color: rgba(255, 212, 122, .6); }
-#touch .t-dash { right: 6px; bottom: 100px; width: 66px; height: 66px; }
-#touch .t-heal { right: 98px; bottom: 98px; width: 58px; height: 58px; }
-#touch .t-tool { right: 166px; bottom: 36px; width: 58px; height: 58px; }
-#touch .t-bomb { right: 166px; bottom: 112px; width: 58px; height: 58px; }
+/* не готово (откат, нет запаса или нити) — тусклее, но нажимается; готовое лечение или всполох — светится */
+#touch .t-btn.dim { opacity: calc(var(--bop, 1) * .45); }
+#touch .t-btn.ready { border-color: rgba(159, 240, 200, .85); box-shadow: 0 0 10px rgba(159, 240, 200, .35); }
+#touch .t-ammo { position: absolute; top: -4px; right: -6px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: rgba(8, 20, 17, .9); border: 1px solid rgba(232, 226, 207, .5); font: 700 11px/16px var(--body); text-decoration: none; text-align: center; }
+/* откат инструмента: тёмный сектор, убывающий по часовой */
+#touch .t-tool::after { content: ''; position: absolute; inset: 0; border-radius: 50%; pointer-events: none; background: conic-gradient(rgba(0, 0, 0, .55) calc(var(--cd, 0) * 360deg), transparent 0); }
+#touch .t-jump { border-color: rgba(159, 240, 200, .65); }
+#touch .t-atk { border-color: rgba(255, 212, 122, .6); }
+#touch .t-parry { border-color: rgba(255, 212, 71, .6); }
+#touch .t-burst { border-color: rgba(176, 102, 255, .55); }
 html.lefty #touch .t-zone { left: auto; right: 0; }
 html.lefty #touch .t-hint { left: auto; right: calc(var(--sr) + 28px); }
 html.lefty #touch .t-btns { right: auto; left: max(14px, var(--sl)); transform-origin: left bottom; }
-html.lefty #touch .t-btn { right: auto !important; }
-html.lefty #touch .t-jump { left: 0; } html.lefty #touch .t-atk { left: 100px; } html.lefty #touch .t-dash { left: 6px; }
-html.lefty #touch .t-heal { left: 98px; } html.lefty #touch .t-tool { left: 166px; } html.lefty #touch .t-bomb { left: 166px; }
+/* расстановка кнопок (настройки): поверх всего, кнопки перетаскиваются */
+#touch.t-edit { z-index: 40; pointer-events: auto; background: rgba(4, 10, 9, .72); touch-action: none; }
+#touch.t-edit .t-btn { cursor: grab; border-style: dashed; }
+#touch .t-edit-bar { position: absolute; left: max(12px, var(--sl)); top: max(10px, var(--st)); right: max(12px, var(--sr)); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; color: var(--bone); font: 400 14px var(--body); }
+#touch .t-edit-bar span { flex: 1 1 260px; }
+#touch .t-edit-bar .btn { min-height: 44px; }
 #touch .t-pause, #touch .t-map, #touch .t-fs { position: absolute; top: max(8px, var(--st)); pointer-events: auto; min-width: 44px; height: 44px; border-radius: 8px; border: 1px solid rgba(232, 226, 207, .35); background: rgba(10, 24, 21, .55); color: var(--bone); font: 700 16px var(--body); }
 #touch .t-pause { left: 50%; transform: translateX(-50%); letter-spacing: -2px; font-size: 13px; }
 #touch .t-map { left: calc(50% - 78px); } #touch .t-fs { left: calc(50% + 34px); }

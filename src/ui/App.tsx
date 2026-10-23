@@ -114,6 +114,8 @@ export function App({ hub, version, build, start, stop, game, shared, online: ne
   const room = useRef(new URLSearchParams(location.search).get('room'));
   const initial = room.current ? [{ id: 'main' }, { id: 'lobby', ctx: { role: 'join', mode: 'story', fresh: false, code: room.current } }] : undefined;
   useEffect(() => { if (room.current) { const u = new URL(location.href); u.searchParams.delete('room'); history.replaceState(null, '', u.toString()); } }, []);
+  /** текущий мир для сенсорных кнопок (готовность, запас инструмента): читается каждый кадр самой панелью */
+  const liveWorld = useRef(() => shared.session?.world ?? null).current;
   if (s && room.current) room.current = null; // ссылка с кодом использована один раз: после выхода из игры меню обычное
 
   // ----- что показывать в игре -----
@@ -129,7 +131,7 @@ export function App({ hub, version, build, start, stop, game, shared, online: ne
       {s && w && (<>
         {w.sr && <SrHud w={w} cd={races.cd} rival={races.rival(w)} />}
         {w.train && <TrainHud w={w} />}
-        {touch && <TouchPad hub={hub} tool={hasTools(w.players[0])} bombs={!!w.L.crates} kit={w.players[0] && !w.players[0].remote ? kitHud(w, w.players[0]).map((k) => ABILS[k.id]).filter((a) => a?.onDash).map((a) => (a!.holdDash ? 'hold:' : '') + a!.id) : []} hidden={anyOverlay || padMode || !!w.won} padMode={padMode} showMap={!!w.mapV}
+        {touch && <TouchPad hub={hub} tool={hasTools(w.players[0])} bombs={!!w.L.crates} world={liveWorld} kit={w.players[0] && !w.players[0].remote ? kitHud(w, w.players[0]).map((k) => ABILS[k.id]).filter((a) => a?.onDash).map((a) => (a!.holdDash ? 'hold:' : '') + a!.id) : []} hidden={anyOverlay || padMode || !!w.won} padMode={padMode} showMap={!!w.mapV}
           onPause={() => pauseKey()} onMap={() => mapKey()} />}
         {paused && <Pause ses={s} online={online} onRetry={retry} onExit={exit} openGear={() => setGear(true)} />}
         {w.benchMenuOpen && <Bench ses={s} />}
