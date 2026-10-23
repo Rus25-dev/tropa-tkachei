@@ -9,7 +9,7 @@ import { bodyDrawer, type DrawCtx } from './bossdraw';
 import { bossDef } from '../../core/boss/registry';
 import { arenaEnts, type Attack, type BossDef } from '../../core/boss/schema';
 import type { HitKind } from '../../core/types';
-import type { G } from './common';
+import { fillPolygon, strokePolygon, type G } from './common';
 import '../content';
 import { projViewReg } from '../content/regs';
 
@@ -49,7 +49,7 @@ function drawMannequin(_w: World, b: Boss, g: G, _now: number, c: DrawCtx): void
 }
 
 /** Телеграф для отрисовки: контур замаха, места ударов, окно наказания, оглушение, рёв — один для всех боссов, как бы ни выглядело тело */
-function drawTelegraph(w: World, b: Boss, g: G, now: number, c: DrawCtx): void {
+function drawTelegraph(w: World, b: Boss, g: G, now: number, c: DrawCtx, boxes = true): void {
   const cx = b.x + b.w / 2, fy = b.y + b.h, lean = c.lean;
   if (c.tell) {
     // Форма сигнала дублирует тип удара: читается и без различения цветов.
@@ -63,12 +63,12 @@ function drawTelegraph(w: World, b: Boss, g: G, now: number, c: DrawCtx): void {
     });
     const hz = 5 + c.k * 16, on = Math.sin(now * hz * Math.PI * 2) > -0.2;
     if (on) { g.lineStyle(3, c.rgb, 0.95); g.strokeRoundedRect(cx - b.w / 2 - 2 + lean, b.y - 4, b.w + 4, b.h + 6, 10); }
-    for (const x of liveBoxes(w, b)) {
-      g.fillStyle(c.rgb, 0.05 + 0.2 * c.k); g.fillRect(x.r.x, x.r.y, x.r.w, x.r.h);
-      g.lineStyle(2, c.rgb, on ? 0.9 : 0.3); g.strokeRect(x.r.x, x.r.y, x.r.w, x.r.h);
+    for (const x of boxes ? liveBoxes(w, b) : []) {
+      g.fillStyle(c.rgb, 0.05 + 0.2 * c.k); if (x.polygon) fillPolygon(g, x.polygon); else if (x.shape === 'circle') g.fillCircle(x.r.x + x.r.w / 2, x.r.y + x.r.h / 2, Math.min(x.r.w, x.r.h) / 2); else g.fillRect(x.r.x, x.r.y, x.r.w, x.r.h);
+      g.lineStyle(2, c.rgb, on ? 0.9 : 0.3); if (x.polygon) strokePolygon(g, x.polygon); else if (x.shape === 'circle') g.strokeCircle(x.r.x + x.r.w / 2, x.r.y + x.r.h / 2, Math.min(x.r.w, x.r.h) / 2); else g.strokeRect(x.r.x, x.r.y, x.r.w, x.r.h);
     }
   } else if (b.state === 'active') {
-    for (const x of liveBoxes(w, b)) { const k = HIT_RGB[x.kind] ?? 0xffffff; g.fillStyle(k, 0.35); g.fillRect(x.r.x, x.r.y, x.r.w, x.r.h); g.lineStyle(2, k, 1); g.strokeRect(x.r.x, x.r.y, x.r.w, x.r.h); }
+    for (const x of boxes ? liveBoxes(w, b) : []) { const k = HIT_RGB[x.kind] ?? 0xffffff; g.fillStyle(k, 0.35); if (x.polygon) fillPolygon(g, x.polygon); else if (x.shape === 'circle') g.fillCircle(x.r.x + x.r.w / 2, x.r.y + x.r.h / 2, Math.min(x.r.w, x.r.h) / 2); else g.fillRect(x.r.x, x.r.y, x.r.w, x.r.h); g.lineStyle(2, k, 1); if (x.polygon) strokePolygon(g, x.polygon); else if (x.shape === 'circle') g.strokeCircle(x.r.x + x.r.w / 2, x.r.y + x.r.h / 2, Math.min(x.r.w, x.r.h) / 2); else g.strokeRect(x.r.x, x.r.y, x.r.w, x.r.h); }
   }
   // окно наказания: зелёное кольцо у ног — бей сейчас
   if (c.d.punish) { g.lineStyle(3, 0x7be39a, 0.5 + Math.sin(now * 14) * 0.3); g.strokeEllipse(cx, fy - 3, b.w + 30, 12); }
@@ -89,7 +89,7 @@ function drawWeak(b: Boss, g: G, now: number): void {
 }
 
 /** Босс на данных: тело (файл src/view/draw/boss/<id>.ts или универсальный «манекен»), поверх — общий телеграф и уязвимые точки. */
-export function drawDataBoss(w: World, b: Boss, g: G, now: number): void {
+export function drawDataBoss(w: World, b: Boss, g: G, now: number, boxes = true, spriteBody = false): void {
   g.clear();
   const d = b['d'] as DState | undefined; if (!d) return;
   const def = bossDef(d.id)!, e = effForm(def, d.formPh), dead = b.state === 'dead';
@@ -97,10 +97,11 @@ export function drawDataBoss(w: World, b: Boss, g: G, now: number): void {
   const tell = b.state === 'tell' && !!d.cue, rgb = tell ? (CUE_RGB[d.cue!.color] ?? 0xffffff) : 0xffffff;
   const k = tell ? 1 - d.cue!.left / d.cue!.total : 0; // прогресс замаха 0..1
   const lean = b.state === 'active' ? 5 * b.face : tell ? -4 * b.face * k : 0;
-  const c: DrawCtx = { def, d, e, tell, k, rgb, lean };
+  const c: DrawCtx = { def, d, e, tell, k, rgb, lean, spriteBody };
   if (e.fly && !e.still) { g.fillStyle(0x000000, 0.28); g.fillEllipse(b.x + b.w / 2, d.floor - 3, b.w * 0.9, 8); } // тень летающего на полу
   (bodyDrawer(def.id, e.draw) ?? drawMannequin)(w, b, g, now, c);
-  drawTelegraph(w, b, g, now, c);
+  drawTelegraph(w, b, g, now, c, boxes);
+  if (boxes) { g.lineStyle(1, 0x68dfff, 0.8); g.strokeRect(b.x, b.y, b.w, b.h); }
   drawWeak(b, g, now);
 }
 

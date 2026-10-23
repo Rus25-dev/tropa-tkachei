@@ -11,7 +11,7 @@ import type { BossDef } from '../../core/boss/schema';
 import type { G } from './common';
 
 /** Контекст отрисовки тела: определение, состояние исполнителя, тело фазы, прогресс замаха 0…1 и цвет сигнала */
-export interface DrawCtx { def: BossDef; d: DState; e: FormEff; /** замах идёт */ tell: boolean; k: number; /** цвет сигнала замаха */ rgb: number; /** наклон вперёд при ударе, px */ lean: number }
+export interface DrawCtx { spriteBody?: boolean; def: BossDef; d: DState; e: FormEff; /** замах идёт */ tell: boolean; k: number; /** цвет сигнала замаха */ rgb: number; /** наклон вперёд при ударе, px */ lean: number }
 export type BossDrawFn = (w: World, b: Boss, g: G, now: number, c: DrawCtx) => void;
 /** существо: прямоугольник тела, данные e.m (MinionRt), цвет, прозрачность (бледнеет перед исчезновением), идёт ли замах и его цвет */
 export type CreatureDrawFn = (e: { x: number; y: number; w: number; h: number; face: number; flash: number; hp: number; m: Record<string, unknown> }, g: G, now: number, c: { color: number; alpha: number; tell: boolean; rgb: number }) => void;

@@ -1,5 +1,7 @@
 // Сцена игры: рисует состояние ядра (World) и гонит тики по кадрам ввода. Вся логика — в src/core; здесь только отображение, камера и эффекты.
 import Phaser from 'phaser';
+import { VesselReferenceView } from '../vessel-reference';
+import { settings } from '../../app/store';
 import { PAL, SPIKE, T, clamp } from '../../core/balance';
 import { VH } from '../../core/constants';
 import type { Session } from '../../core/session';
@@ -46,6 +48,7 @@ export class GameScene extends Phaser.Scene {
   private gateG: G[] = []; private gateAnim: number[] = [];
   private entG = new Map<object, G>();
   private playerG: { g: G; tag: Phaser.GameObjects.Text }[] = [];
+  private vesselReference?: VesselReferenceView;
   private dataG: G[] = []; private arenaG: G | null = null;
   /** подсказка камере от сцены боссов (событие camZoom): множитель масштаба и сколько ещё секунд */
   private zoomK = 1; private zoomT = 0;
@@ -61,6 +64,7 @@ export class GameScene extends Phaser.Scene {
   constructor() { super('game'); }
 
   create(): void {
+    this.vesselReference = new VesselReferenceView(this);
     this.sh = this.registry.get('shared') as Shared;
     this.fx = this.add.graphics().setDepth(6); this.fb = this.add.graphics().setDepth(4.5);
     this.itemG = this.add.graphics().setDepth(2.5);
@@ -86,6 +90,7 @@ export class GameScene extends Phaser.Scene {
     if (this.sess && this.sess.world !== this.w) this.build(this.sess.world);
   }
   private teardown(): void {
+    this.vesselReference?.clear();
     for (const c of this.chunkImgs) c.destroy(); this.chunkImgs = [];
     for (const o of this.roomObjs) o.destroy(); this.roomObjs = [];
     for (const s of this.signs) s.txt.destroy(); this.signs = [];
@@ -295,13 +300,18 @@ export class GameScene extends Phaser.Scene {
     for (const [k, g] of this.entG) if (!alive.has(k)) { g.destroy(); this.entG.delete(k); }
     drawItems(w, this.itemG, now);
     if (this.arenaG) drawArena(w, this.arenaG, now);
-    w.bosses.forEach((db, i) => { const dg = this.dataG[i]; if (dg) drawDataBoss(w, db, dg, now); });
+    w.bosses.forEach((db, i) => { const dg = this.dataG[i]; if (dg) drawDataBoss(w, db, dg, now, w.mode !== 'bosstest' || settings.s.hitboxes, this.vesselReference?.draw(db, now) ?? false); });
     // удары
     for (const p of w.players) drawSwingArc(w, p, fx);
     drawProjectiles(w, fx, now);
     drawPoiseBars(w, fx, now);
-    drawHitKinds(w, fx, now, this.sh.gfx().outl);
-    if (w.bosses.length) drawDataProjs(w, fx, now);
+    if (w.mode !== 'bosstest' || settings.s.hitboxes || this.sh.gfx().outl) drawHitKinds(w, fx, now, this.sh.gfx().outl);
+    if (w.bosses.length && (w.mode !== 'bosstest' || settings.s.hitboxes)) drawDataProjs(w, fx, now);
+    if (w.mode === 'bosstest' && settings.s.hitboxes) {
+      fx.lineStyle(1, 0x68dfff, 0.8);
+      for (const p of w.players) if (!p.downed) fx.strokeRect(p.x, p.y, p.w, p.h);
+      for (const pr of w.projs) if (!pr.dead && (pr.delay ?? 0) <= 0) fx.strokeRect(pr.x, pr.y, pr.w, pr.h);
+    }
     drawBeads(w, fx);
     if (w.sr?.race) this.drawGhost(w, dt);
     this.stG.clear(); drawStatus(w, this.stG, now, (c, x, y) => { this.dustE.setParticleTint(c); this.dustE.explode(1, x, y); this.dustE.setParticleTint(0x8fae9c); });

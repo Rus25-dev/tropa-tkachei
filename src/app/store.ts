@@ -14,8 +14,8 @@ function write(key: string, v: unknown): void { try { localStorage.setItem(key, 
 function remove(key: string): void { try { localStorage.removeItem(key); } catch { /* нет доступа */ } }
 
 // ----- настройки -----
-export interface SettingsData { vol: number; mvol: number; shake: boolean; easy: boolean; vibro: boolean; bsize: 'S' | 'M' | 'L'; bop: number; lefty: boolean; boss: number; speed: number; noflash: boolean; outl: boolean; gfx: 'auto' | 'low' | 'mid' | 'high'; rec: boolean; kit: boolean }
-export const SETTINGS_DEFAULT: SettingsData = { vol: 80, mvol: 60, shake: true, easy: false, vibro: true, bsize: 'M', bop: 100, lefty: false, boss: 0, speed: 100, noflash: false, outl: false, gfx: 'auto', rec: false, kit: true };
+export interface SettingsData { vol: number; mvol: number; shake: boolean; easy: boolean; vibro: boolean; bsize: 'S' | 'M' | 'L'; bop: number; lefty: boolean; boss: number; speed: number; noflash: boolean; outl: boolean; gfx: 'auto' | 'low' | 'mid' | 'high'; rec: boolean; kit: boolean; hitboxes: boolean }
+export const SETTINGS_DEFAULT: SettingsData = { vol: 80, mvol: 60, shake: true, easy: false, vibro: true, bsize: 'M', bop: 100, lefty: false, boss: 0, speed: 100, noflash: false, outl: false, gfx: 'auto', rec: false, kit: true, hitboxes: false };
 
 type Listener = () => void;
 class SettingsStore {

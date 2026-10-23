@@ -27,7 +27,7 @@ import { aimAt, boxRect, centerX, dstate, fireShots, freeSpot } from './shared';
 import { attackEvents } from './validate';
 import { framesOf, newAc, poiseMulOf, resolveAnti, staggerBegin, staggerRoom, type AcState } from './anti';
 import { staggerCap } from './anti';
-import { shapeHits, type BossHit, type HitResult } from '../hit';
+import { polygonHitsRect, shapeHits, type BossHit, type HitResult } from '../hit';
 import { projReg } from '../plugin/regs';
 
 export { boxRect, dstate };
@@ -328,7 +328,9 @@ export function commandChain(sc: World, i: number, chainId: string, mode: 'scrip
 }
 function choose(sc: World, b: Boss, d: DState, def: BossDef, tp: Player | null): void {
   const ctx = ctxOf(sc, b, d, tp, def), k = kindOf(def.id);
-  const id = pickChain(def, ctx, d.mem, sc.rBoss());
+  const available = policyOf(def, b.phase || 1).chains.filter((id) => { const c = def.chains.find((x) => x.id === id); return c && chainAllowed(def, c, ctx, d.mem); });
+  const id = k?.select ? k.select(apiOf(sc, b, d, def), available) : pickChain(def, ctx, d.mem, sc.rBoss());
+  if (id && !available.includes(id) && k?.select) { d.f = 0; d.rest = 20; return; }
   if (!id || (k?.allow && !k.allow(apiOf(sc, b, d, def), id))) { d.f = 0; d.rest = 20; return; } // «сухое правило»: подходящих нет — подождать
   startChain(sc, b, d, def, id, false);
 }
@@ -357,6 +359,10 @@ function startAttack(sc: World, b: Boss, d: DState, def: BossDef, id: string): v
 function attackFrame(sc: World, b: Boss, d: DState, def: BossDef, tp: Player | null): void {
   const a = attackOf(def, d.atk!), c = chainOf(def, d.chain!);
   const T0 = a.tell.frames, end = activeEnd(a), af = d.af, e = effForm(def, d.formPh);
+  if (a.waitForGround && af === T0 && !b.onGround) {
+    b.state = 'active'; d.cue = null; d.punish = false;
+    return; // Ждём физическое приземление; активные окна ещё не идут.
+  }
   if (af < T0) {
     b.state = 'tell'; b.t = (T0 - af) / 60; if (d.cue) d.cue.left = T0 - af;
     const tracking = af < T0 - (a.tell.commitFrames ?? 0);
@@ -409,7 +415,8 @@ function runActive(sc: World, b: Boss, d: DState, def: BossDef, a: Attack, t: nu
     for (const p of sc.players) {
       if (p.remote || p.downed || p.inv > 0) continue;
       const key = `${ai}:${p.i}`;
-      if (d.hits.includes(key) || !overlap(inset(p, 2), box)) continue;
+      const touches = h.polygon ? polygonHitsRect(h.polygon.map((v) => ({ x: box.x + (d.dir < 0 && h.hit.at !== 'target' ? 1 - v.x : v.x) * box.w, y: box.y + v.y * box.h })), inset(p, 2)) : h.shape === 'circle' ? shapeHits({ type: 'circle', x: box.x + box.w / 2, y: box.y + box.h / 2, radius: Math.min(box.w, box.h) / 2 }, inset(p, 2)) : overlap(inset(p, 2), box);
+      if (d.hits.includes(key) || !touches) continue;
       d.hits.push(key);
       const hurt0 = p.hurtT;
       hurtPlayer(sc, p, h.dmg, box.x + box.w / 2, false, h.kind, { boss: b });
@@ -436,16 +443,16 @@ function spawnProj(sc: World, b: Boss, d: DState, s: Attack['spawn'][number]): v
 }
 
 // ---------- телеграф для отрисовки ----------
-export interface DrawBox { r: Rect; kind: HitKind }
+export interface DrawBox { r: Rect; kind: HitKind; shape?: 'circle'; polygon?: { x: number; y: number }[] }
 /** Прямоугольники ударов текущей атаки: в замахе — предупреждение (где ударит), в активных кадрах — живые. */
 export function liveBoxes(sc: World, b: Boss): DrawBox[] {
   const d = b['d'] as DState | undefined; if (!d || d.mode !== 'attack' || !d.atk) return [];
   const a = attackOf(bossDef(d.id)!, d.atk), out: DrawBox[] = [];
   if (b.state === 'tell') {
-    for (const h of a.active) out.push({ r: boxRect(b, b.face, h.hit, d.lock), kind: h.kind });
+    for (const h of a.active) out.push({ r: boxRect(b, b.face, h.hit, d.lock), kind: h.kind, ...(h.shape ? { shape: h.shape } : {}), ...(h.polygon ? { polygon: h.polygon.map((v) => { const r = boxRect(b, d.dir, h.hit, d.lock); return { x: r.x + (d.dir < 0 && h.hit.at !== 'target' ? 1 - v.x : v.x) * r.w, y: r.y + v.y * r.h }; }) } : {}) });
   } else if (b.state === 'active') {
     const t = d.af - 1 - a.tell.frames;
-    for (const h of a.active) if (t >= h.from && t <= h.to) out.push({ r: boxRect(b, d.dir, h.hit, d.lock), kind: h.kind });
+    for (const h of a.active) if (t >= h.from && t <= h.to) out.push({ r: boxRect(b, d.dir, h.hit, d.lock), kind: h.kind, ...(h.shape ? { shape: h.shape } : {}), ...(h.polygon ? { polygon: h.polygon.map((v) => { const r = boxRect(b, d.dir, h.hit, d.lock); return { x: r.x + (d.dir < 0 && h.hit.at !== 'target' ? 1 - v.x : v.x) * r.w, y: r.y + v.y * r.h }; }) } : {}) });
   }
   return out;
 }
@@ -531,6 +538,12 @@ export function rawData(sc: World, key: BossRef, p: Player, hit: BossHit = {}): 
   if (['rage', 'dead', 'intro', 'sleep', 'gone'].includes(b.state) || d.mode === 'scene' || (b.stagger > 0 && !dataStaggerRoom(b))) { sc.snd('clink'); return immune; }
   const amount = hit.amount ?? 1;
   if (!Number.isFinite(amount) || amount <= 0) return immune;
+  const khGuard = kindHook(sc, b, d, def);
+  const replyGuard = khGuard.k?.guard?.(khGuard.api, hit);
+  if (replyGuard && forceChain(sc, i, replyGuard)) {
+    sc.snd('clink'); sc.parts(8, b.x + b.w / 2, b.y + 35, 0xffffff);
+    return { outcome: 'armor', damage: 0 };
+  }
   const n = weakHits(sc, b, d, def, p, hit);
   if (n <= 0) { // броня: звон, искры, подсказка
     sc.snd('clink'); sc.parts(8, clamp(p.x + 7 + p.face * 26, b.x, b.x + b.w), b.y + b.h / 2, 0xffe3a3); if (!p.remote) sc.hitstop = 0.03;

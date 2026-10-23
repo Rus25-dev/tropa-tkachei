@@ -24,7 +24,12 @@ const RequiresSchema = z.strictObject({
 });
 
 const Active = z.strictObject({
+  previewFrom: frames.optional(),
   from: frames, to: frames, hit: Box, dmg: pos, kind: z.enum(HIT_KINDS),
+  /** Круг вписан в квадрат hit; углы не наносят урон. */
+  shape: z.literal('circle').optional(),
+  /** Вершины в долях прямоугольника hit; зеркалятся вместе с атакой. */
+  polygon: z.array(z.strictObject({ x: z.number(), y: z.number() })).min(3).optional(),
   knock: z.strictObject({ vx: z.number(), vy: z.number() }).optional(),
 });
 const Move = z.strictObject({
@@ -73,6 +78,7 @@ export const AttackSchema = z.strictObject({
   id: z.string().min(1), name: z.string().optional(),
   /** Окно срыва контрударом; false запрещает срыв независимо от цвета/позы. */
   counter: z.union([z.literal(false), z.strictObject({ windowFrames: pos, reach: z.number().positive().optional(), grounded: z.boolean().optional() })]).optional(),
+  waitForGround: z.boolean().optional(),
   tell: Tell, active: z.array(Active).default([]), move: z.array(Move).default([]), spawn: z.array(Spawn).default([]),
   /** призывы существ, запуски расписаний арены и особые эффекты (волна 0); все — кадры от конца замаха */
   summon: z.array(Summon).default([]), fire: z.array(Fire).default([]), fx: z.array(Fx).default([]),
