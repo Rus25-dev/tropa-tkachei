@@ -30,5 +30,6 @@ export function buildArena(id: string): Level {
   if (!d) throw new Error(`нет арены «${id}»: есть ${arenaReg.ids().join(', ')} (src/content/arenas)`);
   const L = load(d.ldtk); L.arena = id;
   L.areas = L.areas.map((area) => ({ ...area, name: d.name }));
+  if (d.region) L.region = d.region;
   return L;
 }

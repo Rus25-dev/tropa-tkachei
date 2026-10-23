@@ -305,7 +305,7 @@
         "cue": {
           "color": "red",
           "sfx": "whoosh1",
-          "pose": "look_up"
+          "pose": "dive"
         },
         "lockFace": true
       },

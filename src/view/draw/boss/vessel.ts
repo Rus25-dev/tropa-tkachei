@@ -21,6 +21,7 @@ function bladePose(pose: string, k: number): { ang: number; crouch: number; reac
     case 'wind_up': case 'wind_up_big': return { ang: -1.6 + k * 0.4, crouch: 0, reach: 36 };
     case 'look_up': case 'look_up_big': return { ang: -2.4, crouch: -4, reach: 36 };
     case 'overhead_big': return { ang: -2.5 + k * 0.2, crouch: -6, reach: 46 };
+    case 'dive': return { ang: Math.PI / 2, crouch: -2 + k * 5, reach: 46 + k * 14 };
     case 'guard': return { ang: -1.35, crouch: 2, reach: 48 };
     case 'void': return { ang: 1.4, crouch: -3, reach: 22 };
     case 'brace': return { ang: 0, crouch: 8, reach: 18 };
@@ -49,7 +50,7 @@ const base: BossDrawFn = (_w: World, b: Boss, g: G, now: number, c): void => {
     const active = !c.tell && frame >= hit.from && frame <= hit.to;
     if (c.d.atk === 'pillars') {
       if (!active) { g.lineStyle(2, SHELL, 0.55); g.strokeEllipse(r.x + r.w / 2, r.y + r.h - 3, r.w + 8, 7); }
-      else { g.fillStyle(SHELL, 0.65); g.fillTriangle(r.x, r.y + r.h, r.x + r.w, r.y + r.h, r.x + r.w / 2, r.y); g.lineStyle(3, BLADE, 0.95); g.lineBetween(r.x + r.w / 2, r.y + 12, r.x + r.w / 2, r.y + r.h); }
+      else { g.fillStyle(SHELL, 0.18); g.fillRect(r.x, r.y, r.w, r.h); g.fillStyle(SHELL, 0.65); g.fillRect(r.x + 2, r.y + 12, r.w - 4, r.h - 12); g.fillTriangle(r.x + 2, r.y + 12, r.x + r.w - 2, r.y + 12, r.x + r.w / 2, r.y); g.lineStyle(3, BLADE, 0.95); g.lineBetween(r.x + r.w / 2, r.y + 12, r.x + r.w / 2, r.y + r.h); }
     } else if (c.d.atk === 'focus') {
       g.fillStyle(SHELL, active ? 0.32 : 0.06); g.fillCircle(r.x + r.w / 2, r.y + r.h / 2, r.w / 2);
       g.lineStyle(active ? 5 : 2, BLADE, active ? 0.95 : 0.45); g.strokeCircle(r.x + r.w / 2, r.y + r.h / 2, r.w / 2);
